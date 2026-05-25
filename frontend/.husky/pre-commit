@@ -1,0 +1,2 @@
+cd frontend && npx lint-staged
+cd ../backend && npx prettier --check . || true

@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Kundali / Birth Chart Reading</title>
+<style>
+  body {
+    margin: 0;
+    background: #050508;
+    color: #f5f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+  
+  /* Cosmic Background */
+  .cosmos {
+    position: fixed; inset: 0; z-index: -2;
+    background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #050508 100%);
+  }
+
+  .stars {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(white, rgba(255,255,255,0.2) 2px, transparent 40px);
+    background-size: 550px 550px;
+    opacity: 0.1;
+    animation: move-stars 100s linear infinite;
+  }
+
+  @keyframes move-stars {
+    from { background-position: 0 0; }
+    to { background-position: 1000px 1000px; }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse-gold {
+    0% { transform: scale(1); text-shadow: 0 0 5px rgba(255, 215, 0, 0.2); }
+    50% { transform: scale(1.02); text-shadow: 0 0 15px rgba(255, 215, 0, 0.5); }
+    100% { transform: scale(1); text-shadow: 0 0 5px rgba(255, 215, 0, 0.2); }
+  }
+
+  select option { background: #1a1a1a; color: #f5f5f7; }
+
+  .cosmic-card {
+    background: rgba(20, 20, 30, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    animation: slideUp 0.6s ease-out forwards;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .premium-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    box-sizing: border-box;
+    outline: none;
+    transition: all 0.3s ease;
+  }
+
+  .premium-input:focus {
+    border-color: #6366f1;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+  }
+
+  .magic-btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  }
+
+  .magic-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+    filter: brightness(1.1);
+  }
+
+  .magic-btn:active { transform: translateY(0); }
+
+  .big-three-card {
+    background: linear-gradient(145deg, rgba(30, 30, 50, 0.8), rgba(20, 20, 35, 0.8));
+    border-radius: 12px;
+    padding: 16px 8px;
+    text-align: center;
+    border: 1px solid rgba(255, 215, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .big-three-card:hover {
+    border-color: rgba(255, 215, 0, 0.4);
+    transform: translateY(-5px);
+    background: rgba(40, 40, 60, 0.9);
+  }
+
+  .astrology-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+    display: inline-block;
+    animation: pulse-gold 3s infinite ease-in-out;
+  }
+
+  /* Responsive Utilities */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .grid-name-gender { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+
+  @media (max-width: 640px) {
+    .grid-2, .grid-3, .grid-name-gender { 
+      grid-template-columns: 1fr !important; 
+    }
+    .cosmic-card { padding: 1rem; }
+    h2 { font-size: 22px !important; }
+    .big-three-card { padding: 12px 4px; }
+    .premium-input { font-size: 16px; } /* Prevent zoom on iOS */
+    .planet-row {
+      grid-template-columns: 1fr 1fr 1fr !important;
+      font-size: 11px !important;
+    }
+    .planet-row span:nth-child(3) { display: none; } /* Hide Western on mobile to save space */
+  }
+</style>
+<!-- Math layer: astronomy-engine = browser-grade ephemeris (arcminute precision) -->
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState } = React;
+
+// ── Set your API endpoint here ──
+const API_URL = "https://prorate-sullen-pledge.ngrok-free.dev/chat/ask";
+
+/* ====================================================================
+   LAYER 1 — ASTRONOMY  (real positions, both tropical & sidereal)
+   ==================================================================== */
+
+const D2R = Math.PI/180, R2D = 180/Math.PI, YEAR_MS=31557600000;
+const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+const ZE = {Aries:"♈",Taurus:"♉",Gemini:"♊",Cancer:"♋",Leo:"♌",Virgo:"♍",Libra:"♎",Scorpio:"♏",Sagittarius:"♐",Capricorn:"♑",Aquarius:"♒",Pisces:"♓"};
+const NAKSHATRAS = ["Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu","Pushya","Ashlesha","Magha","Purva Phalguni","Uttara Phalguni","Hasta","Chitra","Swati","Vishakha","Anuradha","Jyeshtha","Mula","Purva Ashadha","Uttara Ashadha","Shravana","Dhanishta","Shatabhisha","Purva Bhadrapada","Uttara Bhadrapada","Revati"];
+
+/* ── DETERMINISTIC RULE TABLES — fixed astrological meanings ── */
+const PLANET_DOMAIN = {
+  Sun:"core self, ego, vitality, father",
+  Moon:"mind, emotions, mother, instincts",
+  Mercury:"intellect, communication, learning",
+  Venus:"love, beauty, relationships, comfort",
+  Mars:"energy, drive, courage, conflict",
+  Jupiter:"wisdom, growth, fortune, beliefs",
+  Saturn:"discipline, limits, responsibility, karma",
+  Uranus:"change, rebellion, sudden insight",
+  Neptune:"dreams, spirituality, illusion",
+  Pluto:"transformation, power, depth",
+  Rahu:"ambition, obsession, worldly desire",
+  Ketu:"detachment, spirituality, past karma",
+};
+
+const SIGN_QUALITY = {
+  Aries:"bold, pioneering, impulsive, action-driven",
+  Taurus:"steady, sensual, patient, security-seeking",
+  Gemini:"curious, communicative, versatile, restless",
+  Cancer:"nurturing, emotional, protective, home-oriented",
+  Leo:"confident, expressive, proud, leadership-driven",
+  Virgo:"analytical, precise, service-minded, self-critical",
+  Libra:"harmonious, relational, fair-minded, indecisive",
+  Scorpio:"intense, secretive, transformative, strong-willed",
+  Sagittarius:"expansive, philosophical, freedom-loving, optimistic",
+  Capricorn:"disciplined, ambitious, pragmatic, reserved",
+  Aquarius:"innovative, humanitarian, independent, unconventional",
+  Pisces:"compassionate, imaginative, intuitive, escapist",
+};
+
+const HOUSE_AREA = {
+  1:"self, body, personality, life direction",
+  2:"wealth, family, speech, values",
+  3:"courage, siblings, communication, effort",
+  4:"home, mother, roots, inner peace",
+  5:"creativity, children, romance, intelligence",
+  6:"health, daily work, service, obstacles",
+  7:"marriage, partnerships, business",
+  8:"transformation, secrets, longevity, sudden change",
+  9:"fortune, dharma, higher learning, father, beliefs",
+  10:"career, status, public life, achievement",
+  11:"gains, networks, aspirations, friends",
+  12:"loss, expenses, spirituality, foreign lands, solitude",
+};
+
+// readable theme phrases per house — for synthesised timeline summaries
+const HOUSE_THEME = {
+  1:"a renewed self-image and personal direction",
+  2:"family wealth, savings and what you value",
+  3:"bold initiative, skill-building and communication",
+  4:"home, property and emotional roots",
+  5:"creativity, romance, learning and self-expression",
+  6:"work, service, health and overcoming obstacles",
+  7:"partnership, marriage and one-to-one dealings",
+  8:"deep change, shared resources and hidden matters",
+  9:"higher learning, travel, fortune and belief",
+  10:"career, status and public visibility",
+  11:"gains, goals, networks and friendships",
+  12:"foreign lands, spirituality, retreat and letting go",
+};
+
+const ASPECT_QUALITY = {
+  Conjunction:"intensely fuses the energies of",
+  Sextile:"creates supportive opportunity between",
+  Square:"creates productive tension between",
+  Trine:"lets energy flow harmoniously between",
+  Opposition:"creates a balancing polarity between",
+};
+
+const SIGN_LORD = {Aries:"Mars",Taurus:"Venus",Gemini:"Mercury",Cancer:"Moon",Leo:"Sun",Virgo:"Mercury",Libra:"Venus",Scorpio:"Mars",Sagittarius:"Jupiter",Capricorn:"Saturn",Aquarius:"Saturn",Pisces:"Jupiter"};
+
+const DIGNITY = {
+  Sun:{own:["Leo"],exalt:"Aries",debil:"Libra"},
+  Moon:{own:["Cancer"],exalt:"Taurus",debil:"Scorpio"},
+  Mercury:{own:["Gemini","Virgo"],exalt:"Virgo",debil:"Pisces"},
+  Venus:{own:["Taurus","Libra"],exalt:"Pisces",debil:"Virgo"},
+  Mars:{own:["Aries","Scorpio"],exalt:"Capricorn",debil:"Cancer"},
+  Jupiter:{own:["Sagittarius","Pisces"],exalt:"Cancer",debil:"Capricorn"},
+  Saturn:{own:["Capricorn","Aquarius"],exalt:"Libra",debil:"Aries"},
+};
+
+function dignityOf(base,sign){
+  const dg=DIGNITY[base]; if(!dg) return "";
+  if(dg.exalt===sign) return "exalted — very strong, expressed at its best";
+  if(dg.debil===sign) return "debilitated — weakened, needs conscious effort";
+  if(dg.own.includes(sign)) return "in own sign — comfortable and well-supported";
+  return "";
+}
+
+function navamsaSign(lon){
+  const totalMin=nm(lon)*60;
+  const navIdx=Math.floor(totalMin/200); // 3°20' = 200 min
+  const startSigns=[0,8,4,0,8,4,0,8,4,0,8,4]; // Aries, Sagittarius, Leo repeating
+  const rIdx=Math.floor(nm(lon)/30);
+  return SIGNS[(startSigns[rIdx]+navIdx)%12];
+}
+
+const DASHA_LEN = {Ketu:7,Venus:20,Sun:6,Moon:10,Mars:7,Rahu:18,Jupiter:16,Saturn:19,Mercury:17};
+const DASHA_ORDER = ["Ketu","Venus","Sun","Moon","Mars","Rahu","Jupiter","Saturn","Mercury"];
+
+function computeDasha(moonLon,birthDate){
+  const nakIdx=Math.floor(moonLon/(13+1/3));
+  const rem=nm(moonLon)%(13+1/3);
+  const startLord=DASHA_ORDER[(nakIdx+0)%9]; // starts from Ashwini(Ketu)
+  const elapsed=rem/(13+1/3);
+  const totalYrs=DASHA_LEN[startLord];
+  const remYrs=totalYrs*(1-elapsed);
+  let curDate=new Date(birthDate.getTime() - (totalYrs-remYrs)*YEAR_MS);
+  const periods=[];
+  let startIdx=DASHA_ORDER.indexOf(startLord);
+  for(let i=0;i<18;i++){
+    const lord=DASHA_ORDER[(startIdx+i)%9];
+    const yrs=DASHA_LEN[lord];
+    const end=new Date(curDate.getTime()+yrs*YEAR_MS);
+    const m={lord,start:new Date(curDate),end:new Date(end)};
+    // add antardashas (sub-periods)
+    m.sub=[];
+    let subStart=new Date(curDate);
+    for(let j=0;j<9;j++){
+      const sLord=DASHA_ORDER[(DASHA_ORDER.indexOf(lord)+j)%9];
+      const sYrs=yrs*(DASHA_LEN[sLord]/120);
+      const sEnd=new Date(subStart.getTime()+sYrs*YEAR_MS);
+      m.sub.push({lord:sLord,start:new Date(subStart),end:new Date(sEnd)});
+      subStart=new Date(sEnd);
+    }
+    periods.push(m);
+    curDate=new Date(end);
+  }
+  return periods;
+}
+
+function fmtDate(d){return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})}
+function fmtDay(d){return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short"})}
+
+/* ── SCORE ENGINE — weighted deterministic model for life-areas ── */
+function computeScores(ch){
+  const P={}; ch.planets.forEach(p=>{P[p.base]=p});
+  const benefics=["Jupiter","Venus","Moon","Mercury"], malefic=["Saturn","Mars","Rahu","Ketu","Sun"];
+  const pstr=p=>p? (p.angular?75:55) + (p.dignity.startsWith("exalt")?20:p.dignity.startsWith("in own")?10:p.dignity.startsWith("debil")?-15:0) : 50;
+  const lordOf=h=>{const ascSign=Math.floor(nm(ch.angles.ascSid)/30); return SIGN_LORD[SIGNS[(ascSign+h-1)%12]];};
+  const occ=h=>ch.planets.filter(p=>p.houseSid===h);
+  
+  const area=(houses,karakas,helpful)=>{
+    let s=50, f=[];
+    houses.forEach(h=>{
+      occ(h).forEach(p=>{
+        if(["Rahu","Ketu"].includes(p.base)&&!helpful.includes(p.base)){
+          s-=4; f.push(`${p.base} in H${h} (-4)`); return;
+        }
+        let v=0;
+        if(p.dignity.startsWith("exalt"))v+=15;
+        else if(p.dignity.startsWith("in own"))v+=10;
+        else if(p.dignity.startsWith("debil"))v-=13;
+        v += (benefics.includes(p.base)||helpful.includes(p.base))?8:-2;
+        s+=v; f.push(`${p.base} in H${h} (${v>=0?"+":""}${v})`);
+      });
+      const lord=lordOf(h),lp=P[lord];
+      if(lp){const v=Math.round((pstr(lp)-50)*0.4); s+=v;
+        f.push(`H${h} lord ${lord}→H${lp.houseSid} (${v>=0?"+":""}${v})`);}
+    });
+    karakas.forEach(k=>{const kp=P[k];
+      if(kp){const v=Math.round((pstr(kp)-50)*0.5); s+=v;
+        f.push(`karaka ${k} (${v>=0?"+":""}${v})`);}});
+    return {score:Math.max(5,Math.min(98,Math.round(s))),factors:f};
+  }
+
+  const career=area([10],["Sun","Saturn"],["Saturn","Sun","Mars"]);
+  if(ch.yogas.some(y=>y.includes("Mahapurusha"))){career.score=Math.min(98,career.score+7);career.factors.push("Mahapurusha Yoga (+7)");}
+
+  const marriage=area([7],["Venus"],[]);
+  const mars=P.Mars;
+  if(mars&&[1,2,4,7,8,12].includes(mars.houseSid)){
+    marriage.score=Math.max(5,marriage.score-12);
+    marriage.factors.push(`Mangal Dosha — Mars in H${mars.houseSid} (-12)`);
+  }
+
+  const wealth=area([2,11],["Jupiter"],[]);
+  if(ch.yogas.some(y=>y.includes("Gajakesari"))){wealth.score=Math.min(98,wealth.score+6);wealth.factors.push("Gajakesari Yoga (+6)");}
+
+  const health=area([1],["Sun"],[]);
+  const foreign=area([12,9,3],["Rahu"],["Rahu"]);
+  const education=area([4,5],["Mercury","Jupiter"],[]);
+
+  return [
+    {key:"Career & Status",       ...career},
+    {key:"Marriage & Relationship",...marriage},
+    {key:"Wealth & Finance",      ...wealth},
+    {key:"Health & Vitality",     ...health},
+    {key:"Foreign & Travel",      ...foreign},
+    {key:"Education & Intellect", ...education},
+  ];
+}
+
+/* ── HOUSE LORDS ENGINE — lord placements & dispositor chains ── */
+function ordinal(n){const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+
+function computeHouseLords(ch){
+  const ascSign=Math.floor(nm(ch.angles.ascSid)/30);
+  const find=b=>ch.planets.find(p=>p.base===b);
+  const lords=[];
+  for(let h=1;h<=12;h++){
+    const sign=SIGNS[(ascSign+h-1)%12];
+    const lord=SIGN_LORD[sign];
+    const lp=find(lord);
+    lords.push({house:h,sign,lord,inHouse:lp?lp.houseSid:null,inSign:lp?signOf(lp.sid):null});
+  }
+  // dispositor of each planet = lord of the sign it occupies
+  ch.planets.forEach(p=>{p.dispositor=SIGN_LORD[signOf(p.sid)]});
+  // dispositor chain for each graha until it loops (own sign = self-dispositor root)
+  const find2=b=>ch.planets.find(p=>p.base===b);
+  ch.planets.filter(p=>SIGN_LORD[signOf(p.sid)]).forEach(p=>{
+    const chain=[p.base]; let cur=p, guard=0;
+    while(guard++<12){
+      const disp=cur.dispositor;
+      if(disp===cur.base) break;            // planet in own sign — root
+      if(chain.includes(disp)){chain.push(disp+" ↺");break;}
+      chain.push(disp);
+      cur=find2(disp);
+      if(!cur) break;
+    }
+    p.dispoChain=chain;
+  });
+  return lords;
+}
+
+/* ── MARRIAGE ENGINE — Upapada Lagna, Darakaraka, D9 7th-lord strength ── */
+function arudhaPada(houseIdx,lordSignIdx){
+  const d=((lordSignIdx-houseIdx+12)%12);    // signs from house to its lord
+  let ar=(lordSignIdx+d)%12;                 // same distance again from the lord
+  if(ar===houseIdx || ((ar-houseIdx+12)%12)===6) ar=(ar+9)%12; // exception → 10th from it
+  return ar;
+}
+function computeMarriage(ch){
+  const ascSign=Math.floor(nm(ch.angles.ascSid)/30);
+  const find=b=>ch.planets.find(p=>p.base===b);
+  // Upapada Lagna = Arudha pada of the 12th house
+  const h12=(ascSign+11)%12;
+  const l12p=find(SIGN_LORD[SIGNS[h12]]);
+  const ulIdx=l12p?arudhaPada(h12,Math.floor(nm(l12p.sid)/30)):h12;
+  const upapada=SIGNS[ulIdx];
+  // Darakaraka aspects (D1 + D9)
+  const dk=ch.d9.darakaraka;
+  const dkAspects=ch.aspects.filter(a=>a.a===dk||a.b===dk).map(a=>`${a.a} ${a.type} ${a.b} (natal)`)
+    .concat(ch.d9.aspects.filter(a=>a.a===dk||a.b===dk).map(a=>`${a.a} ${a.type} ${a.b} (D9)`));
+  const ven=find("Venus"), jup=find("Jupiter");
+  const d9LordP=find(ch.d9.d9SeventhLord);
+  const h7=(ascSign+6)%12, l7p=find(SIGN_LORD[SIGNS[h7]]);
+  return {
+    upapada, upapadaLord:SIGN_LORD[upapada],
+    darakaraka:dk, dkAspects,
+    venus:{sign:signOf(ven.sid),dignity:ven.dignity||"neutral",house:ven.houseSid,strength:ven.strength},
+    jupiter:{sign:signOf(jup.sid),dignity:jup.dignity||"neutral",house:jup.houseSid,strength:jup.strength},
+    d9SeventhLord:ch.d9.d9SeventhLord,
+    d9SeventhLordStrength:d9LordP?d9LordP.strength:null,
+    d1SeventhLord:SIGN_LORD[SIGNS[h7]],
+    d1SeventhLordHouse:l7p?l7p.houseSid:null,
+  };
+}
+
+// City -> coordinates + timezone offset (hours). India = +5.5
+const CITIES = [
+  {n:"Ahmedabad, Gujarat",      lat:23.0225, lon:72.5714, tz:5.5},
+  {n:"Surat, Gujarat",          lat:21.1702, lon:72.8311, tz:5.5},
+  {n:"Vadodara, Gujarat",       lat:22.3072, lon:73.1812, tz:5.5},
+  {n:"Rajkot, Gujarat",         lat:22.3039, lon:70.8022, tz:5.5},
+  {n:"Porbandar, Gujarat",      lat:21.6417, lon:69.6293, tz:5.5},
+  {n:"Bhavnagar, Gujarat",      lat:21.7645, lon:72.1519, tz:5.5},
+  {n:"Jamnagar, Gujarat",       lat:22.4707, lon:70.0577, tz:5.5},
+  {n:"Junagadh, Gujarat",       lat:21.5222, lon:70.4579, tz:5.5},
+  {n:"Gandhinagar, Gujarat",    lat:23.2156, lon:72.6369, tz:5.5},
+  {n:"Mumbai, Maharashtra",     lat:19.0760, lon:72.8777, tz:5.5},
+  {n:"Pune, Maharashtra",       lat:18.5204, lon:73.8567, tz:5.5},
+  {n:"Nagpur, Maharashtra",     lat:21.1458, lon:79.0882, tz:5.5},
+  {n:"Delhi",                   lat:28.6139, lon:77.2090, tz:5.5},
+  {n:"Jaipur, Rajasthan",       lat:26.9124, lon:75.7873, tz:5.5},
+  {n:"Lucknow, Uttar Pradesh",  lat:26.8467, lon:80.9462, tz:5.5},
+  {n:"Bhopal, Madhya Pradesh",  lat:23.2599, lon:77.4126, tz:5.5},
+  {n:"Indore, Madhya Pradesh",  lat:22.7196, lon:75.8577, tz:5.5},
+  {n:"Bengaluru, Karnataka",    lat:12.9716, lon:77.5946, tz:5.5},
+  {n:"Hyderabad, Telangana",    lat:17.3850, lon:78.4867, tz:5.5},
+  {n:"Chennai, Tamil Nadu",     lat:13.0827, lon:80.2707, tz:5.5},
+  {n:"Kolkata, West Bengal",    lat:22.5726, lon:88.3639, tz:5.5},
+  {n:"Kochi, Kerala",           lat:9.9312,  lon:76.2673, tz:5.5},
+  {n:"London, UK",              lat:51.5074, lon:-0.1278, tz:0},
+  {n:"New York, USA",           lat:40.7128, lon:-74.0060,tz:-5},
+  {n:"Dubai, UAE",              lat:25.2048, lon:55.2708, tz:4},
+  {n:"dhola, gujrat",           lat:21.821178, lon:71.742130,tz:5.5}
+];
+
+function nm(x){return((x%360)+360)%360}
+
+// Build a UTC Date from local birth date/time + timezone offset
+function buildDate(dateStr,timeStr,tz){
+  const [y,m,d]=dateStr.split("-").map(Number);
+  let hh=12,mm=0;
+  if(timeStr){const t=timeStr.split(":");hh=+t[0];mm=+t[1];}
+  return new Date(Date.UTC(y,m-1,d,hh,mm) - tz*3600*1000);
+}
+
+// Mean obliquity of the ecliptic (degrees), d = days from J2000
+function obliquity(d){
+  const T=d/36525;
+  return 23.4392911 - 0.0130041667*T - 1.638889e-7*T*T + 5.036111e-7*T*T*T;
+}
+
+// Lahiri ayanamsha (degrees) — tropical→sidereal offset
+function ayanamsha(d){
+  return 23.8526 + (d/365.25)*0.013969;
+}
+
+function signOf(lon){return SIGNS[Math.floor(nm(lon)/30)]}
+function dms(lon){
+  const x=nm(lon)%30, deg=Math.floor(x), min=Math.floor((x-deg)*60);
+  return deg+"°"+String(min).padStart(2,"0")+"'";
+}
+
+// Geocentric apparent ecliptic-of-date longitude of a body (tropical)
+function bodyLon(body,time){
+  const vec=Astronomy.GeoVector(body,time,true);
+  const rot=Astronomy.Rotation_EQJ_ECT(time);
+  const sph=Astronomy.SphereFromVector(Astronomy.RotateVector(rot,vec));
+  return nm(sph.lon);
+}
+
+function computeChart(dateStr,timeStr,city){
+  if(typeof Astronomy==="undefined")
+    throw new Error("Astronomy engine failed to load (check your internet connection).");
+
+  const date=buildDate(dateStr,timeStr,city.tz);
+  const time=Astronomy.MakeTime(date);
+  const d=time.ut;                    // days from J2000
+  const ay=ayanamsha(d);
+  const eps=obliquity(d)*D2R;
+
+  const B=Astronomy.Body;
+  const bodies=[
+    ["Sun",B.Sun],["Moon",B.Moon],["Mercury",B.Mercury],["Venus",B.Venus],
+    ["Mars",B.Mars],["Jupiter",B.Jupiter],["Saturn",B.Saturn],
+    ["Uranus",B.Uranus],["Neptune",B.Neptune],["Pluto",B.Pluto],
+  ];
+
+  const planets=bodies.map(([name,b])=>{
+    const lon=bodyLon(b,time);
+    // retrograde test (skip luminaries)
+    let retro=false;
+    if(name!=="Sun"&&name!=="Moon"){
+      const prev=bodyLon(b,Astronomy.MakeTime(new Date(date.getTime()-86400000)));
+      let dl=lon-prev; if(dl>180)dl-=360; if(dl<-180)dl+=360;
+      retro=dl<0;
+    }
+    return {name,trop:lon,sid:nm(lon-ay),retro};
+  });
+
+  // Lunar nodes (mean) — Rahu / Ketu, always retrograde
+  const rahu=nm(125.04452 - 0.0529537951*d);
+  planets.push({name:"Rahu (N.Node)",trop:rahu,sid:nm(rahu-ay),retro:true});
+  planets.push({name:"Ketu (S.Node)",trop:nm(rahu+180),sid:nm(rahu+180-ay),retro:true});
+
+  // Ascendant + Midheaven
+  const gast=Astronomy.SiderealTime(time);            // Greenwich apparent sidereal time (hours)
+  const ramc=nm((gast + city.lon/15)*15)*D2R;         // right ascension of meridian
+  const latR=city.lat*D2R;
+  let mc=nm(Math.atan2(Math.sin(ramc),Math.cos(ramc)*Math.cos(eps))*R2D);
+  let asc=nm(Math.atan2(Math.cos(ramc),
+            -(Math.sin(ramc)*Math.cos(eps)+Math.tan(latR)*Math.sin(eps)))*R2D);
+  if(nm(asc-mc)>180) asc=nm(asc+180);
+  const angles={ascTrop:asc, ascSid:nm(asc-ay), mcTrop:mc, mcSid:nm(mc-ay)};
+
+  // Whole-sign houses for each planet, per system
+  const ascSignS=Math.floor(angles.ascSid/30), ascSignT=Math.floor(angles.ascTrop/30);
+  planets.forEach(p=>{
+    p.houseSid=((Math.floor(p.sid/30)-ascSignS+12)%12)+1;
+    p.houseTrop=((Math.floor(p.trop/30)-ascSignT+12)%12)+1;
+    // ── deterministic rule lookup → base meaning for this placement ──
+    p.base=p.name.split(" ")[0];                       // "Rahu (N.Node)" -> "Rahu"
+    const sign=signOf(p.sid);
+    p.dignity=dignityOf(p.base,sign);
+    p.nav=navamsaSign(p.sid);                           // D9 navamsa sign
+    p.angular=[1,4,7,10].includes(p.houseSid);          // angular = stronger
+    p.rule=`${p.name} (${PLANET_DOMAIN[p.base]||"—"}) in ${sign} `+
+           `[${SIGN_QUALITY[sign]}], House ${p.houseSid} `+
+           `[${HOUSE_AREA[p.houseSid]}]`+
+           (p.dignity?` — ${p.dignity}`:"")+
+           (p.angular?" — ANGULAR (emphasised)":"")+
+           (p.retro?" — retrograde (internalised energy)":"");
+  });
+
+  // Moon nakshatra (sidereal)
+  const moon=planets[1];
+  const nakIdx=Math.floor(moon.sid/(13+1/3));
+  const nakshatra=NAKSHATRAS[nakIdx];
+
+  // Western aspects (angle-based; identical in both zodiacs)
+  const ASPECTS=[["Conjunction",0,8],["Sextile",60,4],["Square",90,6],["Trine",120,6],["Opposition",180,8]];
+  const aspBodies=planets.filter(p=>!p.name.startsWith("Rahu")&&!p.name.startsWith("Ketu"));
+  const aspects=[];
+  for(let i=0;i<aspBodies.length;i++)for(let j=i+1;j<aspBodies.length;j++){
+    let sep=Math.abs(aspBodies[i].trop-aspBodies[j].trop)%360;
+    if(sep>180)sep=360-sep;
+    for(const [an,ang,orb] of ASPECTS){
+      if(Math.abs(sep-ang)<=orb){
+        const A=aspBodies[i].name,Bn=aspBodies[j].name,o=Math.abs(sep-ang);
+        aspects.push({a:A,b:Bn,type:an,orb:o,tight:o<2,
+          rule:`${A} ${an} ${Bn} — ${ASPECT_QUALITY[an]} ${A} and ${Bn}`+
+               (o<2?" (TIGHT orb — strong influence)":"")});
+        break;
+      }
+    }
+  }
+
+  // Stelliums (3+ planets in one sidereal sign)
+  const bySign={};
+  planets.forEach(p=>{const s=signOf(p.sid);(bySign[s]=bySign[s]||[]).push(p.name)});
+  const stelliums=Object.entries(bySign).filter(([,a])=>a.length>=3)
+                        .map(([s,a])=>({sign:s,planets:a}));
+
+  // Yogas (special combinations)
+  const yogas=[];
+  const P={}; planets.forEach(p=>{P[p.base]=p});
+  // Gaja Kesari: Jupiter in kendra from Moon
+  if(P.Jupiter&&P.Moon){
+    const d=((P.Jupiter.houseSid-P.Moon.houseSid+12)%12)+1;
+    if([1,4,7,10].includes(d)) yogas.push("Gajakesari Yoga — Jupiter in a quadrant from the Moon (wisdom, fortune)");
+  }
+  // Mahapurusha Yogas (planet in own/exalt sign in kendra from Asc)
+  ["Mars","Mercury","Jupiter","Venus","Saturn"].forEach(b=>{
+    const p=P[b]; if(!p)return;
+    if([1,4,7,10].includes(p.houseSid)&&(p.dignity.startsWith("exalt")||p.dignity.startsWith("in own"))){
+      const n={Mars:"Ruchaka",Mercury:"Bhadra",Jupiter:"Hamsa",Venus:"Malavya",Saturn:"Sasha"}[b];
+      yogas.push(`${n} Mahapurusha Yoga — ${b} is strong in a quadrant (leadership, mastery)`);
+    }
+  });
+
+  // Vimshottari Dasha
+  const dasha=computeDasha(moon.sid,date);
+  const now=new Date();
+  const curMaha=dasha.find(m=>m.start<=now&&m.end>=now)||dasha[0];
+  const curAntar=curMaha.sub.find(s=>s.start<=now&&s.end>=now);
+
+  // Navamsa D9 summary
+  const d9Lagna=navamsaSign(angles.ascSid);
+  const d9LagnaIdx=SIGNS.indexOf(d9Lagna);
+  const d9SeventhSign=SIGNS[(d9LagnaIdx+6)%12];
+  const d9SeventhLord=SIGN_LORD[d9SeventhSign];
+  const d9SeventhOcc=planets.filter(p=>p.nav===d9SeventhSign).map(p=>p.base);
+  planets.forEach(p=>{p.d9House=((SIGNS.indexOf(p.nav)-d9LagnaIdx+12)%12)+1;});
+  const d9asp=[];
+  const d9planets=planets.slice(0,10);
+  for(let i=0;i<d9planets.length;i++)for(let j=i+1;j<d9planets.length;j++){
+    const s1=SIGNS.indexOf(d9planets[i].nav), s2=SIGNS.indexOf(d9planets[j].nav);
+    let sep=Math.abs(s1-s2); if(sep>6)sep=12-sep;
+    if(sep===0) d9asp.push({a:d9planets[i].base,b:d9planets[j].base,type:"Conjunction"});
+    if(sep===6) d9asp.push({a:d9planets[i].base,b:d9planets[j].base,type:"Opposition"});
+  }
+  // Darakaraka = planet with lowest degree (excluding nodes)
+  const dkP=planets.slice(0,7).sort((a,b)=>(a.sid%30)-(b.sid%30))[0];
+
+  // Current Transits (Gochar)
+  const tTime=Astronomy.MakeTime(now), tD=tTime.ut, tAy=ayanamsha(tD);
+  const tSat=nm(bodyLon(B.Saturn,tTime)-tAy), tJup=nm(bodyLon(B.Jupiter,tTime)-tAy);
+  const tRahu=nm(125.04452-0.0529537951*tD-tAy);
+  const hFromMoon=s=>( (Math.floor(s/30)-Math.floor(moon.sid/30)+12)%12 )+1;
+  const satH=hFromMoon(tSat), jupH=hFromMoon(tJup), rahuH=hFromMoon(tRahu);
+  const sSati=satH===12?"first phase (heavy)":satH===1?"peak phase (intense)":satH===2?"final phase (setting)":"";
+  
+  // Upcoming Eclipses (next ~18 months) — names differ across astronomy-engine builds
+  const eclipses=[];
+  try{
+    const solSearch=Astronomy.SearchGlobalSolarEclipse||Astronomy.SearchSolarEclipse;
+    const solNext=Astronomy.NextGlobalSolarEclipse||Astronomy.NextSolarEclipse;
+    const collectEcl=(searchFn,nextFn,type,axisOffset)=>{
+      if(typeof searchFn!=="function") return;
+      let ev=searchFn(Astronomy.MakeTime(now));
+      for(let i=0;i<2&&ev&&ev.peak;i++){
+        const et=ev.peak;
+        const elon=nm(bodyLon(B.Sun,et)-ayanamsha(et.ut)+axisOffset);
+        let hit=null;
+        planets.forEach(p=>{const d=Math.abs(nm(p.sid)-elon);if(Math.min(d,360-d)<5)hit=p.name;});
+        eclipses.push({date:new Date(et.date),type,sign:signOf(elon),house:hFromMoon(elon),hit});
+        ev=(typeof nextFn==="function")?nextFn(et):null;
+      }
+    };
+    collectEcl(solSearch,solNext,"Solar Eclipse",0);
+    collectEcl(Astronomy.SearchLunarEclipse,Astronomy.NextLunarEclipse,"Lunar Eclipse",180);
+    eclipses.sort((a,b)=>a.date-b.date);
+  }catch(e){ console.warn("Eclipse computation skipped:",e.message); }
+
+  const chart={planets,angles,nakshatra,aspects,stelliums,yogas,dasha,curMaha,curAntar,ayanamsha:ay,
+    d9:{d9Lagna,d9SeventhSign,d9SeventhLord,d9SeventhOcc,darakaraka:dkP?dkP.base:null,aspects:d9asp},
+    transits:{asOf:now,saturn:{sign:signOf(tSat),houseMoon:satH,note:satH===10?"Saturn in 10th from Moon — career restructuring":satH===4?"Saturn in 4th from Moon — home focus":""},
+      jupiter:{sign:signOf(tJup),houseMoon:jupH,note:[1,2,5,7,9,11].includes(jupH)?"Jupiter in favourable transit":"Jupiter in neutral transit"},
+      positions:[{name:"Saturn",sign:signOf(tSat),houseMoon:satH},{name:"Jupiter",sign:signOf(tJup),houseMoon:jupH},{name:"Rahu",sign:signOf(tRahu),houseMoon:rahuH},{name:"Ketu",sign:signOf(tRahu+180),houseMoon:hFromMoon(tRahu+180)}],
+      sadeSati:{active:!!sSati,phase:sSati},tnAspects:[]}};
+  
+  // Transit-to-natal aspects
+  const tBodies=[{n:"Saturn",l:tSat},{n:"Jupiter",l:tJup},{n:"Rahu",l:tRahu}];
+  tBodies.forEach(tb=>{
+    planets.slice(0,10).forEach(np=>{
+      let sep=Math.abs(tb.l-np.sid)%360; if(sep>180)sep=360-sep;
+      ASPECTS.forEach(([an,ang,orb])=>{if(Math.abs(sep-ang)<3)chart.transits.tnAspects.push({t:tb.n,n:np.name,type:an,orb:Math.abs(sep-ang).toFixed(1)})});
+    });
+  });
+
+  chart.scores=computeScores(chart);
+  chart.houseLords=computeHouseLords(chart);
+  chart.predictions=computePredictions(chart);
+  chart.confidence=computeConfidence(chart);
+  chart.daily=computeDaily(chart,city);
+  chart.marriage=computeMarriage(chart);
+  return chart;
+}
+
+/* ====================================================================
+   LAYER 2 — UI + GEMINI INTERPRETATION
+   ==================================================================== */
+
+const MSGS=["Swiss-grade positions calculate thai rahi che...","Ascendant ane houses kaadhi rahya chhe...","Aspects ane patterns scan thai rahya chhe...","Gemini AI interpretation generate thai rahi chhe...","Reading taiyar thai rahi che..."];
+
+const lbl={fontSize:13,color:"#888",display:"block",marginBottom:4};
+
+// Full deterministic fact sheet — used by both the reading and the chat
+/* ── PREDICTION ENGINE — deterministic timeline windows from dasha + house lords ── */
+function phaseLabel(houses,tone){
+  if(houses.includes(10)) return "Career Activation";
+  if(houses.includes(7)) return "Relationship Karma Phase";
+  if(houses.includes(4)) return "Foundation Building";
+  if(houses.includes(2)||houses.includes(11)) return "Wealth Expansion Window";
+  if(houses.includes(9)||houses.includes(12)) return "Expansion Window";
+  if(houses.includes(5)) return "Growth Phase";
+  if(tone==="testing") return "Pressure + Opportunity";
+  return "Transition Phase";
+}
+function computePredictions(ch){
+  const now=new Date();
+  const find=b=>ch.planets.find(p=>p.base===b);
+  const rules=b=>ch.houseLords.filter(l=>l.lord===b).map(l=>l.house);
+  // flatten all antardasha windows, keep the upcoming/current ones
+  const subs=[];
+  ch.dasha.forEach(m=>(m.sub||[]).forEach(s=>subs.push({maha:m.lord,...s})));
+  return subs.filter(s=>s.end>now).slice(0,5).map(s=>{
+    const lp=find(s.lord);
+    const ruled=rules(s.lord);
+    const houses=[...new Set([...(lp?[lp.houseSid]:[]),...ruled])];
+    const dignity=lp?lp.dignity||"":"";
+    let tone="mixed";
+    if(lp){
+      const strong=/exalt|own/.test(dignity);
+      const goodHouse=[1,4,5,7,9,10,11].includes(lp.houseSid);
+      const hardHouse=[6,8,12].includes(lp.houseSid);
+      if(strong||goodHouse) tone="supportive";
+      if(/debil/.test(dignity)||(hardHouse&&!strong)) tone="testing";
+    }
+    const why=[];
+    if(lp) why.push(`${s.lord} sits in House ${lp.houseSid} (${signOf(lp.sid)})${dignity?" — "+dignity.split("—")[0].trim():""}`);
+    ruled.forEach(h=>why.push(`${s.lord} rules House ${h} [${HOUSE_AREA[h]}]`));
+    const themes=houses.map(h=>HOUSE_THEME[h]);
+    const summary=(themes.join("; ")+" come into focus.").replace(/^./,c=>c.toUpperCase());
+    return {
+      period:`${s.maha} – ${s.lord}`,
+      start:s.start, end:s.end,
+      current: s.start<=now && s.end>=now,
+      tone,
+      phase: phaseLabel(houses,tone),
+      summary,
+      areas: houses.map(h=>({house:h,area:HOUSE_AREA[h]})),
+      why,
+    };
+  });
+}
+
+/* ── CONFIDENCE ENGINE — counts independent chart signatures per life theme ── */
+function computeConfidence(ch){
+  const P={}; ch.planets.forEach(p=>{if(!P[p.base])P[p.base]=p;});
+  const occ=h=>ch.planets.filter(p=>p.houseSid===h);
+  const benefics=["Jupiter","Venus","Mercury","Moon"];
+  const wellPlaced=p=>!!p&&(/exalt|own/.test(p.dignity||"")||[1,4,5,7,9,10,11].includes(p.houseSid));
+  const lordPlanet=h=>{const hl=ch.houseLords.find(x=>x.house===h);return hl?P[hl.lord]:null;};
+  const strong=b=>{const p=P[b];return !!p&&((p.strength||0)>=62||/exalt|own/.test(p.dignity||""));};
+  const ruledBy=b=>ch.houseLords.filter(x=>x.lord===b).map(x=>x.house);
+  const dashaTouches=h=>{
+    const hit=p=>p&&(p.houseSid===h||ruledBy(p.base).includes(h));
+    return hit(P[ch.curMaha.lord])||hit(ch.curAntar&&P[ch.curAntar.lord]);
+  };
+  const build=(theme,checks)=>{
+    const yes=checks.filter(c=>c.present).length, ratio=yes/checks.length;
+    return {theme, level: ratio>=0.6?"High":ratio>=0.34?"Moderate":"Low",
+      count:yes, total:checks.length,
+      supporting:checks.filter(c=>c.present).map(c=>c.label),
+      missing:checks.filter(c=>!c.present).map(c=>c.label)};
+  };
+  return [
+    build("Career & Status",[
+      {label:"Planet(s) occupy the 10th house",present:occ(10).length>0},
+      {label:"10th lord strongly placed",present:wellPlaced(lordPlanet(10))},
+      {label:"Saturn empowering the career axis",present:!!P.Saturn&&P.Saturn.houseSid===10},
+      {label:"A Pancha Mahapurusha yoga",present:ch.yogas.some(y=>/Mahapurusha/.test(y))},
+      {label:"Current dasha lord linked to the 10th",present:dashaTouches(10)},
+      {label:"Strong career karaka (Sun or Saturn)",present:strong("Sun")||strong("Saturn")},
+    ]),
+    build("Marriage & Partnership",[
+      {label:"7th house occupied",present:occ(7).length>0},
+      {label:"7th lord well placed",present:wellPlaced(lordPlanet(7))},
+      {label:"Venus well-dignified",present:strong("Venus")},
+      {label:"Benefic in the D9 7th house",present:(ch.d9.d9SeventhOcc||[]).some(b=>benefics.includes(b))},
+      {label:"Current dasha lord linked to the 7th",present:dashaTouches(7)},
+      {label:"Free of Mangal Dosha",present:!(P.Mars&&[1,2,4,7,8,12].includes(P.Mars.houseSid))},
+    ]),
+    build("Foreign & Relocation",[
+      {label:"Planet(s) in the 12th house",present:occ(12).length>0},
+      {label:"Jupiter or a benefic in the 12th",present:occ(12).some(p=>benefics.includes(p.base))},
+      {label:"Rahu on the 3rd/9th/12th axis",present:!!P.Rahu&&[3,9,12].includes(P.Rahu.houseSid)},
+      {label:"Rahu Mahadasha active",present:ch.curMaha.lord==="Rahu"},
+      {label:"9th house activated",present:occ(9).length>0},
+      {label:"9th or 12th lord well placed",present:wellPlaced(lordPlanet(9))||wellPlaced(lordPlanet(12))},
+    ]),
+    build("Wealth & Finance",[
+      {label:"2nd house occupied",present:occ(2).length>0},
+      {label:"11th house occupied",present:occ(11).length>0},
+      {label:"Jupiter (wealth karaka) strong",present:strong("Jupiter")},
+      {label:"2nd lord well placed",present:wellPlaced(lordPlanet(2))},
+      {label:"11th lord well placed",present:wellPlaced(lordPlanet(11))},
+      {label:"A Gajakesari or wealth yoga",present:ch.yogas.some(y=>/Gajakesari/.test(y))},
+    ]),
+  ];
+}
+
+/* ── DAILY GUIDANCE ENGINE — weekday lord, numerology, Moon transit, Rahu Kaal ── */
+function fmtClock(ms,tz){
+  const d=new Date(ms+tz*3600000);
+  let h=d.getUTCHours(); const m=d.getUTCMinutes();
+  const ap=h>=12?"PM":"AM"; h=h%12||12;
+  return h+":"+String(m).padStart(2,"0")+" "+ap;
+}
+function computeDaily(ch,city){
+  const now=new Date();
+  const WD=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const WDLORD=["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"];
+  const COLOR={Sun:"Orange / Gold",Moon:"White / Cream",Mars:"Red / Coral",
+    Mercury:"Green / Emerald",Jupiter:"Yellow / Saffron",Venus:"White / Soft Pink",Saturn:"Deep Blue / Black"};
+  const RAHU_SLOT={0:8,1:2,2:7,3:5,4:6,5:4,6:3};        // segment of the day per weekday
+  const ALIGN={1:72,2:58,3:82,4:44,5:60,6:78,7:80,8:38,9:62,10:85,11:88,12:42}; // Moon-transit favourability
+  const reduce=n=>{while(n>9)n=String(n).split("").reduce((a,b)=>a+ +b,0);return n;};
+  const tz=city.tz, wd=now.getDay(), dayLord=WDLORD[wd];
+  const luckyNumber=reduce(now.getDate()+now.getMonth()+1+now.getFullYear());
+
+  const t=Astronomy.MakeTime(now);
+  const moonLon=nm(bodyLon(Astronomy.Body.Moon,t)-ayanamsha(t.ut));
+  const natalMoonIdx=Math.floor(nm(ch.planets[1].sid)/30);
+  const moonHouseFromNatal=((Math.floor(moonLon/30)-natalMoonIdx+12)%12)+1;
+
+  // Rahu Kaal & Abhijit Muhurta from real sunrise/sunset at the city
+  let rahuKaal=null, auspicious=null;
+  try{
+    const cityNow=new Date(now.getTime()+tz*3600000);
+    const midnightUTC=Date.UTC(cityNow.getUTCFullYear(),cityNow.getUTCMonth(),cityNow.getUTCDate())-tz*3600000;
+    const obs=new Astronomy.Observer(city.lat,city.lon,0);
+    const start=Astronomy.MakeTime(new Date(midnightUTC));
+    const sr=Astronomy.SearchRiseSet(Astronomy.Body.Sun,obs,1,start,1);
+    const ss=Astronomy.SearchRiseSet(Astronomy.Body.Sun,obs,-1,start,1);
+    if(sr&&ss){
+      const sunrise=sr.date.getTime(), sunset=ss.date.getTime();
+      const span=sunset-sunrise, seg=span/8, slot=RAHU_SLOT[wd];
+      rahuKaal={start:fmtClock(sunrise+(slot-1)*seg,tz),end:fmtClock(sunrise+slot*seg,tz)};
+      const mid=sunrise+span/2;
+      auspicious={start:fmtClock(mid-span/30,tz),end:fmtClock(mid+span/30,tz)};
+    }
+  }catch(e){ console.warn("Rahu Kaal skipped:",e.message); }
+
+  return {
+    date:now, weekday:WD[wd], dayLord,
+    luckyColor:COLOR[dayLord], luckyNumber,
+    moonSign:signOf(moonLon), moonHouseFromNatal,
+    alignment:ALIGN[moonHouseFromNatal]||60,
+    rahuKaal, auspicious,
+    dasha:`${ch.curMaha.lord} Mahadasha${ch.curAntar?" / "+ch.curAntar.lord+" Antardasha":""}`,
+  };
+}
+
+function buildFactSheet(ch,form){
+  const ascS=signOf(ch.angles.ascSid);
+  const pBase=b=>ch.planets.find(p=>p.base===b);
+  const mahaP=pBase(ch.curMaha.lord), antarP=ch.curAntar&&pBase(ch.curAntar.lord);
+  const dashaPos=`${ch.curMaha.lord} sits in House ${mahaP?mahaP.houseSid:"?"} (${mahaP?signOf(mahaP.sid):"?"}) [${mahaP?HOUSE_AREA[mahaP.houseSid]:""}]`+
+    (antarP?`; ${ch.curAntar.lord} sits in House ${antarP.houseSid} (${signOf(antarP.sid)}) [${HOUSE_AREA[antarP.houseSid]}]`:"");
+  return `BIRTH: ${form.name||"Unknown"}, ${form.date} ${form.time} (${form.city})
+GENDER: ${form.gender||"NOT SPECIFIED — use the name or 'they/them', never assume"}
+SYSTEM: Vedic sidereal, Lahiri ayanamsha ${ch.ayanamsha.toFixed(2)}°, whole-sign houses.
+
+ASCENDANT (Lagna): ${ascS} [${SIGN_QUALITY[ascS]}]
+MOON NAKSHATRA: ${ch.nakshatra}
+
+=== RULE-DERIVED CHART FACTS ===
+PLANETS:
+${ch.planets.map(p=>"- "+p.rule).join("\n")}
+
+ASPECTS:
+${ch.aspects.map(a=>"- "+a.rule).join("\n")||"- none within orb"}
+
+YOGAS:
+${ch.yogas.map(y=>"- "+y).join("\n")||"- none"}
+
+DASHA: ${ch.curMaha.lord} Mahadasha (${fmtDate(ch.curMaha.start)} – ${fmtDate(ch.curMaha.end)})${ch.curAntar?`, sub-period ${ch.curAntar.lord}`:""}
+
+D9 NAVAMSA:
+${ch.planets.slice(0,9).map(p=>`- ${p.name}: ${p.nav}`).join("\n")}
+
+HOUSE LORDS (a house lord's placement LINKS the two life-areas — this is the core of the reading):
+${ch.houseLords.map(l=>`- ${ordinal(l.house)} lord ${l.lord} sits in House ${l.inHouse} → links ${ordinal(l.house)}-house [${HOUSE_AREA[l.house]}] with ${ordinal(l.inHouse)}-house [${HOUSE_AREA[l.inHouse]}]`).join("\n")}
+
+DASHA LORD POSITIONS: ${dashaPos}
+
+SCORES (already final — describe in words, never write the number):
+${ch.scores.map(s=>`- ${s.key}: ${s.score}/100  [drivers: ${(s.factors||[]).join(", ")}]`).join("\n")}
+
+CONFIDENCE ENGINE (independent chart signatures counted per theme — reflect these levels honestly):
+${ch.confidence.map(c=>`- ${c.theme}: ${c.level} confidence (${c.count}/${c.total} signatures). Supporting: ${c.supporting.join("; ")||"none"}`).join("\n")}
+
+TIMELINE FORECAST (deterministic antardasha windows — word these into predictions; never change the dates or houses):
+${ch.predictions.map(p=>`- ${p.period} (${fmtDate(p.start)}–${fmtDate(p.end)})${p.current?" [CURRENT]":""}: ${p.phase}. ${p.summary} WHY: ${p.why.join("; ")}`).join("\n")}`;
+}
+
+function KundaliChart({chart,variant}){
+  const grahas=chart.planets.filter(p=>PABBR[p.base]);
+  const ascSign=Math.floor(nm(chart.angles.ascSid)/30);
+  const stk=(arr,cx,cy)=>arr.map((p,j)=>(
+    <text key={j} x={cx} y={cy+j*13-(arr.length-1)*6.5} fontSize="11.5"
+      fill={p.retro?"#f87171":"#fff"} textAnchor="middle">{PABBR[p.base]}</text>
+  ));
+
+  if(variant==="north"){
+    const byHouse={};
+    grahas.forEach(p=>{(byHouse[p.houseSid]=byHouse[p.houseSid]||[]).push(p)});
+    return (
+      <svg viewBox="0 0 400 400" style={{width:"100%",maxWidth:330,display:"block",margin:"0 auto"}}>
+        <rect x="1" y="1" width="398" height="398" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2"/>
+        <line x1="0" y1="0" x2="400" y2="400" stroke="rgba(255,255,255,0.05)" strokeWidth="1.5"/>
+        <line x1="400" y1="0" x2="0" y2="400" stroke="rgba(255,255,255,0.05)" strokeWidth="1.5"/>
+        <polygon points="200,0 400,200 200,400 0,200" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5"/>
+        {NORTH.map((h,i)=>{
+          const signNum=((ascSign+i)%12)+1;
+          const ps=byHouse[i+1]||[];
+          return (
+            <g key={i}>
+              <text x={h.c[0]} y={h.c[1]-16} fontSize="9" fill="rgba(255,255,255,0.3)" textAnchor="middle">{signNum}</text>
+              {stk(ps,h.c[0],h.c[1]+4)}
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
+  const bySign={};
+  grahas.forEach(p=>{const s=signOf(p.sid);(bySign[s]=bySign[s]||[]).push(p)});
+  const ascS=SIGNS[ascSign];
+  return (
+    <svg viewBox="0 0 400 400" style={{width:"100%",maxWidth:330,display:"block",margin:"0 auto"}}>
+      {Object.entries(SOUTH).map(([sign,[col,row]])=>{
+        const x=col*100,y=row*100,ps=bySign[sign]||[],isAsc=sign===ascS;
+        return (
+          <g key={sign}>
+            <rect x={x} y={y} width="100" height="100" fill={isAsc?"rgba(99, 102, 241, 0.1)":"none"} stroke="rgba(255,255,255,0.1)" strokeWidth="1.3"/>
+            <text x={x+6} y={y+15} fontSize="9" fill="rgba(255,255,255,0.3)">{sign.slice(0,3)}</text>
+            {stk(ps,x+50,y+52)}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+const PABBR={Sun:"Su",Moon:"Mo",Mars:"Ma",Mercury:"Me",Jupiter:"Ju",Venus:"Ve",Saturn:"Sa",Rahu:"Ra",Ketu:"Ke"};
+const NORTH=[
+  {p:"200,0 300,100 200,200 100,100",c:[200,108]},
+  {p:"0,0 200,0 100,100",            c:[100,42]},
+  {p:"0,0 100,100 0,200",            c:[42,100]},
+  {p:"0,200 100,100 200,200 100,300",c:[100,208]},
+  {p:"0,200 100,300 0,400",          c:[42,300]},
+  {p:"0,400 100,300 200,400",        c:[100,360]},
+  {p:"200,400 100,300 200,200 300,300",c:[200,308]},
+  {p:"200,400 300,300 400,400",      c:[200,360]},
+  {p:"400,400 300,300 400,200",      c:[358,300]},
+  {p:"400,200 300,100 200,200 300,300",c:[300,208]},
+  {p:"400,200 300,100 400,0",        c:[358,100]},
+  {p:"400,0 300,100 200,0",          c:[300,42]},
+];
+const SOUTH={
+  Pisces:[0,0],Aries:[1,0],Taurus:[2,0],Gemini:[3,0],
+  Aquarius:[0,1],Cancer:[3,1],Capricorn:[0,2],Leo:[3,2],
+  Sagittarius:[0,3],Scorpio:[1,3],Libra:[2,3],Virgo:[3,3],
+};
+
+// System prompt for the follow-up chat — locked to THIS person's chart
+const CHAT_SYSTEM=`You are this person's personal Vedic astrologer. Their full pre-computed birth chart is given below.
+
+RULES:
+1. ONLY answer questions about THIS person — their future, career, marriage, relationships, money, health, foreign prospects, timing, personality, remedies — interpreted from the chart data below.
+2. If the user asks anything UNRELATED (general knowledge, coding, news, other people, etc.), politely refuse and say you can only discuss their birth chart.
+3. Use ONLY the facts in the chart data — never invent placements, dates, yogas or aspects. For timing, quote the real dasha date windows.
+4. Never assume gender — follow the GENDER field; if not specified use the name or "they/them".
+5. A BIRTH CHART SHOWS POTENTIAL, TENDENCIES AND TIMING — IT CANNOT KNOW PRESENT-DAY FACTS. If asked about current real-world status ("am I married?", "do I have a job?", "how many children do I have?"), you MUST say honestly that the chart cannot determine current status — only the person knows that. Then offer what the chart CAN show: the timing window, the likely nature, the tendency. Never claim to know a present fact.
+6. If the user states a fact about their life (e.g. "I am not married"), ACCEPT it immediately and adjust — never argue or contradict them.
+7. NEVER contradict yourself. Do not write "No" and then affirm the opposite. If something is genuinely uncertain, say it is uncertain — do not fake a yes/no.
+8. Reply in plain conversational text (no JSON, no markdown). Match the user's language (English / Hindi / Gujarati). Keep answers focused — 3 to 6 sentences.`;
+
+const DAILY_SYSTEM=`You are a warm, insightful Vedic astrologer writing today's personal guidance for ONE specific person. Use their natal basics + today's Moon transit + the running dasha + the weekday ruling planet. Write in a warm, grounded, second-person voice ("you") — emotionally resonant but practical and concrete, never generic horoscope filler. Never assume gender.
+Respond with JSON ONLY, no markdown:
+{"dayTitle":"a short evocative name for the day, e.g. 'Your Building Day' or 'A Day for Clear Words'","intro":"2-3 warm sentences that set the emotional mood of the day","action":"one concrete action line for today, in quotes-worthy style","self":"2 sentences on personal energy and confidence today","love":"2 sentences on romantic/emotional energy today","relationship":"1-2 sentences on friends and social connections today","family":"1 sentence on family harmony today","job":"1-2 sentences on work and career energy today","health":"1 sentence — energy, sleep, stress or digestion","wealth":"1 sentence — spending vs saving guidance","spiritual":"1 sentence — a deity, mantra or practice suited to today","avoid":"1 short line — what to avoid today"}`;
+
+function App(){
+  const [form,setForm]=useState({name:"",gender:"",date:"",time:"",city:""});
+  const [chatMsgs,setChatMsgs]=useState([]);
+  const [chatInput,setChatInput]=useState("");
+  const [chatBusy,setChatBusy]=useState(false);
+  const [daily,setDaily]=useState(null);
+  const [dailyBusy,setDailyBusy]=useState(false);
+  const [chart,setChart]=useState(null);
+  const [interp,setInterp]=useState(null);
+  const [sys,setSys]=useState("Vedic");
+  const [loading,setLoading]=useState(false);
+  const [loadMsg,setLoadMsg]=useState("");
+  const [error,setError]=useState("");
+  const [chartStyle,setChartStyle]=useState("north");
+
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+
+  async function askChat(e){
+    if(e) e.preventDefault();
+    const q=chatInput.trim();
+    if(!q||chatBusy||!chart) return;
+    setChatInput("");
+    const history=[...chatMsgs,{role:"user",content:q}];
+    setChatMsgs([...history,{role:"assistant",content:"…"}]);
+    setChatBusy(true);
+    try{
+      const res=await fetch(API_URL,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          messages:[
+            {role:"system",content:CHAT_SYSTEM+"\n\n=== THIS PERSON'S BIRTH CHART ===\n"+buildFactSheet(chart,form)},
+            ...history
+          ]
+        })
+      });
+      if(!res.ok) throw new Error("AI service unavailable");
+      const data=await res.json();
+      const txt=(data.choices?.[0]?.message?.content||"(no response)").trim();
+      setChatMsgs(m=>{const c=m.slice();c[c.length-1]={role:"assistant",content:txt};return c;});
+    }catch(err){
+      setChatMsgs(m=>{const c=m.slice();c[c.length-1]={role:"assistant",content:"Error: "+err.message};return c;});
+    }
+    setChatBusy(false);
+  }
+
+  async function getDailyGuidance(){
+    if(dailyBusy||!chart) return;
+    setDailyBusy(true);
+    const d=chart.daily;
+    const ctx=`PERSON: ${form.name||"Unknown"} | GENDER: ${form.gender||"NOT SPECIFIED — use name or they/them"}
+NATAL: Lagna ${signOf(chart.angles.ascSid)}, Moon ${signOf(chart.planets[1].sid)}, Nakshatra ${chart.nakshatra}
+TODAY: ${d.weekday}, ${d.date.toDateString()} | Weekday ruling planet: ${d.dayLord}
+Moon today transits ${d.moonSign} — the ${d.moonHouseFromNatal}th house from the natal Moon
+Day alignment score: ${d.alignment}% (higher = smoother day)
+Running period: ${d.dasha}`;
+    try{
+      const res=await fetch(API_URL,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({messages:[
+          {role:"system",content:DAILY_SYSTEM},
+          {role:"user",content:ctx+"\n\nGive today's guidance."}
+        ]})
+      });
+      if(!res.ok) throw new Error("AI service unavailable");
+      const data=await res.json();
+      const txt=(data.choices?.[0]?.message?.content||"").replace(/```json|```/g,"").trim();
+      setDaily(JSON.parse(txt));
+    }catch(e){
+      setError("Daily guidance failed: "+e.message);
+    }
+    setDailyBusy(false);
+  }
+
+  async function generate(){
+    if(!form.date||!form.time||!form.city){setError("All fields are required!");return;}
+    setError("");setChart(null);setInterp(null);setChatMsgs([]);setDaily(null);setLoading(true);
+    let mi=0;setLoadMsg(MSGS[0]);
+    const iv=setInterval(()=>{mi++;setLoadMsg(MSGS[mi%MSGS.length]);},2000);
+
+    const city=CITIES.find(c=>c.n===form.city);
+    try{
+      const ch=computeChart(form.date,form.time,city);
+      setChart(ch);
+      const summary=buildFactSheet(ch,form);
+      const res=await fetch(API_URL,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          messages:[
+            {role:"system",content:`You are a master Vedic astrologer. You are given a PRE-COMPUTED chart. You only phrase the given facts — you never compute, guess, or assume.
+
+RULES:
+1. Use ONLY the facts given. Never invent a placement, sign, house, aspect, yoga or date. Before writing any placement, re-check its exact sign and house in the PLANETS list.
+2. GENDER — CRITICAL: never infer gender from the name. Follow the GENDER field exactly: Male → he/him, Female → she/her, Other or NOT SPECIFIED → use the person's NAME or "they/them" only. A name is NOT evidence of gender — never assume.
+3. BE CHART-SPECIFIC, not generic. BANNED phrases (they fit any Scorpio-heavy chart and sound like every astrology app): "leadership-driven", "deep emotional connections", "transformative relationships", "intense personal growth", "drive towards mastery", "great potential". Instead, every sentence must cite SPECIFIC placements (planet + its sign + its house) and combine 2-3 of them into an insight unique to THIS chart.
+4. CAUSE → EFFECT: name the placement AND the concrete mechanism/result. Bad: "ambitious personality." Good: "Saturn in the 10th house delays early recognition but builds durable authority by the mid-30s."
+5. No vague filler, no probability percentages, no score numbers in the text.
+6. D1 (natal) and D9 (navamsa) are SEPARATE charts — state which one when citing a placement; never present a D9 placement as natal.
+7. HOUSE-LORD SYNTHESIS IS THE CORE OF THE READING. The HOUSE LORDS list shows where each house's lord sits — this LINKS two life-areas and is what actually shapes destiny. Examples: "10th lord in the 4th → career tied to home, property or a family business"; "1st lord in the 6th → the self poured into work, service and problem-solving, with health to guard". Base career, personality and lifeTheme primarily on these lord links — not on sign keywords alone.
+8. REMEDIES must be modern, practical and believable — NOT gemstone clichés. Give 2 remedies drawn from: behavioural, spiritual/mental, or timing-based (tied to the current dasha). Right style: "During the Rahu–Jupiter period, structured learning and foreign collaboration are especially fruitful"; "Moon in Virgo benefits from a steady routine, journaling and nervous-system care." Avoid "wear X gemstone".
+9. NUANCE, not flat verdicts. A house-lord link has MANY expressions — give a RANGE of 3-5 concrete possibilities with "may involve" / "can show up as", never one fixed conclusion. Bad: "10th lord in the 4th = career tied to family business." Good: "10th lord in the 4th — career may involve working from home, real estate or property, interior or design work, hospitality, a family influence on the profession, or emotionally-rooted work."
+10. VOCABULARY DIVERSIFICATION. Do not spam keywords. The words "transformation", "transformative", "intense", "deep emotional", "profound" may EACH appear at most ONCE in the whole reading. A Scorpio emphasis is NOT a licence to repeat these — vary with precise alternatives: penetrating, private, resilient, regenerative, focused, magnetic, all-or-nothing, psychologically sharp, self-reinventing. Never lean on one adjective.
+11. CONFIDENCE: reflect the CONFIDENCE ENGINE levels honestly. A High-confidence theme may be stated firmly. Moderate = phrase as "likely" / "well-supported". Low = "possible but only weakly indicated" — never overstate a Low theme as certain.
+12. PRECISION OVER POETRY. Astrology users want concrete, useful statements — not flowery prose. Do NOT invent poetic causality such as "motherly roots", "a nurturing soul", "cosmic journey", "the universe guides you". State the actual placement and a concrete, practical, real-world meaning.
+
+Respond with JSON ONLY, no markdown:
+{"lifeTheme":"One sentence.","bigThree":"2 sentences.","personality":"3 sentences, built on house-lord links.","career":"2 sentences, built on the 10th lord's placement.","relationships":"2 sentences.","strengths":["s1","s2","s3"],"challenges":["c1","c2"],"keyPlacements":["a house-lord link + what it means","another"],"remedies":["modern behavioural/spiritual/timing-based remedy","another"]}`},
+            {role:"user",content:summary+"\n\nInterpret this birth chart."}
+          ]
+        })
+      });
+      if(!res.ok) throw new Error("AI Service Unavailable");
+      const data=await res.json();
+      const txt=data.choices?.[0]?.message?.content || "";
+      setInterp(JSON.parse(txt.replace(/```json|```/g,"").trim()));
+    }catch(e){
+      setError(e.message);
+    }
+    clearInterval(iv);setLoading(false);
+  }
+
+  const sunV=chart&&signOf(chart.planets[0][sys==="Vedic"?"sid":"trop"]);
+  const moonV=chart&&signOf(chart.planets[1][sys==="Vedic"?"sid":"trop"]);
+  const ascV=chart&&signOf(sys==="Vedic"?chart.angles.ascSid:chart.angles.ascTrop);
+
+  return (
+    <div style={{maxWidth:720,margin:"0 auto",padding:"2rem 1rem",position:"relative"}}>
+      <div className="cosmos"></div>
+      <div className="stars"></div>
+
+      <div className="cosmic-card" style={{textAlign:"center",marginBottom:"2.5rem"}}>
+        <h2 style={{fontSize:28,fontWeight:700,margin:"0 0 8px",background:"linear-gradient(to right, #fff, #a855f7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
+          ✨ AI Kundali Insights ✨
+        </h2>
+        <p style={{fontSize:14,color:"#aaa",margin:0,letterSpacing:"0.5px"}}>
+          Precision Astronomy + Celestial Intelligence
+        </p>
+      </div>
+
+      <div className="cosmic-card">
+        <div style={{display:"grid",gap:16}}>
+          <div className="grid-name-gender">
+            <div>
+              <label style={lbl}>નામ / Full Name</label>
+              <input className="premium-input" placeholder="Enter your name..." value={form.name} onChange={e=>set("name",e.target.value)} />
+            </div>
+            <div>
+              <label style={lbl}>જાતિ / Gender</label>
+              <select className="premium-input" value={form.gender} onChange={e=>set("gender",e.target.value)}>
+                <option value="">— optional —</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid-2">
+            <div>
+              <label style={lbl}>જન્મ તારીખ / Birth Date</label>
+              <input type="date" className="premium-input" value={form.date} onChange={e=>set("date",e.target.value)} />
+            </div>
+            <div>
+              <label style={lbl}>જન્મ સમય / Birth Time</label>
+              <input type="time" className="premium-input" value={form.time} onChange={e=>set("time",e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label style={lbl}>જન્મ સ્થળ / Birth City</label>
+            <select className="premium-input" value={form.city} onChange={e=>set("city",e.target.value)}>
+              <option value="">— Select your city —</option>
+              {CITIES.map(c=><option key={c.n} value={c.n}>{c.n}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="magic-btn"
+            style={{marginTop:8,width:"100%"}}
+          >
+            {loading ? (
+              <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+                <span className="astrology-icon" style={{fontSize:16,margin:0}}>🔮</span> {loadMsg}
+              </span>
+            ) : "Reveal My Destiny ↗"}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="cosmic-card" style={{borderColor:"#ef4444",background:"rgba(239, 68, 68, 0.1)"}}>
+          <p style={{color:"#f87171",fontSize:14,margin:0}}>⚠️ {error}</p>
+        </div>
+      )}
+
+      {chart && (
+        <div style={{animation:"slideUp 0.8s ease-out"}}>
+          <div style={{textAlign:"center",marginBottom:24}}>
+            <p style={{fontSize:13,color:"#6366f1",fontWeight:600,textTransform:"uppercase",letterSpacing:"1px"}}>
+              {form.name || "Seeker"}'s Cosmic Map
+            </p>
+            <p style={{fontSize:12,color:"#888",marginTop:4}}>
+              {form.date} • {form.time} • {form.city}
+            </p>
+          </div>
+
+          <div className="grid-3" style={{marginBottom:20}}>
+            {[
+              ["Sun Sign", sunV, "☀️"],
+              ["Moon Sign", moonV, "🌙"],
+              [sys==="Vedic"?"Lagna":"Ascendant", ascV, "⬆"]
+            ].map(([l,v,ic])=>(
+              <div key={l} className="big-three-card">
+                <span className="astrology-icon">{ic}</span>
+                <p style={{fontSize:11,color:"#888",margin:"0 0 4px",textTransform:"uppercase"}}>{l}</p>
+                <p style={{fontSize:15,fontWeight:700,margin:0,color:"#fff"}}>{ZE[v]||""} {v}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="cosmic-card" style={{textAlign:"center",padding:"12px"}}>
+            <p style={{fontSize:13,color:"#fbbf24",margin:0,fontWeight:500}}>
+              🌙 Janma Nakshatra: <span style={{fontSize:15,fontWeight:700}}>{chart.nakshatra}</span>
+            </p>
+          </div>
+
+          {/* Daily Guidance */}
+          <div className="cosmic-card">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+              <p style={{fontSize:14,fontWeight:600,margin:0,color:"#fff"}}>
+                {(form.name||"Your")}{form.name?"'s":""} Insights Today
+              </p>
+              <span style={{fontSize:11,color:"#64748b"}}>{chart.daily.weekday.slice(0,3)}, {chart.daily.date.getDate()} {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][chart.daily.date.getMonth()]}</span>
+            </div>
+            <p style={{fontSize:26,fontWeight:800,color:"#c084fc",margin:"8px 0 2px"}}>{chart.daily.alignment}% Aligned</p>
+            {daily && <p style={{fontSize:15,fontWeight:700,color:"#fff",margin:"6px 0 4px"}}>{daily.dayTitle}</p>}
+            {daily && <p style={{fontSize:13,color:"#cbd5e1",lineHeight:1.65,margin:"0 0 12px"}}>{daily.intro}</p>}
+            <p style={{fontSize:11,color:"#64748b",margin:"4px 0 12px"}}>
+              {chart.daily.weekday} · ruled by {chart.daily.dayLord} · Moon in {chart.daily.moonSign}
+            </p>
+
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+              {[["WEAR",chart.daily.luckyColor],["MANIFEST","◆ "+chart.daily.luckyNumber],
+                ...(chart.daily.auspicious?[["AUSPICIOUS",chart.daily.auspicious.start+" – "+chart.daily.auspicious.end]]:[]),
+                ...(chart.daily.rahuKaal?[["RAHU KAAL",chart.daily.rahuKaal.start+" – "+chart.daily.rahuKaal.end]]:[])
+              ].map(([l,v])=>(
+                <div key={l} style={{flex:"1 1 120px",background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"9px 12px"}}>
+                  <p style={{fontSize:9,color:l==="RAHU KAAL"?"#f87171":"#64748b",margin:0,letterSpacing:"1px"}}>{l}</p>
+                  <p style={{fontSize:12.5,fontWeight:700,color:"#e2e8f0",margin:"3px 0 0"}}>{v}</p>
+                </div>
+              ))}
+            </div>
+
+            {daily && daily.action && (
+              <div style={{borderLeft:"2px solid #c084fc",paddingLeft:12,margin:"0 0 14px"}}>
+                <p style={{fontSize:10,color:"#64748b",margin:0,letterSpacing:"1px"}}>ACTION OF THE DAY</p>
+                <p style={{fontSize:13.5,color:"#e2e8f0",fontStyle:"italic",margin:"3px 0 0"}}>"{daily.action}"</p>
+              </div>
+            )}
+
+            {!daily && (
+              <button onClick={getDailyGuidance} disabled={dailyBusy} style={{
+                width:"100%",padding:"11px",borderRadius:10,fontSize:13,fontWeight:600,
+                cursor:dailyBusy?"not-allowed":"pointer",color:"#c084fc",
+                border:"1px solid rgba(168,85,247,0.4)",background:"rgba(168,85,247,0.12)",opacity:dailyBusy?0.5:1}}>
+                {dailyBusy?"Reading today's sky…":"✨ Reveal Today's Full Guidance"}
+              </button>
+            )}
+            {daily && (
+              <div style={{display:"grid",gap:10}}>
+                {[["SELF",daily.self],["LOVE",daily.love],["RELATIONSHIP",daily.relationship],
+                  ["FAMILY",daily.family],["JOB",daily.job],["HEALTH",daily.health],
+                  ["WEALTH",daily.wealth],["SPIRITUAL",daily.spiritual],["AVOID TODAY",daily.avoid]].map(([l,v])=>v&&(
+                  <div key={l}>
+                    <p style={{fontSize:10,color:"#a855f7",margin:"0 0 2px",letterSpacing:"1.5px",fontWeight:600}}>{l}</p>
+                    <p style={{fontSize:12.5,color:"#cbd5e1",lineHeight:1.6,margin:0}}>{v}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Kundali chart wheel */}
+          <div className="cosmic-card">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <p style={{fontSize:14,fontWeight:600,margin:0,color:"#fff"}}>Celestial Wheel</p>
+              <div style={{display:"flex",gap:8}}>
+                {[["north","North"],["south","South"]].map(([v,l])=>(
+                  <button key={v} onClick={()=>setChartStyle(v)} style={{
+                    fontSize:11,padding:"6px 12px",borderRadius:8,cursor:"pointer",color:"inherit",
+                    border:"1px solid "+(chartStyle===v?"#6366f1":"#444"),
+                    background:chartStyle===v?"rgba(99, 102, 241, 0.2)":"transparent"}}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <KundaliChart chart={chart} variant={chartStyle} />
+            <p style={{fontSize:10,color:"#555",textAlign:"center",marginTop:12,letterSpacing:"0.5px"}}>
+              Su:Sun • Mo:Moon • Ma:Mars • Me:Mercury • Ju:Jupiter • Ve:Venus • Sa:Saturn • Ra:Rahu • Ke:Ketu
+            </p>
+          </div>
+
+          {/* Life-area scores */}
+          <div className="cosmic-card">
+            <p style={{fontSize:14,fontWeight:600,margin:"0 0 16px",color:"#fff"}}>Destiny Matrix</p>
+            {chart.scores.map(s=>{
+              const col=s.score>=70?"#4ade80":s.score>=45?"#fbbf24":"#f87171";
+              return (
+                <details key={s.key} style={{marginBottom:14}}>
+                  <summary style={{listStyle:"none",cursor:"pointer"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
+                      <span style={{color:"#94a3b8"}}>{s.key} <span style={{color:"#555",fontSize:10}}>▸ why</span></span>
+                      <span style={{color:col,fontWeight:700}}>{s.score}<span style={{color:"#444",fontWeight:400,marginLeft:2}}>/100</span></span>
+                    </div>
+                    <div style={{height:6,background:"rgba(255,255,255,0.05)",borderRadius:10,overflow:"hidden"}}>
+                      <div style={{width:s.score+"%",height:"100%",background:col,boxShadow:`0 0 10px ${col}44`}}/>
+                    </div>
+                  </summary>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5,margin:"8px 0 4px"}}>
+                    {(s.factors||[]).map((f,i)=>(
+                      <span key={i} style={{fontSize:10,color:"#8b9bb0",background:"rgba(255,255,255,0.04)",
+                        border:"1px solid rgba(255,255,255,0.07)",borderRadius:5,padding:"2px 7px"}}>{f}</span>
+                    ))}
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+
+          {/* Planet table */}
+          <div className="cosmic-card">
+            <p style={{fontSize:14,fontWeight:600,margin:"0 0 2px",color:"#fff",display:"flex",alignItems:"center",gap:8}}>
+              <span className="astrology-icon" style={{fontSize:18,margin:0}}>🪐</span> Planetary Positions
+            </p>
+            <p style={{fontSize:10.5,color:"#64748b",margin:"0 0 16px"}}>
+              Whole-sign house system — each sign is one full house, so a planet's house does not depend on its degree.
+            </p>
+            <div className="planet-row" style={{display:"grid",gridTemplateColumns:"1.2fr 1.5fr 1.5fr 0.6fr",fontSize:11,color:"#666",paddingBottom:8,borderBottom:"1px solid rgba(255,255,255,0.1)",textTransform:"uppercase",letterSpacing:"0.5px"}}>
+              <span>Planet</span><span>Vedic</span><span>Western</span><span>House</span>
+            </div>
+            {chart.planets.map((p, i)=>(
+              <div key={p.name} className="planet-row" style={{
+                display:"grid",gridTemplateColumns:"1.2fr 1.5fr 1.5fr 0.6fr",fontSize:13,padding:"10px 0",
+                borderBottom:"1px solid rgba(255,255,255,0.05)",alignItems:"center"
+              }}>
+                <span style={{color:"#aaa",fontWeight:500}}>{p.name}{p.retro&&<span style={{color:"#f87171",fontSize:11,marginLeft:4}}>℞</span>}</span>
+                <span style={{color:"#ddd"}}>{ZE[signOf(p.sid)]} {signOf(p.sid)}</span>
+                <span style={{color:"#ddd"}}>{ZE[signOf(p.trop)]} {signOf(p.trop)}</span>
+                <span style={{color:"#888",textAlign:"center"}}>{p.houseSid}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Vimshottari Dasha */}
+          <div className="cosmic-card">
+            <p style={{fontSize:14,fontWeight:600,margin:"0 0 16px",color:"#fff"}}>Planetary Timing (Dasha)</p>
+            <div style={{background:"rgba(99, 102, 241, 0.1)",border:"1px solid rgba(99, 102, 241, 0.2)",borderRadius:12,padding:"16px",marginBottom:16}}>
+              <p style={{fontSize:14,color:"#fff",fontWeight:600,margin:0}}>
+                {chart.curMaha.lord} Mahadasha
+                {chart.curAntar && <span style={{color:"#a855f7"}}> · {chart.curAntar.lord} Antardasha</span>}
+              </p>
+              <p style={{fontSize:12,color:"#94a3b8",margin:"4px 0 16px"}}>
+                {fmtDate(chart.curMaha.start)} – {fmtDate(chart.curMaha.end)}
+              </p>
+              {(()=>{
+                const now=Date.now();
+                const bar=(label,s,e,col)=>{
+                  const pct=Math.max(0,Math.min(100,Math.round((now-s)/(e-s)*100)));
+                  return (
+                    <div style={{marginBottom:10}}>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#94a3b8",marginBottom:4}}>
+                        <span>{label}</span><span>{pct}% complete</span>
+                      </div>
+                      <div style={{height:6,background:"rgba(255,255,255,0.05)",borderRadius:10,overflow:"hidden"}}>
+                        <div style={{width:pct+"%",height:"100%",background:col,boxShadow:`0 0 10px ${col}44`}}/>
+                      </div>
+                    </div>
+                  );
+                };
+                return <div>
+                  {bar(chart.curMaha.lord, +chart.curMaha.start, +chart.curMaha.end, "#6366f1")}
+                  {chart.curAntar && bar(chart.curAntar.lord, +chart.curAntar.start, +chart.curAntar.end, "#a855f7")}
+                </div>;
+              })()}
+            </div>
+            {chart.dasha.filter(m=>m.end>new Date()).slice(0,5).map((m,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                <span style={{color:m===chart.curMaha?"#fff":"#94a3b8",fontWeight:m===chart.curMaha?600:400}}>{m.lord} Mahadasha</span>
+                <span style={{color:"#666",fontSize:12}}>{fmtDate(m.start)} – {fmtDate(m.end)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Timeline Forecast */}
+          <div className="cosmic-card">
+            <p style={{fontSize:14,fontWeight:600,margin:"0 0 4px",color:"#fff"}}>Timeline Forecast</p>
+            <p style={{fontSize:11,color:"#64748b",margin:"0 0 16px"}}>Upcoming dasha windows — computed, with the reasoning shown</p>
+            {chart.predictions.map((p,i)=>{
+              const tc=p.tone==="supportive"?"#4ade80":p.tone==="testing"?"#f87171":"#fbbf24";
+              return (
+                <div key={i} style={{borderLeft:`2px solid ${tc}`,paddingLeft:12,marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:12.5,fontWeight:600,color:"#e2e8f0"}}>
+                      {p.period}{p.current && <span style={{fontSize:9,color:"#4ade80",marginLeft:6,border:"1px solid #4ade80",borderRadius:4,padding:"1px 5px"}}>NOW</span>}
+                    </span>
+                    <span style={{fontSize:10,color:tc,fontWeight:600,border:`1px solid ${tc}55`,borderRadius:4,padding:"2px 7px"}}>{p.phase}</span>
+                  </div>
+                  <p style={{fontSize:10.5,color:"#64748b",margin:"2px 0 6px"}}>{fmtDate(p.start)} – {fmtDate(p.end)}</p>
+                  <p style={{fontSize:11.5,color:"#cbd5e1",margin:"0 0 7px",lineHeight:1.55}}>{p.summary}</p>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:5}}>
+                    {p.areas.map((a,j)=>(
+                      <span key={j} style={{fontSize:9.5,color:"#64748b",background:"rgba(255,255,255,0.04)",borderRadius:4,padding:"2px 7px"}}>H{a.house}</span>
+                    ))}
+                  </div>
+                  <details>
+                    <summary style={{fontSize:10,color:"#64748b",cursor:"pointer"}}>why this window</summary>
+                    {p.why.map((w,j)=>(
+                      <p key={j} style={{fontSize:10,color:"#8b9bb0",margin:"3px 0 0"}}>• {w}</p>
+                    ))}
+                  </details>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Confidence engine */}
+          <div className="cosmic-card">
+            <p style={{fontSize:14,fontWeight:600,margin:"0 0 4px",color:"#fff"}}>Prediction Confidence</p>
+            <p style={{fontSize:11,color:"#64748b",margin:"0 0 16px"}}>How many independent chart signatures back each theme</p>
+            {chart.confidence.map((c,i)=>{
+              const lc=c.level==="High"?"#4ade80":c.level==="Moderate"?"#fbbf24":"#f87171";
+              return (
+                <details key={i} style={{marginBottom:12}}>
+                  <summary style={{listStyle:"none",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:12.5,color:"#e2e8f0"}}>{c.theme} <span style={{color:"#555",fontSize:10}}>▸</span></span>
+                    <span style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontSize:10,color:"#64748b"}}>{c.count}/{c.total}</span>
+                      <span style={{fontSize:10,color:lc,fontWeight:700,border:`1px solid ${lc}55`,borderRadius:4,padding:"2px 8px"}}>{c.level}</span>
+                    </span>
+                  </summary>
+                  <div style={{margin:"8px 0 2px"}}>
+                    {c.supporting.map((s,j)=>(
+                      <p key={j} style={{fontSize:10.5,color:"#86c8a0",margin:"3px 0"}}>✓ {s}</p>
+                    ))}
+                    {c.missing.map((s,j)=>(
+                      <p key={j} style={{fontSize:10.5,color:"#5a6577",margin:"3px 0"}}>○ {s}</p>
+                    ))}
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+
+          {/* Transits */}
+          <div className="cosmic-card">
+            <p style={{fontSize:14,fontWeight:600,margin:"0 0 16px",color:"#fff"}}>Current Sky (Gochar)</p>
+            {chart.transits.sadeSati.active ? (
+              <div style={{background:"rgba(239, 68, 68, 0.1)",border:"1px solid rgba(239, 68, 68, 0.2)",borderRadius:12,padding:"12px",marginBottom:16}}>
+                <p style={{fontSize:13,color:"#f87171",fontWeight:700,margin:0}}>⚠ Sade Sati Phase: {chart.transits.sadeSati.phase}</p>
+                <p style={{fontSize:11,color:"#fca5a5",margin:"4px 0 0"}}>Ends: {chart.transits.sadeSati.end?fmtDay(chart.transits.sadeSati.end):"ongoing"}</p>
+              </div>
+            ) : (
+              <div style={{background:"rgba(34, 197, 94, 0.1)",border:"1px solid rgba(34, 197, 94, 0.2)",borderRadius:12,padding:"12px",marginBottom:16}}>
+                <p style={{fontSize:13,color:"#4ade80",fontWeight:600,margin:0}}>✓ Free from Sade Sati</p>
+              </div>
+            )}
+            {chart.transits.positions.map(p=>(
+              <div key={p.name} style={{display:"flex",justifyContent:"space-between",fontSize:13,padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                <span style={{color:"#94a3b8"}}>{p.name}</span>
+                <span style={{color:"#fff"}}>{ZE[p.sign]} {p.sign} <span style={{color:"#666",fontSize:11,marginLeft:6}}>• {p.houseMoon}th from Moon</span></span>
+              </div>
+            ))}
+          </div>
+
+          {loading && !interp && (
+            <div className="cosmic-card" style={{textAlign:"center",padding:"3rem 1.5rem"}}>
+              <div className="astrology-icon" style={{fontSize:40,marginBottom:20}}>🔮</div>
+              <p style={{color:"#fff",fontSize:16,fontWeight:500,marginBottom:8}}>{loadMsg}</p>
+              <p style={{color:"#666",fontSize:12}}>The stars are aligning for you...</p>
+            </div>
+          )}
+
+          {interp && (
+            <div style={{animation:"slideUp 0.8s ease-out"}}>
+              <div style={{
+                background:"linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%)",
+                border:"1px solid rgba(168, 85, 247, 0.3)",
+                borderRadius:20,padding:"2rem",marginBottom:24,
+                boxShadow: "0 0 30px rgba(168, 85, 247, 0.15)",
+                textAlign:"center"
+              }}>
+                <p style={{fontSize:12,fontWeight:700,color:"#a855f7",margin:"0 0 12px",textTransform:"uppercase",letterSpacing:"3px"}}>Cosmic Blueprint</p>
+                <p style={{fontSize:20,fontWeight:600,color:"#fff",margin:0,lineHeight:1.6,fontStyle:"italic"}}>"{interp.lifeTheme}"</p>
+              </div>
+
+              <div style={{display:"grid",gap:20}}>
+                {[
+                  ["Core Identity","✨",interp.bigThree],
+                  ["Personality Matrix","👤",interp.personality],
+                  ["Destiny & Purpose","💼",interp.career],
+                  ["Heart & Soul","💛",interp.relationships]
+                ].map(([title,icon,content], idx)=>content&&(
+                  <div key={title} className="cosmic-card" style={{margin:0,animationDelay: `${idx * 0.1}s`}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+                      <span className="astrology-icon" style={{margin:0,fontSize:28}}>{icon}</span>
+                      <p style={{fontSize:18,fontWeight:700,margin:0,color:"#fff",letterSpacing:"0.5px"}}>{title}</p>
+                    </div>
+                    <p style={{fontSize:15,color:"#94a3b8",margin:0,lineHeight:1.8}}>{content}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid-2" style={{margin:"20px 0"}}>
+                <div className="cosmic-card" style={{margin:0,borderColor:"rgba(34, 197, 94, 0.2)",background:"rgba(20, 30, 20, 0.4)"}}>
+                  <p style={{fontSize:15,fontWeight:700,color:"#4ade80",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:20}}>✦</span> Celestial Strengths
+                  </p>
+                  {(interp.strengths||[]).map((s,i)=>(
+                    <div key={i} style={{display:"flex",gap:10,marginBottom:10,fontSize:14,color:"#94a3b8",lineHeight:1.5}}>
+                      <span style={{color:"#4ade80",fontWeight:700}}>✓</span><span>{s}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="cosmic-card" style={{margin:0,borderColor:"rgba(251, 191, 36, 0.2)",background:"rgba(30, 25, 20, 0.4)"}}>
+                  <p style={{fontSize:15,fontWeight:700,color:"#fbbf24",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:20}}>✦</span> Growth Thresholds
+                  </p>
+                  {(interp.challenges||[]).map((c,i)=>(
+                    <div key={i} style={{display:"flex",gap:10,marginBottom:10,fontSize:14,color:"#94a3b8",lineHeight:1.5}}>
+                      <span style={{color:"#fbbf24",fontWeight:700}}>↑</span><span>{c}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {interp.keyPlacements && (
+                <div className="cosmic-card">
+                  <p style={{fontSize:16,fontWeight:700,margin:"0 0 16px",color:"#fff"}}>🔑 Key Celestial Placements</p>
+                  <div style={{display:"grid",gap:12}}>
+                    {interp.keyPlacements.map((k,i)=>(
+                      <p key={i} style={{fontSize:14.5,color:"#94a3b8",margin:0,lineHeight:1.7,padding:"12px 16px",background:"rgba(255,255,255,0.03)",borderRadius:12,borderLeft:"4px solid #6366f1"}}>
+                        {k}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {interp.remedies && (
+                <div className="cosmic-card" style={{borderColor:"rgba(168, 85, 247, 0.2)",background:"rgba(30, 20, 30, 0.4)"}}>
+                  <p style={{fontSize:16,fontWeight:700,color:"#c084fc",margin:"0 0 16px"}}>🪔 Cosmic Guidance & Remedies</p>
+                  <div style={{display:"grid",gap:10}}>
+                    {interp.remedies.map((r,i)=>(
+                      <p key={i} style={{fontSize:14.5,color:"#c084fc",margin:0,lineHeight:1.7,display:"flex",gap:10}}>
+                        <span style={{opacity:0.8}}>✨</span> <span>{r}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Follow-up chat — locked to this chart */}
+              <div className="cosmic-card" style={{marginTop:24}}>
+                <p style={{fontSize:16,fontWeight:700,color:"#c084fc",margin:"0 0 4px"}}>💬 Ask About Your Kundli</p>
+                <p style={{fontSize:12,color:"#64748b",margin:"0 0 16px"}}>
+                  Ask anything about your future, career, marriage or timing — answered from your chart only.
+                </p>
+
+                {chatMsgs.length===0 && (
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
+                    {["When will I marry?","How is my career future?","What does my current dasha mean?","Will I settle abroad?"].map(q=>(
+                      <button key={q} onClick={()=>setChatInput(q)} style={{
+                        fontSize:12,padding:"6px 12px",borderRadius:16,cursor:"pointer",color:"#a5b4fc",
+                        border:"1px solid rgba(168,85,247,0.3)",background:"rgba(168,85,247,0.08)"}}>{q}</button>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:14}}>
+                  {chatMsgs.map((m,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
+                      <div style={{maxWidth:"85%",fontSize:13.5,lineHeight:1.65,padding:"10px 14px",borderRadius:14,whiteSpace:"pre-wrap",
+                        background:m.role==="user"?"rgba(99,102,241,0.18)":"rgba(255,255,255,0.04)",
+                        border:"1px solid "+(m.role==="user"?"rgba(99,102,241,0.4)":"rgba(255,255,255,0.08)"),
+                        color:m.role==="user"?"#e0e7ff":"#cbd5e1"}}>
+                        {m.content}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <form onSubmit={askChat} style={{display:"flex",gap:8}}>
+                  <input className="premium-input" style={{flex:1}} placeholder="Ask about your future…"
+                    value={chatInput} onChange={e=>setChatInput(e.target.value)} disabled={chatBusy} />
+                  <button type="submit" disabled={chatBusy||!chatInput.trim()} style={{
+                    padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:chatBusy?"not-allowed":"pointer",
+                    border:"1px solid rgba(168,85,247,0.4)",background:"rgba(168,85,247,0.15)",color:"#c084fc",
+                    opacity:chatBusy?0.5:1}}>
+                    {chatBusy?"…":"Send"}
+                  </button>
+                </form>
+              </div>
+
+              <p style={{fontSize:11,color:"#444",textAlign:"center",marginTop:40,lineHeight:1.8,maxWidth:500,margin:"40px auto 0",letterSpacing:"0.5px"}}>
+                Disclaimer: Astrology is a tool for self-reflection and spiritual insight.
+                Celestial cycles reflect possibilities, not certainties. Always use your own judgment.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
