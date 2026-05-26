@@ -44,16 +44,49 @@ export const API_URL =
     ? ENV_URL
     : deriveDevUrl();
 
+// Fetch wrapper: adds a per-request timeout, one automatic retry for
+// "Network request failed" (Vercel cold start, DNS hiccup, momentary
+// loss of Wi-Fi), and surfaces the actual URL + cause in the thrown error.
+async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, retries = 1 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: ctrl.signal });
+      clearTimeout(timer);
+      return res;
+    } catch (err) {
+      clearTimeout(timer);
+      const isTimeout = err.name === "AbortError";
+      const isNetwork = /network request failed|network error/i.test(err.message || "");
+      // Retry once for transient network errors / timeouts (cold start)
+      if (attempt < retries && (isTimeout || isNetwork)) {
+        // small back-off so the server has a moment to wake up
+        await new Promise((r) => setTimeout(r, 1500));
+        continue;
+      }
+      const reason = isTimeout ? `timeout after ${timeoutMs}ms` : err.message;
+      const wrapped = new Error(`fetch failed (${reason}) → ${url}`);
+      wrapped.cause = err;
+      wrapped.url = url;
+      throw wrapped;
+    }
+  }
+}
+
 async function postJSON(endpoint, body) {
-  const res = await fetch(`${API_URL}${endpoint}`, {
+  const url = `${API_URL}${endpoint}`;
+  const res = await fetchWithRetry(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
-    const err = new Error(errBody.error || "AI service unavailable");
+    const err = new Error(errBody.error || `AI service unavailable (HTTP ${res.status})`);
     if (errBody.code) err.code = errBody.code;
+    err.status = res.status;
+    err.url = url;
     throw err;
   }
   return res.json();
@@ -61,9 +94,15 @@ async function postJSON(endpoint, body) {
 
 async function getJSON(endpoint, params) {
   const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
-  const res = await fetch(`${API_URL}${endpoint}${qs}`);
+  const url = `${API_URL}${endpoint}${qs}`;
+  const res = await fetchWithRetry(url);
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error("Failed to load saved data");
+  if (!res.ok) {
+    const err = new Error(`Failed to load (HTTP ${res.status}) → ${url}`);
+    err.status = res.status;
+    err.url = url;
+    throw err;
+  }
   return res.json();
 }
 
@@ -77,6 +116,15 @@ function parseContent(content) {
   let parsed = JSON.parse((content || "").replace(/```json|```/g, "").trim());
   if (typeof parsed === "string") parsed = JSON.parse(parsed);
   return parsed;
+}
+
+// Fire-and-forget ping to wake the serverless backend on app start.
+// Hits "/" (the root route returns "Server is running") so the cold start
+// finishes before the user submits their first real request.
+export function warmupBackend() {
+  // Strip "/api" suffix since the warm-up route is at the root
+  const base = API_URL.replace(/\/api\/?$/, "");
+  fetch(`${base}/`).catch(() => { /* ignore — best-effort warm-up */ });
 }
 
 export async function chatCompletion(messages, type = "chat", extra = {}) {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -9,6 +9,7 @@ import { AuthProvider } from "./src/context/AuthContext";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import SplashScreen from "./src/components/SplashScreen";
+import { warmupBackend } from "./src/services/api";
 
 function ThemedStatusBar() {
   const { theme } = useTheme();
@@ -18,6 +19,10 @@ function ThemedStatusBar() {
 function AppShell() {
   const [splashing, setSplashing] = useState(true);
   const { hydrated, colors } = useTheme();
+
+  // Wake the Vercel serverless backend in the background while the
+  // splash plays, so the first real API call doesn't pay the cold start.
+  useEffect(() => { warmupBackend(); }, []);
 
   // Block the splash from rendering until the saved theme has loaded from
   // AsyncStorage — otherwise the user sees a brief default-dark flash before
