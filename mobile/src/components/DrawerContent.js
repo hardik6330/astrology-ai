@@ -45,7 +45,8 @@ export default function DrawerContent({ navigation, state }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top", "left", "bottom"]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.lg }}>
+      {/* Top section — scrolls if menu is too tall */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.sm }}>
         <Pressable onPress={() => go("Profile")} style={styles.profile}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initial}</Text>
@@ -88,6 +89,10 @@ export default function DrawerContent({ navigation, state }) {
           })}
         </View>
 
+      </ScrollView>
+
+      {/* Bottom-pinned section */}
+      <View>
         <View style={styles.divider} />
 
         {/* Theme toggle */}
@@ -129,7 +134,7 @@ export default function DrawerContent({ navigation, state }) {
           <Text style={styles.footerTitle}>Astrology AI</Text>
           <Text style={styles.footerVersion}>v1.0.0</Text>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
