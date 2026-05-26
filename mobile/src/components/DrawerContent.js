@@ -127,7 +127,7 @@ export default function DrawerContent({ navigation, state }) {
 
         <View style={{ padding: spacing.lg }}>
           <Text style={styles.footerTitle}>Astrology AI</Text>
-          <Text style={styles.footerVersion}>v1.0.0 · Gemini 2.5 Pro</Text>
+          <Text style={styles.footerVersion}>v1.0.0</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
