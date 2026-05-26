@@ -1,14 +1,14 @@
 import crypto from 'node:crypto';
 import { PalmReading } from '../models/index.js';
 import { callGeminiVision } from '../ai/gemini.js';
-import { PALM_SYSTEM } from '../ai/prompts.js';
+import { PALM_SYSTEM, PALM_GATE_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
 import { validateImage } from '../utils/imageValidator.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
 import { userKey } from '../utils/userKey.js';
-import { KUNDLI_MODELS, THINK_BUDGET } from '../config/constants.js';
+import { KUNDLI_MODELS, PALM_GATE_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { httpError } from '../middleware/errorHandler.js';
 import { logger } from '../config/logger.js';
 
@@ -65,12 +65,48 @@ export async function analyzePalm({ image, form }) {
     const dup = await PalmReading.findOne({ where: { userId: user.id, imageHash } });
     if (dup) return asContent(dup.reading);
 
-    // 3. Call Gemini Vision (Pro only — no fallback. If Pro fails 3×, the
-    // overload error bubbles up to the frontend's retry countdown).
+    // 3. CHEAP GATE — Flash Vision yes/no on usability. Saves ~85% on
+    // rejected photos (most common case for first-time users).
+    const gateUser = 'Is this a clear, usable photo of a single open human palm?';
+    let gateParsed = null;
+    try {
+      const gateRaw = await callGeminiVision(
+        PALM_GATE_SYSTEM, gateUser, base64, mimeType,
+        true, PALM_GATE_MODELS, THINK_BUDGET.PALM_GATE
+      );
+      gateParsed = JSON.parse(cleanJson(gateRaw));
+    } catch (e) {
+      // Gate failure shouldn't block a user — fall through to Pro.
+      log.warn({ err: e.message }, 'Palm gate skipped — proceeding with Pro');
+    }
+
+    // 3a. Gate said unusable → save + return WITHOUT calling Pro.
+    if (gateParsed?.imageQuality === 'unusable') {
+      const rejection = {
+        handType: 'Unclear',
+        imageQuality: 'unusable',
+        rejectReason: gateParsed.rejectReason || 'not_a_palm',
+        retakeReason: gateParsed.retakeReason || 'Please retake with a clearer palm photo.',
+      };
+      try {
+        await PalmReading.create({
+          userId: user.id,
+          handType: rejection.handType,
+          imageQuality: rejection.imageQuality,
+          imageHash,
+          reading: rejection,
+        });
+      } catch (saveError) {
+        log.error({ err: saveError }, 'Palm gate-rejection save failed');
+      }
+      return JSON.stringify(rejection);
+    }
+
+    // 4. Gate passed (or skipped) — full reading with Pro.
     const userPrompt = `NAME: ${form.name}\nGENDER: ${form.gender || 'NOT SPECIFIED'}\n\nAnalyze this palm photograph.`;
     const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, base64, mimeType, true, KUNDLI_MODELS, THINK_BUDGET.PALM);
 
-    // 4. Sanitize + parse + persist (new row each time → preserves history).
+    // 5. Sanitize + parse + persist (new row each time → preserves history).
     const cleaned = cleanJson(raw);
     let parsed;
     try {

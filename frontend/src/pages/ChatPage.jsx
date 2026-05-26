@@ -18,7 +18,38 @@ export default function ChatPage() {
   const { form, chart, chatMsgs, setChatMsgs } = useChart();
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
+  const [phIdx, setPhIdx]   = useState(0);
+  const [phText, setPhText] = useState("");
   const scrollRef = useRef(null);
+
+  const PLACEHOLDERS = [
+    "Ask about your future…",
+    "When will I marry?",
+    "How is my career going?",
+    "What does my dasha say?",
+    "Is this a good time for change?",
+  ];
+
+  useEffect(() => {
+    const full = PLACEHOLDERS[phIdx];
+    let i = 0, deleting = false, t;
+    const tick = () => {
+      if (!deleting) {
+        i++;
+        setPhText(full.slice(0, i));
+        if (i >= full.length) { deleting = true; t = setTimeout(tick, 1400); return; }
+        t = setTimeout(tick, 55);
+      } else {
+        i--;
+        setPhText(full.slice(0, i));
+        if (i <= 0) { setPhIdx((p) => (p + 1) % PLACEHOLDERS.length); return; }
+        t = setTimeout(tick, 30);
+      }
+    };
+    t = setTimeout(tick, 80);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phIdx]);
 
   // Shown as the first astrologer message before any conversation starts
   // (display-only — not stored in the database).
@@ -141,13 +172,13 @@ export default function ChatPage() {
             </div>
           )}
           <form onSubmit={askChat} style={{ display: "flex", gap: 8 }}>
-            <input className="premium-input" style={{ flex: 1 }} placeholder="Ask about your future…"
+            <input className="premium-input" style={{ flex: 1 }} placeholder={phText + "▍"}
               value={chatInput} onChange={e => setChatInput(e.target.value)} disabled={chatBusy} />
             <button type="submit" disabled={chatBusy || !chatInput.trim()} style={{
               padding: "10px 20px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: chatBusy ? "not-allowed" : "pointer",
               border: "1px solid rgba(168,85,247,0.4)", background: "rgba(168,85,247,0.15)", color: "#c084fc",
               opacity: chatBusy ? 0.5 : 1 }}>
-              {chatBusy ? "…" : "Send"}
+              {chatBusy ? "…" : "Ask"}
             </button>
           </form>
         </div>

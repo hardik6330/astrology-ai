@@ -1,0 +1,60 @@
+// Phone-OTP auth endpoints. The actual OTP delivery + verification is done
+// by Firebase on the client; we only see the resulting Firebase ID token,
+// verify it server-side with firebase-admin, then mint our own JWT.
+
+import { Router } from 'express';
+import { z } from 'zod';
+import { verifyIdToken } from '../config/firebase.js';
+import { AuthAccount } from '../models/index.js';
+import { requireAuth, signAppToken } from '../middleware/auth.js';
+import { writeLimiter } from '../middleware/rateLimit.js';
+import { validate } from '../middleware/validate.js';
+import { logger } from '../config/logger.js';
+
+const router = Router();
+
+const verifyBody = z.object({
+  idToken: z.string().min(20),
+});
+
+router.post('/auth/verify-otp', writeLimiter, validate(verifyBody, 'body'), async (req, res) => {
+  const { idToken } = req.body;
+
+  // 1. Verify the Firebase ID token. This throws if expired/forged.
+  let decoded;
+  try {
+    decoded = await verifyIdToken(idToken);
+  } catch (err) {
+    logger.warn({ err: err.message }, 'Firebase token verification failed');
+    return res.status(401).json({ error: 'invalid_id_token' });
+  }
+
+  const firebaseUid = decoded.uid;
+  const phone = decoded.phone_number || null;
+  if (!phone) return res.status(400).json({ error: 'no_phone_in_token' });
+
+  // 2. Upsert auth ledger.
+  const [account] = await AuthAccount.findOrCreate({
+    where: { firebaseUid },
+    defaults: { firebaseUid, phone, lastLoginAt: new Date() },
+  });
+  await account.update({ phone, lastLoginAt: new Date() });
+
+  // 3. Mint our own session JWT.
+  const token = signAppToken({
+    accountId:   account.id,
+    firebaseUid: account.firebaseUid,
+    phone:       account.phone,
+  });
+
+  res.json({
+    token,
+    account: { id: account.id, phone: account.phone },
+  });
+});
+
+router.get('/auth/me', requireAuth, (req, res) => {
+  res.json({ account: req.auth });
+});
+
+export default router;

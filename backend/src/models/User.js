@@ -8,6 +8,7 @@ const User = sequelize.define('User', {
     primaryKey: true,
     defaultValue: () => genId(),
   },
+  phone:     { type: DataTypes.STRING, allowNull: true },
   name:      { type: DataTypes.STRING, allowNull: false },
   gender:    { type: DataTypes.STRING, allowNull: true },
   birthDate: { type: DataTypes.STRING, allowNull: false },

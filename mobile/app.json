@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Astrology AI",
+    "slug": "astrology-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "astrologyai",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#f8fafc",
+      "dark": {
+        "backgroundColor": "#050508"
+      }
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.astrologyai.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to capture a photo of your palm for AI reading.",
+        "NSPhotoLibraryUsageDescription": "Used to pick a palm photo from your gallery."
+      }
+    },
+    "android": {
+      "package": "com.astrologyai.app",
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow access to choose a palm photo.",
+          "cameraPermission": "Allow camera access to capture your palm."
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "apiUrl": {},
+      "eas": {
+        "projectId": "a51d2fa1-d8fb-4099-a3d8-17de250150a0"
+      }
+    }
+  }
+}

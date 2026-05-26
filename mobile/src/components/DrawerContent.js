@@ -1,0 +1,185 @@
+import React from "react";
+import { View, Text, Pressable, StyleSheet, ScrollView, Switch } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useChart } from "../context/ChartContext";
+import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../theme/ThemeContext";
+import { useStyles } from "../theme/useStyles";
+import { radius, spacing, fontSize } from "../theme/tokens";
+
+const ITEMS = [
+  { key: "Home",    label: "Home",           icon: "🏠", route: "Home",    desc: "Start a new reading" },
+  { key: "Reading", label: "Reading",        icon: "✨", route: "Reading", desc: "Your cosmic blueprint" },
+  { key: "Palm",    label: "Palm Reading",   icon: "✋", route: "Palm",    desc: "Hand-line insights" },
+  { key: "Chat",    label: "AI Astrologer",  icon: "💬", route: "Chat",    desc: "Ask the stars anything" },
+  { key: "Profile", label: "Profile",        icon: "👤", route: "Profile", desc: "Birth details & identity" },
+  { key: "Help",    label: "Help & Support", icon: "💁", route: "Help",    desc: "FAQ, contact, about" },
+];
+
+function fmtTime(t) {
+  if (!t) return "";
+  const [hStr, mStr] = t.split(":");
+  const h24 = Number(hStr);
+  const m = String(mStr).padStart(2, "0");
+  const ap = h24 >= 12 ? "PM" : "AM";
+  const h12 = ((h24 + 11) % 12) + 1;
+  return `${h12}:${m} ${ap}`;
+}
+
+export default function DrawerContent({ navigation, state }) {
+  const { form } = useChart();
+  const { account, logout } = useAuth();
+  const { theme, toggleTheme, colors } = useTheme();
+  const styles = useStyles(makeStyles);
+
+  const initial = (form.name || "?").trim().charAt(0).toUpperCase();
+  const activeRoute = state?.routeNames?.[state.index];
+  const isDark = theme === "dark";
+
+  const birthLine = [form.date, fmtTime(form.time)].filter(Boolean).join(" • ");
+
+  function go(route) {
+    navigation.closeDrawer();
+    navigation.navigate(route);
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top", "left", "bottom"]}>
+      <ScrollView contentContainerStyle={{ paddingBottom: spacing.lg }}>
+        <Pressable onPress={() => go("Profile")} style={styles.profile}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initial}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name} numberOfLines={1}>{form.name || "Welcome ✨"}</Text>
+            {birthLine ? (
+              <Text style={styles.birthLine} numberOfLines={1}>{birthLine}</Text>
+            ) : null}
+            {form.city ? (
+              <Text style={styles.tagline} numberOfLines={1}>{form.city}</Text>
+            ) : (
+              <Text style={styles.tagline} numberOfLines={1}>Tap to set birth details</Text>
+            )}
+          </View>
+        </Pressable>
+
+        <View style={styles.divider} />
+
+        <View style={{ paddingVertical: spacing.sm }}>
+          {ITEMS.map((item) => {
+            const active = activeRoute === item.route;
+            return (
+              <Pressable
+                key={item.key}
+                onPress={() => go(item.route)}
+                style={({ pressed }) => [
+                  styles.item,
+                  active && styles.itemActive,
+                  pressed && !active && { opacity: 0.7 },
+                ]}
+              >
+                <Text style={styles.icon}>{item.icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
+                  <Text style={styles.itemDesc} numberOfLines={1}>{item.desc}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* Theme toggle */}
+        <Pressable onPress={toggleTheme} style={styles.themeRow}>
+          <Text style={styles.icon}>{isDark ? "🌙" : "☀️"}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.themeLabel}>{isDark ? "Dark Mode" : "Light Mode"}</Text>
+            <Text style={styles.themeSub}>Tap to switch</Text>
+          </View>
+          <Switch
+            value={!isDark}
+            onValueChange={toggleTheme}
+            thumbColor={isDark ? "#e5e7eb" : colors.primaryLight}
+            trackColor={{ false: "#444", true: colors.primaryBorder }}
+          />
+        </Pressable>
+
+        <View style={styles.divider} />
+
+        <Pressable
+          onPress={async () => {
+            navigation.closeDrawer();
+            await logout();
+          }}
+          style={({ pressed }) => [styles.logoutRow, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.icon}>↩</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.logoutLabel}>Log out</Text>
+            <Text style={styles.themeSub} numberOfLines={1}>
+              {account?.phone ? `Signed in as ${account.phone}` : "End this session"}
+            </Text>
+          </View>
+        </Pressable>
+
+        <View style={styles.divider} />
+
+        <View style={{ padding: spacing.lg }}>
+          <Text style={styles.footerTitle}>Astrology AI</Text>
+          <Text style={styles.footerVersion}>v1.0.0 · Gemini 2.5 Pro</Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const makeStyles = (c) =>
+  StyleSheet.create({
+    profile: {
+      flexDirection: "row", alignItems: "center", gap: spacing.md,
+      padding: spacing.lg,
+    },
+    avatar: {
+      width: 56, height: 56, borderRadius: 28,
+      backgroundColor: c.primarySoft,
+      borderWidth: 2, borderColor: c.primaryBorder,
+      alignItems: "center", justifyContent: "center",
+    },
+    avatarText: { color: c.primaryLight, fontSize: 24, fontWeight: "800" },
+    name:       { color: c.text, fontSize: 16, fontWeight: "700" },
+    birthLine:  { color: c.textBody, fontSize: 11, marginTop: 3 },
+    tagline:    { color: c.textMuted, fontSize: 11, marginTop: 2 },
+
+    divider: { height: 1, backgroundColor: c.cardBorder },
+
+    item: {
+      flexDirection: "row", alignItems: "center", gap: spacing.md,
+      paddingHorizontal: spacing.lg, paddingVertical: 12,
+      borderRadius: radius.md, marginHorizontal: spacing.sm, marginVertical: 2,
+    },
+    itemActive: {
+      backgroundColor: c.primarySoft,
+      borderWidth: 1, borderColor: c.primaryBorder,
+    },
+    icon: { fontSize: 22, lineHeight: 32, width: 32, textAlign: "center", textAlignVertical: "center" },
+    label:       { color: c.textBody, fontSize: 14, fontWeight: "600" },
+    labelActive: { color: c.primaryLight },
+    itemDesc:    { color: c.textMuted, fontSize: 11, marginTop: 2 },
+
+    themeRow: {
+      flexDirection: "row", alignItems: "center", gap: spacing.md,
+      paddingHorizontal: spacing.lg, paddingVertical: 12,
+    },
+    themeLabel: { color: c.text, fontSize: 14, fontWeight: "600" },
+    themeSub:   { color: c.textMuted, fontSize: 11, marginTop: 2 },
+
+    logoutRow: {
+      flexDirection: "row", alignItems: "center", gap: spacing.md,
+      paddingHorizontal: spacing.lg, paddingVertical: 12,
+    },
+    logoutLabel: { color: c.danger, fontSize: 14, fontWeight: "700" },
+
+    footerTitle:   { color: c.textDim, fontSize: 12, fontWeight: "600" },
+    footerVersion: { color: c.textFaint, fontSize: 11, marginTop: 4 },
+  });

@@ -7,7 +7,10 @@ import { env } from './config/envConfig.js';
 import { logger } from './config/logger.js';
 import { corsOptions } from './config/cors.js';
 import sequelize from './config/dbConfig.js';
+import { initFirebase } from './config/firebase.js';
 import './models/index.js';                       // register associations
+
+initFirebase();
 
 import routes from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';

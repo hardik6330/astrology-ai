@@ -14,6 +14,8 @@ const schema = z.object({
   DB_USER:         z.string().default('root'),
   DB_PASS:         z.string().default(''),
   DB_NAME:         z.string().default('astrology_db'),
+  JWT_SECRET:      z.string().min(16, 'JWT_SECRET must be at least 16 chars'),
+  JWT_EXPIRES_IN:  z.string().default('30d'),
 });
 
 const parsed = schema.safeParse(process.env);

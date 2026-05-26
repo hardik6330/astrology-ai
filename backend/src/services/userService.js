@@ -12,6 +12,8 @@ export async function findUserByForm({ name, date, time, city }) {
 }
 
 // Find-or-create — used by writers that must always have a User row.
+// If the form carries a phone (set after dummy OTP login on the client),
+// stamp it onto the row — both on first create and any later update.
 export async function findOrCreateUser(form) {
   const [user] = await User.findOrCreate({
     where: {
@@ -20,7 +22,10 @@ export async function findOrCreateUser(form) {
       birthTime: form.time,
       birthCity: form.city,
     },
-    defaults: { gender: form.gender },
+    defaults: { gender: form.gender, phone: form.phone || null },
   });
+  if (form.phone && user.phone !== form.phone) {
+    await user.update({ phone: form.phone });
+  }
   return user;
 }

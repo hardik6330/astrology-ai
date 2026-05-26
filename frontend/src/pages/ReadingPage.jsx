@@ -6,6 +6,11 @@ import { chatCompletionJSON, fetchSaved, fetchDailyDates } from "../services/api
 import { useChart } from "../context/ChartContext";
 import KundaliChart from "../components/KundaliChart";
 import BottomNav from "../components/BottomNav";
+import DoshaCard from "../components/DoshaCard";
+import PanchangCard from "../components/PanchangCard";
+import PlanetaryStrengthCard from "../components/PlanetaryStrengthCard";
+import DashaWheel from "../components/DashaWheel";
+import AshtakvargaWheel from "../components/AshtakvargaWheel";
 
 // LLM output can drift from the requested JSON schema — e.g. a lite model
 // returning bigThree as an object instead of a string. Coerce any value into
@@ -305,6 +310,12 @@ Running period: ${d.dasha}`;
           </p>
         </div>
 
+        {/* New: Dosha & Yoga Status */}
+        <DoshaCard doshas={chart.doshas} />
+
+        {/* New: Panchang Snapshot */}
+        <PanchangCard panchang={chart.panchang} />
+
         {/* Life-area scores */}
         <div className="cosmic-card">
           <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 16px", color: "#fff" }}>Destiny Matrix</p>
@@ -335,6 +346,9 @@ Running period: ${d.dasha}`;
 
         {/* ─────────── TAB: Planets ─────────── */}
         {tab === "planets" && <>
+        {/* New: Planetary Strength meter */}
+        <PlanetaryStrengthCard strengths={chart.strengths} />
+
         {/* Planet table */}
         <div className="cosmic-card">
           <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 2px", color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
@@ -401,6 +415,12 @@ Running period: ${d.dasha}`;
 
         {/* ─────────── TAB: Timeline ─────────── */}
         {tab === "timeline" && <>
+        {/* New: Dasha Timeline Wheel */}
+        <DashaWheel chart={chart} />
+
+        {/* New: Ashtakvarga Wheel */}
+        <AshtakvargaWheel ashtakvarga={chart.ashtakvarga} />
+
         {/* Timeline Forecast */}
         <div className="cosmic-card">
           <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: "#fff" }}>Timeline Forecast</p>

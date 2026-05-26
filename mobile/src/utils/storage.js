@@ -1,0 +1,29 @@
+// Thin AsyncStorage wrapper with JSON serialisation + safe fallbacks.
+// Replaces web's sessionStorage/localStorage.
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export async function getItem(key, fallback = null) {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function setItem(key, value) {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // swallow — storage is best-effort
+  }
+}
+
+export async function removeItem(key) {
+  try {
+    await AsyncStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}

@@ -1,13 +1,14 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ChartProvider } from "./context/ChartContext";
+import { AuthProvider } from "./context/AuthContext";
+import AuthGate from "./components/AuthGate";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
 
-// Lazy-load the heavy authenticated pages. The home form is loaded eagerly
-// because it's the landing page — every other page is fetched on demand,
-// cutting initial bundle by ~30%.
+// Lazy-load the heavy authenticated pages.
 const ReadingPage = lazy(() => import("./pages/ReadingPage"));
 const ChatPage    = lazy(() => import("./pages/ChatPage"));
 const PalmPage    = lazy(() => import("./pages/PalmPage"));
@@ -20,43 +21,52 @@ function PageLoader() {
   );
 }
 
-// Router shell. The birth form lives at "/"; the full reading at
-// "/reading" is gated by ProtectedRoute (needs a generated chart).
+// Phone-OTP auth gates the whole app. /reading|/chat|/palm additionally
+// require a generated chart (ProtectedRoute).
 export default function App() {
   return (
-    <ChartProvider>
-      <BrowserRouter>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<RouteErrorBoundary><HomePage /></RouteErrorBoundary>} />
-            <Route
-              path="/reading"
-              element={
-                <RouteErrorBoundary>
-                  <ProtectedRoute><ReadingPage /></ProtectedRoute>
-                </RouteErrorBoundary>
-              }
-            />
-            <Route
-              path="/chat"
-              element={
-                <RouteErrorBoundary>
-                  <ProtectedRoute><ChatPage /></ProtectedRoute>
-                </RouteErrorBoundary>
-              }
-            />
-            <Route
-              path="/palm"
-              element={
-                <RouteErrorBoundary>
-                  <ProtectedRoute><PalmPage /></ProtectedRoute>
-                </RouteErrorBoundary>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </ChartProvider>
+    <AuthProvider>
+      <ChartProvider>
+        <BrowserRouter>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={<AuthGate><RouteErrorBoundary><HomePage /></RouteErrorBoundary></AuthGate>} />
+              <Route
+                path="/reading"
+                element={
+                  <AuthGate>
+                    <RouteErrorBoundary>
+                      <ProtectedRoute><ReadingPage /></ProtectedRoute>
+                    </RouteErrorBoundary>
+                  </AuthGate>
+                }
+              />
+              <Route
+                path="/chat"
+                element={
+                  <AuthGate>
+                    <RouteErrorBoundary>
+                      <ProtectedRoute><ChatPage /></ProtectedRoute>
+                    </RouteErrorBoundary>
+                  </AuthGate>
+                }
+              />
+              <Route
+                path="/palm"
+                element={
+                  <AuthGate>
+                    <RouteErrorBoundary>
+                      <ProtectedRoute><PalmPage /></ProtectedRoute>
+                    </RouteErrorBoundary>
+                  </AuthGate>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </ChartProvider>
+    </AuthProvider>
   );
 }

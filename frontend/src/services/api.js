@@ -13,20 +13,53 @@ const API_URL = isLocalDefault && typeof window !== "undefined"
   ? `${window.location.protocol}//${window.location.hostname}:5000/api`
   : (RAW_API_URL || 'http://localhost:5000/api');
 
+export const API_BASE = API_URL;
+
+// Pulls the logged-in phone from the dummy AuthContext store and attaches
+// it to any outgoing form payload so the backend can stamp it on the User
+// row. Pure read — no side effects.
+function attachPhone(form) {
+  if (!form) return form;
+  try {
+    const acc = JSON.parse(localStorage.getItem("app_account") || "null");
+    if (acc?.phone && !form.phone) return { ...form, phone: acc.phone };
+  } catch { /* ignore */ }
+  return form;
+}
+
+// Every authenticated request goes through here so the Bearer token is
+// attached centrally. On 401 we clear the token and reload — the router
+// will then bounce the user to /login.
+export async function authFetch(url, init = {}) {
+  const token = localStorage.getItem('app_token');
+  const headers = new Headers(init.headers || {});
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const res = await fetch(url, { ...init, headers });
+  if (res.status === 401) {
+    localStorage.removeItem('app_token');
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      window.location.assign('/login');
+    }
+  }
+  return res;
+}
+
 // Low-level POST to the chat-completion endpoint.
 export async function chatCompletion(messages, type = 'chat', extraData = {}) {
+  const form = attachPhone(extraData.form);
   let endpoint = `${API_URL}/chat`;
-  let body = { messages, factSheet: extraData.factSheet, form: extraData.form };
+  let body = { messages, factSheet: extraData.factSheet, form };
 
   if (type === 'interpret') {
     endpoint = `${API_URL}/interpret`;
-    body = { factSheet: extraData.factSheet, form: extraData.form };
+    body = { factSheet: extraData.factSheet, form };
   } else if (type === 'daily') {
     endpoint = `${API_URL}/daily`;
-    body = { ctx: extraData.ctx, form: extraData.form, targetDate: extraData.date };
+    body = { ctx: extraData.ctx, form, targetDate: extraData.date };
   }
 
-  const res = await fetch(endpoint, {
+  const res = await authFetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -57,7 +90,7 @@ export async function fetchSaved(type, form, targetDate) {
     name: form.name, date: form.date, time: form.time, city: form.city,
   });
   if (targetDate) params.set("targetDate", targetDate);
-  const res = await fetch(`${API_URL}/${type}?${params}`);
+  const res = await authFetch(`${API_URL}/${type}?${params}`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("Failed to load saved data");
   const data = await res.json();
@@ -76,7 +109,7 @@ export async function fetchDailyDates(form) {
     name: form.name, date: form.date, time: form.time, city: form.city,
   });
   try {
-    const res = await fetch(`${API_URL}/daily-dates?${params}`);
+    const res = await authFetch(`${API_URL}/daily-dates?${params}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.dates || [];
@@ -92,7 +125,7 @@ export async function fetchPalmHistory(form) {
     name: form.name, date: form.date, time: form.time, city: form.city,
   });
   try {
-    const res = await fetch(`${API_URL}/palm/history?${params}`);
+    const res = await authFetch(`${API_URL}/palm/history?${params}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.readings || [];
@@ -106,7 +139,7 @@ export async function fetchPalmById(id, form) {
   const params = new URLSearchParams({
     name: form.name, date: form.date, time: form.time, city: form.city,
   });
-  const res = await fetch(`${API_URL}/palm/${id}?${params}`);
+  const res = await authFetch(`${API_URL}/palm/${id}?${params}`);
   if (!res.ok) return null;
   const data = await res.json();
   let parsed = JSON.parse((data.content || "").replace(/```json|```/g, "").trim());
@@ -117,10 +150,10 @@ export async function fetchPalmById(id, form) {
 // Send a palm photo (base64 data URL or raw base64) for AI analysis.
 // Returns the parsed palm reading object.
 export async function analyzePalm(imageBase64, form) {
-  const res = await fetch(`${API_URL}/palm`, {
+  const res = await authFetch(`${API_URL}/palm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image: imageBase64, form }),
+    body: JSON.stringify({ image: imageBase64, form: attachPhone(form) }),
   });
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
@@ -142,7 +175,7 @@ export async function fetchChatHistory(form) {
     name: form.name, date: form.date, time: form.time, city: form.city,
   });
   try {
-    const res = await fetch(`${API_URL}/chat?${params}`);
+    const res = await authFetch(`${API_URL}/chat?${params}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.messages || [];
