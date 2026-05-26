@@ -11,6 +11,7 @@ const schema = z.object({
   // In dev we use a permissive localhost/LAN allowlist regardless of this var.
   CORS_ORIGINS:    z.string().optional(),
   DB_HOST:         z.string().default('localhost'),
+  DB_PORT:         z.coerce.number().default(3306),
   DB_USER:         z.string().default('root'),
   DB_PASS:         z.string().default(''),
   DB_NAME:         z.string().default('astrology_db'),
