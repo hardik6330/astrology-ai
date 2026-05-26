@@ -1,9 +1,9 @@
 export const MSGS = [
-  "Swiss-grade positions calculate thai rahi che...",
-  "Ascendant ane houses kaadhi rahya chhe...",
-  "Aspects ane patterns scan thai rahya chhe...",
-  "Gemini AI interpretation generate thai rahi chhe...",
-  "Reading taiyar thai rahi che...",
+  "Calculating Swiss-grade planetary positions…",
+  "Casting your ascendant and house cusps…",
+  "Scanning aspects and chart patterns…",
+  "Generating your AI interpretation…",
+  "Finalising your reading…",
 ];
 
 // System prompt for the follow-up chat — locked to THIS person's chart
