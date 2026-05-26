@@ -45,23 +45,16 @@ function logLanUrls(port) {
 }
 
 async function start() {
-  // In dev, auto-sync schema for convenience. In prod, REQUIRE migrations —
-  // never let sequelize.sync() touch a real database.
-  if (env.NODE_ENV !== 'production') {
-    try {
-      await sequelize.sync();
-      logger.info('Database synced (dev mode)');
-    } catch (err) {
-      logger.error({ err }, 'sequelize.sync failed — continuing anyway');
-    }
-  } else {
-    try {
-      await sequelize.authenticate();
-      logger.info('Database connection verified');
-    } catch (err) {
-      logger.fatal({ err }, 'Cannot connect to database — exiting');
-      process.exit(1);
-    }
+  try {
+    await sequelize.authenticate();
+    logger.info('Database connection verified');
+    // sync() with no options is non-destructive: creates missing tables,
+    // never alters or drops existing columns. Safe to run on every boot.
+    await sequelize.sync();
+    logger.info('Database synced (missing tables created)');
+  } catch (err) {
+    logger.fatal({ err }, 'Database init failed');
+    if (env.NODE_ENV === 'production') process.exit(1);
   }
 
   const server = app.listen(env.PORT, '0.0.0.0', () => {
