@@ -25,6 +25,8 @@ app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
+app.get('/', (_req, res) => res.send('Server is running'));
+
 app.use('/api', routes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
