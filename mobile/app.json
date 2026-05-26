@@ -7,7 +7,9 @@
     "scheme": "astrologyai",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#f8fafc",
       "dark": {
@@ -17,6 +19,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.astrologyai.app",
+      "icon": "./assets/icon.png",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to capture a photo of your palm for AI reading.",
         "NSPhotoLibraryUsageDescription": "Used to pick a palm photo from your gallery."
@@ -25,10 +28,11 @@
     "android": {
       "package": "com.astrologyai.app",
       "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f8fafc"
+      },
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO"
