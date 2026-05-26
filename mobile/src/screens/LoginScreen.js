@@ -228,8 +228,10 @@ export default function LoginScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
         <View style={s.wrap}>
-          <View style={s.card}>
-            <Text style={s.emoji}>🪐</Text>
+          <View style={s.cardOuterGlow}>
+            <View style={s.card}>
+              <View style={s.cardSheen} pointerEvents="none" />
+              <Text style={s.emoji}>🪐</Text>
             <Text style={s.title}>Sign in to Astrology AI</Text>
             <Text style={s.subtitle}>
               {step === "phone"
@@ -292,6 +294,7 @@ export default function LoginScreen() {
             )}
 
             {error ? <Text style={s.error}>{error}</Text> : null}
+            </View>
           </View>
         </View>
         </KeyboardAvoidingView>
@@ -302,13 +305,29 @@ export default function LoginScreen() {
 
 const makeStyles = (c) => StyleSheet.create({
   wrap: { flex: 1, justifyContent: "center", padding: spacing.lg },
+  // Outer wrapper holds a stronger purple drop-shadow that bleeds beyond
+  // the card's own border, creating the "neon glow" feel.
+  cardOuterGlow: {
+    borderRadius: radius.xl + 4,
+    shadowColor: "#8b5cf6",
+    shadowOpacity: 0.45, shadowRadius: 36,
+    shadowOffset: { width: 0, height: 0 }, elevation: 20,
+  },
   card: {
-    backgroundColor: "rgba(10,10,18,0.72)",
-    borderWidth: 1, borderColor: "rgba(167,139,250,0.22)",
-    borderRadius: radius.xl,
+    backgroundColor: "rgba(15,14,32,0.55)",
+    borderWidth: 1.5, borderColor: "rgba(167,139,250,0.45)",
+    borderRadius: radius.xl + 4,
     paddingHorizontal: spacing.xl, paddingVertical: spacing.xl + 8,
-    shadowColor: "#000", shadowOpacity: 0.6, shadowRadius: 30,
-    shadowOffset: { width: 0, height: 14 }, elevation: 14,
+    shadowColor: "#000", shadowOpacity: 0.55, shadowRadius: 24,
+    shadowOffset: { width: 0, height: 18 }, elevation: 14,
+    overflow: "hidden",
+  },
+  // Thin highlight strip along the top inner edge — mimics light reflecting
+  // off a glass pane. Stops at 38% so it fades into the card body.
+  cardSheen: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, height: 1,
+    backgroundColor: "rgba(255,255,255,0.35)",
   },
   emoji: { fontSize: 52, textAlign: "center", marginBottom: 14, lineHeight: 60 },
   title: { color: "#fff", fontSize: 22, fontWeight: "800", textAlign: "center", letterSpacing: 0.3 },
