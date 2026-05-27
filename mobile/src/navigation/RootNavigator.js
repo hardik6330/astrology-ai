@@ -8,6 +8,7 @@ import ReadingScreen     from "../screens/ReadingScreen";
 import ChatScreen        from "../screens/ChatScreen";
 import PalmScreen        from "../screens/PalmScreen";
 import PalmStepScreen    from "../screens/PalmStepScreen";
+import PalmCompareScreen from "../screens/PalmCompareScreen";
 import ProfileScreen     from "../screens/ProfileScreen";
 import HelpSupportScreen from "../screens/HelpSupportScreen";
 import LoginScreen       from "../screens/LoginScreen";
@@ -48,6 +49,11 @@ function MainDrawer() {
       <Drawer.Screen
         name="PalmStep"
         component={PalmStepScreen}
+        options={{ swipeEnabled: false, drawerItemStyle: { display: "none" } }}
+      />
+      <Drawer.Screen
+        name="PalmCompare"
+        component={PalmCompareScreen}
         options={{ swipeEnabled: false, drawerItemStyle: { display: "none" } }}
       />
       <Drawer.Screen name="Reading"  component={ReadingScreen} />

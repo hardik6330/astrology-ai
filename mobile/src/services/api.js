@@ -197,8 +197,25 @@ export async function fetchPalmById(id, form) {
   return parseContent(data.content);
 }
 
-export async function analyzePalm(imageBase64, form) {
-  const data = await postJSON("/palm", { image: imageBase64, form: attachPhone(form) });
+export async function analyzePalm(imageBase64, form, claimedHand) {
+  const data = await postJSON("/palm", { 
+    image: imageBase64, 
+    form: attachPhone(form), 
+    claimedHand,
+    skipGate: true // mobile now uses local TFJS gate, skip backend Flash gate
+  });
+  return parseContent(data.content);
+}
+
+// Both-Hands comparison. Returns { left, right, comparison } — comparison
+// is null if either hand came back unusable (frontend renders retake UI).
+export async function comparePalms(leftBase64, rightBase64, form) {
+  const data = await postJSON("/palm/compare", {
+    leftImage: leftBase64,
+    rightImage: rightBase64,
+    form: attachPhone(form),
+    skipGate: true // mobile now uses local TFJS gate, skip backend Flash gate
+  });
   return parseContent(data.content);
 }
 

@@ -30,3 +30,10 @@ export async function analyzePalm(req, res, next) {
     res.json({ content });
   } catch (err) { next(err); }
 }
+
+export async function comparePalms(req, res, next) {
+  try {
+    const content = await palm.comparePalms(req.body);
+    res.json({ content });
+  } catch (err) { next(err); }
+}

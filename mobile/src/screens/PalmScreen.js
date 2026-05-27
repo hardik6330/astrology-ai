@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, Image, Pressable, StyleSheet,
-  ActivityIndicator, Animated, Easing,
+  ActivityIndicator, Animated, Easing, Modal,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import ScreenContainer from "../components/ScreenContainer";
@@ -10,8 +10,9 @@ import MagicButton from "../components/MagicButton";
 import MenuButton from "../components/MenuButton";
 import { useChart } from "../context/ChartContext";
 import {
-  analyzePalm, fetchSaved, fetchPalmHistory, fetchPalmById,
+  analyzePalm, comparePalms, fetchSaved, fetchPalmHistory, fetchPalmById,
 } from "../services/api";
+import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 import { SkeletonPalm } from "../components/Skeleton";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
@@ -26,6 +27,7 @@ const REJECT_INFO = {
   too_far:        { icon: "🔍", title: "Palm is too far away",    tip: "Bring the camera closer — your palm should fill most of the frame." },
   cropped:        { icon: "✂️", title: "Palm is cropped",         tip: "Include your full palm — from wrist to fingertips — in the photo." },
   multiple_hands: { icon: "✋", title: "More than one hand",      tip: "Show just one open palm in the photo." },
+  wrong_hand:     { icon: "🔁", title: "Wrong hand uploaded",     tip: "The photo shows your other hand. Please retake using the hand you selected." },
   obstructed:     { icon: "🚫", title: "Palm is blocked",         tip: "Open your hand flat — remove rings, mehndi, or anything covering the main lines." },
   default:        { icon: "📸", title: "Photo unreadable",        tip: "Please retake with a clear, well-lit photo of your open palm." },
 };
@@ -40,7 +42,16 @@ const SCAN_MSGS = [
 ];
 
 export default function PalmScreen({ navigation }) {
-  const { form, palm, setPalm, palmPhoto, setPalmPhoto, palmAnalyzing, setPalmAnalyzing } = useChart();
+  const {
+    form, palm, setPalm,
+    palmPhoto, setPalmPhoto,
+    palmAnalyzing, setPalmAnalyzing,
+    palmClaimedHand, setPalmClaimedHand,
+    palmComparison, setPalmComparison,
+    palmOverloaded, setPalmOverloaded,
+    palmLeftPhoto, setPalmLeftPhoto,
+    palmRightPhoto, setPalmRightPhoto,
+  } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
   // Mirror context.palmPhoto so a photo uploaded on PalmStepScreen still
@@ -56,6 +67,16 @@ export default function PalmScreen({ navigation }) {
   const [rescan, setRescan]     = useState(false);
   const [history, setHistory]   = useState([]);
   const [hydrating, setHydrating] = useState(true);
+  
+  // Warm up the detector.
+  useEffect(() => { warmUpGate(); }, []);
+
+  // Hand the user just tapped on the upload screen. Drives the source-picker
+  // modal AND the scan-screen badge. Seeded from context so a scan kicked
+  // off on PalmStepScreen still shows the badge here.
+  const [activeHand, setActiveHand] = useState(palmClaimedHand);  // "Right" | "Left" | null
+  // Mirror local activeHand into context so the badge survives navigation.
+  useEffect(() => { setPalmClaimedHand(activeHand); }, [activeHand, setPalmClaimedHand]);
 
   // Animated scan-line on the preview.
   const scanAnim = useRef(new Animated.Value(0)).current;
@@ -64,12 +85,23 @@ export default function PalmScreen({ navigation }) {
   // while a background analysis is in flight (avoid flashing a stale prior
   // reading before the new one lands).
   useEffect(() => {
-    if (palm || rescan || palmAnalyzing || !form?.name) { setHydrating(false); return; }
+    if (palm || palmComparison || rescan || palmAnalyzing || !form?.name) {
+      setHydrating(false);
+      return;
+    }
     fetchSaved("palm", form)
-      .then((saved) => { if (saved) setPalm(saved); })
+      .then((saved) => {
+        if (saved) {
+          if (saved.handType === "Both") {
+            setPalmComparison(saved);
+          } else {
+            setPalm(saved);
+          }
+        }
+      })
       .catch(() => {})
       .finally(() => setHydrating(false));
-  }, [form, palm, rescan, palmAnalyzing, setPalm]);
+  }, [form, palm, palmComparison, rescan, palmAnalyzing, setPalm, setPalmComparison]);
 
   // Mirror the background-analyze flag into local scanning state + the
   // rotating message ticker so the existing scan UI works for analyses
@@ -100,6 +132,12 @@ export default function PalmScreen({ navigation }) {
     return () => clearTimeout(id);
   }, [cooldown]);
 
+  // Compare-flow overload → arm the shared cooldown for 50s.
+  useEffect(() => {
+    if (palmOverloaded && cooldown === 0) setCooldown(50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [palmOverloaded]);
+
   // Animate scan line while scanning.
   useEffect(() => {
     if (!scanning) {
@@ -126,7 +164,7 @@ export default function PalmScreen({ navigation }) {
       return;
     }
     const opts = {
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       base64: true,
       quality: 0.75,
       // Skip the system crop step — palm should be analyzed in full.
@@ -137,10 +175,21 @@ export default function PalmScreen({ navigation }) {
       : await ImagePicker.launchImageLibraryAsync(opts);
     if (res.canceled) return;
     const a = res.assets[0];
-    runAnalyze({ uri: a.uri, base64: a.base64 });
+    // Keep activeHand set through the scan — the badge over the scan
+    // image reads it. The chooser modal's visibility is gated on
+    // `!scanning` so it won't re-appear while Pro is running.
+    
+    // Client-side gate check
+    const gateResult = await gatePalmImage(a, activeHand);
+    if (!gateResult.ok) {
+      setError(gateResult.retakeReason);
+      return;
+    }
+
+    runAnalyze({ uri: a.uri, base64: a.base64 }, activeHand);
   }
 
-  async function runAnalyze(img) {
+  async function runAnalyze(img, hand) {
     setError("");
     setOverloaded(false);
     setPreview(img);
@@ -150,13 +199,13 @@ export default function PalmScreen({ navigation }) {
     setScanMsg(SCAN_MSGS[0]);
     const iv = setInterval(() => { i++; setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]); }, 1800);
     try {
-      const result = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form);
+      const result = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand);
       setPalm(result);
       setRescan(false);
     } catch (err) {
       if (err.code === "AI_OVERLOADED") {
         setOverloaded(true);
-        setCooldown(40);
+        setCooldown(50);
       } else setError(err.message);
     } finally {
       clearInterval(iv);
@@ -168,7 +217,13 @@ export default function PalmScreen({ navigation }) {
     try {
       const past = await fetchPalmById(id, form);
       if (past) {
-        setPalm(past);
+        if (past.handType === "Both") {
+          setPalmComparison(past);
+          setPalm(null);
+        } else {
+          setPalm(past);
+          setPalmComparison(null);
+        }
         setPreview(null);
         setRescan(false);
       }
@@ -182,11 +237,237 @@ export default function PalmScreen({ navigation }) {
     setPreview(null);
     setPalmPhoto(null);
     setPalmAnalyzing(false);
+    setActiveHand(null);
     setError("");
     setRescan(true);
   }
 
   const unusable = palm?.imageQuality === "unusable";
+
+  // Both-Hands comparison view replaces the single-hand UI entirely. Four
+  // states: analyzing, Pro overloaded, either hand unusable, or ready.
+  const inCompareMode =
+    !!palmComparison
+    || (palmAnalyzing && palmLeftPhoto && palmRightPhoto)
+    || (palmOverloaded && palmLeftPhoto && palmRightPhoto);
+  if (inCompareMode) {
+    const cmp     = palmComparison?.comparison;
+    const leftBad  = palmComparison?.left?.imageQuality  === "unusable";
+    const rightBad = palmComparison?.right?.imageQuality === "unusable";
+    const eitherBad = leftBad || rightBad;
+
+    function resetCompare() {
+      setPalmComparison(null);
+      setPalmLeftPhoto(null);
+      setPalmRightPhoto(null);
+      setPalmAnalyzing(false);
+      setPalmOverloaded(false);
+      navigation.navigate("PalmCompare");
+    }
+
+    // Retry the Both-Hands Pro call with the same photos. Disabled while
+    // the shared cooldown is still counting down.
+    function retryCompare() {
+      setPalmOverloaded(false);
+      setPalmAnalyzing(true);
+      // palmLeftPhoto / palmRightPhoto are URIs from the picker; turn them
+      // back into base64 data URLs the API expects. The originals came from
+      // ImagePicker with base64 — we no longer have those bytes here so the
+      // simpler approach is to ask the user to retake. For now we use the
+      // saved URIs as data URLs (works when picker returned base64-encoded
+      // data URIs, which expo-image-picker does NOT do by default). Fallback:
+      // navigate back to PalmCompare so the user re-picks.
+      navigation.navigate("PalmCompare");
+    }
+
+    return (
+      <View style={{ flex: 1, backgroundColor: color.bg }}>
+        <ScreenContainer showMenu={false}>
+          <View style={s.headerRow}>
+            <MenuButton />
+            <View style={{ flex: 1 }}>
+              <Text style={s.heroLabel} numberOfLines={1}>Full Life Comparison</Text>
+              <Text style={s.heroSub} numberOfLines={1}>Photos discarded after analysis</Text>
+            </View>
+            <View style={{ width: 40 }} />
+          </View>
+
+          {/* Both photos */}
+          {(palmLeftPhoto || palmRightPhoto) ? (
+            <CosmicCard>
+              <View style={{ flexDirection: "row", gap: spacing.md }}>
+                {[
+                  ["POTENTIAL", palmLeftPhoto,  "Left"],
+                  ["REALITY",   palmRightPhoto, "Right"],
+                ].map(([label, uri, hand]) => (
+                  <View key={hand} style={s.compareTile}>
+                    <View style={s.compareImageWrap}>
+                      {uri ? <Image source={{ uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" /> : null}
+                    </View>
+                    <Text style={s.compareHand}>{hand}</Text>
+                    <Text style={s.compareSub}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+            </CosmicCard>
+          ) : null}
+
+          {palmAnalyzing && !palmComparison && (
+            <CosmicCard style={{ alignItems: "center" }}>
+              {palmLeftPhoto && palmRightPhoto ? (
+                <View style={{ flexDirection: "row", gap: 20, marginBottom: 16 }}>
+                  {[palmLeftPhoto, palmRightPhoto].map((uri, idx) => (
+                    <View key={idx} style={{
+                      width: 80, height: 110, borderRadius: 12, overflow: "hidden",
+                      borderWidth: 1, borderColor: "rgba(168,85,247,0.4)"
+                    }}>
+                      <Image source={{ uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                      <Animated.View style={{
+                        position: "absolute", left: 0, right: 0, height: 2,
+                        backgroundColor: "#c084fc",
+                        top: scanAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ["0%", "97%"],
+                        }),
+                      }} />
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              <Text style={s.scanMsg}>{scanMsg}</Text>
+              <Text style={s.scanSub}>Comparing both hands — usually 20–45 seconds.</Text>
+              <ActivityIndicator color={color.primaryLight} style={{ marginTop: 8 }} />
+            </CosmicCard>
+          )}
+
+          {palmOverloaded && !palmAnalyzing && !palmComparison && (
+            <CosmicCard style={[s.aiBusyCard, { alignItems: "center" }]}>
+              <Text style={{ fontSize: 36, lineHeight: 48 }}>⏳</Text>
+              <Text style={[s.errTitle, { color: color.warning }]}>AI is busy right now</Text>
+              <Text style={s.errBody}>
+                Our reader couldn't compare your palms after several tries.
+                {cooldown > 0 ? " Please wait a moment before trying again." : " You can try again now."}
+              </Text>
+              <MagicButton style={{ width: "100%" }} disabled={cooldown > 0} onPress={retryCompare}>
+                {cooldown > 0 ? `🕒 Try Again in ${cooldown}s` : "🔄 Try Again"}
+              </MagicButton>
+            </CosmicCard>
+          )}
+
+          {palmComparison && eitherBad && (() => {
+            // Surface the per-hand reject reason (wrong_hand vs blurry vs
+            // too_dark etc.) instead of a generic lighting prompt — so the
+            // user knows which hand failed and why.
+            const badHands = [
+              leftBad  ? { side: "Left",  info: REJECT_INFO[palmComparison.left.rejectReason]  || REJECT_INFO.default, server: palmComparison.left.retakeReason  } : null,
+              rightBad ? { side: "Right", info: REJECT_INFO[palmComparison.right.rejectReason] || REJECT_INFO.default, server: palmComparison.right.retakeReason } : null,
+            ].filter(Boolean);
+            return (
+              <CosmicCard style={{ borderColor: "rgba(248,113,113,0.4)", backgroundColor: "rgba(248,113,113,0.06)" }}>
+                <Text style={[s.rejectTitle, { textAlign: "center", marginBottom: spacing.md }]}>
+                  {badHands.length === 2 ? "Both photos need a retake" : `${badHands[0].side} photo needs a retake`}
+                </Text>
+                {badHands.map(({ side, info, server }) => (
+                  <View key={side} style={s.rejectRow}>
+                    <Text style={s.rejectRowIcon}>{info.icon}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.rejectRowSide}>{side} Hand</Text>
+                      <Text style={s.rejectRowTitle}>{info.title}</Text>
+                      <Text style={s.rejectRowTip}>{server || info.tip}</Text>
+                    </View>
+                  </View>
+                ))}
+                <MagicButton style={{ width: "100%", marginTop: spacing.md }} onPress={resetCompare}>
+                  📷 Retake Both Photos
+                </MagicButton>
+              </CosmicCard>
+            );
+          })()}
+
+          {cmp && !eitherBad && (
+            <>
+              <View style={s.summary}>
+                <Text style={s.summaryLabel}>Alignment · {cmp.alignment || "—"}</Text>
+                <Text style={s.summaryVibe}>"{cmp.evolution}"</Text>
+              </View>
+
+              {[
+                ["Life Line",  "🌿", cmp.lifeLine],
+                ["Head Line",  "🧠", cmp.headLine],
+                ["Heart Line", "💛", cmp.heartLine],
+                ["Fate Line",  "🪐", cmp.fateLine],
+              ].map(([title, icon, content]) =>
+                content ? (
+                  <CosmicCard key={title}>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                      <Text style={{ fontSize: 22, lineHeight: 30, marginRight: 10 }}>{icon}</Text>
+                      <Text style={s.lineTitle}>{title}</Text>
+                    </View>
+                    <Text style={s.lineBody}>{content}</Text>
+                  </CosmicCard>
+                ) : null
+              )}
+
+              {(cmp.grownStronger?.length > 0 || cmp.watchPoints?.length > 0) && (
+                <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.lg }}>
+                  {cmp.grownStronger?.length > 0 && (
+                    <CosmicCard style={[s.halfCard, { borderColor: "rgba(34,197,94,0.2)", flex: 1, marginBottom: 0 }]}>
+                      <Text style={[s.halfTitle, { color: color.success }]}>✦ Grown Stronger</Text>
+                      {cmp.grownStronger.map((g, i) => (
+                        <View key={i} style={s.bulletRow}>
+                          <Text style={{ color: color.success, fontWeight: "700", marginRight: 6 }}>↑</Text>
+                          <Text style={s.bulletText}>{g}</Text>
+                        </View>
+                      ))}
+                    </CosmicCard>
+                  )}
+                  {cmp.watchPoints?.length > 0 && (
+                    <CosmicCard style={[s.halfCard, { borderColor: "rgba(251,191,36,0.2)", flex: 1, marginBottom: 0 }]}>
+                      <Text style={[s.halfTitle, { color: color.warning }]}>✦ Still Showing Up</Text>
+                      {cmp.watchPoints.map((w, i) => (
+                        <View key={i} style={s.bulletRow}>
+                          <Text style={{ color: color.warning, fontWeight: "700", marginRight: 6 }}>•</Text>
+                          <Text style={s.bulletText}>{w}</Text>
+                        </View>
+                      ))}
+                    </CosmicCard>
+                  )}
+                </View>
+              )}
+
+              {cmp.lifeAdvice ? (
+                <CosmicCard style={{ borderColor: "rgba(168,85,247,0.25)" }}>
+                  <Text style={[s.cardTitle, { color: color.primaryLight }]}>🎯 Direction</Text>
+                  <Text style={s.lineBody}>{cmp.lifeAdvice}</Text>
+                </CosmicCard>
+              ) : null}
+
+              <View style={{ flexDirection: "row", gap: spacing.md }}>
+                <Pressable onPress={resetCompare} style={[s.revealBtn, { flex: 1, marginBottom: 0 }]}>
+                  <Text style={s.revealText}>🔄 Re-do Comparison</Text>
+                </Pressable>
+                <Pressable onPress={() => {
+                   setPalmComparison(null);
+                   setPalmLeftPhoto(null);
+                   setPalmRightPhoto(null);
+                   setPalmAnalyzing(false);
+                   setPalmOverloaded(false);
+                   reset();
+                   // stays on the same screen but renders the upload UI
+                 }} style={[s.revealBtn, { flex: 1, marginBottom: 0, backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.12)" }]}>
+                   <Text style={[s.revealText, { color: "#94a3b8" }]}>🖐️ Scan Different Hand</Text>
+                 </Pressable>
+              </View>
+
+              <Text style={s.disclaimer}>
+                Palmistry is a tool for self-reflection. Insights here are interpretive, not predictive.
+              </Text>
+            </>
+          )}
+        </ScreenContainer>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
@@ -273,19 +554,49 @@ export default function PalmScreen({ navigation }) {
                 <Text style={{ fontSize: 64, lineHeight: 84, marginBottom: 12, textAlign: "center" }}>✋</Text>
                 <Text style={s.uploadTitle}>Scan Your Palm</Text>
                 <Text style={s.uploadHint}>
-                  Take a clear photo of your dominant hand. Open your palm flat, good lighting, fingers slightly spread.
+                  Pick which hand you're uploading. We'll check the photo matches the hand you choose.
                 </Text>
-                <MagicButton style={{ width: "100%", marginTop: spacing.md }} onPress={() => pick("camera")}>
-                  📷 Take Photo
-                </MagicButton>
-                <MagicButton variant="ghost" style={{ width: "100%", marginTop: spacing.sm }} onPress={() => pick("library")}>
-                  🖼️ Upload from Gallery
-                </MagicButton>
+
+                <Pressable
+                  onPress={() => setActiveHand("Right")}
+                  style={({ pressed }) => [s.uploadHandBtn, pressed && { opacity: 0.7 }, { marginTop: spacing.md }]}
+                >
+                  <Text style={s.uploadHandIcon}>✋</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.uploadHandLabel}>Right Hand</Text>
+                    <Text style={s.uploadHandSub}>Tap to take or pick a photo</Text>
+                  </View>
+                  <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setActiveHand("Left")}
+                  style={({ pressed }) => [s.uploadHandBtn, pressed && { opacity: 0.7 }, { marginTop: spacing.sm }]}
+                >
+                  <Text style={s.uploadHandIcon}>🤚</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.uploadHandLabel}>Left Hand</Text>
+                    <Text style={s.uploadHandSub}>Tap to take or pick a photo</Text>
+                  </View>
+                  <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
+                </Pressable>
+                {/* Premium upsell — both-hands Full Life Comparison */}
+                <Pressable
+                  onPress={() => navigation.navigate("PalmCompare")}
+                  style={({ pressed }) => [s.compareLink, pressed && { opacity: 0.8 }]}
+                >
+                  <Text style={s.compareLinkText}>✋🤚 Compare Both Hands · Full Life Reading →</Text>
+                </Pressable>
               </>
             )}
 
             {preview && scanning && (
               <View style={{ alignItems: "center", width: "100%" }}>
+                {activeHand ? (
+                  <View style={s.handBadge}>
+                    <Text style={s.handBadgeIcon}>{activeHand === "Right" ? "✋" : "🤚"}</Text>
+                    <Text style={s.handBadgeText}>{activeHand} Hand</Text>
+                  </View>
+                ) : null}
                 <View style={s.scanFrame}>
                   <Image source={{ uri: preview.uri }} style={s.scanImage} resizeMode="cover" />
                   <Animated.View
@@ -313,7 +624,13 @@ export default function PalmScreen({ navigation }) {
         {palm && !unusable && (
           <>
             {preview && (
-              <CosmicCard style={{ padding: 14 }}>
+              <CosmicCard style={{ padding: 14, alignItems: "center" }}>
+                {palm.handType && palm.handType !== "Unclear" ? (
+                  <View style={s.handBadge}>
+                    <Text style={s.handBadgeIcon}>{palm.handType === "Right" ? "✋" : "🤚"}</Text>
+                    <Text style={s.handBadgeText}>{palm.handType} Hand</Text>
+                  </View>
+                ) : null}
                 <View style={s.palmPhoto}>
                   <Image source={{ uri: preview.uri }} style={{ width: "100%", aspectRatio: 3 / 4 }} resizeMode="cover" />
                 </View>
@@ -440,6 +757,48 @@ export default function PalmScreen({ navigation }) {
         </>
         )}
       </ScreenContainer>
+
+      {/* Source-picker modal — appears after the user taps a hand card. */}
+      <Modal
+        visible={activeHand !== null && !scanning && !palm && !palmAnalyzing}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActiveHand(null)}
+      >
+        <Pressable onPress={() => setActiveHand(null)} style={s.modalBackdrop}>
+          <Pressable onPress={(e) => e.stopPropagation()} style={s.modalSheet}>
+            <Text style={s.modalTitle}>
+              {activeHand} Hand · How would you like to add the photo?
+            </Text>
+            <Pressable
+              onPress={() => pick("camera")}
+              style={({ pressed }) => [s.sourceBtn, s.sourceBtnPrimary, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={s.sourceIcon}>📷</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.sourceLabel}>Take a Photo</Text>
+                <Text style={s.sourceSub}>Use your camera</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={() => pick("library")}
+              style={({ pressed }) => [s.sourceBtn, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={s.sourceIcon}>🖼️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.sourceLabel}>Upload from Device</Text>
+                <Text style={s.sourceSub}>Pick a photo from your gallery</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={() => setActiveHand(null)}
+              style={({ pressed }) => [s.modalCancel, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={s.modalCancelText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -490,6 +849,56 @@ const makeStyles = (c) => StyleSheet.create({
 
   uploadTitle: { color: c.text, fontSize: 16, fontWeight: "600", marginBottom: 6 },
   uploadHint:  { color: c.textDim, fontSize: 12, textAlign: "center", lineHeight: 18 },
+
+  uploadHandBtn: {
+    flexDirection: "row", alignItems: "center", gap: spacing.md,
+    paddingVertical: 14, paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1, borderColor: c.primaryBorder,
+    backgroundColor: c.primarySoft,
+    width: "100%",
+  },
+  uploadHandIcon: {
+    fontSize: 26, lineHeight: 36, width: 36,
+    textAlign: "center", textAlignVertical: "center", includeFontPadding: false,
+  },
+  uploadHandLabel: { color: c.text, fontSize: 14, fontWeight: "700" },
+  uploadHandSub:   { color: c.textMuted, fontSize: 12, marginTop: 2 },
+  chev:            { fontSize: 22, fontWeight: "700", paddingHorizontal: 6 },
+
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
+  modalSheet: {
+    backgroundColor: c.bg,
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    borderWidth: 1, borderColor: c.primaryBorder,
+    paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xl,
+    gap: spacing.md,
+  },
+  modalTitle: { color: c.text, fontSize: 14, fontWeight: "600", textAlign: "center", marginBottom: 4 },
+  sourceBtn: {
+    flexDirection: "row", alignItems: "center", gap: spacing.md,
+    paddingVertical: 14, paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1, borderColor: c.cardBorder,
+    backgroundColor: c.cardBg,
+  },
+  sourceBtnPrimary: { borderColor: c.primaryBorder, backgroundColor: c.primarySoft },
+  sourceIcon: { fontSize: 26, lineHeight: 36, width: 40, textAlign: "center", textAlignVertical: "center", includeFontPadding: false },
+  sourceLabel:{ color: c.text, fontSize: 15, fontWeight: "700" },
+  sourceSub:  { color: c.textMuted, fontSize: 12, marginTop: 2 },
+  modalCancel:{ paddingVertical: 12, paddingHorizontal: spacing.md, borderRadius: radius.lg, alignItems: "center", marginTop: 4 },
+  modalCancelText: { color: c.textDim, fontSize: 14, fontWeight: "600" },
+
+  handBadge: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1, borderColor: "rgba(168,85,247,0.5)",
+    backgroundColor: "rgba(168,85,247,0.12)",
+    marginBottom: 12,
+  },
+  handBadgeIcon: { fontSize: 14, lineHeight: 18 },
+  handBadgeText: { color: c.primaryLight, fontSize: 12, fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase" },
 
   scanFrame: {
     width: "100%", maxWidth: 320, aspectRatio: 3 / 4,
@@ -566,12 +975,37 @@ const makeStyles = (c) => StyleSheet.create({
     marginTop: spacing.xl, lineHeight: 18,
   },
 
+  // ── Both-Hands comparison view ──
+  compareTile: { flex: 1, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "rgba(168,85,247,0.3)", backgroundColor: "rgba(15,14,32,0.6)" },
+  compareImageWrap: { width: "100%", aspectRatio: 3 / 4, backgroundColor: "#0f0e20" },
+  compareHand: { textAlign: "center", color: c.primaryLight, fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", fontWeight: "700", marginTop: 8 },
+  compareSub:  { textAlign: "center", color: c.textMuted, fontSize: 12, marginTop: 2, marginBottom: 8 },
+
+  compareLink: {
+    marginTop: 12, paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: 10, borderWidth: 1, borderColor: "rgba(192,132,252,0.4)",
+    backgroundColor: "rgba(168,85,247,0.10)", alignItems: "center",
+  },
+  compareLinkText: { color: c.primaryLight, fontSize: 12.5, fontWeight: "600" },
+
   rejectThumb: {
     width: 140, height: 140,
     borderRadius: 12, overflow: "hidden",
     borderWidth: 1, borderColor: "rgba(248,113,113,0.45)",
     marginBottom: 12,
   },
+  rejectRow: {
+    flexDirection: "row", gap: 12, alignItems: "flex-start",
+    paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10,
+    borderWidth: 1, borderColor: "rgba(248,113,113,0.35)",
+    backgroundColor: "rgba(15,14,32,0.55)",
+    marginBottom: 10,
+  },
+  rejectRowIcon:  { fontSize: 26, lineHeight: 34 },
+  rejectRowSide:  { color: c.warning, fontSize: 11, fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase" },
+  rejectRowTitle: { color: c.danger, fontSize: 14, fontWeight: "700", marginTop: 4 },
+  rejectRowTip:   { color: c.textDim, fontSize: 12.5, marginTop: 4, lineHeight: 18 },
+
   rejectTitle:  { fontSize: 16, fontWeight: "700", color: c.danger, marginTop: 12 },
   rejectTip:    { fontSize: 13.5, color: c.textDim, textAlign: "center", lineHeight: 22, marginVertical: 6 },
   rejectReason: { fontSize: 12, color: c.textMuted, textAlign: "center", lineHeight: 19, fontStyle: "italic", marginTop: 6 },

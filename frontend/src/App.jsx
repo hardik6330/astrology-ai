@@ -12,7 +12,8 @@ import LoginPage from "./pages/LoginPage";
 const ReadingPage = lazy(() => import("./pages/ReadingPage"));
 const ChatPage    = lazy(() => import("./pages/ChatPage"));
 const PalmPage     = lazy(() => import("./pages/PalmPage"));
-const PalmStepPage = lazy(() => import("./pages/PalmStepPage"));
+const PalmStepPage    = lazy(() => import("./pages/PalmStepPage"));
+const PalmComparePage = lazy(() => import("./pages/PalmComparePage"));
 const ProfilePage  = lazy(() => import("./pages/ProfilePage"));
 
 function PageLoader() {
@@ -70,6 +71,16 @@ export default function App() {
                   <AuthGate>
                     <RouteErrorBoundary>
                       <ProtectedRoute><PalmStepPage /></ProtectedRoute>
+                    </RouteErrorBoundary>
+                  </AuthGate>
+                }
+              />
+              <Route
+                path="/palm-compare"
+                element={
+                  <AuthGate>
+                    <RouteErrorBoundary>
+                      <ProtectedRoute><PalmComparePage /></ProtectedRoute>
                     </RouteErrorBoundary>
                   </AuthGate>
                 }

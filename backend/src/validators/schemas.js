@@ -39,6 +39,25 @@ export const chatBody = z.object({
 export const palmBody = z.object({
   form: formSchema,
   image: z.string().min(100).max(7_000_000),
+  // Optional — the hand the user picked on the UI, stamped onto the
+  // response for display. Backend does not validate it against the photo.
+  claimedHand: z.enum(['Left', 'Right']).optional(),
+  // Set by the web client when it has already gated the photo locally
+  // (via MediaPipe). Tells the backend to skip its own Flash gate to
+  // avoid duplicate work. Mobile leaves this off and uses the Flash gate.
+  skipGate: z.boolean().optional(),
+});
+
+// Both-hands comparison payload. Left = Potential (inherited blueprint),
+// Right = Reality (lived/reshaped). Each image is run through the same
+// gate + Pro pipeline as a single-hand reading, then a synthesis call
+// produces the gap narrative.
+export const palmCompareBody = z.object({
+  form: formSchema,
+  leftImage:  z.string().min(100).max(7_000_000),
+  rightImage: z.string().min(100).max(7_000_000),
+  // See palmBody.skipGate — web client already ran MediaPipe locally.
+  skipGate: z.boolean().optional(),
 });
 
 export const userQuery = formSchema.partial({ gender: true }).extend({

@@ -45,6 +45,19 @@ export function ChartProvider({ children }) {
   // PalmStepPage). PalmPage reads this so opening the tab mid-analysis
   // shows the scan animation instead of an empty card.
   const [palmAnalyzing, setPalmAnalyzing] = useState(false);
+  // Hand the user claimed for the in-flight analysis — drives the
+  // "RIGHT HAND" badge on the scan screen regardless of which page
+  // kicked the analysis off.
+  const [palmClaimedHand, setPalmClaimedHand] = useState(null);
+  // Result of the Both-Hands "Full Life Comparison" — { left, right,
+  // comparison }. Separate from `palm` so the single-hand reading isn't
+  // overwritten by a comparison, and vice versa.
+  const [palmComparison, setPalmComparison] = useState(null);
+  // True when the Both-Hands Pro call returned AI_OVERLOADED. PalmPage's
+  // compare view reads this and shows the cooldown card with a retry.
+  const [palmOverloaded, setPalmOverloaded] = useState(false);
+  const [palmLeftPhoto, setPalmLeftPhoto] = useState(null);
+  const [palmRightPhoto, setPalmRightPhoto] = useState(null);
 
   // Keep the saved form in sync so it survives a refresh.
   useEffect(() => {
@@ -70,6 +83,11 @@ export function ChartProvider({ children }) {
     setPalm(null);
     setPalmPhoto(null);
     setPalmAnalyzing(false);
+    setPalmClaimedHand(null);
+    setPalmComparison(null);
+    setPalmOverloaded(false);
+    setPalmLeftPhoto(null);
+    setPalmRightPhoto(null);
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
@@ -84,6 +102,11 @@ export function ChartProvider({ children }) {
     setPalm(null);
     setPalmPhoto(null);
     setPalmAnalyzing(false);
+    setPalmClaimedHand(null);
+    setPalmComparison(null);
+    setPalmOverloaded(false);
+    setPalmLeftPhoto(null);
+    setPalmRightPhoto(null);
     sessionStorage.removeItem(STORAGE_KEY);
   }
 
@@ -96,6 +119,11 @@ export function ChartProvider({ children }) {
     palm, setPalm,
     palmPhoto, setPalmPhoto,
     palmAnalyzing, setPalmAnalyzing,
+    palmClaimedHand, setPalmClaimedHand,
+    palmComparison, setPalmComparison,
+    palmOverloaded, setPalmOverloaded,
+    palmLeftPhoto, setPalmLeftPhoto,
+    palmRightPhoto, setPalmRightPhoto,
     clearAll,
     applySavedForm,
   };

@@ -165,15 +165,38 @@ export async function fetchPalmById(id, form) {
 
 // Send a palm photo (base64 data URL or raw base64) for AI analysis.
 // Returns the parsed palm reading object.
-export async function analyzePalm(imageBase64, form) {
+export async function analyzePalm(imageBase64, form, claimedHand) {
   const res = await authFetch(`${API_URL}/palm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image: imageBase64, form: attachPhone(form) }),
+    // skipGate: web ran MediaPipe locally before upload, so backend can
+    // skip its own Flash gate (no duplicate quality check).
+    body: JSON.stringify({ image: imageBase64, form: attachPhone(form), claimedHand, skipGate: true }),
   });
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
     const e = new Error(errBody.error || "Palm analysis failed");
+    if (errBody.code) e.code = errBody.code;
+    throw e;
+  }
+  const data = await res.json();
+  let parsed = JSON.parse((data.content || "").replace(/```json|```/g, "").trim());
+  if (typeof parsed === "string") parsed = JSON.parse(parsed);
+  return parsed;
+}
+
+// Send TWO palm photos (left + right) for the full-life comparison reading.
+// Returns { left, right, comparison } — comparison is null if either hand
+// came back as unusable (frontend should render the retake UI for that hand).
+export async function comparePalms(leftBase64, rightBase64, form) {
+  const res = await authFetch(`${API_URL}/palm/compare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ leftImage: leftBase64, rightImage: rightBase64, form: attachPhone(form), skipGate: true }),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    const e = new Error(errBody.error || "Palm comparison failed");
     if (errBody.code) e.code = errBody.code;
     throw e;
   }

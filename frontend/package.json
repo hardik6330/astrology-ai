@@ -21,6 +21,10 @@
     ]
   },
   "dependencies": {
+    "@tensorflow-models/hand-pose-detection": "^2.0.1",
+    "@tensorflow/tfjs-backend-webgl": "^4.22.0",
+    "@tensorflow/tfjs-converter": "^4.22.0",
+    "@tensorflow/tfjs-core": "^4.22.0",
     "astronomy-engine": "^2.1.19",
     "firebase": "^12.13.0",
     "react": "^19.2.6",

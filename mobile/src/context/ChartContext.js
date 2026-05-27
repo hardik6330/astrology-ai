@@ -41,6 +41,17 @@ export function ChartProvider({ children }) {
   // running. PalmScreen uses this to show the scan animation when opened
   // mid-flight instead of an empty card.
   const [palmAnalyzing, setPalmAnalyzing] = useState(false);
+  // Hand the user claimed for the in-flight analysis — drives the
+  // "RIGHT HAND" badge on the scan screen regardless of which screen
+  // kicked the analysis off.
+  const [palmClaimedHand, setPalmClaimedHand] = useState(null);
+  // Both-Hands "Full Life Comparison" — { left, right, comparison }.
+  const [palmComparison, setPalmComparison] = useState(null);
+  // True when the Both-Hands Pro call returned AI_OVERLOADED — drives the
+  // cooldown card on PalmScreen.
+  const [palmOverloaded, setPalmOverloaded] = useState(false);
+  const [palmLeftPhoto, setPalmLeftPhoto]   = useState(null);
+  const [palmRightPhoto, setPalmRightPhoto] = useState(null);
 
   // One-time hydration from disk.
   useEffect(() => {
@@ -89,6 +100,11 @@ export function ChartProvider({ children }) {
     setPalm(null);
     setPalmPhoto(null);
     setPalmAnalyzing(false);
+    setPalmClaimedHand(null);
+    setPalmComparison(null);
+    setPalmOverloaded(false);
+    setPalmLeftPhoto(null);
+    setPalmRightPhoto(null);
     setRedirectToReading(true);
     await setItem(STORAGE_KEY, next);
   }, []);
@@ -106,6 +122,11 @@ export function ChartProvider({ children }) {
     setPalm(null);
     setPalmPhoto(null);
     setPalmAnalyzing(false);
+    setPalmClaimedHand(null);
+    setPalmComparison(null);
+    setPalmOverloaded(false);
+    setPalmLeftPhoto(null);
+    setPalmRightPhoto(null);
     await removeItem(STORAGE_KEY);
   }, []);
 
@@ -120,13 +141,18 @@ export function ChartProvider({ children }) {
       palm, setPalm,
       palmPhoto, setPalmPhoto,
       palmAnalyzing, setPalmAnalyzing,
+      palmClaimedHand, setPalmClaimedHand,
+      palmComparison, setPalmComparison,
+      palmOverloaded, setPalmOverloaded,
+      palmLeftPhoto, setPalmLeftPhoto,
+      palmRightPhoto, setPalmRightPhoto,
       resetReading,
       clearAll,
       applySavedForm,
       redirectToReading,
       consumeRedirect,
     }),
-    [hydrated, form, chart, interp, daily, chatMsgs, palm, palmPhoto, palmAnalyzing, resetReading, clearAll, applySavedForm, redirectToReading, consumeRedirect]
+    [hydrated, form, chart, interp, daily, chatMsgs, palm, palmPhoto, palmAnalyzing, palmClaimedHand, palmComparison, palmOverloaded, palmLeftPhoto, palmRightPhoto, resetReading, clearAll, applySavedForm, redirectToReading, consumeRedirect]
   );
 
   return <ChartContext.Provider value={value}>{children}</ChartContext.Provider>;

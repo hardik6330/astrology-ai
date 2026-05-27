@@ -3,10 +3,11 @@
 // analysed in the background while they read their kundali, or skip
 // straight to the reading. Hand-side is a UI label only — not sent to AI.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChart } from "../context/ChartContext";
 import { analyzePalm } from "../services/api";
+import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 
 // Mobile browsers can populate <input type=file capture="environment"> with
 // the camera directly. Desktop/laptop browsers ignore `capture` and always
@@ -65,13 +66,21 @@ function resizeToBase64(file, maxDim = 600, quality = 0.8) {
 
 export default function PalmStepPage() {
   const navigate = useNavigate();
-  const { form, setPalm, setPalmPhoto, setPalmAnalyzing } = useChart();
+  const { form, setPalm, setPalmComparison, setPalmPhoto, setPalmAnalyzing, setPalmClaimedHand } = useChart();
   const fileRef    = useRef(null);   // generic file picker (desktop default)
   const cameraRef  = useRef(null);   // mobile-only camera capture
   const galleryRef = useRef(null);   // mobile-only gallery picker
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [chooserOpen, setChooserOpen] = useState(false);   // shown on mobile
+  // Which hand button the user just tapped — sent to the backend so the
+  // gate can reject if the photo actually shows the opposite hand.
+  const [claimedHand, setClaimedHand] = useState(null);    // "Left" | "Right" | null
+
+  // Pre-load the MediaPipe model in the background while the user is
+  // still choosing a hand — so the first File they pick gets gated
+  // without a noticeable delay.
+  useEffect(() => { warmUpGate(); }, []);
 
   const isMobile = useMemo(() => isMobileDevice(), []);
 
@@ -79,19 +88,20 @@ export default function PalmStepPage() {
   // was provided we kick off the analysis in the background so the result is
   // ready in ChartContext.palm by the time the user opens the Palm tab.
   function goToReading() { navigate("/reading"); }
+  function goToPalm()    { navigate("/palm"); }
 
-  function analyzeInBackground(dataUrl) {
+  function analyzeInBackground(dataUrl, hand) {
     setPalmAnalyzing(true);
-    analyzePalm(dataUrl, form)
+    analyzePalm(dataUrl, form, hand)
       .then((result) => setPalm(result))
       .catch(() => { /* surfaced on /palm if the user visits it */ })
       .finally(() => setPalmAnalyzing(false));
   }
 
-  // Hand tap → on desktop, jump straight to the file picker; on mobile,
-  // present a camera-vs-gallery choice so the user knows what to expect.
-  function onHandTap() {
+  // Hand tap → record which hand the user claimed, then open picker.
+  function onHandTap(hand) {
     setError("");
+    setClaimedHand(hand);
     if (isMobile) {
       setChooserOpen(true);
     } else {
@@ -109,13 +119,24 @@ export default function PalmStepPage() {
     if (!file) { goToReading(); return; }
     setBusy(true);
     try {
+      // Client-side gate — MediaPipe Hands + pixel heuristics. Rejected
+      // photos never leave the device, never spend a Gemini token. Passing
+      // claimedHand lets MediaPipe reject obvious wrong-hand mistakes.
+      const gateResult = await gatePalmImage(file, claimedHand);
+      if (!gateResult.ok) {
+        setError(gateResult.retakeReason);
+        return;
+      }
       const dataUrl = await resizeToBase64(file);
+      // Clear old data so PalmPage shows the scanning animation for the new photo
+      setPalm(null);
+      setPalmComparison(null);
       setPalmPhoto(dataUrl);
-      analyzeInBackground(dataUrl);
-      goToReading();
+      setPalmClaimedHand(claimedHand);
+      analyzeInBackground(dataUrl, claimedHand);
+      goToPalm();
     } catch {
-      setError("Couldn't read that photo. Skipping.");
-      setTimeout(goToReading, 800);
+      setError("Couldn't read that photo. Try another one.");
     } finally {
       setBusy(false);
     }
@@ -136,7 +157,7 @@ export default function PalmStepPage() {
       </div>
 
       <div className="cosmic-card" style={{ display: "grid", gap: 12 }}>
-        <button type="button" onClick={onHandTap} disabled={busy} style={cardBtn}>
+        <button type="button" onClick={() => onHandTap("Right")} disabled={busy} style={cardBtn}>
           <span style={{ fontSize: 28, width: 36, textAlign: "center" }}>✋</span>
           <span style={{ flex: 1 }}>
             <strong style={{ display: "block", fontSize: 15 }}>Right Hand</strong>
@@ -147,7 +168,27 @@ export default function PalmStepPage() {
           <span style={{ fontSize: 22, color: "#a855f7" }}>›</span>
         </button>
 
-        <button type="button" onClick={onHandTap} disabled={busy} style={cardBtn}>
+        <button
+          type="button"
+          onClick={() => navigate("/palm-compare")}
+          disabled={busy}
+          style={{
+            ...cardBtn,
+            border: "1px solid rgba(192, 132, 252, 0.55)",
+            background: "linear-gradient(135deg, rgba(168,85,247,0.18), rgba(99,102,241,0.18))",
+          }}
+        >
+          <span style={{ fontSize: 28, width: 36, textAlign: "center" }}>✋🤚</span>
+          <span style={{ flex: 1 }}>
+            <strong style={{ display: "block", fontSize: 15 }}>Both Hands · Full Life Comparison</strong>
+            <span style={{ fontSize: 12, color: "#c4b5fd" }}>
+              Compare your inborn potential against your current reality
+            </span>
+          </span>
+          <span style={{ fontSize: 22, color: "#c084fc" }}>›</span>
+        </button>
+
+        <button type="button" onClick={() => onHandTap("Left")} disabled={busy} style={cardBtn}>
           <span style={{ fontSize: 28, width: 36, textAlign: "center" }}>🤚</span>
           <span style={{ flex: 1 }}>
             <strong style={{ display: "block", fontSize: 15 }}>Left Hand</strong>

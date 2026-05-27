@@ -4,7 +4,7 @@
 // takes them straight to the All Over reading.
 // Hand-side is a UI label only — not sent to AI.
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Modal } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import ScreenContainer from "../components/ScreenContainer";
@@ -14,15 +14,19 @@ import { analyzePalm } from "../services/api";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing } from "../theme/tokens";
+import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 
 export default function PalmStepScreen({ navigation }) {
-  const { form, setPalm, setPalmPhoto, setPalmAnalyzing } = useChart();
+  const { form, setPalm, setPalmComparison, setPalmPhoto, setPalmAnalyzing, setPalmClaimedHand } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   // Which hand the user tapped — when set, the source-picker modal is open.
   const [activeHand, setActiveHand] = useState(null); // "Right" | "Left" | null
+
+  // Warm up the detector.
+  useEffect(() => { warmUpGate(); }, []);
 
   // Both paths (upload + skip) land on the Reading "All Over" tab. When a
   // palm photo was provided we kick off the analysis in the background so the
@@ -32,9 +36,14 @@ export default function PalmStepScreen({ navigation }) {
     navigation.navigate("Reading", { tab: "reading" });
   }
 
-  function analyzeInBackground(base64) {
+  function goToPalm() {
+    setActiveHand(null);
+    navigation.navigate("Reading", { tab: "palm" });
+  }
+
+  function analyzeInBackground(base64, hand) {
     setPalmAnalyzing(true);
-    analyzePalm(`data:image/jpeg;base64,${base64}`, form)
+    analyzePalm(`data:image/jpeg;base64,${base64}`, form, hand)
       .then((result) => setPalm(result))
       .catch(() => { /* surfaced on Palm if the user visits it */ })
       .finally(() => setPalmAnalyzing(false));
@@ -53,7 +62,7 @@ export default function PalmStepScreen({ navigation }) {
     setBusy(true);
     try {
       const opts = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         base64: true,
         quality: 0.75,
         allowsEditing: false,
@@ -68,9 +77,23 @@ export default function PalmStepScreen({ navigation }) {
         return;
       }
       const a = res.assets[0];
+      
+      // Client-side gate check
+      const gateResult = await gatePalmImage(a, activeHand);
+      if (!gateResult.ok) {
+        setError(gateResult.retakeReason);
+        setBusy(false);
+        return;
+      }
+
+      // Clear old data so PalmScreen shows the scanning animation for the new photo
+      setPalm(null);
+      setPalmComparison(null);
       setPalmPhoto(a.uri);
-      analyzeInBackground(a.base64);
-      goToReading();
+      setPalmClaimedHand(activeHand);   // share with PalmScreen for the scan-screen badge
+      // activeHand is "Right" | "Left" — already in the right shape.
+      analyzeInBackground(a.base64, activeHand);
+      goToPalm();
     } catch {
       setError("Couldn't open the picker.");
     } finally {
@@ -89,6 +112,21 @@ export default function PalmStepScreen({ navigation }) {
 
       <CosmicCard>
         <View style={{ gap: spacing.md }}>
+          <Pressable
+            onPress={() => navigation.navigate("PalmCompare")}
+            disabled={busy}
+            style={({ pressed }) => [s.bothBtn, pressed && { opacity: 0.85 }, busy && { opacity: 0.5 }]}
+          >
+            <Text style={s.handIcon}>✋🤚</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.handLabel}>Both Hands · Full Life Comparison</Text>
+              <Text style={[s.handSub, { color: color.primaryLight }]}>
+                Compare your inborn potential against your current reality
+              </Text>
+            </View>
+            <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
+          </Pressable>
+
           <HandButton
             icon="✋"
             label="Right Hand"
@@ -214,6 +252,15 @@ const makeStyles = (c) =>
       paddingVertical: 16, paddingHorizontal: spacing.md,
       borderRadius: radius.lg,
       borderWidth: 1, borderColor: c.primaryBorder,
+      backgroundColor: c.primarySoft,
+    },
+    // Premium-flavored variant for the Both-Hands entry — slightly brighter
+    // border + glow vs. the single-hand cards so it reads as the headline.
+    bothBtn: {
+      flexDirection: "row", alignItems: "center", gap: spacing.md,
+      paddingVertical: 16, paddingHorizontal: spacing.md,
+      borderRadius: radius.lg,
+      borderWidth: 1.5, borderColor: c.primaryLight,
       backgroundColor: c.primarySoft,
     },
     handIcon: {

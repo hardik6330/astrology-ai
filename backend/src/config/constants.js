@@ -22,5 +22,6 @@ export const THINK_BUDGET = {
   KUNDLI:    768,
   PALM:      512,
   PALM_GATE: 0,    // yes/no decision — no internal reasoning needed
+  PALM_COMPARE: 512, // text-only synthesis over two structured readings
   DAILY:     256,
 };

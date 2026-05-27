@@ -78,6 +78,50 @@ export async function callGemini(systemPrompt, userPrompt, jsonMode = false, mod
 }
 
 /**
+ * Multi-image Gemini Vision call. `images` is an array of
+ * { base64, mimeType } — each one passed in order to the model. Useful for
+ * the Both-Hands palm comparison where Pro sees BOTH photos in one call.
+ * Same retry/fallback semantics as callGeminiVision.
+ */
+export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, jsonMode = true, models = CHAT_MODELS, thinkingBudget = null) {
+  let lastError;
+  for (const modelName of models) {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const startTime = Date.now();
+        const generationConfig = {
+          ...(jsonMode && { responseMimeType: 'application/json' }),
+          ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
+        };
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          ...(Object.keys(generationConfig).length > 0 && { generationConfig }),
+        });
+        const parts = [{ text: `SYSTEM: ${systemPrompt}` }];
+        for (const img of images) {
+          parts.push({ inlineData: { data: img.base64, mimeType: img.mimeType || 'image/jpeg' } });
+        }
+        parts.push({ text: `USER: ${userPrompt}` });
+        const result = await model.generateContent(parts);
+        const response = await result.response;
+        const text = response.text();
+        const duration = Date.now() - startTime;
+        const u = response.usageMetadata || {};
+        log.info(`[Gemini Vision Multi] ${modelName} images=${images.length} thinking=${thinkingBudget ?? '-'} prompt=${u.promptTokenCount ?? '?'} out=${u.candidatesTokenCount ?? '?'} total=${u.totalTokenCount ?? '?'} (${duration}ms)`);
+        return text;
+      } catch (error) {
+        lastError = error;
+        if (!isTransient(error)) break;
+        if (attempt < MAX_RETRIES) {
+          await sleep(RETRY_BASE_MS * 2 ** (attempt - 1));
+        }
+      }
+    }
+  }
+  throw overloadedError(lastError);
+}
+
+/**
  * Multimodal Gemini call — image + text. Same retry/fallback as callGemini.
  * imageBase64 must be raw base64 (no `data:` prefix).
  */
