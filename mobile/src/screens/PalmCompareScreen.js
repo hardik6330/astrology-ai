@@ -14,6 +14,7 @@ import { comparePalms } from "../services/api";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing } from "../theme/tokens";
+import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 
 export default function PalmCompareScreen({ navigation }) {
   const {
@@ -33,6 +34,9 @@ export default function PalmCompareScreen({ navigation }) {
   const [pickingHand, setPickingHand] = useState(null);   // "left" | "right" | null
   const [busy,  setBusy]  = useState(false);
   const [error, setError] = useState("");
+
+  // Warm up the detector.
+  React.useEffect(() => { warmUpGate(); }, []);
 
   const ready = !!(left && right);
 
@@ -59,6 +63,17 @@ export default function PalmCompareScreen({ navigation }) {
       if (res.canceled) { setBusy(false); return; }
       const a = res.assets[0];
       const hand = pickingHand;
+
+      // Client-side gate check
+      const claimedHand = hand === "left" ? "Left" : "Right";
+      const gateResult = await gatePalmImage(a, claimedHand);
+      if (!gateResult.ok) {
+        setError(gateResult.retakeReason);
+        setBusy(false);
+        setPickingHand(null); // Hide drawer on failure
+        return;
+      }
+
       setPickingHand(null);
       if (hand === "left")  { setLeft({ uri: a.uri, base64: a.base64 });  setPalmLeftPhoto(a.uri); }
       if (hand === "right") { setRight({ uri: a.uri, base64: a.base64 }); setPalmRightPhoto(a.uri); }
@@ -100,7 +115,7 @@ export default function PalmCompareScreen({ navigation }) {
         <Text style={s.title}>✋🤚 Full Life Comparison</Text>
         <Text style={s.subtitle}>
           Compare your left palm (the potential you were born with) against your right
-          palm (how your choices have reshaped it). We'll read the gap between them.
+          palm (how your choices have reshaped it). We&apos;ll read the gap between them.
         </Text>
       </View>
 
@@ -140,7 +155,7 @@ export default function PalmCompareScreen({ navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={s.handLabel}>Step 2 · Right Hand</Text>
               <Text style={s.handSub}>
-                Reality — what you've shaped through choices{right ? " (tap to replace)" : ""}
+                Reality — what you&apos;ve shaped through choices{right ? " (tap to replace)" : ""}
               </Text>
             </View>
             <Text style={[s.chev, { color: color.primaryLight }]}>{right ? "✓" : "›"}</Text>

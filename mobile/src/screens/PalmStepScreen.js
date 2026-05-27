@@ -83,6 +83,7 @@ export default function PalmStepScreen({ navigation }) {
       if (!gateResult.ok) {
         setError(gateResult.retakeReason);
         setBusy(false);
+        setActiveHand(null); // Hide drawer on failure
         return;
       }
 
@@ -106,7 +107,7 @@ export default function PalmStepScreen({ navigation }) {
       <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
         <Text style={s.title}>Add a Palm Reading?</Text>
         <Text style={s.subtitle}>
-          Optional — we'll analyse your palm while your kundali is being built.
+          Optional — we&apos;ll analyse your palm while your kundali is being built.
         </Text>
       </View>
 
