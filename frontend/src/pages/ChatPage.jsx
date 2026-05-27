@@ -131,7 +131,7 @@ export default function ChatPage() {
           display: "flex", flexDirection: "column", gap: 10,
           padding: "12px 4px",
         }}>
-          {(chatMsgs.length ? chatMsgs : [{ role: "assistant", content: welcomeMsg }]).map((m, i) => {
+          {[{ role: "assistant", content: welcomeMsg }, ...chatMsgs].map((m, i) => {
             const isUser = m.role === "user";
             const avatar = (
               <div style={{
