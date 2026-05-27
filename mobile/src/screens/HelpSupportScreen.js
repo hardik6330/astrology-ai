@@ -8,24 +8,16 @@ import { radius, spacing, fontSize } from "../theme/tokens";
 
 const FAQ = [
   {
-    q: "How accurate is the kundali calculation?",
-    a: "We use precision astronomy (astronomy-engine) to compute planet positions to the arc-minute, then apply the Lahiri ayanamsha for the sidereal (Vedic) zodiac. The math is identical to professional ephemerides.",
+    q: "How is my birth chart calculated?",
+    a: "When you enter your name, date, time, and place of birth, the app calculates the exact position of the Sun, Moon, and planets in the sky at that moment. It then maps those positions onto the twelve houses of the Vedic zodiac — giving you a personal sky-snapshot from the instant you were born.",
   },
   {
-    q: "Where is my data stored?",
-    a: "Your birth details are saved locally on your device. The AI reading is stored on our server tied to your birth details (no account needed). Palm photos are analyzed and immediately discarded — never stored.",
-  },
-  {
-    q: "Why does the AI sometimes say 'busy right now'?",
-    a: "Google Gemini occasionally rate-limits requests during peak load. Wait ~40 seconds and tap retry — your reading will come through.",
-  },
-  {
-    q: "Can I change my birth details?",
-    a: "Yes. Open the side menu → Profile → Update Birth Details. The new chart will replace the old one.",
+    q: "How does the AI personalise my reading?",
+    a: "Your unique chart is summarised into a fact sheet — your ascendant, planetary placements, ruling periods, and key patterns. The AI reads this fact sheet and writes a reading specifically about you, in your own context. Two different people never get the same reading.",
   },
   {
     q: "How do I get the best palm reading?",
-    a: "Use bright, even lighting. Hold your dominant hand flat with fingers slightly spread. The palm should fill most of the frame. Remove rings and mehndi if possible.",
+    a: "Use bright, even lighting and hold your dominant hand flat with fingers slightly spread. Make sure the palm fills most of the frame, and remove rings if possible.",
   },
 ];
 
@@ -77,22 +69,6 @@ export default function HelpSupportScreen() {
             {open === i && <Text style={s.faqA}>{item.a}</Text>}
           </View>
         ))}
-      </CosmicCard>
-
-      <CosmicCard>
-        <Text style={s.cardTitle}>About</Text>
-        <View style={s.detailRow}>
-          <Text style={s.detailKey}>Version</Text>
-          <Text style={s.detailVal}>1.0.0</Text>
-        </View>
-        <View style={s.detailRow}>
-          <Text style={s.detailKey}>Engine</Text>
-          <Text style={s.detailVal}>Gemini 2.5 Pro</Text>
-        </View>
-        <View style={s.detailRow}>
-          <Text style={s.detailKey}>Astronomy</Text>
-          <Text style={s.detailVal}>astronomy-engine</Text>
-        </View>
       </CosmicCard>
 
       <Text style={s.disclaimer}>

@@ -16,14 +16,16 @@ const TABS = [
   ["reading",  "All Over", "✨"],
   ["palm",     "Palm",     "🖐️"],
   ["chat",     "Chat",     "💬"],
+  ["profile",  "Profile",  "👤"],
 ];
 
 export default function BottomNav({ activeKey, onLocalTab }) {
   const navigate = useNavigate();
 
   function go(key) {
-    if (key === "palm") return navigate("/palm");
-    if (key === "chat") return navigate("/chat");
+    if (key === "palm")    return navigate("/palm");
+    if (key === "chat")    return navigate("/chat");
+    if (key === "profile") return navigate("/profile");
     // Reading sub-tabs.
     if (onLocalTab) onLocalTab(key);                                 // already on /reading → just swap tab
     else navigate("/reading", { state: { tab: key } });              // somewhere else → go to /reading and set tab

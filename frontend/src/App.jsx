@@ -11,7 +11,9 @@ import LoginPage from "./pages/LoginPage";
 // Lazy-load the heavy authenticated pages.
 const ReadingPage = lazy(() => import("./pages/ReadingPage"));
 const ChatPage    = lazy(() => import("./pages/ChatPage"));
-const PalmPage    = lazy(() => import("./pages/PalmPage"));
+const PalmPage     = lazy(() => import("./pages/PalmPage"));
+const PalmStepPage = lazy(() => import("./pages/PalmStepPage"));
+const ProfilePage  = lazy(() => import("./pages/ProfilePage"));
 
 function PageLoader() {
   return (
@@ -58,6 +60,26 @@ export default function App() {
                   <AuthGate>
                     <RouteErrorBoundary>
                       <ProtectedRoute><PalmPage /></ProtectedRoute>
+                    </RouteErrorBoundary>
+                  </AuthGate>
+                }
+              />
+              <Route
+                path="/palm-step"
+                element={
+                  <AuthGate>
+                    <RouteErrorBoundary>
+                      <ProtectedRoute><PalmStepPage /></ProtectedRoute>
+                    </RouteErrorBoundary>
+                  </AuthGate>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <AuthGate>
+                    <RouteErrorBoundary>
+                      <ProfilePage />
                     </RouteErrorBoundary>
                   </AuthGate>
                 }

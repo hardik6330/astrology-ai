@@ -21,7 +21,10 @@ const GENDERS = [
 const CITY_OPTIONS = CITIES.map((c) => ({ label: c.n, value: c.n }));
 
 export default function HomeScreen({ navigation }) {
-  const { form, setForm, chart, setChart, resetReading } = useChart();
+  const {
+    form, setForm, chart, setChart, resetReading,
+    redirectToReading, consumeRedirect,
+  } = useChart();
   const [error, setError] = useState("");
   const styles = useStyles(makeStyles);
 
@@ -29,6 +32,16 @@ export default function HomeScreen({ navigation }) {
   // so a freshly logged-in user is funnelled into filling the form.
   // Once they have a chart, the menu reappears for navigation.
   const showMenu = !!chart;
+
+  // Returning-user shortcut: if login just reported saved birth details,
+  // ChartContext sets a one-shot flag. Bounce straight to Reading and
+  // clear the flag so further visits to Home stay on Home.
+  React.useEffect(() => {
+    if (redirectToReading && chart) {
+      consumeRedirect();
+      navigation.navigate("Reading", { tab: "reading" });
+    }
+  }, [redirectToReading, chart, consumeRedirect, navigation]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -43,7 +56,8 @@ export default function HomeScreen({ navigation }) {
       const ch = computeChart(form.date, form.time, city);
       setChart(ch);
       resetReading();
-      navigation.navigate("Reading", { tab: "reading" });
+      // Funnel through the optional palm-reading step before kundali.
+      navigation.navigate("PalmStep");
     } catch (e) {
       setError(e.message || "Could not compute chart.");
     }
@@ -65,7 +79,7 @@ export default function HomeScreen({ navigation }) {
       <CosmicCard>
         <View style={styles.row}>
           <View style={styles.col}>
-            <Label>નામ / Full Name</Label>
+            <Label>Full Name</Label>
             <PremiumInput
               value={form.name}
               onChangeText={(v) => set("name", v)}
@@ -74,7 +88,7 @@ export default function HomeScreen({ navigation }) {
             />
           </View>
           <View style={styles.col}>
-            <Label>જાતિ / Gender</Label>
+            <Label>Gender</Label>
             <Picker
               value={form.gender}
               onChange={(v) => set("gender", v)}
@@ -86,17 +100,17 @@ export default function HomeScreen({ navigation }) {
 
         <View style={styles.row}>
           <View style={styles.col}>
-            <Label>જન્મ તારીખ / Birth Date</Label>
+            <Label>Birth Date</Label>
             <DateField value={form.date} onChange={(v) => set("date", v)} mode="date" />
           </View>
           <View style={styles.col}>
-            <Label>જન્મ સમય / Birth Time</Label>
+            <Label>Birth Time</Label>
             <DateField value={form.time} onChange={(v) => set("time", v)} mode="time" />
           </View>
         </View>
 
         <View style={styles.field}>
-          <Label>જન્મ સ્થળ / Birth City</Label>
+          <Label>Birth City</Label>
           <Picker
             value={form.city}
             onChange={(v) => set("city", v)}

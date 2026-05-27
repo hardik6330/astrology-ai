@@ -14,8 +14,17 @@ export default function HomePage() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  // Today in local YYYY-MM-DD — used as the <input type=date> max attribute
+  // and the defensive check below. Built locally (not via toISOString) so
+  // users near midnight in non-UTC zones don't see "tomorrow" disallowed.
+  const today = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
   function generate() {
     if (!form.date || !form.time || !form.city) { setError("All fields are required!"); return; }
+    if (form.date > today) { setError("Birth date can't be in the future."); return; }
     setError("");
     const city = CITIES.find(c => c.n === form.city);
     try {
@@ -24,7 +33,8 @@ export default function HomePage() {
       setInterp(null);
       setDaily(null);
       setChatMsgs([]);
-      navigate("/reading");
+      // Funnel through the optional palm-reading step before kundali.
+      navigate("/palm-step");
     } catch (e) {
       setError(e.message);
     }
@@ -48,11 +58,11 @@ export default function HomePage() {
         <div style={{ display: "grid", gap: 16 }}>
           <div className="grid-name-gender">
             <div>
-              <label style={lbl}>નામ / Full Name</label>
+              <label style={lbl}>Full Name</label>
               <input className="premium-input" placeholder="Enter your name..." value={form.name} onChange={e => set("name", e.target.value)} />
             </div>
             <div>
-              <label style={lbl}>જાતિ / Gender</label>
+              <label style={lbl}>Gender</label>
               <select className="premium-input" value={form.gender} onChange={e => set("gender", e.target.value)}>
                 <option value="">— optional —</option>
                 <option value="Male">Male</option>
@@ -63,16 +73,16 @@ export default function HomePage() {
           </div>
           <div className="grid-2">
             <div>
-              <label style={lbl}>જન્મ તારીખ / Birth Date</label>
-              <input type="date" className="premium-input" value={form.date} onChange={e => set("date", e.target.value)} />
+              <label style={lbl}>Birth Date</label>
+              <input type="date" className="premium-input" value={form.date} max={today} onChange={e => set("date", e.target.value)} />
             </div>
             <div>
-              <label style={lbl}>જન્મ સમય / Birth Time</label>
+              <label style={lbl}>Birth Time</label>
               <input type="time" className="premium-input" value={form.time} onChange={e => set("time", e.target.value)} />
             </div>
           </div>
           <div>
-            <label style={lbl}>જન્મ સ્થળ / Birth City</label>
+            <label style={lbl}>Birth City</label>
             <select className="premium-input" value={form.city} onChange={e => set("city", e.target.value)}>
               <option value="">— Select your city —</option>
               {CITIES.map(c => <option key={c.n} value={c.n}>{c.n}</option>)}

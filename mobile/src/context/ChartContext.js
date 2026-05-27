@@ -2,7 +2,7 @@ import React, {
   createContext, useContext, useEffect, useState, useMemo, useCallback,
 } from "react";
 import { computeChart, CITIES } from "../shared/astrology";
-import { getItem, setItem } from "../utils/storage";
+import { getItem, setItem, removeItem } from "../utils/storage";
 
 // Birth form is persisted to AsyncStorage so app relaunches preserve the
 // last-entered chart. Only the plain form is stored — the chart itself is
@@ -33,6 +33,14 @@ export function ChartProvider({ children }) {
   const [daily, setDaily] = useState(null);
   const [chatMsgs, setChatMsgs] = useState([]);
   const [palm, setPalm] = useState(null);
+  // URI of the photo the user picked for analysis. In-memory only (never
+  // persisted) so the Palm screen can show which photo a reading or
+  // rejection corresponds to.
+  const [palmPhoto, setPalmPhoto] = useState(null);
+  // True while a background palm analysis (started on PalmStepScreen) is
+  // running. PalmScreen uses this to show the scan animation when opened
+  // mid-flight instead of an empty card.
+  const [palmAnalyzing, setPalmAnalyzing] = useState(false);
 
   // One-time hydration from disk.
   useEffect(() => {
@@ -57,6 +65,50 @@ export function ChartProvider({ children }) {
     setChatMsgs([]);
   }, []);
 
+  // One-shot flag set right after login when the backend reports the
+  // user already has saved birth details. HomeScreen reads it on mount,
+  // bounces straight to Reading, then clears it.
+  const [redirectToReading, setRedirectToReading] = useState(false);
+
+  // Hydrate form + chart from a saved server payload (returning user).
+  // Persists the form to disk so a relaunch still skips the home step.
+  const applySavedForm = useCallback(async (saved) => {
+    if (!saved || !saved.date || !saved.time || !saved.city) return;
+    const next = {
+      name:   saved.name   || "",
+      gender: saved.gender || "",
+      date:   saved.date,
+      time:   saved.time,
+      city:   saved.city,
+    };
+    setForm(next);
+    setChart(chartFromForm(next));
+    setInterp(null);
+    setDaily(null);
+    setChatMsgs([]);
+    setPalm(null);
+    setPalmPhoto(null);
+    setPalmAnalyzing(false);
+    setRedirectToReading(true);
+    await setItem(STORAGE_KEY, next);
+  }, []);
+
+  const consumeRedirect = useCallback(() => setRedirectToReading(false), []);
+
+  // Wipe everything — used on logout so a different phone number doesn't
+  // see the previous user's chart, readings or palm result.
+  const clearAll = useCallback(async () => {
+    setForm(EMPTY_FORM);
+    setChart(null);
+    setInterp(null);
+    setDaily(null);
+    setChatMsgs([]);
+    setPalm(null);
+    setPalmPhoto(null);
+    setPalmAnalyzing(false);
+    await removeItem(STORAGE_KEY);
+  }, []);
+
   const value = useMemo(
     () => ({
       hydrated,
@@ -66,9 +118,15 @@ export function ChartProvider({ children }) {
       daily, setDaily,
       chatMsgs, setChatMsgs,
       palm, setPalm,
+      palmPhoto, setPalmPhoto,
+      palmAnalyzing, setPalmAnalyzing,
       resetReading,
+      clearAll,
+      applySavedForm,
+      redirectToReading,
+      consumeRedirect,
     }),
-    [hydrated, form, chart, interp, daily, chatMsgs, palm, resetReading]
+    [hydrated, form, chart, interp, daily, chatMsgs, palm, palmPhoto, palmAnalyzing, resetReading, clearAll, applySavedForm, redirectToReading, consumeRedirect]
   );
 
   return <ChartContext.Provider value={value}>{children}</ChartContext.Provider>;

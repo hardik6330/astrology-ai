@@ -15,6 +15,22 @@ const API_URL = isLocalDefault && typeof window !== "undefined"
 
 export const API_BASE = API_URL;
 
+// Dummy login — POSTs the phone to /auth/dummy-login. Backend findOrCreates
+// the AuthAccount and, when it recognises an existing user, returns their
+// saved birth details so we can skip the home form.
+export async function dummyLogin(phone) {
+  const res = await fetch(`${API_URL}/auth/dummy-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Login failed (HTTP ${res.status})`);
+  }
+  return res.json(); // { token, account: { id, phone }, savedForm? }
+}
+
 // Pulls the logged-in phone from the dummy AuthContext store and attaches
 // it to any outgoing form payload so the backend can stamp it on the User
 // row. Pure read — no side effects.

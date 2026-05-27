@@ -40,11 +40,15 @@ const SCAN_MSGS = [
 ];
 
 export default function PalmScreen({ navigation }) {
-  const { form, palm, setPalm } = useChart();
+  const { form, palm, setPalm, palmPhoto, setPalmPhoto, palmAnalyzing, setPalmAnalyzing } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
-  const [preview, setPreview]   = useState(null);   // { uri, base64 }
-  const [scanning, setScanning] = useState(false);
+  // Mirror context.palmPhoto so a photo uploaded on PalmStepScreen still
+  // shows up here (the screen unmounts in between).
+  const [preview, setPreview]   = useState(palmPhoto ? { uri: palmPhoto } : null);
+  // Mirror palmAnalyzing so a background analysis started elsewhere drives
+  // the scan animation here when the user opens this screen.
+  const [scanning, setScanning] = useState(palmAnalyzing);
   const [scanMsg, setScanMsg]   = useState(SCAN_MSGS[0]);
   const [error, setError]       = useState("");
   const [overloaded, setOverloaded] = useState(false);
@@ -56,14 +60,32 @@ export default function PalmScreen({ navigation }) {
   // Animated scan-line on the preview.
   const scanAnim = useRef(new Animated.Value(0)).current;
 
-  // Restore a saved reading once on mount (skipped during rescan).
+  // Restore a saved reading once on mount. Skipped during rescan, and
+  // while a background analysis is in flight (avoid flashing a stale prior
+  // reading before the new one lands).
   useEffect(() => {
-    if (palm || rescan || !form?.name) { setHydrating(false); return; }
+    if (palm || rescan || palmAnalyzing || !form?.name) { setHydrating(false); return; }
     fetchSaved("palm", form)
       .then((saved) => { if (saved) setPalm(saved); })
       .catch(() => {})
       .finally(() => setHydrating(false));
-  }, [form, palm, rescan, setPalm]);
+  }, [form, palm, rescan, palmAnalyzing, setPalm]);
+
+  // Mirror the background-analyze flag into local scanning state + the
+  // rotating message ticker so the existing scan UI works for analyses
+  // started on another screen.
+  useEffect(() => {
+    if (!palmAnalyzing) {
+      setScanning(false);
+      return;
+    }
+    setScanning(true);
+    setHydrating(false);
+    let i = 0;
+    setScanMsg(SCAN_MSGS[0]);
+    const iv = setInterval(() => { i++; setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]); }, 1800);
+    return () => clearInterval(iv);
+  }, [palmAnalyzing]);
 
   // Load past readings list.
   useEffect(() => {
@@ -122,6 +144,7 @@ export default function PalmScreen({ navigation }) {
     setError("");
     setOverloaded(false);
     setPreview(img);
+    setPalmPhoto(img.uri);
     setScanning(true);
     let i = 0;
     setScanMsg(SCAN_MSGS[0]);
@@ -157,6 +180,8 @@ export default function PalmScreen({ navigation }) {
   function reset() {
     setPalm(null);
     setPreview(null);
+    setPalmPhoto(null);
+    setPalmAnalyzing(false);
     setError("");
     setRescan(true);
   }
@@ -395,6 +420,11 @@ export default function PalmScreen({ navigation }) {
           const info = REJECT_INFO[palm.rejectReason] || REJECT_INFO.default;
           return (
             <CosmicCard style={{ borderColor: "rgba(248,113,113,0.4)", backgroundColor: "rgba(248,113,113,0.06)", alignItems: "center" }}>
+              {preview?.uri ? (
+                <View style={s.rejectThumb}>
+                  <Image source={{ uri: preview.uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                </View>
+              ) : null}
               <Text style={{ fontSize: 44, lineHeight: 58 }}>{info.icon}</Text>
               <Text style={s.rejectTitle}>{info.title}</Text>
               <Text style={s.rejectTip}>{info.tip}</Text>
@@ -536,6 +566,12 @@ const makeStyles = (c) => StyleSheet.create({
     marginTop: spacing.xl, lineHeight: 18,
   },
 
+  rejectThumb: {
+    width: 140, height: 140,
+    borderRadius: 12, overflow: "hidden",
+    borderWidth: 1, borderColor: "rgba(248,113,113,0.45)",
+    marginBottom: 12,
+  },
   rejectTitle:  { fontSize: 16, fontWeight: "700", color: c.danger, marginTop: 12 },
   rejectTip:    { fontSize: 13.5, color: c.textDim, textAlign: "center", lineHeight: 22, marginVertical: 6 },
   rejectReason: { fontSize: 12, color: c.textMuted, textAlign: "center", lineHeight: 19, fontStyle: "italic", marginTop: 6 },

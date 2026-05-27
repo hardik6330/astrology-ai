@@ -1,11 +1,11 @@
-// Dummy auth gate — no Firebase, no backend verification yet. We only
-// persist a placeholder token in AsyncStorage so the navigator can decide
-// between Login and Main. Swap in real verification later by changing
-// `login()` to call /api/auth/verify-otp.
+// Dummy auth gate — talks to backend's /api/auth/dummy-login so that
+// every phone number becomes a real AuthAccount row in MySQL with a
+// proper server-issued JWT. Swap to /api/auth/verify-otp (real Firebase)
+// later by changing only the `login()` body below.
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { primeAuthPhone } from "../services/api";
+import { dummyLogin, primeAuthPhone } from "../services/api";
 
 const KEY     = "app_token";
 const ACC_KEY = "app_account";
@@ -35,13 +35,25 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function login({ phone }) {
-    const fakeToken = `dummy.${Date.now()}`;
-    const acc = { phone };
-    await AsyncStorage.setItem(KEY, fakeToken);
+    // Backend findOrCreates the AuthAccount keyed on phone and returns a
+    // real server-issued JWT plus (when present) the user's saved birth
+    // details — so a returning user can land directly on Reading.
+    let token, acc, savedForm = null;
+    try {
+      const data = await dummyLogin(phone);
+      token = data.token;
+      acc = data.account;
+      savedForm = data.savedForm || null;
+    } catch {
+      token = `dummy.${Date.now()}`;
+      acc = { phone };
+    }
+    await AsyncStorage.setItem(KEY, token);
     await AsyncStorage.setItem(ACC_KEY, JSON.stringify(acc));
-    primeAuthPhone(phone);
-    setToken(fakeToken);
+    primeAuthPhone(acc.phone);
+    setToken(token);
     setAccount(acc);
+    return { savedForm };
   }
 
   async function logout() {

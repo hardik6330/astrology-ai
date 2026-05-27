@@ -4,8 +4,8 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import RootNavigator from "./src/navigation/RootNavigator";
-import { ChartProvider } from "./src/context/ChartContext";
-import { AuthProvider } from "./src/context/AuthContext";
+import { ChartProvider, useChart } from "./src/context/ChartContext";
+import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import SplashScreen from "./src/components/SplashScreen";
@@ -14,6 +14,21 @@ import { warmupBackend } from "./src/services/api";
 function ThemedStatusBar() {
   const { theme } = useTheme();
   return <StatusBar style={theme === "light" ? "dark" : "light"} />;
+}
+
+// Watches the auth token and wipes all per-user state (form, chart,
+// interpretations, palm reading) on logout — otherwise the next phone
+// number to sign in inherits the previous user's data from disk.
+function AuthLifecycle() {
+  const { token } = useAuth();
+  const { clearAll } = useChart();
+  const prevTokenRef = React.useRef(token);
+  useEffect(() => {
+    const prev = prevTokenRef.current;
+    if (prev && !token) clearAll();
+    prevTokenRef.current = token;
+  }, [token, clearAll]);
+  return null;
 }
 
 function AppShell() {
@@ -30,6 +45,7 @@ function AppShell() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ThemedStatusBar />
+      <AuthLifecycle />
       {!splashing && <RootNavigator />}
       {splashing && hydrated && (
         <SplashScreen onDone={() => setSplashing(false)} />

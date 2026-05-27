@@ -12,6 +12,7 @@ import Animated, {
   withRepeat, withTiming, withDelay, withSequence, Easing,
 } from "react-native-reanimated";
 import { useAuth } from "../context/AuthContext";
+import { useChart } from "../context/ChartContext";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing } from "../theme/tokens";
@@ -179,6 +180,7 @@ const RESEND_SECS = 30;
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const { applySavedForm } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
 
@@ -203,7 +205,9 @@ export default function LoginScreen() {
 
     setBusy(true);
     await new Promise((r) => setTimeout(r, 700));
-    phoneRef.current = `+91${cleaned.slice(-10)}`;
+    // Persist only the 10-digit number — the +91 prefix is a display
+    // detail in the UI, not part of the canonical identifier we store.
+    phoneRef.current = cleaned.slice(-10);
     setOtp(DEFAULT_OTP);
     setStep("otp");
     setResendIn(RESEND_SECS);
@@ -216,7 +220,11 @@ export default function LoginScreen() {
 
     setBusy(true);
     await new Promise((r) => setTimeout(r, 500));
-    await login({ phone: phoneRef.current });
+    const { savedForm } = await login({ phone: phoneRef.current });
+    // If the backend recognised this number, populate ChartContext so
+    // HomeScreen mounts already knowing this is a returning user and
+    // bounces them straight to Reading.
+    if (savedForm) await applySavedForm(savedForm);
     // Navigator switches automatically once `token` is set.
   }
 
@@ -241,20 +249,17 @@ export default function LoginScreen() {
             {step === "phone" && (
               <>
                 <Text style={s.label}>Phone number</Text>
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <View style={s.prefix}><Text style={s.prefixText}>+91</Text></View>
-                  <TextInput
-                    value={phone}
-                    onChangeText={(v) => setPhone(v.replace(/[^\d+]/g, ""))}
-                    keyboardType="phone-pad"
-                    autoComplete="tel"
-                    placeholder="98xxxxxxxx"
-                    placeholderTextColor={color.textMuted}
-                    style={s.input}
-                    editable={!busy}
-                    maxLength={13}
-                  />
-                </View>
+                <TextInput
+                  value={phone}
+                  onChangeText={(v) => setPhone(v.replace(/\D/g, ""))}
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                  placeholder="10-digit mobile number"
+                  placeholderTextColor={color.textMuted}
+                  style={s.input}
+                  editable={!busy}
+                  maxLength={10}
+                />
                 <Pressable onPress={sendOtp} disabled={busy} style={[s.primaryBtn, busy && { opacity: 0.6 }]}>
                   <Text style={s.primaryBtnText}>{busy ? "Sending…" : "Send OTP"}</Text>
                 </Pressable>
@@ -315,15 +320,8 @@ const makeStyles = (c) => StyleSheet.create({
   title: { color: "#fff", fontSize: 22, fontWeight: "800", textAlign: "center", letterSpacing: 0.3 },
   subtitle: { color: "rgba(203,213,225,0.85)", fontSize: 13, textAlign: "center", marginTop: 8, marginBottom: 26, lineHeight: 19, paddingHorizontal: 8 },
   label: { color: "rgba(203,213,225,0.85)", fontSize: 11, letterSpacing: 1.5, marginBottom: 8, fontWeight: "600", textTransform: "uppercase" },
-  prefix: {
-    paddingHorizontal: 14, paddingVertical: 13, borderRadius: 12,
-    backgroundColor: "rgba(167,139,250,0.12)",
-    borderWidth: 1, borderColor: "rgba(167,139,250,0.22)",
-    justifyContent: "center",
-  },
-  prefixText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   input: {
-    flex: 1, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 12,
+    width: "100%", paddingHorizontal: 14, paddingVertical: 13, borderRadius: 12,
     backgroundColor: "rgba(148,163,184,0.10)",
     borderWidth: 1, borderColor: "rgba(148,163,184,0.22)",
     color: "#fff", fontSize: 15,

@@ -7,6 +7,7 @@ import HomeScreen        from "../screens/HomeScreen";
 import ReadingScreen     from "../screens/ReadingScreen";
 import ChatScreen        from "../screens/ChatScreen";
 import PalmScreen        from "../screens/PalmScreen";
+import PalmStepScreen    from "../screens/PalmStepScreen";
 import ProfileScreen     from "../screens/ProfileScreen";
 import HelpSupportScreen from "../screens/HelpSupportScreen";
 import LoginScreen       from "../screens/LoginScreen";
@@ -43,9 +44,14 @@ function MainDrawer() {
         swipeEdgeWidth: 40,
       }}
     >
-      <Drawer.Screen name="Home"    component={HomeScreen} />
-      <Drawer.Screen name="Reading" component={ReadingScreen} />
-      <Drawer.Screen name="Palm"    component={PalmScreen} />
+      <Drawer.Screen name="Home"     component={HomeScreen} />
+      <Drawer.Screen
+        name="PalmStep"
+        component={PalmStepScreen}
+        options={{ swipeEnabled: false, drawerItemStyle: { display: "none" } }}
+      />
+      <Drawer.Screen name="Reading"  component={ReadingScreen} />
+      <Drawer.Screen name="Palm"     component={PalmScreen} />
       <Drawer.Screen name="Chat"    component={ChatScreen} />
       <Drawer.Screen name="Profile" component={ProfileScreen} />
       <Drawer.Screen name="Help"    component={HelpSupportScreen} />

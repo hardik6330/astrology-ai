@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useChart } from "../context/ChartContext";
 
 const DEFAULT_OTP = "123456";
 const RESEND_SECS = 30;
@@ -12,6 +13,7 @@ const RESEND_SECS = 30;
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, token } = useAuth();
+  const { applySavedForm } = useChart();
   const [phone, setPhone] = useState("");
   const [otp,   setOtp]   = useState("");
   const [step,  setStep]  = useState("phone");
@@ -39,7 +41,8 @@ export default function LoginPage() {
     setBusy(true);
     // Simulate the SMS round-trip so the UX feels real.
     await new Promise((r) => setTimeout(r, 700));
-    phoneRef.current = `+91${cleaned.slice(-10)}`;
+    // Store just the 10-digit number — UI no longer shows a +91 chip.
+    phoneRef.current = cleaned.slice(-10);
     setOtp(DEFAULT_OTP);
     setStep("otp");
     setResendIn(RESEND_SECS);
@@ -53,8 +56,14 @@ export default function LoginPage() {
 
     setBusy(true);
     await new Promise((r) => setTimeout(r, 500));
-    login({ phone: phoneRef.current });
-    navigate("/", { replace: true });
+    const { savedForm } = await login({ phone: phoneRef.current });
+    // Returning user → hydrate context + land on Reading directly.
+    if (savedForm) {
+      applySavedForm(savedForm);
+      navigate("/reading", { replace: true });
+    } else {
+      navigate("/", { replace: true });
+    }
   }
 
   return (
@@ -74,17 +83,15 @@ export default function LoginPage() {
         {step === "phone" && (
           <form onSubmit={sendOtp}>
             <label style={label}>Phone number</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <span style={prefix}>+91</span>
-              <input
-                type="tel" inputMode="numeric" autoComplete="tel"
-                placeholder="98xxxxxxxx"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ""))}
-                style={input}
-                disabled={busy}
-              />
-            </div>
+            <input
+              type="tel" inputMode="numeric" autoComplete="tel"
+              placeholder="10-digit mobile number"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              style={{ ...input, width: "100%" }}
+              disabled={busy}
+              maxLength={10}
+            />
             <button type="submit" disabled={busy} style={primaryBtn}>
               {busy ? "Sending…" : "Send OTP"}
             </button>
@@ -252,8 +259,6 @@ const card = {
   boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
 };
 const label   = { display: "block", color: "#cbd5e1", fontSize: 12, marginBottom: 6, letterSpacing: 1 };
-const prefix  = { color: "#cbd5e1", padding: "12px 14px", borderRadius: 10,
-                  background: "rgba(148,163,184,0.1)", fontSize: 14, fontWeight: 600 };
 const input   = { flex: 1, padding: "12px 14px", borderRadius: 10,
                   background: "rgba(148,163,184,0.06)", border: "1px solid rgba(148,163,184,0.2)",
                   color: "#fff", fontSize: 14, outline: "none" };

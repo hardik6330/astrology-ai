@@ -118,6 +118,22 @@ function parseContent(content) {
   return parsed;
 }
 
+// Dummy login: send the phone, get back a real JWT + AuthAccount row.
+// Used by mobile until real Firebase Phone Auth is wired in.
+export async function dummyLogin(phone) {
+  const url = `${API_URL}/auth/dummy-login`;
+  const res = await fetchWithRetry(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  }, { timeoutMs: 20000, retries: 1 });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Login failed (HTTP ${res.status})`);
+  }
+  return res.json(); // { token, account: { id, phone } }
+}
+
 // Fire-and-forget ping to wake the serverless backend on app start.
 // Hits "/" (the root route returns "Server is running") so the cold start
 // finishes before the user submits their first real request.

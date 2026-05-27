@@ -4,6 +4,7 @@
 // changing `login()` to call /api/auth/verify-otp.
 
 import { createContext, useContext, useState } from "react";
+import { dummyLogin } from "../services/api";
 
 const KEY = "app_token";
 const AuthContext = createContext(null);
@@ -15,13 +16,25 @@ export function AuthProvider({ children }) {
     catch { return null; }
   });
 
-  function login({ phone }) {
-    const fakeToken = `dummy.${Date.now()}`;
-    const acc = { phone };
-    localStorage.setItem(KEY, fakeToken);
+  // Calls backend /auth/dummy-login. On success returns any savedForm so
+  // the caller can hydrate ChartContext and route the user straight to
+  // their kundali. Falls back to a local-only session on network failure.
+  async function login({ phone }) {
+    let tok, acc, savedForm = null;
+    try {
+      const data = await dummyLogin(phone);
+      tok = data.token;
+      acc = data.account;
+      savedForm = data.savedForm || null;
+    } catch {
+      tok = `dummy.${Date.now()}`;
+      acc = { phone };
+    }
+    localStorage.setItem(KEY, tok);
     localStorage.setItem("app_account", JSON.stringify(acc));
-    setToken(fakeToken);
+    setToken(tok);
     setAccount(acc);
+    return { savedForm };
   }
 
   function logout() {

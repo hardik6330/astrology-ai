@@ -81,9 +81,13 @@ function useCameraSupport() {
 
 export default function PalmPage() {
   const navigate = useNavigate();
-  const { form, palm, setPalm } = useChart();
-  const [preview, setPreview] = useState(null);     // data URL for display
-  const [scanning, setScanning] = useState(false);
+  const { form, palm, setPalm, palmPhoto, setPalmPhoto, palmAnalyzing, setPalmAnalyzing } = useChart();
+  // Local preview mirrors context.palmPhoto so the photo survives a navigation
+  // away from /palm (e.g. user uploaded on the Palm Step page).
+  const [preview, setPreview] = useState(palmPhoto || null);
+  // Reflect a background analyze (started on PalmStepPage) as the scanning
+  // state on mount, so opening /palm mid-analysis shows the scan animation.
+  const [scanning, setScanning] = useState(palmAnalyzing);
   const [scanMsg, setScanMsg] = useState(SCAN_MSGS[0]);
   const [error, setError] = useState("");
   const [overloaded, setOverloaded] = useState(false);
@@ -96,11 +100,28 @@ export default function PalmPage() {
   const cameraRef = useRef(null);
   const hasCamera = useCameraSupport();
 
-  // Try to load a previously-saved palm reading on mount (skipped during rescan).
+  // Try to load a previously-saved palm reading on mount. Skipped during
+  // rescan, and while a fresh background analysis is in flight (otherwise
+  // we'd briefly show a stale prior reading and then swap to the new one).
   useEffect(() => {
-    if (palm || rescan) return;
+    if (palm || rescan || palmAnalyzing) return;
     fetchSaved('palm', form).then(saved => { if (saved) setPalm(saved); }).catch(() => {});
-  }, [form, palm, rescan, setPalm]);
+  }, [form, palm, rescan, palmAnalyzing, setPalm]);
+
+  // Mirror the background-analyze flag into the local scanning state +
+  // rotating message ticker, so the existing scan UI works for analyses
+  // that were kicked off on another screen.
+  useEffect(() => {
+    if (!palmAnalyzing) {
+      setScanning(false);
+      return;
+    }
+    setScanning(true);
+    let i = 0;
+    setScanMsg(SCAN_MSGS[0]);
+    const iv = setInterval(() => { i++; setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]); }, 1800);
+    return () => clearInterval(iv);
+  }, [palmAnalyzing]);
 
   // Load history list — used to show "Past Readings" on the rescan screen.
   useEffect(() => {
@@ -132,6 +153,7 @@ export default function PalmPage() {
     setError("");
     setOverloaded(false);
     setPreview(dataUrl);
+    setPalmPhoto(dataUrl);
     setScanning(true);
     let i = 0;
     setScanMsg(SCAN_MSGS[0]);
@@ -169,6 +191,8 @@ export default function PalmPage() {
   function reset() {
     setPalm(null);
     setPreview(null);
+    setPalmPhoto(null);
+    setPalmAnalyzing(false);
     setError("");
     setRescan(true);
     if (fileRef.current) fileRef.current.value = "";
@@ -458,6 +482,16 @@ export default function PalmPage() {
         const info = REJECT_INFO[palm.rejectReason] || REJECT_INFO.default;
         return (
           <div className="cosmic-card" style={{ textAlign: "center", padding: "2rem 1.5rem", borderColor: "rgba(248,113,113,0.4)", background: "rgba(248,113,113,0.06)" }}>
+            {preview && (
+              <div style={{
+                width: 140, height: 140, margin: "0 auto 16px",
+                borderRadius: 12, overflow: "hidden",
+                border: "1px solid rgba(248,113,113,0.45)",
+                boxShadow: "0 0 18px rgba(248,113,113,0.2)",
+              }}>
+                <img src={preview} alt="uploaded palm" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </div>
+            )}
             <div style={{ fontSize: 44, marginBottom: 12 }}>{info.icon}</div>
             <p style={{ fontSize: 16, fontWeight: 700, color: "#f87171", margin: "0 0 8px" }}>{info.title}</p>
             <p style={{ fontSize: 13.5, color: "#cbd5e1", margin: "0 0 6px", lineHeight: 1.65 }}>
