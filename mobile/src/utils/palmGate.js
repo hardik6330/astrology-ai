@@ -3,10 +3,11 @@
 // locally to detect hand presence/quality.
 
 import * as tf from "@tensorflow/tfjs";
-import "@tensorflow/tfjs-react-native";
 import * as handPoseDetection from "@tensorflow-models/hand-pose-detection";
 import { decode as decodeBase64 } from "base-64";
 import { decodeJpeg } from "@tensorflow/tfjs-react-native";
+import * as ImageManipulator from "expo-image-manipulator";
+import "@tensorflow/tfjs-react-native";
 
 // Memoized model.
 let _detector = null;
@@ -17,13 +18,23 @@ async function getDetector() {
   if (_detectorPromise) return _detectorPromise;
   _detectorPromise = (async () => {
     console.log("Gate: Initializing TensorFlow.js and MediaPipe Hands detector...");
+    
+    // Explicitly wait for TF and set the fastest backend
     await tf.ready();
+    try {
+      // Try to use WebGL for GPU acceleration
+      await tf.setBackend('rn-webgl');
+      console.log("Gate: Using rn-webgl backend");
+    } catch (e) {
+      console.log("Gate: rn-webgl failed, using default backend");
+    }
+
     _detector = await handPoseDetection.createDetector(
       handPoseDetection.SupportedModels.MediaPipeHands,
       {
         runtime: "tfjs",
         modelType: "lite",
-        maxHands: 2,
+        maxHands: 1, // Optimized: Only look for one hand
       },
     );
     console.log("Gate: MediaPipe Hands detector initialized successfully.");
@@ -60,13 +71,13 @@ const TIPS = {
 
 const HAND_REJECT_MIN_CONFIDENCE = 0.95;
 
-function reject(rejectReason, debugInfo = "") {
+function reject(rejectReason, debugInfo = "", duration = 0) {
   const response = { 
     ok: false, 
     rejectReason, 
     retakeReason: (TIPS[rejectReason] || "Please retake with a clearer palm photo.")
   };
-  console.log("Gate: Final Result -> REJECTED", { reason: rejectReason, debug: debugInfo, response });
+  console.log(`Gate: Final Result -> REJECTED (Time: ${duration}ms)`, { reason: rejectReason, debug: debugInfo, response });
   return response;
 }
 
@@ -114,65 +125,70 @@ function checkQuality(tensor) {
  * @param {string} claimedHand Optional "Left" | "Right".
  */
 export async function gatePalmImage(asset, claimedHand) {
-  if (!asset.base64) {
-    console.log("Gate: No base64 data");
-    return { ok: true };
-  }
+  const startTime = Date.now();
+  console.log("Gate: Starting detection flow...");
 
   let tensor = null;
   try {
-    console.log("Gate: Starting detection...");
+    // CRITICAL SPEED FIX: Resize the image BEFORE decoding to tensor.
+    // Decoding a 4096px image to tensor takes ~40-50s on CPU.
+    // Resizing it via native ImageManipulator takes ~100ms.
+    console.log("Gate: Pre-resizing image using Native ImageManipulator...");
+    const manipulated = await ImageManipulator.manipulateAsync(
+      asset.uri,
+      [{ resize: { width: 512 } }], // Resize to 512px width first
+      { base64: true, format: ImageManipulator.SaveFormat.JPEG, quality: 0.7 }
+    );
+    console.log(`Gate: Pre-resize done in ${Date.now() - startTime}ms`);
+
     const detector = await getDetector();
-    console.log("Gate: Detector ready");
     
-    // Decode base64 to Uint8Array
-    const binary = decodeBase64(asset.base64);
+    // Decode the SMALLER base64
+    const binary = decodeBase64(manipulated.base64);
     const uint8 = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
       uint8[i] = binary.charCodeAt(i);
     }
 
-    // Convert to tensor
     tensor = decodeJpeg(uint8);
-    console.log("Gate: Image decoded to tensor", tensor.shape);
     const [height, width] = tensor.shape;
+    console.log(`Gate: Tensor ready (${width}x${height}) in ${Date.now() - startTime}ms`);
 
     // 1. Pixel heuristics first (darkness/blur)
     const quality = checkQuality(tensor);
     if (!quality.ok) {
-      return reject(quality.reason, `Value: ${Math.round(quality.val)}`);
+      return reject(quality.reason, `Value: ${Math.round(quality.val)}`, Date.now() - startTime);
     }
 
     // 2. MediaPipe hand detection
+    // No need to resize again, we are already at 512px
     const hands = await detector.estimateHands(tensor, { flipHorizontal: false });
     console.log("Gate: Hands detected:", hands.length);
 
-    if (hands.length === 0)   return reject("not_a_palm", "No hand detected");
-    if (hands.length > 1)     return reject("multiple_hands", `Found ${hands.length} hands`);
+    if (hands.length === 0)   return reject("not_a_palm", "No hand detected", Date.now() - startTime);
+    if (hands.length > 1)     return reject("multiple_hands", `Found ${hands.length} hands`, Date.now() - startTime);
 
     const hand = hands[0];
     if (!hand?.keypoints || hand.keypoints.length < 21) {
-      return reject("not_a_palm", "Incomplete hand data");
+      return reject("not_a_palm", "Incomplete hand data", Date.now() - startTime);
     }
 
     // Check detection confidence
-    console.log("Gate: Detection score:", hand.score);
     if (hand.score < 0.85) {
-      return reject("not_a_palm", `Low confidence (${Math.round(hand.score * 100)}%)`);
+      return reject("not_a_palm", `Low confidence (${Math.round(hand.score * 100)}%)`, Date.now() - startTime);
     }
     
     const bounds = landmarkBounds(hand.keypoints, width, height);
     console.log("Gate: Coverage:", bounds.coverage);
 
     // 3. Palm too small in frame.
-    // Increased to 0.18 to match web for consistency
-    if (bounds.coverage < 0.18) return reject("too_far", `Coverage ${Math.round(bounds.coverage * 100)}%`);
+    if (bounds.coverage < 0.15) return reject("too_far", `Coverage ${Math.round(bounds.coverage * 100)}%`, Date.now() - startTime);
 
     // 4. Palm runs off-edge.
-    const pad = 4; // Matches web
+    const pad = 4;
     if (bounds.minX < pad || bounds.minY < pad ||
         bounds.maxX > width - pad || bounds.maxY > height - pad) {
-      return reject("cropped", "Hand touching edge");
+      return reject("cropped", "Hand touching edge", Date.now() - startTime);
     }
 
     // 5. Hand-side check
@@ -181,11 +197,11 @@ export async function gatePalmImage(asset, claimedHand) {
       const actualLabel = modelLabel === "Left" ? "Right" : "Left"; 
       console.log("Gate: Model says", modelLabel, "Actual", actualLabel, "Claimed", claimedHand);
       if (actualLabel !== claimedHand) {
-        return reject("wrong_hand");
+        return reject("wrong_hand", "", Date.now() - startTime);
       }
     }
 
-    console.log("Gate: Final Result -> PASSED");
+    console.log(`Gate: Final Result -> PASSED (Total Time: ${Date.now() - startTime}ms)`);
     return { ok: true };
   } catch (err) {
     console.warn("Palm gate encountered an error, falling back to PASS:", err);

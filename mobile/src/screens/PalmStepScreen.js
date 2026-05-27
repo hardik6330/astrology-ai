@@ -38,7 +38,7 @@ export default function PalmStepScreen({ navigation }) {
 
   function goToPalm() {
     setActiveHand(null);
-    navigation.navigate("Reading", { tab: "palm" });
+    navigation.navigate("Palm");
   }
 
   function analyzeInBackground(base64, hand) {

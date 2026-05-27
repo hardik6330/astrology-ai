@@ -71,12 +71,22 @@ export default function PalmScreen({ navigation }) {
   // Warm up the detector.
   useEffect(() => { warmUpGate(); }, []);
 
+  // Sync palmPhoto from context → local preview. Drawer screens stay mounted,
+  // so useState initial values only fire on first render. When PalmStepScreen
+  // sets palmPhoto and navigates here, this effect picks it up.
+  useEffect(() => {
+    if (palmPhoto) setPreview({ uri: palmPhoto });
+    else setPreview(null);
+  }, [palmPhoto]);
+
   // Hand the user just tapped on the upload screen. Drives the source-picker
   // modal AND the scan-screen badge. Seeded from context so a scan kicked
   // off on PalmStepScreen still shows the badge here.
   const [activeHand, setActiveHand] = useState(palmClaimedHand);  // "Right" | "Left" | null
   // Mirror local activeHand into context so the badge survives navigation.
   useEffect(() => { setPalmClaimedHand(activeHand); }, [activeHand, setPalmClaimedHand]);
+  // Sync palmClaimedHand from context → local (photo picked on PalmStepScreen).
+  useEffect(() => { if (palmClaimedHand) setActiveHand(palmClaimedHand); }, [palmClaimedHand]);
 
   // Animated scan-line on the preview.
   const scanAnim = useRef(new Animated.Value(0)).current;
@@ -292,7 +302,7 @@ export default function PalmScreen({ navigation }) {
             <View style={{ width: 40 }} />
           </View>
 
-          {/* Both photos */}
+          {/* Both photos — with scan-line overlay when analyzing */}
           {(palmLeftPhoto || palmRightPhoto) ? (
             <CosmicCard>
               <View style={{ flexDirection: "row", gap: spacing.md }}>
@@ -303,6 +313,16 @@ export default function PalmScreen({ navigation }) {
                   <View key={hand} style={s.compareTile}>
                     <View style={s.compareImageWrap}>
                       {uri ? <Image source={{ uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" /> : null}
+                      {palmAnalyzing && !palmComparison && uri ? (
+                        <Animated.View style={{
+                          position: "absolute", left: 0, right: 0, height: 2,
+                          backgroundColor: "#c084fc",
+                          top: scanAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ["0%", "97%"],
+                          }),
+                        }} />
+                      ) : null}
                     </View>
                     <Text style={s.compareHand}>{hand}</Text>
                     <Text style={s.compareSub}>{label}</Text>
@@ -314,26 +334,6 @@ export default function PalmScreen({ navigation }) {
 
           {palmAnalyzing && !palmComparison && (
             <CosmicCard style={{ alignItems: "center" }}>
-              {palmLeftPhoto && palmRightPhoto ? (
-                <View style={{ flexDirection: "row", gap: 20, marginBottom: 16 }}>
-                  {[palmLeftPhoto, palmRightPhoto].map((uri, idx) => (
-                    <View key={idx} style={{
-                      width: 80, height: 110, borderRadius: 12, overflow: "hidden",
-                      borderWidth: 1, borderColor: "rgba(168,85,247,0.4)"
-                    }}>
-                      <Image source={{ uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-                      <Animated.View style={{
-                        position: "absolute", left: 0, right: 0, height: 2,
-                        backgroundColor: "#c084fc",
-                        top: scanAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ["0%", "97%"],
-                        }),
-                      }} />
-                    </View>
-                  ))}
-                </View>
-              ) : null}
               <Text style={s.scanMsg}>{scanMsg}</Text>
               <Text style={s.scanSub}>Comparing both hands — usually 20–45 seconds.</Text>
               <ActivityIndicator color={color.primaryLight} style={{ marginTop: 8 }} />
