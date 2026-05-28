@@ -59,7 +59,7 @@ export default function ProfilePage() {
 
       {/* Actions */}
       <div className="cosmic-card" style={{ display: "grid", gap: 10 }}>
-        <button type="button" onClick={() => navigate("/")} style={ghostBtn}>
+        <button type="button" onClick={() => navigate("/", { state: { edit: true } })} style={ghostBtn}>
           ✏️ Update Birth Details
         </button>
         <button type="button" onClick={handleLogout} style={logoutBtn}>

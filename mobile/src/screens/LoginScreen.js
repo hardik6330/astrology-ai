@@ -220,12 +220,12 @@ export default function LoginScreen() {
 
     setBusy(true);
     await new Promise((r) => setTimeout(r, 500));
-    const { savedForm } = await login({ phone: phoneRef.current });
-    // If the backend recognised this number, populate ChartContext so
-    // HomeScreen mounts already knowing this is a returning user and
-    // bounces them straight to Reading.
+    const { savedForm, commitSession } = await login({ phone: phoneRef.current });
+    // If the backend recognised this number, hydrate ChartContext FIRST so
+    // the redirect flag + chart are in place before the navigator switches.
+    // Otherwise HomeScreen briefly flashes the empty form on returning login.
     if (savedForm) await applySavedForm(savedForm);
-    // Navigator switches automatically once `token` is set.
+    commitSession();
   }
 
   return (

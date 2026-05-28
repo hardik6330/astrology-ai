@@ -162,7 +162,7 @@ Running period: ${d.dasha}`;
       <div className="cosmos"></div>
       <div className="stars"></div>
 
-      <button onClick={() => navigate("/")} style={{
+      <button onClick={() => navigate("/", { state: { edit: true } })} style={{
         fontSize: 12, padding: "8px 16px", borderRadius: 8, cursor: "pointer", color: "#a5b4fc",
         border: "1px solid rgba(99,102,241,0.4)", background: "rgba(99,102,241,0.1)", marginBottom: 20 }}>
         ← New Reading

@@ -23,12 +23,8 @@ const CITY_OPTIONS = CITIES.map((c) => ({ label: c.n, value: c.n }));
 export default function HomeScreen({ navigation }) {
   const {
     form, setForm, chart, setChart, resetReading,
-    redirectToReading, consumeRedirect, hydrated,
+    redirectToReading, consumeRedirect,
   } = useChart();
-  // Skip Home entirely on relaunch when we already have a saved chart on
-  // disk — bounce to Reading on the Kundali tab. We only do this once per
-  // mount so the user can still navigate back to Home manually.
-  const autoRedirectedRef = React.useRef(false);
   const [error, setError] = useState("");
   const styles = useStyles(makeStyles);
 
@@ -43,19 +39,9 @@ export default function HomeScreen({ navigation }) {
   React.useEffect(() => {
     if (redirectToReading && chart) {
       consumeRedirect();
-      navigation.navigate("Reading", { tab: "kundali" });
+      navigation.navigate("Reading", { tab: "reading" });
     }
   }, [redirectToReading, chart, consumeRedirect, navigation]);
-
-  // Relaunch shortcut: form was hydrated from disk and a chart already exists
-  // — skip the data-entry form and open Reading on the Kundali tab.
-  React.useEffect(() => {
-    if (!hydrated || autoRedirectedRef.current) return;
-    if (chart && form?.date && form?.time && form?.city) {
-      autoRedirectedRef.current = true;
-      navigation.navigate("Reading", { tab: "kundali" });
-    }
-  }, [hydrated, chart, form, navigation]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 

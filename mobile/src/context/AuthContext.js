@@ -51,9 +51,13 @@ export function AuthProvider({ children }) {
     await AsyncStorage.setItem(KEY, token);
     await AsyncStorage.setItem(ACC_KEY, JSON.stringify(acc));
     primeAuthPhone(acc.phone);
-    setToken(token);
-    setAccount(acc);
-    return { savedForm };
+    // Return the credentials without committing them — the caller hydrates
+    // ChartContext first, then calls commitSession() so HomeScreen mounts
+    // already knowing whether to redirect a returning user.
+    return {
+      savedForm,
+      commitSession: () => { setToken(token); setAccount(acc); },
+    };
   }
 
   async function logout() {

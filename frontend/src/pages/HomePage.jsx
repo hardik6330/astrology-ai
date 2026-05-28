@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { computeChart, CITIES } from "../astrology";
 import { useChart } from "../context/ChartContext";
 
@@ -9,14 +9,17 @@ const lbl = { fontSize: 13, color: "#888", display: "block", marginBottom: 4 };
 // and routes to the protected /reading page.
 export default function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { form, setForm, chart, setChart, setInterp, setDaily, setChatMsgs } = useChart();
   const [error, setError] = useState("");
 
-  // Returning visitor: a chart already exists (rehydrated from sessionStorage
-  // or applied right after login) — skip the form and land on Reading/kundali.
-  if (chart && form?.date && form?.time && form?.city) {
-    return <Navigate to="/reading" replace state={{ tab: "kundali" }} />;
-  }
+  // Returning user: if ChartContext already has a chart, skip the form and
+  // land on Reading. Suppressed when the user explicitly came here to edit
+  // (e.g. "New Reading" / "Update Birth Details" pass `state.edit = true`).
+  const editMode = !!location.state?.edit;
+  useEffect(() => {
+    if (chart && !editMode) navigate("/reading", { replace: true });
+  }, [chart, editMode, navigate]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
