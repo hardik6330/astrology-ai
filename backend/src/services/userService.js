@@ -2,12 +2,12 @@ import { User } from '../models/index.js';
 import { httpError } from '../middleware/errorHandler.js';
 
 // Resolve a user by their birth-detail join key. Returns null if not found.
-export async function findUserByForm({ name, date, time, city }) {
+export async function findUserByForm({ name, date, time, city, gender }) {
   if (!name || !date || !time || !city) {
     throw httpError(400, 'name, date, time and city are required', 'BAD_REQUEST');
   }
   return User.findOne({
-    where: { name, birthDate: date, birthTime: time, birthCity: city },
+    where: { name, birthDate: date, birthTime: time, birthCity: city, gender: gender || null },
   });
 }
 
@@ -21,8 +21,9 @@ export async function findOrCreateUser(form) {
       birthDate: form.date,
       birthTime: form.time,
       birthCity: form.city,
+      gender: form.gender || null,
     },
-    defaults: { gender: form.gender, phone: form.phone || null },
+    defaults: { phone: form.phone || null },
   });
   if (form.phone && user.phone !== form.phone) {
     await user.update({ phone: form.phone });
