@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { computeChart, CITIES } from "../astrology";
 import { useChart } from "../context/ChartContext";
 
@@ -9,8 +9,14 @@ const lbl = { fontSize: 13, color: "#888", display: "block", marginBottom: 4 };
 // and routes to the protected /reading page.
 export default function HomePage() {
   const navigate = useNavigate();
-  const { form, setForm, setChart, setInterp, setDaily, setChatMsgs } = useChart();
+  const { form, setForm, chart, setChart, setInterp, setDaily, setChatMsgs } = useChart();
   const [error, setError] = useState("");
+
+  // Returning visitor: a chart already exists (rehydrated from sessionStorage
+  // or applied right after login) — skip the form and land on Reading/kundali.
+  if (chart && form?.date && form?.time && form?.city) {
+    return <Navigate to="/reading" replace state={{ tab: "kundali" }} />;
+  }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
