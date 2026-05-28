@@ -71,14 +71,21 @@ export default function ChatScreen({ navigation }) {
     `Ask me anything about your life — career, marriage, money, health, timing — and ` +
     `I'll answer from your kundali. What would you like to know?`;
 
-  // Restore saved history once on first mount (if local list is empty).
+  // Restore saved history when the screen mounts AND once the form is ready.
+  // The form may still be hydrating from AsyncStorage / login on first mount,
+  // so we re-run when form identity changes. The chatMsgs guard prevents a
+  // duplicate fetch after we've already populated the list.
   useEffect(() => {
     if (chatMsgs.length > 0) { setHydrating(false); return; }
+    if (!form?.name || !form?.date || !form?.time || !form?.city) { setHydrating(false); return; }
+    let cancelled = false;
+    setHydrating(true);
     fetchChatHistory(form)
-      .then((msgs) => msgs.length && setChatMsgs(msgs))
-      .finally(() => setHydrating(false));
+      .then((msgs) => { if (!cancelled && msgs.length) setChatMsgs(msgs); })
+      .finally(() => { if (!cancelled) setHydrating(false); });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [form?.name, form?.date, form?.time, form?.city, form?.gender]);
 
   // Keep list pinned to latest message.
   useEffect(() => {
