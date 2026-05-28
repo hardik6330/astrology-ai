@@ -66,7 +66,10 @@ export async function answerAndPersist({ messages, factSheet, form }) {
   const lastMsg = messages[messages.length - 1].content;
 
   // 1. Topic guard — refuse off-chart questions.
-  const guardRes = await callGemini(GUARD_SYSTEM, lastMsg);
+  // We include context (last 2 messages) so the guard understands follow-ups like "why?"
+  const guardContext = messages.slice(-2).map(m => `${m.role}: ${m.content}`).join('\n');
+  const guardRes = await callGemini(GUARD_SYSTEM, guardContext);
+
   let result;
   if (guardRes.trim().toUpperCase() === 'BLOCK') {
     result = 'I can only answer questions about your own birth chart. 🔮';

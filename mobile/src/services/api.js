@@ -107,9 +107,11 @@ async function getJSON(endpoint, params) {
 }
 
 function formParams(form) {
-  return {
+  const p = {
     name: form.name, date: form.date, time: form.time, city: form.city,
   };
+  if (form.gender) p.gender = form.gender;
+  return p;
 }
 
 function parseContent(content) {

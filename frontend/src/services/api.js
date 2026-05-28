@@ -105,6 +105,7 @@ export async function fetchSaved(type, form, targetDate) {
   const params = new URLSearchParams({
     name: form.name, date: form.date, time: form.time, city: form.city,
   });
+  if (form.gender) params.set('gender', form.gender);
   if (targetDate) params.set("targetDate", targetDate);
   const res = await authFetch(`${API_URL}/${type}?${params}`);
   if (res.status === 404) return null;
@@ -124,6 +125,7 @@ export async function fetchDailyDates(form) {
   const params = new URLSearchParams({
     name: form.name, date: form.date, time: form.time, city: form.city,
   });
+  if (form.gender) params.set('gender', form.gender);
   try {
     const res = await authFetch(`${API_URL}/daily-dates?${params}`);
     if (!res.ok) return [];
@@ -140,6 +142,7 @@ export async function fetchPalmHistory(form) {
   const params = new URLSearchParams({
     name: form.name, date: form.date, time: form.time, city: form.city,
   });
+  if (form.gender) params.set('gender', form.gender);
   try {
     const res = await authFetch(`${API_URL}/palm/history?${params}`);
     if (!res.ok) return [];
@@ -155,6 +158,7 @@ export async function fetchPalmById(id, form) {
   const params = new URLSearchParams({
     name: form.name, date: form.date, time: form.time, city: form.city,
   });
+  if (form.gender) params.set('gender', form.gender);
   const res = await authFetch(`${API_URL}/palm/${id}?${params}`);
   if (!res.ok) return null;
   const data = await res.json();
@@ -213,6 +217,7 @@ export async function fetchChatHistory(form) {
   const params = new URLSearchParams({
     name: form.name, date: form.date, time: form.time, city: form.city,
   });
+  if (form.gender) params.set('gender', form.gender);
   try {
     const res = await authFetch(`${API_URL}/chat?${params}`);
     if (!res.ok) return [];
