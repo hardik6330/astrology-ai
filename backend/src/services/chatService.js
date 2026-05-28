@@ -72,7 +72,7 @@ export async function answerAndPersist({ messages, factSheet, form }) {
 
   let result;
   if (guardRes.trim().toUpperCase() === 'BLOCK') {
-    result = 'I can only answer questions about your own birth chart. 🔮';
+    result = "I can only guide you on what your own birth chart reveals about your life. This particular question falls outside that scope, but I'm happy to help with anything regarding your career, marriage, or personal growth! 🔮";
   } else {
     // Pull persisted history so a revisited topic can be answered with
     // awareness of what was already said — even across sessions where the
