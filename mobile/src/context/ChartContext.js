@@ -74,6 +74,14 @@ export function ChartProvider({ children }) {
     setInterp(null);
     setDaily(null);
     setChatMsgs([]);
+    setPalm(null);
+    setPalmPhoto(null);
+    setPalmAnalyzing(false);
+    setPalmClaimedHand(null);
+    setPalmComparison(null);
+    setPalmOverloaded(false);
+    setPalmLeftPhoto(null);
+    setPalmRightPhoto(null);
   }, []);
 
   // One-shot flag set right after login when the backend reports the

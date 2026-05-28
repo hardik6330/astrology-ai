@@ -115,13 +115,21 @@ export default function ReadingScreen({ navigation, route }) {
     }
   }
 
-  // Auto-generate the AI reading once on first chart load.
+  // Auto-generate the AI reading whenever the chart changes (first load OR
+  // after the user updates birth details). The ref is reset on chart change
+  // so a fresh fetch fires; the guard still prevents duplicate calls within
+  // the same chart instance.
+  useEffect(() => {
+    if (!chart) return;
+    fetchedRef.current = false;
+  }, [chart]);
+
   useEffect(() => {
     if (!chart || interp || fetchedRef.current) return;
     fetchedRef.current = true;
     generateReading();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chart]);
+  }, [chart, interp]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
