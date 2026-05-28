@@ -3,6 +3,7 @@
 // verify it server-side with firebase-admin, then mint our own JWT.
 
 import { Router } from 'express';
+import { Op } from 'sequelize';
 import { z } from 'zod';
 import { verifyIdToken } from '../config/firebase.js';
 import { AuthAccount, User } from '../models/index.js';
@@ -15,8 +16,10 @@ import { logger } from '../config/logger.js';
 // user can skip the birth-details form and land straight on their kundali.
 async function findSavedFormByPhone(phone) {
   if (!phone) return null;
+  // Skip placeholder rows missing a name — those were created by older flows
+  // and would hydrate the client form with an empty name, breaking lookups.
   const user = await User.findOne({
-    where: { phone },
+    where: { phone, name: { [Op.ne]: '' } },
     order: [['updatedAt', 'DESC']],
   });
   if (!user) return null;
