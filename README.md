@@ -1,17 +1,28 @@
-# Astrology AI Pro
+<div align="center">
+  <h1>✨ Astrology AI Pro</h1>
+  <p><strong>A Next-Generation AI-Powered Vedic Astrology & Palmistry Platform</strong></p>
+  
+  [![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+  [![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?logo=react&logoColor=black)](https://reactnative.dev/)
+  [![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+  [![Gemini AI](https://img.shields.io/badge/Gemini_AI-2.5_Pro-4285F4?logo=google&logoColor=white)](https://aistudio.google.com/)
+  [![License](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
+</div>
 
-> An AI-powered astrology companion that delivers personalized **kundali (birth chart) interpretations**, **palm readings**, **daily horoscopes**, and a **conversational astrologer chat** — available as both a **web app (React 19 + Vite)** and a **native mobile app (React Native + Expo)**, backed by an Express 5 + MySQL API and Google Gemini.
+<br />
+
+> **Astrology AI Pro** delivers deeply personalized **Kundali (birth chart) interpretations**, **Palm readings**, **Daily horoscopes**, and a **Conversational Astrologer Chat**. It is engineered as a cross-platform solution featuring a **PWA-ready Web App** and a **Native Mobile App**, powered by a highly secure Express API and Google's Gemini LLMs.
 
 ---
 
-## Features
+## 🌟 Key Features
 
-- **Kundali Interpretation** — Generate and interpret Vedic birth charts from birth details (date, time, place). Charts are computed client-side using `astronomy-engine` for speed and privacy.
-- **Palm Reading** — Upload a palm photo and receive a structured reading from the AI (with image validation and history tracking).
-- **Daily Guidance** — Personalized day-by-day predictions, browsable by date.
-- **AI Astrologer Chat** — Conversational interface with deduped, context-aware Gemini responses.
-- **PWA-ready** — Installable on mobile via `vite-plugin-pwa`; works on the same Wi-Fi from your phone with zero config.
-- **Production-grade backend** — Zod env validation, rate limiting, structured Pino logs, Helmet, CORS allowlist, Sequelize migrations.
+- **🪐 Precision Kundali Engine** — Generates Vedic birth charts using `astronomy-engine` for sub-degree accuracy, calculating Shadbala, Doshas, and Dasha timelines entirely client-side.
+- **✋ AI Palm Reading** — Upload palm images for structured, AI-driven palmistry analysis with built-in image quality validation.
+- **📅 Daily Guidance & Gochar** — Day-by-day predictions mapped against real-time planetary transits (Gochar).
+- **💬 Conversational AI Astrologer** — Context-aware chat interface utilizing deduplicated Gemini responses tailored to the user's chart.
+- **📱 True Cross-Platform** — Seamless experience across Web (Vite + React) and Mobile (React Native + Expo).
+- **🛡️ Enterprise-Grade Security** — Firebase Phone OTP Auth, Zod validation, Rate Limiting, Helmet, and strict CORS policies.
 
 ---
 
@@ -284,48 +295,22 @@ eas env:list --environment preview                   # view EAS env vars
 
 ---
 
-## Deployment
+## 🏗️ Deployment Architecture
 
-### Backend → Vercel + Railway
+The application uses a modern, decoupled architecture designed for scale and security.
 
-Backend is deployed on **Vercel** (serverless functions) with **Railway-hosted MySQL**.
+### Backend (API Layer) → Vercel + Railway
+- **Compute:** Deployed as serverless functions on **Vercel** for automatic scaling and edge caching.
+- **Database:** Hosted on **Railway (MySQL 8)** ensuring robust relational data integrity with automated backups.
+- **Migration:** Run `npm run migrate` via CLI connected to Railway TCP Proxy to sync DB schemas.
 
-1. **Vercel → Project Settings**
-   - **Root Directory:** `backend`
-   - Set env vars: `GEMINI_API_KEY`, `JWT_SECRET`, `NODE_ENV=production`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`, `FIREBASE_SERVICE_ACCOUNT_B64`
-2. **Railway MySQL service**
-   - Use `RAILWAY_TCP_PROXY_DOMAIN` as `DB_HOST` and `RAILWAY_TCP_PROXY_PORT` as `DB_PORT`
-   - Rotate `MYSQL_ROOT_PASSWORD` if it has been exposed in any way (screenshots, chat, screen shares)
-3. **Run migrations once** against the Railway DB:
-   ```bash
-   cd backend
-   DB_HOST=<railway-host> DB_PORT=<port> DB_USER=root DB_PASS='<pass>' DB_NAME=railway NODE_ENV=production npm run migrate
-   ```
+### Frontend (Web App) → Static Edge Host
+- **Hosting:** Fully static deployment to **Vercel / Netlify / Cloudflare Pages**.
+- **PWA:** Generates a Service Worker for offline-ready assets and mobile installability.
 
-### Frontend → static host (Vercel / Netlify / Cloudflare Pages)
-
-```bash
-cd frontend && npm run build
-# Deploy the contents of dist/ to any static host. Set VITE_API_URL to your backend URL at build time.
-```
-
-### Mobile → EAS Build + EAS Update
-
-- **First-time setup:** `npm install -g eas-cli && eas login`
-- **Build APK to share with Android testers:**
-  ```bash
-  cd mobile
-  eas build --platform android --profile preview
-  ```
-- **Push JS updates to installed APKs (no rebuild needed):**
-  ```bash
-  eas update --branch preview --message "what changed"
-  ```
-- **iOS distribution:** requires a paid Apple Developer Program subscription ($99/yr). Free option for iOS testers: have them install **Expo Go** and open your project URL.
-
-When to rebuild vs. update:
-- **JS / styles / images / API URL** → `eas update`
-- **app.json icon/splash/permissions, new native modules, SDK upgrade** → `eas build`
+### Mobile App (iOS & Android) → EAS Build & Update
+- **Builds (APK/IPA):** Handled by **Expo Application Services (EAS Build)** in the cloud.
+- **Over-The-Air (OTA) Updates:** Use `eas update` to push JS, style, and asset changes instantly to user devices without App Store review cycles.
 
 ---
 
