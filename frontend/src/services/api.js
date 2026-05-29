@@ -80,11 +80,20 @@ export async function authFetch(url, init = {}) {
   return res;
 }
 
+// Trim the conversation to the last N turns before sending. The full
+// transcript still lives in ChatContext (and on the backend, for topic
+// recall) — this just keeps the per-turn prompt size bounded.
+const CHAT_HISTORY_MAX = 30;
+function trimChatHistory(messages) {
+  if (!Array.isArray(messages) || messages.length <= CHAT_HISTORY_MAX) return messages;
+  return messages.slice(-CHAT_HISTORY_MAX);
+}
+
 // Low-level POST to the chat-completion endpoint.
 export async function chatCompletion(messages, type = "chat", extraData = {}) {
   const form = attachPhone(extraData.form);
   let endpoint = `${API_URL}/chat`;
-  let body = { messages, factSheet: extraData.factSheet, form };
+  let body = { messages: trimChatHistory(messages), factSheet: extraData.factSheet, form };
 
   if (type === "interpret") {
     endpoint = `${API_URL}/interpret`;

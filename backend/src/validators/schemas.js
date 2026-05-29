@@ -30,10 +30,13 @@ export const dailyBody = z.object({
 export const chatBody = z.object({
   form: formSchema.optional(),
   factSheet: factSheetSchema.optional(),
+  // 200-turn cap is a defensive ceiling, NOT a UX limit. The client should
+  // truncate to the last N turns before sending so prompt tokens stay
+  // bounded — see chatCompletion() in services/api.js (web + mobile).
   messages: z.array(z.object({
     role: z.enum(['user', 'assistant']),
     content: z.string().max(2_000),
-  })).min(1).max(50),
+  })).min(1).max(200),
 });
 
 export const palmBody = z.object({

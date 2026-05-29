@@ -101,15 +101,15 @@ export async function getChatHistory(form) {
 export async function answerAndPersist({ messages, factSheet, form }) {
   const lastMsg = messages[messages.length - 1].content;
 
-  // 1. Topic guard — refuse off-chart questions.
-  // We include context (last 2 messages) so the guard understands follow-ups like "why?"
+  // 1. Topic guard — flags off-chart questions so we can ask Pro to REFRAME
+  // them through the chart angle instead of flatly refusing. The hardcoded
+  // refusal string was removed: every question now gets a Pro answer.
   const guardContext = messages.slice(-2).map(m => `${m.role}: ${m.content}`).join('\n');
   const guardRes = await callGemini(GUARD_SYSTEM, guardContext);
+  const isOffChart = guardRes.trim().toUpperCase() === 'BLOCK';
 
   let result;
-  if (guardRes.trim().toUpperCase() === 'BLOCK') {
-    result = "I can only guide you on what your own birth chart reveals about your life. This particular question falls outside that scope, but I'm happy to help with anything regarding your career, marriage, or personal growth! 🔮";
-  } else {
+  {
     // Pull persisted history so a revisited topic can be answered with
     // awareness of what was already said — even across sessions where the
     // client `messages` array starts fresh. Resolve the user once so we can
@@ -130,7 +130,13 @@ export async function answerAndPersist({ messages, factSheet, form }) {
     const topicBlock = buildTopicHistoryBlock(priorHistory, topic, lastMsg);
 
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-    const systemWithChart = `${CHAT_SYSTEM}\n\n=== THIS PERSON'S BIRTH CHART ===\n${factSheet || '(chart not provided)'}${palmBlock}\n\nTODAY'S DATE: ${today}.${topicBlock}`;
+    // Off-chart questions get a softer reframe instruction appended to the
+    // system prompt — Pro will acknowledge briefly then redirect to the
+    // closest chart-related insight instead of flat-refusing.
+    const reframeNote = isOffChart
+      ? `\n\nNOTE: This user's question is technically outside what a birth chart can literally name (e.g. a brand, a person's name, a specific number). DO NOT refuse. Find the chart angle behind what they're really asking and answer that. One acknowledging sentence, then 2-3 sentences of useful chart-grounded insight.`
+      : '';
+    const systemWithChart = `${CHAT_SYSTEM}\n\n=== THIS PERSON'S BIRTH CHART ===\n${factSheet || '(chart not provided)'}${palmBlock}\n\nTODAY'S DATE: ${today}.${topicBlock}${reframeNote}`;
     result = await callGemini(systemWithChart, lastMsg, false, CHAT_ANSWER_MODELS, THINK_BUDGET.CHAT);
   }
 

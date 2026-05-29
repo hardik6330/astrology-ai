@@ -149,10 +149,19 @@ export function warmupBackend() {
   fetch(`${base}/`).catch(() => { /* ignore — best-effort warm-up */ });
 }
 
+// Trim the conversation to the last N turns before sending. The full
+// transcript still lives in ChatContext + on the backend; this just keeps
+// per-turn prompt size bounded.
+const CHAT_HISTORY_MAX = 30;
+function trimChatHistory(messages) {
+  if (!Array.isArray(messages) || messages.length <= CHAT_HISTORY_MAX) return messages;
+  return messages.slice(-CHAT_HISTORY_MAX);
+}
+
 export async function chatCompletion(messages, type = "chat", extra = {}) {
   const form = attachPhone(extra.form);
   let endpoint = "/chat";
-  let body = { messages, factSheet: extra.factSheet, form };
+  let body = { messages: trimChatHistory(messages), factSheet: extra.factSheet, form };
   if (type === "interpret") {
     endpoint = "/interpret";
     body = { factSheet: extra.factSheet, form };
