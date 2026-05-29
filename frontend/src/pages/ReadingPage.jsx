@@ -84,11 +84,15 @@ export default function ReadingPage() {
 
           console.log("[OSM] Received Data:", data);
 
+          const a = data.address || {};
           const city =
-            data.address.city ||
-            data.address.town ||
-            data.address.village ||
-            data.address.suburb ||
+            a.city ||
+            a.town ||
+            a.village ||
+            a.municipality ||
+            a.suburb ||
+            a.neighbourhood ||
+            a.county ||
             "Current Location";
 
           console.log(`[OSM] Resolved City: ${city}`);
