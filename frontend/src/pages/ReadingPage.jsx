@@ -266,25 +266,6 @@ Running period: ${d.dasha}`;
           </p>
           <p style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
             {form.dob} • {form.time} • {form.city}
-            {activeLoc?.isGps ? (
-              <span style={{ color: "#6366f1", marginLeft: 8 }}>(📍 {activeLoc.n} - Live)</span>
-            ) : (
-              <button
-                onClick={getGpsLocation}
-                style={{
-                  marginLeft: 8,
-                  color: locError ? "#f87171" : "#6366f1",
-                  textDecoration: "underline",
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  fontSize: 11,
-                }}
-              >
-                {locError ? "⚠️ Location blocked. Enable GPS" : "📍 Use Live Location"}
-              </button>
-            )}
           </p>
         </div>
 
@@ -318,10 +299,42 @@ Running period: ${d.dasha}`;
 
             {/* Daily Guidance */}
             <div className="cosmic-card">
-              <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 12px", color: "#fff" }}>
-                {form.name || "Your"}
-                {form.name ? "'s" : ""} Daily Insights
-              </p>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginBottom: 12,
+                }}
+              >
+                <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "#fff" }}>
+                  {form.name || "Your"}
+                  {form.name ? "'s" : ""} Daily Insights
+                </p>
+
+                <div style={{ textAlign: "right" }}>
+                  {activeLoc?.isGps ? (
+                    <div style={{ fontSize: 11, color: "#6366f1", fontWeight: 500 }}>
+                      📍 {activeLoc.n} (Live)
+                    </div>
+                  ) : (
+                    <button
+                      onClick={getGpsLocation}
+                      style={{
+                        color: locError ? "#f87171" : "#6366f1",
+                        textDecoration: "underline",
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        fontSize: 11,
+                      }}
+                    >
+                      {locError ? "⚠️ GPS Blocked" : "📍 Use Live Location"}
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {/* Month strip — pick any day of the month to view / generate guidance.
               Days with a green dot already have saved guidance. */}
