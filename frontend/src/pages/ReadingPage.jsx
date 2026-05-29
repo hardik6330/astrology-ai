@@ -62,15 +62,33 @@ export default function ReadingPage() {
   const getGpsLocation = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCurrentLoc({
-          n: "Current Location",
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-          tz: -(new Date().getTimezoneOffset() / 60),
-          isGps: true,
-        });
+      async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        const tz = -(new Date().getTimezoneOffset() / 60);
+
+        // Default label
+        setCurrentLoc({ n: "Current Location", lat, lon, tz, isGps: true });
         setLocError(false);
+
+        // Try to get the actual city name via Reverse Geocoding (Free OSM)
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`,
+            {
+              headers: { "User-Agent": "AstrologyAI/1.0" },
+            }
+          );
+          const data = await res.json();
+          const city =
+            data.address.city ||
+            data.address.town ||
+            data.address.village ||
+            data.address.suburb ||
+            "Current Location";
+          setCurrentLoc({ n: city, lat, lon, tz, isGps: true });
+        } catch (e) {
+          // If reverse geocode fails, we still have the coordinates so the transit math works.
+        }
       },
       () => {
         setLocError(true);
@@ -238,7 +256,7 @@ Running period: ${d.dasha}`;
           <p style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
             {form.dob} • {form.time} • {form.city}
             {activeLoc?.isGps ? (
-              <span style={{ color: "#6366f1", marginLeft: 8 }}>(📍 Live Location Active)</span>
+              <span style={{ color: "#6366f1", marginLeft: 8 }}>(📍 {activeLoc.n} - Live)</span>
             ) : (
               <button
                 onClick={getGpsLocation}
