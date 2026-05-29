@@ -112,7 +112,14 @@ export default function PalmCompareScreen({ navigation }) {
       </Pressable>
 
       <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
-        <Text style={s.title}>✋🤚 Full Life Comparison</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+          {/* Split the two hand emojis into their own Text views — the
+              joined "✋🤚" form clips the second glyph on some Android
+              emoji fonts. */}
+          <Text style={s.titleEmoji}>✋</Text>
+          <Text style={s.titleEmoji}>🤚</Text>
+          <Text style={s.title}>  Full Life Comparison</Text>
+        </View>
         <Text style={s.subtitle}>
           Compare your left palm (the potential you were born with) against your right
           palm (how your choices have reshaped it). We&apos;ll read the gap between them.
@@ -256,6 +263,9 @@ const makeStyles = (c) =>
     backText: { color: c.accentLight, fontSize: 12, fontWeight: "600" },
 
     title:    { color: c.text, fontSize: 22, fontWeight: "800", textAlign: "center", marginTop: spacing.md },
+    // Standalone Text per emoji — gives each glyph its own bounding box so
+    // Android doesn't clip the second when "✋🤚" are rendered as one run.
+    titleEmoji: { fontSize: 22, lineHeight: 32, marginTop: spacing.md, marginHorizontal: 2, includeFontPadding: false },
     subtitle: { color: c.textDim, fontSize: 13, textAlign: "center", marginTop: 6, paddingHorizontal: spacing.lg, lineHeight: 19 },
 
     handBtn: {

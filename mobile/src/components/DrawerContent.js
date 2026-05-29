@@ -8,8 +8,10 @@ import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
 
 const ITEMS = [
-  { key: "Home",    label: "Home",           icon: "🏠", route: "Home",    desc: "Start a new reading" },
-  { key: "Reading", label: "Reading",        icon: "✨", route: "Reading", desc: "Your cosmic blueprint" },
+  // Home goes straight into the Kundali tab; Reading lands on the All Over
+  // (AI synthesis) tab. Both target the Reading screen with a tab param.
+  { key: "Home",    label: "Home",           icon: "🏠", route: "Reading", params: { tab: "kundali" }, desc: "Your kundali chart" },
+  { key: "Reading", label: "Reading",        icon: "✨", route: "Reading", params: { tab: "reading" }, desc: "Your AI cosmic reading" },
   { key: "Palm",    label: "Palm Reading",   icon: "✋", route: "Palm",    desc: "Hand-line insights" },
   { key: "Chat",    label: "AI Astrologer",  icon: "💬", route: "Chat",    desc: "Ask the stars anything" },
   { key: "Profile", label: "Profile",        icon: "👤", route: "Profile", desc: "Birth details & identity" },
@@ -34,13 +36,16 @@ export default function DrawerContent({ navigation, state }) {
 
   const initial = (form.name || "?").trim().charAt(0).toUpperCase();
   const activeRoute = state?.routeNames?.[state.index];
+  // Pull the active route's current params so we can distinguish two drawer
+  // items that share the same screen (Home vs Reading both → Reading).
+  const activeParams = state?.routes?.[state.index]?.params;
   const isDark = theme === "dark";
 
   const birthLine = [form.date, fmtTime(form.time)].filter(Boolean).join(" • ");
 
-  function go(route) {
+  function go(route, params) {
     navigation.closeDrawer();
-    navigation.navigate(route);
+    navigation.navigate(route, params);
   }
 
   return (
@@ -68,11 +73,17 @@ export default function DrawerContent({ navigation, state }) {
 
         <View style={{ paddingVertical: spacing.sm }}>
           {ITEMS.map((item) => {
-            const active = activeRoute === item.route;
+            // When two items share a route (Home + Reading → "Reading"),
+            // also compare the tab param so only one lights up at a time.
+            const routeMatches = activeRoute === item.route;
+            const tabMatches = item.params?.tab
+              ? activeParams?.tab === item.params.tab
+              : true;
+            const active = routeMatches && tabMatches;
             return (
               <Pressable
                 key={item.key}
-                onPress={() => go(item.route)}
+                onPress={() => go(item.route, item.params)}
                 style={({ pressed }) => [
                   styles.item,
                   active && styles.itemActive,

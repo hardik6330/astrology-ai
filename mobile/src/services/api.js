@@ -111,6 +111,10 @@ function formParams(form) {
     name: form.name, date: form.date, time: form.time, city: form.city,
   };
   if (form.gender) p.gender = form.gender;
+  // Phone is part of the User identity key — without it, the backend
+  // would match a different user with the same birth data.
+  const phone = form.phone || _phone;
+  if (phone) p.phone = phone;
   return p;
 }
 

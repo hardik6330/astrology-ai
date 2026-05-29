@@ -228,6 +228,7 @@ Running period: ${d.dasha}`;
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "2rem 1rem 7.5rem", position: "relative" }}>
       <div className="cosmos"></div>
       <div className="stars"></div>
+      <div className="shooting-star"></div>
 
       <button
         onClick={() => navigate("/", { state: { edit: true } })}

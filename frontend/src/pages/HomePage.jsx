@@ -97,6 +97,7 @@ export default function HomePage() {
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "2rem 1rem", position: "relative" }}>
       <div className="cosmos"></div>
       <div className="stars"></div>
+      <div className="shooting-star"></div>
 
       <div className="cosmic-card" style={{ textAlign: "center", marginBottom: "2.5rem" }}>
         <h2

@@ -14,6 +14,7 @@ import PanchangCard from "../components/PanchangCard";
 import PlanetaryStrengthCard from "../components/PlanetaryStrengthCard";
 import DashaWheel from "../components/DashaWheel";
 import AshtakvargaWheel from "../components/AshtakvargaWheel";
+import * as Location from "expo-location";
 import { useChart } from "../context/ChartContext";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
@@ -36,12 +37,12 @@ function asText(v) {
 
 const WD_SHORT = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const SUB_TABS = ["kundali", "planets", "timeline", "reading"];
+const SUB_TABS = ["kundali", "planets", "timeline", "reading", "palm", "chat", "profile"];
 
 const iso = (d) => d.toISOString().split("T")[0];
 
 export default function ReadingScreen({ navigation, route }) {
-  const { form, chart, interp, setInterp } = useChart();
+  const { form, chart, interp, setInterp, currentLoc, setCurrentLoc } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
   const [tab, setTab]             = useState(route.params?.tab || "kundali");
@@ -52,16 +53,43 @@ export default function ReadingScreen({ navigation, route }) {
   const [overloaded, setOverloaded] = useState(false);
   const [cooldown, setCooldown]   = useState(0);
   const [dailyBusy, setDailyBusy] = useState(false);
+  const [locError, setLocError]   = useState(false);
   const fetchedRef = useRef(false);
   const [now] = useState(() => Date.now());
 
+  const getGpsLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocError(true);
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({});
+      const { latitude: lat, longitude: lon } = loc.coords;
+      const tz = -(new Date().getTimezoneOffset() / 60);
+      setCurrentLoc({ n: "Current Location", lat, lon, tz, isGps: true });
+      setLocError(false);
+
+      const [addr] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
+      if (addr) {
+        const city = addr.city || addr.district || addr.subregion || "Current Location";
+        setCurrentLoc({ n: city, lat, lon, tz, isGps: true });
+      }
+    } catch (err) {
+      setLocError(true);
+    }
+  };
+
   // City coords + tz now live on the form itself (no static-list lookup).
-  const cityObj = useMemo(
+  const birthCity = useMemo(
     () => (form.lat != null && form.lon != null && form.tz != null
       ? { n: form.city, lat: form.lat, lon: form.lon, tz: form.tz }
       : null),
     [form.city, form.lat, form.lon, form.tz],
   );
+  
+  const activeLoc = currentLoc || birthCity;
+  
   const todayIso = iso(new Date());
 
   const monthDays = useMemo(() => {
@@ -85,8 +113,8 @@ export default function ReadingScreen({ navigation, route }) {
   }, [form]);
 
   const dailyTransit = useMemo(
-    () => (chart && cityObj ? computeDaily(chart, cityObj, selDate) : null),
-    [chart, cityObj, selDate]
+    () => (chart && activeLoc ? computeDaily(chart, activeLoc, selDate) : null),
+    [chart, activeLoc, selDate]
   );
   const guide = guideMap[iso(selDate)] || null;
 
@@ -147,7 +175,7 @@ export default function ReadingScreen({ navigation, route }) {
     const key = iso(date);
     if (dailyBusy || !chart || guideMap[key]) return;
     setDailyBusy(true);
-    const d = computeDaily(chart, cityObj, date);
+    const d = computeDaily(chart, activeLoc, date);
     const ctx = `PERSON: ${form.name || "Unknown"} | GENDER: ${form.gender || "NOT SPECIFIED"}
 NATAL: Lagna ${signOf(chart.angles.ascSid)}, Moon ${signOf(chart.planets[1].sid)}, Nakshatra ${chart.nakshatra}
 DAY: ${d.weekday}, ${d.date.toDateString()} | Weekday ruling planet: ${d.dayLord}
@@ -193,14 +221,13 @@ Running period: ${d.dasha}`;
           <View style={s.headerRow}>
             <MenuButton />
             <View style={s.headerTitleWrap}>
-              <Text style={s.heroLabel} numberOfLines={1}>
-                Your Cosmic Blueprint
-              </Text>
-              <Text style={s.heroSub} numberOfLines={1}>
-                {form.date} • {form.time} • {form.city}
-              </Text>
-            </View>
-            {/* spacer to keep the title visually centered with the menu button */}
+                <Text style={s.heroLabel} numberOfLines={1}>
+                  {form.name || "Your"}'s Cosmic Blueprint
+                </Text>
+                <Text style={s.heroSub} numberOfLines={1}>
+                  {form.date} • {form.time} • {form.city}
+                </Text>
+              </View>
             <View style={{ width: 40 }} />
           </View>
 
@@ -235,6 +262,7 @@ Running period: ${d.dasha}`;
                 monthDays={monthDays} selDate={selDate} todayIso={todayIso}
                 savedDates={savedDates} selectDay={selectDay}
                 loadDaily={loadDaily} dailyBusy={dailyBusy}
+                activeLoc={activeLoc} locError={locError} getGpsLocation={getGpsLocation}
               />
             </>
           )}
@@ -602,6 +630,7 @@ function ProgressBar({ label, s: start, e: end, now, col }) {
 
 function DailyCard({
   form, dailyTransit, guide, monthDays, selDate, todayIso, savedDates, selectDay, loadDaily, dailyBusy,
+  activeLoc, locError, getGpsLocation,
 }) {
   const color = useColors();
   const s = useStyles(makeStyles);
@@ -623,9 +652,31 @@ function DailyCard({
   const dStr = (d) => d.toISOString().split("T")[0];
   return (
     <CosmicCard>
-      <Text style={s.cardTitle}>
-        {(form.name || "Your")}{form.name ? "'s" : ""} Daily Insights
-      </Text>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+        <Text style={[s.cardTitle, { marginBottom: 0 }]}>
+          {(form.name || "Your")}{form.name ? "'s" : ""} Daily Insights
+        </Text>
+
+        <View style={{ textAlign: "right" }}>
+          {activeLoc?.isGps ? (
+            <Text style={{ fontSize: 11, color: color.primaryLight, fontWeight: "500" }}>
+              📍 {activeLoc.n} (Live)
+            </Text>
+          ) : (
+            <Pressable onPress={getGpsLocation}>
+              <Text
+                style={{
+                  color: locError ? color.danger : color.primaryLight,
+                  textDecorationLine: "underline",
+                  fontSize: 11,
+                }}
+              >
+                {locError ? "⚠️ GPS Blocked" : "📍 Use Live Location"}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
 
       <ScrollView ref={stripRef} horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }} contentContainerStyle={{ gap: 6, paddingBottom: 4 }}>
         {monthDays.map((d) => {

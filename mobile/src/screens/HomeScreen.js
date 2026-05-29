@@ -13,7 +13,6 @@ import { useStyles } from "../theme/useStyles";
 import { spacing, fontSize } from "../theme/tokens";
 
 const GENDERS = [
-  { label: "— optional —", value: "" },
   { label: "Male",   value: "Male" },
   { label: "Female", value: "Female" },
   { label: "Other",  value: "Other" },
@@ -32,13 +31,13 @@ export default function HomeScreen({ navigation }) {
   // Once they have a chart, the menu reappears for navigation.
   const showMenu = !!chart;
 
-  // Returning-user shortcut: if login just reported saved birth details,
-  // ChartContext sets a one-shot flag. Bounce straight to Reading and
-  // clear the flag so further visits to Home stay on Home.
+  // Returning-user shortcut: if login (or cold-start hydration) reported
+  // saved birth details, ChartContext sets a one-shot flag. Bounce straight
+  // to the Kundali tab and clear the flag so later visits to Home stay here.
   React.useEffect(() => {
     if (redirectToReading && chart) {
       consumeRedirect();
-      navigation.navigate("Reading", { tab: "reading" });
+      navigation.navigate("Reading", { tab: "kundali" });
     }
   }, [redirectToReading, chart, consumeRedirect, navigation]);
 

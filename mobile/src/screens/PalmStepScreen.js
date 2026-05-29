@@ -118,7 +118,12 @@ export default function PalmStepScreen({ navigation }) {
             disabled={busy}
             style={({ pressed }) => [s.bothBtn, pressed && { opacity: 0.85 }, busy && { opacity: 0.5 }]}
           >
-            <Text style={s.handIcon}>✋🤚</Text>
+            {/* Split the two emojis into their own Text views — joined
+                "✋🤚" clips the second glyph on some Android emoji fonts. */}
+            <View style={s.bothIconWrap}>
+              <Text style={s.bothIconGlyph}>✋</Text>
+              <Text style={s.bothIconGlyph}>🤚</Text>
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={s.handLabel}>Both Hands · Full Life Comparison</Text>
               <Text style={[s.handSub, { color: color.primaryLight }]}>
@@ -268,6 +273,25 @@ const makeStyles = (c) =>
       fontSize: 28, lineHeight: 38,
       width: 44, height: 40,
       textAlign: "center", textAlignVertical: "center",
+      includeFontPadding: false,
+    },
+    // Wider variant for the Both-Hands button — single-emoji handIcon's
+    // width (44) clips the second emoji of "✋🤚".
+    bothIcon: {
+      fontSize: 26, lineHeight: 38,
+      width: 64, height: 40,
+      textAlign: "center", textAlignVertical: "center",
+      includeFontPadding: false,
+    },
+    // Wrapper that holds the two split emoji Text views side by side, so
+    // each glyph has its own layout box (works around the Android clipping
+    // of the joined "✋🤚" run).
+    bothIconWrap: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center",
+      width: 64, height: 40,
+    },
+    bothIconGlyph: {
+      fontSize: 22, lineHeight: 32, marginHorizontal: 1,
       includeFontPadding: false,
     },
     handLabel: { color: c.text, fontSize: 15, fontWeight: "700" },

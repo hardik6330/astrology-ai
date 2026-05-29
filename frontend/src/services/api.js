@@ -46,6 +46,22 @@ function attachPhone(form) {
   return form;
 }
 
+// URLSearchParams shape for GET requests. Includes phone so the backend's
+// User lookup is scoped per-account (two phones with identical birth data
+// must resolve to different users).
+function formParams(form) {
+  const withPhone = attachPhone(form);
+  const params = new URLSearchParams({
+    name: withPhone.name,
+    date: withPhone.date,
+    time: withPhone.time,
+    city: withPhone.city,
+  });
+  if (withPhone.gender) params.set("gender", withPhone.gender);
+  if (withPhone.phone) params.set("phone", withPhone.phone);
+  return params;
+}
+
 // Every authenticated request goes through here so the Bearer token is
 // attached centrally. On 401 we clear the token and reload — the router
 // will then bounce the user to /login.
@@ -105,13 +121,7 @@ export async function chatCompletionJSON(messages, type, extraData) {
 // by their birth details. For 'daily', pass targetDate (YYYY-MM-DD) to fetch a
 // specific day. Returns the parsed object, or null if none is saved.
 export async function fetchSaved(type, form, targetDate) {
-  const params = new URLSearchParams({
-    name: form.name,
-    date: form.date,
-    time: form.time,
-    city: form.city,
-  });
-  if (form.gender) params.set("gender", form.gender);
+  const params = formParams(form);
   if (targetDate) params.set("targetDate", targetDate);
   const res = await authFetch(`${API_URL}/${type}?${params}`);
   if (res.status === 404) return null;
@@ -128,13 +138,7 @@ export async function fetchSaved(type, form, targetDate) {
 // Fetch the dates (YYYY-MM-DD) that already have saved daily guidance.
 export async function fetchDailyDates(form) {
   if (!form?.name || !form?.date || !form?.time || !form?.city) return [];
-  const params = new URLSearchParams({
-    name: form.name,
-    date: form.date,
-    time: form.time,
-    city: form.city,
-  });
-  if (form.gender) params.set("gender", form.gender);
+  const params = formParams(form);
   try {
     const res = await authFetch(`${API_URL}/daily-dates?${params}`);
     if (!res.ok) return [];
@@ -148,13 +152,7 @@ export async function fetchDailyDates(form) {
 // Fetch list of past palm readings (lightweight — id, handType, createdAt).
 export async function fetchPalmHistory(form) {
   if (!form?.name || !form?.date || !form?.time || !form?.city) return [];
-  const params = new URLSearchParams({
-    name: form.name,
-    date: form.date,
-    time: form.time,
-    city: form.city,
-  });
-  if (form.gender) params.set("gender", form.gender);
+  const params = formParams(form);
   try {
     const res = await authFetch(`${API_URL}/palm/history?${params}`);
     if (!res.ok) return [];
@@ -167,13 +165,7 @@ export async function fetchPalmHistory(form) {
 
 // Fetch a specific past palm reading by id.
 export async function fetchPalmById(id, form) {
-  const params = new URLSearchParams({
-    name: form.name,
-    date: form.date,
-    time: form.time,
-    city: form.city,
-  });
-  if (form.gender) params.set("gender", form.gender);
+  const params = formParams(form);
   const res = await authFetch(`${API_URL}/palm/${id}?${params}`);
   if (!res.ok) return null;
   const data = await res.json();
@@ -260,13 +252,7 @@ export async function getCityDetails(placeId, token, birthTimestamp) {
 
 export async function fetchChatHistory(form) {
   if (!form?.name || !form?.date || !form?.time || !form?.city) return [];
-  const params = new URLSearchParams({
-    name: form.name,
-    date: form.date,
-    time: form.time,
-    city: form.city,
-  });
-  if (form.gender) params.set("gender", form.gender);
+  const params = formParams(form);
   try {
     const res = await authFetch(`${API_URL}/chat?${params}`);
     if (!res.ok) return [];

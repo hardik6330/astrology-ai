@@ -10,6 +10,9 @@ import { useStyles } from "../theme/useStyles";
 import { useColors } from "../theme/ThemeContext";
 import { spacing } from "../theme/tokens";
 
+import * as Location from "expo-location";
+import { useChart } from "../context/ChartContext";
+
 const LINES = [
   "Aligning the stars…",
   "Reading the ephemeris…",
@@ -143,6 +146,7 @@ function AstroLogo({ size = 240, zodiacRotation, planetScale }) {
  * rotating zodiac wheel) over a twinkling starfield.
  */
 export default function SplashScreen({ onDone, duration = 2800 }) {
+  const { setCurrentLoc } = useChart();
   const colors = useColors();
   const styles = useStyles(makeStyles);
   const [lineIdx, setLineIdx] = useState(0);
@@ -150,6 +154,33 @@ export default function SplashScreen({ onDone, duration = 2800 }) {
   const pulse = useRef(new Animated.Value(0)).current;
   const fade  = useRef(new Animated.Value(0)).current;
   const rot   = useRef(new Animated.Value(0)).current;
+
+  // Request location permission and fetch current location.
+  // This happens while the splash animation is running.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+
+        const loc = await Location.getCurrentPositionAsync({});
+        const { latitude: lat, longitude: lon } = loc.coords;
+        const tz = -(new Date().getTimezoneOffset() / 60);
+
+        // Initial minimal object
+        setCurrentLoc({ n: "Current Location", lat, lon, tz, isGps: true });
+
+        // Reverse geocode to get city name
+        const [addr] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
+        if (addr) {
+          const city = addr.city || addr.district || addr.subregion || "Current Location";
+          setCurrentLoc({ n: city, lat, lon, tz, isGps: true });
+        }
+      } catch (err) {
+        console.warn("Location permission/fetch failed in Splash:", err);
+      }
+    })();
+  }, [setCurrentLoc]);
 
   const stars = useMemo(() => Array.from({ length: 50 }, (_, i) => ({
     x: ((i * 53) % 100) / 100 * SCREEN_W,

@@ -56,12 +56,20 @@ export function ChartProvider({ children }) {
   const [palmLeftPhoto, setPalmLeftPhoto]   = useState(null);
   const [palmRightPhoto, setPalmRightPhoto] = useState(null);
 
-  // One-time hydration from disk.
+  // User's live GPS location for daily transits (Rahu Kaal, etc).
+  // { n: "Surat", lat: 21.17, lon: 72.83, tz: 5.5, isGps: true }
+  const [currentLoc, setCurrentLoc] = useState(null);
+
+  // One-time hydration from disk. If the saved form already yields a chart,
+  // arm the one-shot redirect so HomeScreen bounces the user straight into
+  // the Kundali tab on cold launch instead of showing the empty form.
   useEffect(() => {
     (async () => {
       const saved = await getItem(STORAGE_KEY, EMPTY_FORM);
       setForm(saved);
-      setChart(chartFromForm(saved));
+      const hydratedChart = chartFromForm(saved);
+      setChart(hydratedChart);
+      if (hydratedChart) setRedirectToReading(true);
       setHydrated(true);
     })();
   }, []);
@@ -162,13 +170,14 @@ export function ChartProvider({ children }) {
       palmOverloaded, setPalmOverloaded,
       palmLeftPhoto, setPalmLeftPhoto,
       palmRightPhoto, setPalmRightPhoto,
+      currentLoc, setCurrentLoc,
       resetReading,
       clearAll,
       applySavedForm,
       redirectToReading,
       consumeRedirect,
     }),
-    [hydrated, form, chart, interp, daily, chatMsgs, palm, palmPhoto, palmAnalyzing, palmClaimedHand, palmComparison, palmOverloaded, palmLeftPhoto, palmRightPhoto, resetReading, clearAll, applySavedForm, redirectToReading, consumeRedirect]
+    [hydrated, form, chart, interp, daily, chatMsgs, palm, palmPhoto, palmAnalyzing, palmClaimedHand, palmComparison, palmOverloaded, palmLeftPhoto, palmRightPhoto, currentLoc, setCurrentLoc, resetReading, clearAll, applySavedForm, redirectToReading, consumeRedirect]
   );
 
   return <ChartContext.Provider value={value}>{children}</ChartContext.Provider>;

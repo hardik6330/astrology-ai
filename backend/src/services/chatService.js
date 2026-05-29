@@ -1,7 +1,7 @@
 import { ChatMessage, PalmReading } from '../models/index.js';
 import { callGemini } from '../ai/gemini.js';
 import { CHAT_SYSTEM, GUARD_SYSTEM } from '../ai/prompts.js';
-import { CHAT_ANSWER_MODELS } from '../config/constants.js';
+import { CHAT_ANSWER_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
 import { logger } from '../config/logger.js';
 
@@ -131,7 +131,7 @@ export async function answerAndPersist({ messages, factSheet, form }) {
 
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
     const systemWithChart = `${CHAT_SYSTEM}\n\n=== THIS PERSON'S BIRTH CHART ===\n${factSheet || '(chart not provided)'}${palmBlock}\n\nTODAY'S DATE: ${today}.${topicBlock}`;
-    result = await callGemini(systemWithChart, lastMsg, false, CHAT_ANSWER_MODELS);
+    result = await callGemini(systemWithChart, lastMsg, false, CHAT_ANSWER_MODELS, THINK_BUDGET.CHAT);
   }
 
   // 2. Persist exchange (best-effort).

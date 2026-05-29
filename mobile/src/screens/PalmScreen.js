@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, Image, Pressable, StyleSheet,
   ActivityIndicator, Animated, Easing, Modal,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import ScreenContainer from "../components/ScreenContainer";
 import CosmicCard from "../components/CosmicCard";
@@ -60,6 +61,10 @@ export default function PalmScreen({ navigation }) {
   // Mirror palmAnalyzing so a background analysis started elsewhere drives
   // the scan animation here when the user opens this screen.
   const [scanning, setScanning] = useState(palmAnalyzing);
+  // True while the client-side MediaPipe gate is checking the just-picked
+  // photo (1–3s). Mirrors PalmStepScreen's loading state so the user sees
+  // feedback between picker close and the scan animation starting.
+  const [gating, setGating] = useState(false);
   const [scanMsg, setScanMsg]   = useState(SCAN_MSGS[0]);
   const [error, setError]       = useState("");
   const [overloaded, setOverloaded] = useState(false);
@@ -70,6 +75,11 @@ export default function PalmScreen({ navigation }) {
   
   // Warm up the detector.
   useEffect(() => { warmUpGate(); }, []);
+
+  // Drawer screens stay mounted between focuses, so local state survives
+  // navigation. Clear any stale gate-rejection error each time the screen
+  // comes back into focus so the user sees a clean upload card.
+  useFocusEffect(useCallback(() => { setError(""); }, []));
 
   // Sync palmPhoto from context → local preview. Drawer screens stay mounted,
   // so useState initial values only fire on first render. When PalmStepScreen
@@ -185,18 +195,26 @@ export default function PalmScreen({ navigation }) {
       : await ImagePicker.launchImageLibraryAsync(opts);
     if (res.canceled) return;
     const a = res.assets[0];
-    // Keep activeHand set through the scan — the badge over the scan
-    // image reads it. The chooser modal's visibility is gated on
-    // `!scanning` so it won't re-appear while Pro is running.
     
-    // Client-side gate check
-    const gateResult = await gatePalmImage(a, activeHand);
-    if (!gateResult.ok) {
-      setError(gateResult.retakeReason);
-      return;
-    }
+    // Once we have a photo, close the source-picker modal immediately.
+    // If the gate or analysis fails, the error will show on the main
+    // screen, but the modal won't pop back up.
+    const hand = activeHand;
+    setActiveHand(null);
 
-    runAnalyze({ uri: a.uri, base64: a.base64 }, activeHand);
+    // Client-side gate check (1–3s on cold model load). Flip `gating`
+    // so the picker modal closes and a loading row shows in its place.
+    setGating(true);
+    try {
+      const gateResult = await gatePalmImage(a, hand);
+      if (!gateResult.ok) {
+        setError(gateResult.retakeReason);
+        return;
+      }
+      runAnalyze({ uri: a.uri, base64: a.base64 }, hand);
+    } finally {
+      setGating(false);
+    }
   }
 
   async function runAnalyze(img, hand) {
@@ -486,17 +504,6 @@ export default function PalmScreen({ navigation }) {
         ) : (
         <>
 
-        {error ? (
-          <CosmicCard error style={{ alignItems: "center" }}>
-            <Text style={{ fontSize: 28, lineHeight: 38 }}>⚠️</Text>
-            <Text style={s.errTitle}>Something went wrong</Text>
-            <Text style={s.errBody}>{error}</Text>
-            <Pressable onPress={() => setError("")} style={s.dismissBtn}>
-              <Text style={s.dismissText}>Dismiss</Text>
-            </Pressable>
-          </CosmicCard>
-        ) : null}
-
         {overloaded && !palm && (
           <CosmicCard style={[s.aiBusyCard, { alignItems: "center" }]}>
             <Text style={{ fontSize: 36, lineHeight: 48 }}>⏳</Text>
@@ -557,9 +564,28 @@ export default function PalmScreen({ navigation }) {
                   Pick which hand you're uploading. We'll check the photo matches the hand you choose.
                 </Text>
 
+                {/* Premium headline card — Both Hands · Full Life Comparison */}
                 <Pressable
-                  onPress={() => setActiveHand("Right")}
-                  style={({ pressed }) => [s.uploadHandBtn, pressed && { opacity: 0.7 }, { marginTop: spacing.md }]}
+                  onPress={() => navigation.navigate("PalmCompare")}
+                  style={({ pressed }) => [s.uploadBothBtn, pressed && { opacity: 0.85 }, { marginTop: spacing.md }]}
+                >
+                  {/* Split glyphs to avoid Android clipping of joined "✋🤚". */}
+                  <View style={s.uploadBothIconWrap}>
+                    <Text style={s.uploadBothIconGlyph}>✋</Text>
+                    <Text style={s.uploadBothIconGlyph}>🤚</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.uploadHandLabel}>Both Hands · Full Life Comparison</Text>
+                    <Text style={[s.uploadHandSub, { color: color.primaryLight }]}>
+                      Compare your inborn potential against your current reality
+                    </Text>
+                  </View>
+                  <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => { setError(""); setActiveHand("Right"); }}
+                  style={({ pressed }) => [s.uploadHandBtn, pressed && { opacity: 0.7 }, { marginTop: spacing.sm }]}
                 >
                   <Text style={s.uploadHandIcon}>✋</Text>
                   <View style={{ flex: 1 }}>
@@ -569,7 +595,7 @@ export default function PalmScreen({ navigation }) {
                   <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => setActiveHand("Left")}
+                  onPress={() => { setError(""); setActiveHand("Left"); }}
                   style={({ pressed }) => [s.uploadHandBtn, pressed && { opacity: 0.7 }, { marginTop: spacing.sm }]}
                 >
                   <Text style={s.uploadHandIcon}>🤚</Text>
@@ -579,13 +605,17 @@ export default function PalmScreen({ navigation }) {
                   </View>
                   <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
                 </Pressable>
-                {/* Premium upsell — both-hands Full Life Comparison */}
-                <Pressable
-                  onPress={() => navigation.navigate("PalmCompare")}
-                  style={({ pressed }) => [s.compareLink, pressed && { opacity: 0.8 }]}
-                >
-                  <Text style={s.compareLinkText}>✋🤚 Compare Both Hands · Full Life Reading →</Text>
-                </Pressable>
+
+                {gating && (
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, marginTop: spacing.md }}>
+                    <ActivityIndicator size="small" color={color.primaryLight} />
+                    <Text style={{ color: color.textDim, fontSize: fontSize.sm }}>Reading photo…</Text>
+                  </View>
+                )}
+
+                {error ? (
+                  <Text style={[s.error, { marginTop: spacing.md, textAlign: "center" }]}>{error}</Text>
+                ) : null}
               </>
             )}
 
@@ -760,7 +790,7 @@ export default function PalmScreen({ navigation }) {
 
       {/* Source-picker modal — appears after the user taps a hand card. */}
       <Modal
-        visible={activeHand !== null && !scanning && !palm && !palmAnalyzing}
+        visible={activeHand !== null && !scanning && !gating && !palm && !palmAnalyzing}
         transparent
         animationType="fade"
         onRequestClose={() => setActiveHand(null)}
@@ -832,11 +862,9 @@ const makeStyles = (c) => StyleSheet.create({
   },
   errTitle: { color: c.danger, fontSize: 14, fontWeight: "600", marginTop: 6 },
   errBody:  { color: c.textDim, fontSize: 12.5, textAlign: "center", lineHeight: 18, marginVertical: 8 },
-  dismissBtn: {
-    paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8,
-    borderWidth: 1, borderColor: "rgba(239,68,68,0.4)", backgroundColor: "rgba(239,68,68,0.08)",
-  },
-  dismissText: { color: "#fca5a5", fontSize: 12, fontWeight: "600" },
+  // Inline rejection text on the upload card — mirrors PalmStepScreen.error
+  // (was previously undefined, causing the dark/black empty-text look).
+  error:    { color: c.danger, fontSize: 13, textAlign: "center" },
 
   historyRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
@@ -858,9 +886,35 @@ const makeStyles = (c) => StyleSheet.create({
     backgroundColor: c.primarySoft,
     width: "100%",
   },
+  // Premium-flavored variant for the Both-Hands entry — brighter border so
+  // it reads as the headline card. Mirrors PalmStepScreen.bothBtn.
+  uploadBothBtn: {
+    flexDirection: "row", alignItems: "center", gap: spacing.md,
+    paddingVertical: 16, paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1.5, borderColor: c.primaryLight,
+    backgroundColor: c.primarySoft,
+    width: "100%",
+  },
   uploadHandIcon: {
     fontSize: 26, lineHeight: 36, width: 36,
     textAlign: "center", textAlignVertical: "center", includeFontPadding: false,
+  },
+  // Wider variant for the Both-Hands button — single-emoji width (36) was
+  // clipping the second emoji of "✋🤚".
+  uploadBothIcon: {
+    fontSize: 24, lineHeight: 36, width: 60,
+    textAlign: "center", textAlignVertical: "center", includeFontPadding: false,
+  },
+  // Split-glyph variant — each emoji in its own Text view side-by-side,
+  // works around Android's joined-run clipping.
+  uploadBothIconWrap: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    width: 60, height: 36,
+  },
+  uploadBothIconGlyph: {
+    fontSize: 22, lineHeight: 32, marginHorizontal: 1,
+    includeFontPadding: false,
   },
   uploadHandLabel: { color: c.text, fontSize: 14, fontWeight: "700" },
   uploadHandSub:   { color: c.textMuted, fontSize: 12, marginTop: 2 },

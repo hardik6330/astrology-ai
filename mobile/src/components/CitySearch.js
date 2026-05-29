@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet } from "react-native";
 import { PremiumInput } from "./PremiumInput";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
@@ -86,12 +86,9 @@ export default function CitySearch({ value, onSelect, birthTimestamp, placeholde
               <Text style={styles.hint}>Searching…</Text>
             </View>
           )}
-          <FlatList
-            data={predictions}
-            keyExtractor={(p) => p.placeId}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <Pressable style={styles.item} onPress={() => pick(item)}>
+          <ScrollView style={{ maxHeight: 240 }} keyboardShouldPersistTaps="handled">
+            {predictions.map((item) => (
+              <Pressable key={item.placeId} style={styles.item} onPress={() => pick(item)}>
                 <Text style={styles.mainText} numberOfLines={1}>
                   {item.mainText || item.description}
                 </Text>
@@ -101,8 +98,8 @@ export default function CitySearch({ value, onSelect, birthTimestamp, placeholde
                   </Text>
                 ) : null}
               </Pressable>
-            )}
-          />
+            ))}
+          </ScrollView>
         </View>
       )}
     </View>
@@ -117,13 +114,17 @@ const makeStyles = (c) =>
       left: 0,
       right: 0,
       marginTop: 4,
-      backgroundColor: c.cardBg || "#1a1a2e",
+      backgroundColor: c.cardBgSolid || "#0f0f18",
       borderWidth: 1,
       borderColor: c.cardBorder || "#333",
       borderRadius: radius.md,
       maxHeight: 240,
-      zIndex: 50,
-      overflow: "hidden",
+      zIndex: 100,
+      elevation: 5,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
     },
     item: {
       paddingVertical: spacing.sm,
