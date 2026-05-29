@@ -42,6 +42,47 @@ Astrology AI Pro uses a hybrid engine to deliver "Swiss-grade" accuracy and deep
 
 ---
 
+## Deep Dive: The Science & Soul of the App
+
+This app isn't just a "horoscope generator"; it's a high-precision calculation engine that bridges ancient Vedic wisdom with modern technology. Here is how the data flows from the stars to your screen.
+
+### 1. The Mathematical Foundation (Celestial Mapping)
+The journey starts with the `astronomy-engine` library, providing sub-degree precision for planetary longitudes.
+- **Celestial Wheel & Positions**: We visualize the exact sky at birth using both North and South Indian styles. The **Planetary Positions** table provides a bridge between Vedic and Western systems, ensuring users from any background can relate to their data.
+  - <img src="frontend/src/assets/main/main-kundali.png" width="300" />
+  - <img src="frontend/src/assets/main/palnetry-potision.png" width="300" />
+- **Sidereal Precision**: We apply the **Lahiri Ayanamsha** to shift coordinates to the Sidereal zodiac.
+
+### 2. The Logic Layer (Vedic Math & Karmic Indicators)
+Once positions are fixed, the app runs several deterministic algorithms:
+- **Planetary Strength (Shadbala-lite)**: Rated on a 0-100 scale based on **Dignity** and **Angular Strength**.
+  - <img src="frontend/src/assets/main/palnetry-strength.png" width="300" />
+- **Destiny Matrix Scoring**: Scores for Career, Wealth, etc., analyzed via **House Lords** and **Karakas**.
+  - <img src="frontend/src/assets/main/destini-matrix.png" width="300" />
+- **Karmic Check (Dosha & Yoga)**: Automated checks for **Mangal Dosha**, **Kaal Sarp**, and **Sade Sati**. The app doesn't just identify them; it checks for "cancellation" rules (like Mars in its own sign) to provide a fair reading.
+  - <img src="frontend/src/assets/main/dosh-yog-stuts.png" width="300" />
+- **Ashtakvarga (The Lucky Zones)**: This calculates the collective strength of signs. Signs with **28+ Bindus** are your "fortune zones"—when planets transit here, life feels easier.
+  - <img src="frontend/src/assets/main/years.png" width="300" />
+- **Panchang Snapshot**: The fundamental Vedic time-elements (Tithi, Nakshatra, etc.) that define your emotional and energetic baseline.
+  - <img src="frontend/src/assets/main/panchang-data.png" width="300" />
+
+### 3. The AI Bridge (Predictions & Timing)
+This is where the math turns into wisdom via **Gemini 2.5 Pro**.
+- **Dasha & Timeline Forecast**: We calculate the **Vimshottari Dasha** cycles. The AI maps your life events against these cycles, providing a narrative for your past, present, and future.
+  - <img src="frontend/src/assets/main/dasha-timiline.png" width="300" />
+  - <img src="frontend/src/assets/main/timeline-forcast.png" width="300" />
+- **Current Sky (Gochar)**: Real-time tracking of where planets are *now* relative to your birth chart. This helps you understand current moods or sudden shifts in luck.
+  - <img src="frontend/src/assets/main/curretn-sky.png" width="300" />
+- **Prediction Confidence**: To ensure transparency, the system tracks "signatures"—if multiple factors point to the same result, confidence is **High**.
+  - <img src="frontend/src/assets/main/prediction-confidence.png" width="300" />
+
+### 4. How to use this in your Life?
+- **Planning**: Use the **Dasha Timeline** and **Gochar (Transits)** to know when to push for career growth and when to focus on inner peace.
+- **Self-Awareness**: The **Core Identity** and **Personality Matrix** help you understand your natural drives—why you react emotionally or why you are so ambitious.
+- **Guidance**: The **Remedies** section provides modern, behavioral actions (like meditation or journaling) to balance planetary energies.
+
+---
+
 ## Tech Stack
 
 | Layer | Stack |
