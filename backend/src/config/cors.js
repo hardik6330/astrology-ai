@@ -20,9 +20,11 @@ export const corsOptions = {
     // Non-browser callers (server-to-server, curl, mobile webview) have no Origin.
     if (!origin) return cb(null, true);
     if (env.NODE_ENV === 'production') {
-      return PROD_ALLOW.includes(origin)
-        ? cb(null, true)
-        : cb(new Error(`CORS: origin ${origin} not allowed`));
+      // Allow specific prod origins AND any vercel.app subdomain for easier previewing
+      if (PROD_ALLOW.includes(origin) || origin.endsWith('.vercel.app')) {
+        return cb(null, true);
+      }
+      return cb(new Error(`CORS: origin ${origin} not allowed`));
     }
     return DEV_ALLOW.some((re) => re.test(origin))
       ? cb(null, true)
