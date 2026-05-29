@@ -271,35 +271,8 @@ function computeMarriage(ch){
 }
 
 // City -> coordinates + timezone offset (hours). India = +5.5
-export const CITIES = [
-  {n:"Ahmedabad, Gujarat",      lat:23.0225, lon:72.5714, tz:5.5},
-  {n:"Surat, Gujarat",          lat:21.1702, lon:72.8311, tz:5.5},
-  {n:"Vadodara, Gujarat",       lat:22.3072, lon:73.1812, tz:5.5},
-  {n:"Rajkot, Gujarat",         lat:22.3039, lon:70.8022, tz:5.5},
-  {n:"Porbandar, Gujarat",      lat:21.6417, lon:69.6293, tz:5.5},
-  {n:"Bhavnagar, Gujarat",      lat:21.7645, lon:72.1519, tz:5.5},
-  {n:"Jamnagar, Gujarat",       lat:22.4707, lon:70.0577, tz:5.5},
-  {n:"Junagadh, Gujarat",       lat:21.5222, lon:70.4579, tz:5.5},
-  {n:"Gandhinagar, Gujarat",    lat:23.2156, lon:72.6369, tz:5.5},
-  {n:"Mumbai, Maharashtra",     lat:19.0760, lon:72.8777, tz:5.5},
-  {n:"Pune, Maharashtra",       lat:18.5204, lon:73.8567, tz:5.5},
-  {n:"Nagpur, Maharashtra",     lat:21.1458, lon:79.0882, tz:5.5},
-  {n:"Delhi",                   lat:28.6139, lon:77.2090, tz:5.5},
-  {n:"Jaipur, Rajasthan",       lat:26.9124, lon:75.7873, tz:5.5},
-  {n:"Lucknow, Uttar Pradesh",  lat:26.8467, lon:80.9462, tz:5.5},
-  {n:"Bhopal, Madhya Pradesh",  lat:23.2599, lon:77.4126, tz:5.5},
-  {n:"Indore, Madhya Pradesh",  lat:22.7196, lon:75.8577, tz:5.5},
-  {n:"Bengaluru, Karnataka",    lat:12.9716, lon:77.5946, tz:5.5},
-  {n:"Hyderabad, Telangana",    lat:17.3850, lon:78.4867, tz:5.5},
-  {n:"Chennai, Tamil Nadu",     lat:13.0827, lon:80.2707, tz:5.5},
-  {n:"Kolkata, West Bengal",    lat:22.5726, lon:88.3639, tz:5.5},
-  {n:"Kochi, Kerala",           lat:9.9312,  lon:76.2673, tz:5.5},
-  {n:"London, UK",              lat:51.5074, lon:-0.1278, tz:0},
-  {n:"New York, USA",           lat:40.7128, lon:-74.0060,tz:-5},
-  {n:"Dubai, UAE",              lat:25.2048, lon:55.2708, tz:4},
-  {n:"dhola, gujrat",           lat:21.821178, lon:71.742130,tz:5.5}
-];
-
+// Static CITIES list removed — city/lat/lon/tz now come from the dynamic
+// Places Autocomplete picker, carried on the form object.
 export function nm(x){return((x%360)+360)%360}
 
 // Build a UTC Date from local birth date/time + timezone offset
@@ -947,5 +920,12 @@ PLANETARY STRENGTH (0–100; treat 75+ as strong, 30 or below as weak):
 ${ch.strengths.map(s=>`- ${s.planet}: ${s.score} (${s.label}${s.house?", H"+s.house:""}${s.retro?", retrograde":""})`).join("\n")}`:""}
 ${ch.ashtakvarga?`
 ASHTAKVARGA SARVA (max 56 per sign; 28+ = lucky):
-${ch.ashtakvarga.perSign.map(s=>`- ${s.sign}: ${s.total} bindus${s.lucky?" [lucky]":""}`).join("\n")}`:""}`;
+${ch.ashtakvarga.perSign.map(s=>`- ${s.sign}: ${s.total} bindus${s.lucky?" [lucky]":""}`).join("\n")}`:""}
+${ch.transits?`
+TODAY'S TRANSITS (gochar — current sky vs. natal Moon; weave into answers when timing matters):
+- Saturn: ${ch.transits.saturn.sign}, House ${ch.transits.saturn.houseMoon} from Moon${ch.transits.saturn.note?" — "+ch.transits.saturn.note:""}
+- Jupiter: ${ch.transits.jupiter.sign}, House ${ch.transits.jupiter.houseMoon} from Moon${ch.transits.jupiter.note?" — "+ch.transits.jupiter.note:""}
+${(ch.transits.positions||[]).filter(p=>p.name==="Rahu"||p.name==="Ketu").map(p=>`- ${p.name}: ${p.sign}, House ${p.houseMoon} from Moon`).join("\n")}
+${ch.transits.sadeSati?.active?`- Sade Sati ACTIVE — ${ch.transits.sadeSati.phase}`:"- Sade Sati: inactive"}
+${ch.transits.tnAspects?.length?`Transit-to-natal aspects: ${ch.transits.tnAspects.map(a=>`${a.t} ${a.type} natal ${a.n} (orb ${a.orb}°)`).join("; ")}`:""}`:""}`;
 }

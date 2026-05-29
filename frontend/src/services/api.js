@@ -7,11 +7,12 @@
 // 2. Otherwise derive it from the page's hostname + port 5000 — so opening the
 //    frontend on http://192.168.x.x:5173 from a phone automatically targets
 //    the dev machine's backend at http://192.168.x.x:5000/api. No env edits needed.
-const RAW_API_URL = import.meta.env.VITE_API_URL || '';
+const RAW_API_URL = import.meta.env.VITE_API_URL || "";
 const isLocalDefault = !RAW_API_URL || /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(RAW_API_URL);
-const API_URL = isLocalDefault && typeof window !== "undefined"
-  ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-  : (RAW_API_URL || 'http://localhost:5000/api');
+const API_URL =
+  isLocalDefault && typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.hostname}:5000/api`
+    : RAW_API_URL || "http://localhost:5000/api";
 
 export const API_BASE = API_URL;
 
@@ -39,7 +40,9 @@ function attachPhone(form) {
   try {
     const acc = JSON.parse(localStorage.getItem("app_account") || "null");
     if (acc?.phone && !form.phone) return { ...form, phone: acc.phone };
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return form;
 }
 
@@ -47,30 +50,30 @@ function attachPhone(form) {
 // attached centrally. On 401 we clear the token and reload — the router
 // will then bounce the user to /login.
 export async function authFetch(url, init = {}) {
-  const token = localStorage.getItem('app_token');
+  const token = localStorage.getItem("app_token");
   const headers = new Headers(init.headers || {});
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const res = await fetch(url, { ...init, headers });
   if (res.status === 401) {
-    localStorage.removeItem('app_token');
-    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-      window.location.assign('/login');
+    localStorage.removeItem("app_token");
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.assign("/login");
     }
   }
   return res;
 }
 
 // Low-level POST to the chat-completion endpoint.
-export async function chatCompletion(messages, type = 'chat', extraData = {}) {
+export async function chatCompletion(messages, type = "chat", extraData = {}) {
   const form = attachPhone(extraData.form);
   let endpoint = `${API_URL}/chat`;
   let body = { messages, factSheet: extraData.factSheet, form };
 
-  if (type === 'interpret') {
+  if (type === "interpret") {
     endpoint = `${API_URL}/interpret`;
     body = { factSheet: extraData.factSheet, form };
-  } else if (type === 'daily') {
+  } else if (type === "daily") {
     endpoint = `${API_URL}/daily`;
     body = { ctx: extraData.ctx, form, targetDate: extraData.date };
   }
@@ -82,7 +85,7 @@ export async function chatCompletion(messages, type = 'chat', extraData = {}) {
     },
     body: JSON.stringify(body),
   });
-  
+
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
     const err = new Error(errBody.error || "AI service unavailable");
@@ -103,9 +106,12 @@ export async function chatCompletionJSON(messages, type, extraData) {
 // specific day. Returns the parsed object, or null if none is saved.
 export async function fetchSaved(type, form, targetDate) {
   const params = new URLSearchParams({
-    name: form.name, date: form.date, time: form.time, city: form.city,
+    name: form.name,
+    date: form.date,
+    time: form.time,
+    city: form.city,
   });
-  if (form.gender) params.set('gender', form.gender);
+  if (form.gender) params.set("gender", form.gender);
   if (targetDate) params.set("targetDate", targetDate);
   const res = await authFetch(`${API_URL}/${type}?${params}`);
   if (res.status === 404) return null;
@@ -123,9 +129,12 @@ export async function fetchSaved(type, form, targetDate) {
 export async function fetchDailyDates(form) {
   if (!form?.name || !form?.date || !form?.time || !form?.city) return [];
   const params = new URLSearchParams({
-    name: form.name, date: form.date, time: form.time, city: form.city,
+    name: form.name,
+    date: form.date,
+    time: form.time,
+    city: form.city,
   });
-  if (form.gender) params.set('gender', form.gender);
+  if (form.gender) params.set("gender", form.gender);
   try {
     const res = await authFetch(`${API_URL}/daily-dates?${params}`);
     if (!res.ok) return [];
@@ -140,9 +149,12 @@ export async function fetchDailyDates(form) {
 export async function fetchPalmHistory(form) {
   if (!form?.name || !form?.date || !form?.time || !form?.city) return [];
   const params = new URLSearchParams({
-    name: form.name, date: form.date, time: form.time, city: form.city,
+    name: form.name,
+    date: form.date,
+    time: form.time,
+    city: form.city,
   });
-  if (form.gender) params.set('gender', form.gender);
+  if (form.gender) params.set("gender", form.gender);
   try {
     const res = await authFetch(`${API_URL}/palm/history?${params}`);
     if (!res.ok) return [];
@@ -156,9 +168,12 @@ export async function fetchPalmHistory(form) {
 // Fetch a specific past palm reading by id.
 export async function fetchPalmById(id, form) {
   const params = new URLSearchParams({
-    name: form.name, date: form.date, time: form.time, city: form.city,
+    name: form.name,
+    date: form.date,
+    time: form.time,
+    city: form.city,
   });
-  if (form.gender) params.set('gender', form.gender);
+  if (form.gender) params.set("gender", form.gender);
   const res = await authFetch(`${API_URL}/palm/${id}?${params}`);
   if (!res.ok) return null;
   const data = await res.json();
@@ -196,7 +211,12 @@ export async function comparePalms(leftBase64, rightBase64, form) {
   const res = await authFetch(`${API_URL}/palm/compare`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ leftImage: leftBase64, rightImage: rightBase64, form: attachPhone(form), skipGate: true }),
+    body: JSON.stringify({
+      leftImage: leftBase64,
+      rightImage: rightBase64,
+      form: attachPhone(form),
+      skipGate: true,
+    }),
   });
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
@@ -212,12 +232,41 @@ export async function comparePalms(leftBase64, rightBase64, form) {
 
 // Fetch the saved chat history for a person. Returns an array of
 // { role, content } messages, or an empty array if none / on error.
+// Google Places autocomplete via our backend proxy. `token` is the Places
+// sessiontoken — passing the SAME token to searchCities + getCityDetails
+// makes autocomplete free. Generate one per "search session" client-side.
+export async function searchCities(query, token) {
+  if (!query || query.trim().length < 2) return [];
+  const params = new URLSearchParams({ q: query, token });
+  const res = await fetch(`${API_URL}/locations/search?${params}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.results || [];
+}
+
+// Resolve a Place ID to {coordinates, timezone, ...}. `birthTimestamp` is
+// seconds since epoch — sent so Google's Time Zone API returns the
+// DST-aware offset AT the user's birth moment.
+export async function getCityDetails(placeId, token, birthTimestamp) {
+  const params = new URLSearchParams({ placeId, token });
+  if (birthTimestamp) params.set("ts", String(birthTimestamp));
+  const res = await fetch(`${API_URL}/locations/details?${params}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Location lookup failed (HTTP ${res.status})`);
+  }
+  return res.json();
+}
+
 export async function fetchChatHistory(form) {
   if (!form?.name || !form?.date || !form?.time || !form?.city) return [];
   const params = new URLSearchParams({
-    name: form.name, date: form.date, time: form.time, city: form.city,
+    name: form.name,
+    date: form.date,
+    time: form.time,
+    city: form.city,
   });
-  if (form.gender) params.set('gender', form.gender);
+  if (form.gender) params.set("gender", form.gender);
   try {
     const res = await authFetch(`${API_URL}/chat?${params}`);
     if (!res.ok) return [];

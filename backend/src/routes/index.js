@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import authRoutes    from './authRoutes.js';
-import kundaliRoutes from './kundaliRoutes.js';
-import dailyRoutes   from './dailyRoutes.js';
-import chatRoutes    from './chatRoutes.js';
-import palmRoutes    from './palmRoutes.js';
+import authRoutes     from './authRoutes.js';
+import kundaliRoutes  from './kundaliRoutes.js';
+import dailyRoutes    from './dailyRoutes.js';
+import chatRoutes     from './chatRoutes.js';
+import palmRoutes     from './palmRoutes.js';
+import locationRoutes from './locationRoutes.js';
 
 // Single mounting point for every feature router. Auth routes are public
 // (used by the web login flow); the rest are currently open so the mobile
@@ -16,5 +17,6 @@ router.use(kundaliRoutes);
 router.use(dailyRoutes);
 router.use(chatRoutes);
 router.use(palmRoutes);
+router.use(locationRoutes);
 
 export default router;

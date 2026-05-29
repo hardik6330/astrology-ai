@@ -14,6 +14,8 @@ initFirebase();
 
 import routes from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { seedFromStaticCities } from './services/locationService.js';
+import { SEED_CITIES } from './services/locationSeed.js';
 
 const app = express();
 
@@ -52,6 +54,11 @@ async function start() {
     // never alters or drops existing columns. Safe to run on every boot.
     await sequelize.sync();
     logger.info('Database synced (missing tables created)');
+    // One-time seed: copy the legacy hard-coded cities into the Location
+    // cache so existing top picks don't cost a Google call on first lookup.
+    // No-op once they're in. Best-effort — failure must not block startup.
+    seedFromStaticCities(SEED_CITIES).catch((err) =>
+      logger.warn({ err }, 'Location seed skipped'));
   } catch (err) {
     logger.fatal({ err }, 'Database init failed');
     if (env.NODE_ENV === 'production') process.exit(1);

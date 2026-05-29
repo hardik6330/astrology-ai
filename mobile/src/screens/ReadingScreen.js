@@ -19,7 +19,7 @@ import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
 import {
-  signOf, ZE, fmtDate, fmtDay, computeDaily, CITIES, buildFactSheet,
+  signOf, ZE, fmtDate, fmtDay, computeDaily, buildFactSheet,
 } from "../shared/astrology";
 import { MSGS } from "../shared/prompts";
 import { chatCompletionJSON, fetchSaved, fetchDailyDates } from "../services/api";
@@ -55,7 +55,13 @@ export default function ReadingScreen({ navigation, route }) {
   const fetchedRef = useRef(false);
   const [now] = useState(() => Date.now());
 
-  const cityObj = useMemo(() => CITIES.find((c) => c.n === form.city), [form.city]);
+  // City coords + tz now live on the form itself (no static-list lookup).
+  const cityObj = useMemo(
+    () => (form.lat != null && form.lon != null && form.tz != null
+      ? { n: form.city, lat: form.lat, lon: form.lon, tz: form.tz }
+      : null),
+    [form.city, form.lat, form.lon, form.tz],
+  );
   const todayIso = iso(new Date());
 
   const monthDays = useMemo(() => {

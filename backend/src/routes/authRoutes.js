@@ -6,7 +6,7 @@ import { Router } from 'express';
 import { Op } from 'sequelize';
 import { z } from 'zod';
 import { verifyIdToken } from '../config/firebase.js';
-import { AuthAccount, User } from '../models/index.js';
+import { AuthAccount, User, Location } from '../models/index.js';
 import { requireAuth, signAppToken } from '../middleware/auth.js';
 import { writeLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
@@ -23,12 +23,22 @@ async function findSavedFormByPhone(phone) {
     order: [['updatedAt', 'DESC']],
   });
   if (!user) return null;
+  // The User table doesn't yet carry lat/lon/tz — look up the cached
+  // Location row by city name so the client can rebuild the chart without
+  // forcing the user back through the picker. Falls back to nulls when the
+  // city isn't in the cache (returning user will be sent to re-pick).
+  const loc = await Location.findOne({ where: { searchName: user.birthCity } });
   return {
-    name:   user.name,
-    gender: user.gender || '',
-    date:   user.birthDate,
-    time:   user.birthTime,
-    city:   user.birthCity,
+    name:    user.name,
+    gender:  user.gender || '',
+    date:    user.birthDate,
+    time:    user.birthTime,
+    city:    user.birthCity,
+    lat:     loc?.lat      ?? null,
+    lon:     loc?.lng      ?? null,
+    tz:      loc?.tzOffset ?? null,
+    tzId:    loc?.tzId     ?? null,
+    placeId: loc?.placeId  ?? null,
   };
 }
 

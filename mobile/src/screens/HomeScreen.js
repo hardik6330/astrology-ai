@@ -6,8 +6,9 @@ import MagicButton from "../components/MagicButton";
 import MenuButton from "../components/MenuButton";
 import { Label, PremiumInput, DateField } from "../components/PremiumInput";
 import Picker from "../components/Picker";
+import CitySearch from "../components/CitySearch";
 import { useChart } from "../context/ChartContext";
-import { computeChart, CITIES } from "../shared/astrology";
+import { computeChart } from "../shared/astrology";
 import { useStyles } from "../theme/useStyles";
 import { spacing, fontSize } from "../theme/tokens";
 
@@ -17,8 +18,6 @@ const GENDERS = [
   { label: "Female", value: "Female" },
   { label: "Other",  value: "Other" },
 ];
-
-const CITY_OPTIONS = CITIES.map((c) => ({ label: c.n, value: c.n }));
 
 export default function HomeScreen({ navigation }) {
   const {
@@ -45,15 +44,44 @@ export default function HomeScreen({ navigation }) {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Seconds-since-epoch at the user's local birth instant — passed to the
+  // Time Zone API so the offset is correct for that historical date.
+  const birthTimestamp = (() => {
+    if (!form.date || !form.time) return null;
+    const [y, m, d] = form.date.split("-").map(Number);
+    const [hh, mm] = form.time.split(":").map(Number);
+    return Math.floor(Date.UTC(y, m - 1, d, hh || 0, mm || 0) / 1000);
+  })();
+
+  function onCitySelected(picked, errMsg) {
+    if (errMsg) { setError(errMsg); return; }
+    if (!picked) return;
+    setError("");
+    setForm((f) => ({
+      ...f,
+      city:    picked.city,
+      lat:     picked.lat,
+      lon:     picked.lon,
+      tz:      picked.tz,
+      tzId:    picked.tzId,
+      placeId: picked.placeId,
+    }));
+  }
+
   function generate() {
     if (!form.date || !form.time || !form.city) {
       setError("All fields are required!");
       return;
     }
+    if (form.lat == null || form.lon == null || form.tz == null) {
+      setError("Please pick your city from the suggestions.");
+      return;
+    }
     setError("");
-    const city = CITIES.find((c) => c.n === form.city);
     try {
-      const ch = computeChart(form.date, form.time, city);
+      const ch = computeChart(form.date, form.time, {
+        n: form.city, lat: form.lat, lon: form.lon, tz: form.tz,
+      });
       setChart(ch);
       resetReading();
       // Funnel through the optional palm-reading step before kundali.
@@ -111,11 +139,10 @@ export default function HomeScreen({ navigation }) {
 
         <View style={styles.field}>
           <Label>Birth City</Label>
-          <Picker
+          <CitySearch
             value={form.city}
-            onChange={(v) => set("city", v)}
-            options={CITY_OPTIONS}
-            placeholder="— Select your city —"
+            birthTimestamp={birthTimestamp}
+            onSelect={onCitySelected}
           />
         </View>
 

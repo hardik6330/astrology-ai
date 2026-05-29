@@ -1,6 +1,7 @@
-import { ChatMessage } from '../models/index.js';
+import { ChatMessage, PalmReading } from '../models/index.js';
 import { callGemini } from '../ai/gemini.js';
 import { CHAT_SYSTEM, GUARD_SYSTEM } from '../ai/prompts.js';
+import { CHAT_ANSWER_MODELS } from '../config/constants.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
 import { logger } from '../config/logger.js';
 
@@ -49,6 +50,41 @@ function buildTopicHistoryBlock(history, topic, currentUserMsg, maxPairs = 3) {
   return `\n\n=== PRIOR CONVERSATION ON "${topic.toUpperCase()}" ===\n${lines}\n\nThe user is revisiting this topic. Build on what you already told them — don't repeat the same points verbatim, add new angles, reference the earlier answer naturally ("as I mentioned before…"), and stay consistent with it.`;
 }
 
+// Pull the user's most recent palm reading and render it as a compact block
+// for the chat system prompt. Returns "" if no usable reading exists so the
+// prompt stays clean for users who haven't done a palm scan yet.
+async function buildPalmBlock(userId) {
+  if (!userId) return '';
+  const palm = await PalmReading.findOne({
+    where: { userId },
+    order: [['createdAt', 'DESC']],
+  }).catch(() => null);
+  if (!palm) return '';
+  const r = typeof palm.reading === 'string' ? JSON.parse(palm.reading) : palm.reading;
+  if (!r || r.imageQuality === 'unusable') return '';
+
+  // Both-hands reading: prefer the comparison synthesis. Single-hand falls
+  // back to overallVibe + the four major lines.
+  if (r.left && r.right && r.comparison) {
+    const c = r.comparison;
+    return `\n\n=== WHAT THIS PERSON'S HANDS SHOWED (recent palm reading) ===
+Inborn nature (left): ${r.left.overallVibe || ''}
+Lived reality (right): ${r.right.overallVibe || ''}
+Evolution: ${c.evolution || ''}
+Alignment: ${c.alignment || ''}. Grown stronger: ${(c.grownStronger||[]).join('; ')||'—'}. Watch points: ${(c.watchPoints||[]).join('; ')||'—'}
+Use this as supporting context when emotional, character, or growth questions come up — never invent palm features.`;
+  }
+  const sections = [
+    r.overallVibe && `Overall: ${r.overallVibe}`,
+    r.lifeLine    && `Life line: ${r.lifeLine}`,
+    r.headLine    && `Head line: ${r.headLine}`,
+    r.heartLine   && `Heart line: ${r.heartLine}`,
+    r.fateLine    && `Fate line: ${r.fateLine}`,
+  ].filter(Boolean);
+  if (!sections.length) return '';
+  return `\n\n=== WHAT THIS PERSON'S HANDS SHOWED (recent palm reading) ===\n${sections.join('\n')}\nUse this as supporting context when emotional, character, or growth questions come up — never invent palm features.`;
+}
+
 // GET chat history for a user — used to restore the conversation on refresh.
 export async function getChatHistory(form) {
   const user = await findUserByForm(form);
@@ -76,16 +112,26 @@ export async function answerAndPersist({ messages, factSheet, form }) {
   } else {
     // Pull persisted history so a revisited topic can be answered with
     // awareness of what was already said — even across sessions where the
-    // client `messages` array starts fresh.
-    const priorHistory = form?.name && form.date && form.time && form.city
-      ? await getChatHistory(form).catch(() => [])
-      : [];
+    // client `messages` array starts fresh. Resolve the user once so we can
+    // also fetch their latest palm reading in the same lookup window.
+    const hasForm = form?.name && form.date && form.time && form.city;
+    const existingUser = hasForm ? await findUserByForm(form).catch(() => null) : null;
+    const [priorHistory, palmBlock] = await Promise.all([
+      existingUser
+        ? ChatMessage.findAll({
+            where: { userId: existingUser.id },
+            order: [['createdAt', 'ASC']],
+            attributes: ['role', 'content'],
+          }).then(rows => rows.map(r => ({ role: r.role, content: r.content }))).catch(() => [])
+        : Promise.resolve([]),
+      existingUser ? buildPalmBlock(existingUser.id) : Promise.resolve(''),
+    ]);
     const topic = detectTopic(lastMsg);
     const topicBlock = buildTopicHistoryBlock(priorHistory, topic, lastMsg);
 
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-    const systemWithChart = `${CHAT_SYSTEM}\n\n=== THIS PERSON'S BIRTH CHART ===\n${factSheet || '(chart not provided)'}\n\nTODAY'S DATE: ${today}.${topicBlock}`;
-    result = await callGemini(systemWithChart, lastMsg);
+    const systemWithChart = `${CHAT_SYSTEM}\n\n=== THIS PERSON'S BIRTH CHART ===\n${factSheet || '(chart not provided)'}${palmBlock}\n\nTODAY'S DATE: ${today}.${topicBlock}`;
+    result = await callGemini(systemWithChart, lastMsg, false, CHAT_ANSWER_MODELS);
   }
 
   // 2. Persist exchange (best-effort).

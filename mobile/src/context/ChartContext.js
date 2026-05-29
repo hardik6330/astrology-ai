@@ -1,25 +1,28 @@
 import React, {
   createContext, useContext, useEffect, useState, useMemo, useCallback,
 } from "react";
-import { computeChart, CITIES } from "../shared/astrology";
+import { computeChart } from "../shared/astrology";
 import { getItem, setItem, removeItem } from "../utils/storage";
 
 // Birth form is persisted to AsyncStorage so app relaunches preserve the
-// last-entered chart. Only the plain form is stored — the chart itself is
-// deterministically recomputed from it on load (and AI readings are
-// re-fetched from the backend on demand).
+// last-entered chart. The form carries lat/lon/tz alongside the city name,
+// so the chart is deterministically rebuildable from the form alone.
 
 const STORAGE_KEY = "astro_form_v1";
-const EMPTY_FORM = { name: "", gender: "", date: "", time: "", city: "" };
+const EMPTY_FORM = {
+  name: "", gender: "", date: "", time: "",
+  city: "", lat: null, lon: null, tz: null, tzId: null, placeId: null,
+};
 
 const ChartContext = createContext(null);
 
 function chartFromForm(form) {
   if (!form?.date || !form?.time || !form?.city) return null;
-  const city = CITIES.find((c) => c.n === form.city);
-  if (!city) return null;
+  if (form.lat == null || form.lon == null || form.tz == null) return null;
   try {
-    return computeChart(form.date, form.time, city);
+    return computeChart(form.date, form.time, {
+      n: form.city, lat: form.lat, lon: form.lon, tz: form.tz,
+    });
   } catch {
     return null;
   }
@@ -94,11 +97,16 @@ export function ChartProvider({ children }) {
   const applySavedForm = useCallback(async (saved) => {
     if (!saved || !saved.date || !saved.time || !saved.city) return;
     const next = {
-      name:   saved.name   || "",
-      gender: saved.gender || "",
-      date:   saved.date,
-      time:   saved.time,
-      city:   saved.city,
+      name:    saved.name    || "",
+      gender:  saved.gender  || "",
+      date:    saved.date,
+      time:    saved.time,
+      city:    saved.city,
+      lat:     saved.lat     ?? null,
+      lon:     saved.lon     ?? null,
+      tz:      saved.tz      ?? null,
+      tzId:    saved.tzId    ?? null,
+      placeId: saved.placeId ?? null,
     };
     setForm(next);
     setChart(chartFromForm(next));

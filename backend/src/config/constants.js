@@ -5,6 +5,9 @@
 export const KUNDLI_MODELS       = ['gemini-2.5-pro'];
 export const FLASH_MODELS        = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 export const CHAT_MODELS         = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+// Chat answer model — Pro for deep, emotionally-aware Vedic responses.
+// Guard/classifier still uses CHAT_MODELS (Flash) to stay cheap.
+export const CHAT_ANSWER_MODELS  = ['gemini-2.5-pro'];
 
 // Cheap vision pre-filter for palm photos. Flash answers yes/no on image
 // quality before we spend Pro tokens on the full reading. Flash-lite is the

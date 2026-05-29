@@ -221,6 +221,27 @@ export async function comparePalms(leftBase64, rightBase64, form) {
   return parseContent(data.content);
 }
 
+// Google Places autocomplete via our backend proxy. `token` is the Places
+// sessiontoken — pass the SAME one to searchCities + getCityDetails so
+// autocomplete is free.
+export async function searchCities(query, token) {
+  if (!query || query.trim().length < 2) return [];
+  try {
+    const data = await getJSON("/locations/search", { q: query, token });
+    return data?.results || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getCityDetails(placeId, token, birthTimestamp) {
+  const params = { placeId, token };
+  if (birthTimestamp) params.ts = String(birthTimestamp);
+  const data = await getJSON("/locations/details", params);
+  if (!data) throw new Error("Location lookup failed");
+  return data;
+}
+
 export async function fetchChatHistory(form) {
   if (!form?.name || !form?.date || !form?.time || !form?.city) return [];
   try {

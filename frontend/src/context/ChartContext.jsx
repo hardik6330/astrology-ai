@@ -1,18 +1,29 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { computeChart, CITIES } from "../astrology";
+import { computeChart } from "../astrology";
 
 const ChartContext = createContext(null);
 
 // Birth form is persisted here so a page refresh on /reading or /chat keeps
-// working instead of bouncing to the home form. Only the form (plain strings)
-// is stored — the chart is deterministic and recomputed from it on load, and
-// the AI reading/chat are re-fetched from the backend.
+// working instead of bouncing to the home form. The form now carries the
+// resolved lat/lon/tz alongside the city name (no more static-list lookup),
+// so the chart can be rebuilt from the form alone.
 const STORAGE_KEY = "astro_form";
-const EMPTY_FORM = { name: "", gender: "", date: "", time: "", city: "" };
+const EMPTY_FORM = {
+  name: "",
+  gender: "",
+  date: "",
+  time: "",
+  city: "",
+  lat: null,
+  lon: null,
+  tz: null,
+  tzId: null,
+  placeId: null,
+};
 
 function loadForm() {
   try {
-    return JSON.parse(sessionStorage.getItem(STORAGE_KEY)) || EMPTY_FORM;
+    return { ...EMPTY_FORM, ...JSON.parse(sessionStorage.getItem(STORAGE_KEY)) };
   } catch {
     return EMPTY_FORM;
   }
@@ -21,10 +32,14 @@ function loadForm() {
 // Rebuild the chart from a saved form (chart is fully derived from birth data).
 function chartFromForm(form) {
   if (!form?.date || !form?.time || !form?.city) return null;
-  const city = CITIES.find(c => c.n === form.city);
-  if (!city) return null;
+  if (form.lat == null || form.lon == null || form.tz == null) return null;
   try {
-    return computeChart(form.date, form.time, city);
+    return computeChart(form.date, form.time, {
+      n: form.city,
+      lat: form.lat,
+      lon: form.lon,
+      tz: form.tz,
+    });
   } catch {
     return null;
   }
@@ -69,11 +84,16 @@ export function ChartProvider({ children }) {
   function applySavedForm(saved) {
     if (!saved || !saved.date || !saved.time || !saved.city) return;
     const next = {
-      name:   saved.name   || "",
+      name: saved.name || "",
       gender: saved.gender || "",
-      date:   saved.date,
-      time:   saved.time,
-      city:   saved.city,
+      date: saved.date,
+      time: saved.time,
+      city: saved.city,
+      lat: saved.lat ?? null,
+      lon: saved.lon ?? null,
+      tz: saved.tz ?? null,
+      tzId: saved.tzId ?? null,
+      placeId: saved.placeId ?? null,
     };
     setForm(next);
     setChart(chartFromForm(next));
@@ -111,19 +131,32 @@ export function ChartProvider({ children }) {
   }
 
   const value = {
-    form, setForm,
-    chart, setChart,
-    interp, setInterp,
-    daily, setDaily,
-    chatMsgs, setChatMsgs,
-    palm, setPalm,
-    palmPhoto, setPalmPhoto,
-    palmAnalyzing, setPalmAnalyzing,
-    palmClaimedHand, setPalmClaimedHand,
-    palmComparison, setPalmComparison,
-    palmOverloaded, setPalmOverloaded,
-    palmLeftPhoto, setPalmLeftPhoto,
-    palmRightPhoto, setPalmRightPhoto,
+    form,
+    setForm,
+    chart,
+    setChart,
+    interp,
+    setInterp,
+    daily,
+    setDaily,
+    chatMsgs,
+    setChatMsgs,
+    palm,
+    setPalm,
+    palmPhoto,
+    setPalmPhoto,
+    palmAnalyzing,
+    setPalmAnalyzing,
+    palmClaimedHand,
+    setPalmClaimedHand,
+    palmComparison,
+    setPalmComparison,
+    palmOverloaded,
+    setPalmOverloaded,
+    palmLeftPhoto,
+    setPalmLeftPhoto,
+    palmRightPhoto,
+    setPalmRightPhoto,
     clearAll,
     applySavedForm,
   };

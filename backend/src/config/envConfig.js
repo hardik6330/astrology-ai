@@ -17,6 +17,11 @@ const schema = z.object({
   DB_NAME:         z.string().default('astrology_db'),
   JWT_SECRET:      z.string().min(16, 'JWT_SECRET must be at least 16 chars'),
   JWT_EXPIRES_IN:  z.string().default('30d'),
+  // Server-side Google Maps key — OPTIONAL. Location lookup primarily uses
+  // OpenStreetMap Nominatim (free, no key). Set this only if you want to
+  // re-enable the Google Places fallback path that's currently commented out
+  // in locationService.js.
+  GOOGLE_MAPS_API_KEY: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
