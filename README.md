@@ -15,6 +15,33 @@
 
 ---
 
+## How it Works: From Stars to Insights
+
+Astrology AI Pro uses a hybrid engine to deliver "Swiss-grade" accuracy and deep psychological insights:
+
+1.  **Precision Calculation**: Exact planetary degrees and house cusps are computed client-side using the `astronomy-engine` library. This ensures zero-latency and maximum privacy.
+2.  **Vedic Logic**: The system derives complex technical facts including **Shadbala** (planetary strength), **Ashtakvarga** scores, and major **Doshas**.
+3.  **AI Interpretation**: These raw technical facts are processed by **Gemini 2.5 Pro** using a specialized [Master Astrologer Prompt](backend/src/ai/prompts.js). The AI doesn't "guess"—it translates the mathematical blueprint of your life into clear, actionable guidance.
+
+### Core Features in Action
+
+| Feature | Description | Visual |
+| :--- | :--- | :--- |
+| **Celestial Wheel** | A precise North/South Indian style birth chart visualizing your planetary placements at the moment of birth. | <img src="frontend/src/assets/main/main-kundali.png" width="250" /> |
+| **Dosha & Yoga** | Automated checks for significant conditions like Mangal Dosha, Kaal Sarp, and Sade Sati with status labels. | <img src="frontend/src/assets/main/dosh-yog-stuts.png" width="250" /> |
+| **Panchang Snapshot** | The five vital Vedic time-elements (Tithi, Nakshatra, Yoga, Karana, Vaara) that define your base energy. | <img src="frontend/src/assets/main/panchang-data.png" width="250" /> |
+| **Destiny Matrix** | Data-driven scores (out of 100) for key life areas like Career, Wealth, and Travel based on house-lord strengths. | <img src="frontend/src/assets/main/destini-matrix.png" width="250" /> |
+| **Planetary Strength** | A 0-100 rating meter for each planet, calculating its functional power based on house placement and motion. | <img src="frontend/src/assets/main/palnetry-strength.png" width="250" /> |
+| **Planetary Positions** | Side-by-side comparison of Vedic vs Western planetary placements using the Whole-sign house system. | <img src="frontend/src/assets/main/palnetry-potision.png" width="250" /> |
+| **Dasha Timing** | Detailed breakdown of Mahadasha and Antardasha periods with completion percentages. | <img src="frontend/src/assets/main/palnetry-timing.png" width="250" /> |
+| **Dasha Wheel** | A visual donut chart representing your current planetary cycle and upcoming life shifts. | <img src="frontend/src/assets/main/dasha-timiline.png" width="250" /> |
+| **Ashtakvarga (Sarva)** | A heat-map style wheel identifying fortunate signs based on cumulative planetary bindus. | <img src="frontend/src/assets/main/years.png" width="250" /> |
+| **Timeline Forecast** | AI-driven life predictions mapped against your planetary timeline for maximum context. | <img src="frontend/src/assets/main/timeline-forcast.png" width="250" /> |
+| **Prediction Confidence** | Transparency layer showing how many independent chart signatures support each AI-driven theme. | <img src="frontend/src/assets/main/prediction-confidence.png" width="250" /> |
+| **Current Sky (Gochar)** | Real-time planetary transits relative to your Moon sign, tracking immediate energetic shifts. | <img src="frontend/src/assets/main/curretn-sky.png" width="250" /> |
+
+---
+
 ## Tech Stack
 
 | Layer | Stack |
