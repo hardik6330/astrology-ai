@@ -5,6 +5,7 @@ import CosmicCard from "../components/CosmicCard";
 import MenuButton from "../components/MenuButton";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
+import { useBackToKundali } from "../utils/useBackToKundali";
 
 const FAQ = [
   {
@@ -21,9 +22,10 @@ const FAQ = [
   },
 ];
 
-export default function HelpSupportScreen() {
+export default function HelpSupportScreen({ navigation }) {
   const [open, setOpen] = useState(-1);
   const s = useStyles(makeStyles);
+  useBackToKundali(navigation);
 
   return (
     <ScreenContainer showMenu={false}>

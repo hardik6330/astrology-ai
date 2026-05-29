@@ -14,6 +14,7 @@ import {
   analyzePalm, comparePalms, fetchSaved, fetchPalmHistory, fetchPalmById,
 } from "../services/api";
 import { gatePalmImage, warmUpGate } from "../utils/palmGate";
+import { useBackToKundali } from "../utils/useBackToKundali";
 import { SkeletonPalm } from "../components/Skeleton";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
@@ -75,6 +76,9 @@ export default function PalmScreen({ navigation }) {
   
   // Warm up the detector.
   useEffect(() => { warmUpGate(); }, []);
+
+  // Android hardware back → Reading/Kundali instead of exiting the app.
+  useBackToKundali(navigation);
 
   // Drawer screens stay mounted between focuses, so local state survives
   // navigation. Clear any stale gate-rejection error each time the screen

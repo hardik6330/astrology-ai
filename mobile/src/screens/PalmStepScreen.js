@@ -15,6 +15,7 @@ import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing } from "../theme/tokens";
 import { gatePalmImage, warmUpGate } from "../utils/palmGate";
+import { useBackToKundali } from "../utils/useBackToKundali";
 
 export default function PalmStepScreen({ navigation }) {
   const { form, setPalm, setPalmComparison, setPalmPhoto, setPalmAnalyzing, setPalmClaimedHand } = useChart();
@@ -27,6 +28,9 @@ export default function PalmStepScreen({ navigation }) {
 
   // Warm up the detector.
   useEffect(() => { warmUpGate(); }, []);
+
+  // Android hardware back → Reading/Kundali instead of exiting the app.
+  useBackToKundali(navigation);
 
   // Both paths (upload + skip) land on the Reading "All Over" tab. When a
   // palm photo was provided we kick off the analysis in the background so the

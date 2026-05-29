@@ -11,6 +11,7 @@ import CosmicCard from "../components/CosmicCard";
 import MagicButton from "../components/MagicButton";
 import { useChart } from "../context/ChartContext";
 import { comparePalms } from "../services/api";
+import { useBackToKundali } from "../utils/useBackToKundali";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing } from "../theme/tokens";
@@ -26,6 +27,9 @@ export default function PalmCompareScreen({ navigation }) {
   } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
+
+  // Android hardware back → Reading/Kundali instead of exiting the app.
+  useBackToKundali(navigation);
 
   // Each side holds { uri, base64 } once the user has picked. base64 is
   // what we send to the backend; uri is for the local preview thumbnail.
@@ -107,7 +111,10 @@ export default function PalmCompareScreen({ navigation }) {
 
   return (
     <ScreenContainer showMenu={false}>
-      <Pressable onPress={() => navigation.navigate("PalmStep")} style={s.backBtn}>
+      <Pressable
+        onPress={() => navigation.navigate("Reading", { tab: "kundali" })}
+        style={s.backBtn}
+      >
         <Text style={s.backText}>← Back</Text>
       </Pressable>
 

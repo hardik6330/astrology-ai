@@ -9,11 +9,13 @@ import { useChart } from "../context/ChartContext";
 import { signOf, ZE } from "../shared/astrology";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
+import { useBackToKundali } from "../utils/useBackToKundali";
 
 export default function ProfileScreen({ navigation }) {
   const { form, chart } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
+  useBackToKundali(navigation);
   const initial = (form.name || "?").trim().charAt(0).toUpperCase();
 
   function fmtTime(t) {

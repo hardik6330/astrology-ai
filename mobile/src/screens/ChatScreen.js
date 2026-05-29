@@ -12,6 +12,7 @@ import { SkeletonChat } from "../components/Skeleton";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
+import { useBackToKundali } from "../utils/useBackToKundali";
 
 const SUGGESTIONS = [
   "When will I marry?",
@@ -30,6 +31,7 @@ const PLACEHOLDERS = [
 
 export default function ChatScreen({ navigation }) {
   const { form, chart, chatMsgs, setChatMsgs } = useChart();
+  useBackToKundali(navigation);
   const [input, setInput]   = useState("");
   const [busy, setBusy]     = useState(false);
   const [hydrating, setHydrating] = useState(true);
