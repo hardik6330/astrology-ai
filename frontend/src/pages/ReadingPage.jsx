@@ -66,28 +66,35 @@ export default function ReadingPage() {
         const { latitude: lat, longitude: lon } = pos.coords;
         const tz = -(new Date().getTimezoneOffset() / 60);
 
+        console.log(`[GPS] Detected Coordinates: Lat ${lat}, Lon ${lon}`);
+
         // Default label
         setCurrentLoc({ n: "Current Location", lat, lon, tz, isGps: true });
         setLocError(false);
 
         // Try to get the actual city name via Reverse Geocoding (Free OSM)
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`,
-            {
-              headers: { "User-Agent": "AstrologyAI/1.0" },
-            }
-          );
+          const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
+          console.log(`[OSM] Fetching city name from: ${url}`);
+
+          const res = await fetch(url, {
+            headers: { "User-Agent": "AstrologyAI/1.0" },
+          });
           const data = await res.json();
+
+          console.log("[OSM] Received Data:", data);
+
           const city =
             data.address.city ||
             data.address.town ||
             data.address.village ||
             data.address.suburb ||
             "Current Location";
+
+          console.log(`[OSM] Resolved City: ${city}`);
           setCurrentLoc({ n: city, lat, lon, tz, isGps: true });
         } catch (e) {
-          // If reverse geocode fails, we still have the coordinates so the transit math works.
+          console.error("[OSM] Reverse Geocoding failed:", e.message);
         }
       },
       () => {
