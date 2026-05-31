@@ -132,7 +132,9 @@ const makeStyles = (c) =>
       borderColor: c.primaryBorder || "#333",
       borderRadius: radius.lg,
       padding: spacing.xs,
-      maxHeight: 240,
+      // NOTE: height is bounded by the inner ScrollView's maxHeight only.
+      // Adding maxHeight here too gives RN two competing constraints, which on
+      // Android makes the list scroll only intermittently (see git history).
       zIndex: 100,
       elevation: 5,
       shadowColor: "#000",
