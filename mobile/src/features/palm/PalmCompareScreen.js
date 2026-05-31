@@ -182,13 +182,6 @@ export default function PalmCompareScreen({ navigation }) {
           >
             ✨ Read the Evolution
           </MagicButton>
-
-          <Pressable
-            onPress={() => navigation.navigate("Reading", { tab: "reading" })}
-            style={({ pressed }) => [s.skipBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Text style={s.skipText}>Skip → Go to my kundali</Text>
-          </Pressable>
         </View>
 
         {error ? <Text style={s.error}>{error}</Text> : null}
@@ -287,15 +280,6 @@ const makeStyles = (c) =>
     handLabel:{ color: c.text, fontSize: 15, fontWeight: "700" },
     handSub:  { color: c.textMuted, fontSize: 12, marginTop: 2 },
     chev:     { fontSize: 22, fontWeight: "700", paddingHorizontal: 6 },
-
-    skipBtn:  {
-      marginTop: spacing.sm,
-      paddingVertical: 12, paddingHorizontal: spacing.md,
-      borderRadius: radius.lg,
-      borderWidth: 1, borderColor: c.cardBorder,
-      alignItems: "center",
-    },
-    skipText: { color: c.textDim, fontSize: 14, fontWeight: "600" },
 
     error: { color: c.danger, fontSize: 13, marginTop: 12, textAlign: "center" },
     note:  { color: c.textFaint, fontSize: 11, marginTop: spacing.md, textAlign: "center", lineHeight: 16 },

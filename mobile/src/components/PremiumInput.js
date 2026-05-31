@@ -3,8 +3,8 @@ import { View, Text, TextInput, Pressable, StyleSheet, Platform } from "react-na
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
-import CosmicDatePicker from "./CosmicDatePicker";
-import CosmicTimePicker from "./CosmicTimePicker";
+import CosmicDatePicker from "./picker/CosmicDatePicker";
+import CosmicTimePicker from "./picker/CosmicTimePicker";
 
 export function Label({ children }) {
   const styles = useStyles(makeStyles);
