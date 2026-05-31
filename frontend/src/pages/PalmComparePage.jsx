@@ -7,14 +7,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChart } from "../context/ChartContext";
-import { comparePalms } from "../services/api";
+import { useComparePalms } from "@/features/palm/hooks";
 import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 
 function isMobileDevice() {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent || "";
-  const touch = typeof window !== "undefined" &&
-    window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  const touch =
+    typeof window !== "undefined" && window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
   return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(ua) || touch;
 }
 
@@ -29,7 +29,8 @@ function resizeToBase64(file, maxDim = 600, quality = 0.8) {
         const w = Math.round(img.width * scale);
         const h = Math.round(img.height * scale);
         const canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
+        canvas.width = w;
+        canvas.height = h;
         canvas.getContext("2d").drawImage(img, 0, 0, w, h);
         resolve(canvas.toDataURL("image/jpeg", quality));
       };
@@ -42,23 +43,36 @@ function resizeToBase64(file, maxDim = 600, quality = 0.8) {
 }
 
 const cardBtn = {
-  display: "flex", alignItems: "center", gap: 16,
-  padding: "16px 18px", borderRadius: 14,
+  display: "flex",
+  alignItems: "center",
+  gap: 16,
+  padding: "16px 18px",
+  borderRadius: 14,
   border: "1px solid rgba(168, 85, 247, 0.35)",
   background: "rgba(168, 85, 247, 0.08)",
-  cursor: "pointer", color: "#fff", textAlign: "left", width: "100%",
+  cursor: "pointer",
+  color: "#fff",
+  textAlign: "left",
+  width: "100%",
 };
 
 const ghostBtn = {
-  marginTop: 8, padding: "12px 16px", borderRadius: 14,
+  marginTop: 8,
+  padding: "12px 16px",
+  borderRadius: 14,
   border: "1px solid rgba(255,255,255,0.12)",
   background: "transparent",
-  cursor: "pointer", color: "#94a3b8", fontWeight: 600,
+  cursor: "pointer",
+  color: "#94a3b8",
+  fontWeight: 600,
   width: "100%",
 };
 
 const thumb = {
-  width: 96, height: 96, borderRadius: 12, overflow: "hidden",
+  width: 96,
+  height: 96,
+  borderRadius: 12,
+  overflow: "hidden",
   border: "1px solid rgba(168,85,247,0.35)",
 };
 
@@ -67,27 +81,31 @@ export default function PalmComparePage() {
   const {
     form,
     setPalmComparison,
-    setPalmLeftPhoto, setPalmRightPhoto,
+    setPalmLeftPhoto,
+    setPalmRightPhoto,
     setPalmAnalyzing,
     setPalmOverloaded,
   } = useChart();
 
-  const [left, setLeft]   = useState(null);   // data URL
-  const [right, setRight] = useState(null);   // data URL
+  const compare = useComparePalms({ form });
+  const [left, setLeft] = useState(null); // data URL
+  const [right, setRight] = useState(null); // data URL
   // Which slot is being picked into — drives the camera/gallery chooser.
-  const [pickingHand, setPickingHand] = useState(null);  // "left" | "right" | null
+  const [pickingHand, setPickingHand] = useState(null); // "left" | "right" | null
   const [chooserOpen, setChooserOpen] = useState(false);
   const [error, setError] = useState("");
 
-  const fileRef    = useRef(null);
-  const cameraRef  = useRef(null);
+  const fileRef = useRef(null);
+  const cameraRef = useRef(null);
   const galleryRef = useRef(null);
 
   const isMobile = useMemo(() => isMobileDevice(), []);
-  const ready    = !!(left && right);
+  const ready = !!(left && right);
 
   // Warm up the MediaPipe model while the user is reading the intro.
-  useEffect(() => { warmUpGate(); }, []);
+  useEffect(() => {
+    warmUpGate();
+  }, []);
 
   function startPick(hand) {
     setError("");
@@ -96,8 +114,14 @@ export default function PalmComparePage() {
     else fileRef.current?.click();
   }
 
-  function openCamera()  { setChooserOpen(false); cameraRef.current?.click(); }
-  function openGallery() { setChooserOpen(false); galleryRef.current?.click(); }
+  function openCamera() {
+    setChooserOpen(false);
+    cameraRef.current?.click();
+  }
+  function openGallery() {
+    setChooserOpen(false);
+    galleryRef.current?.click();
+  }
 
   async function onFileSelected(e) {
     const file = e.target.files?.[0];
@@ -116,8 +140,14 @@ export default function PalmComparePage() {
         return;
       }
       const dataUrl = await resizeToBase64(file);
-      if (pickingHand === "left")  { setLeft(dataUrl);  setPalmLeftPhoto(dataUrl); }
-      if (pickingHand === "right") { setRight(dataUrl); setPalmRightPhoto(dataUrl); }
+      if (pickingHand === "left") {
+        setLeft(dataUrl);
+        setPalmLeftPhoto(dataUrl);
+      }
+      if (pickingHand === "right") {
+        setRight(dataUrl);
+        setPalmRightPhoto(dataUrl);
+      }
     } catch {
       setError("Couldn't read that photo. Try a different one.");
     }
@@ -127,12 +157,13 @@ export default function PalmComparePage() {
   function analyzeInBackground() {
     setPalmAnalyzing(true);
     setPalmOverloaded(false);
-    comparePalms(left, right, form)
+    compare
+      .mutateAsync({ leftImage: left, rightImage: right })
       .then((result) => setPalmComparison(result))
       .catch((err) => {
         // Pro 2.5 was overloaded (502 / AI_OVERLOADED). PalmPage's compare
         // view picks up palmOverloaded and renders the cooldown card.
-        if (err?.code === 'AI_OVERLOADED') setPalmOverloaded(true);
+        if (err?.code === "AI_OVERLOADED") setPalmOverloaded(true);
       })
       .finally(() => setPalmAnalyzing(false));
   }
@@ -154,20 +185,24 @@ export default function PalmComparePage() {
         type="button"
         onClick={() => navigate("/palm-step")}
         style={{
-          fontSize: 12, padding: "8px 16px", borderRadius: 8, cursor: "pointer", color: "#a5b4fc",
-          border: "1px solid rgba(99,102,241,0.4)", background: "rgba(99,102,241,0.1)", marginBottom: 16,
+          fontSize: 12,
+          padding: "8px 16px",
+          borderRadius: 8,
+          cursor: "pointer",
+          color: "#a5b4fc",
+          border: "1px solid rgba(99,102,241,0.4)",
+          background: "rgba(99,102,241,0.1)",
+          marginBottom: 16,
         }}
       >
         ← Back
       </button>
 
       <div className="cosmic-card" style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-        <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 8px" }}>
-          ✋🤚 Full Life Comparison
-        </h2>
+        <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 8px" }}>✋🤚 Full Life Comparison</h2>
         <p style={{ fontSize: 13, color: "#94a3b8", margin: 0, lineHeight: 1.6 }}>
-          Compare your left palm (the potential you were born with) against your right
-          palm (how your choices have reshaped it). We'll read the gap between them.
+          Compare your left palm (the potential you were born with) against your right palm (how your choices
+          have reshaped it). We'll read the gap between them.
         </p>
       </div>
 
@@ -176,7 +211,11 @@ export default function PalmComparePage() {
         <button type="button" onClick={() => startPick("left")} style={cardBtn}>
           {left ? (
             <div style={thumb}>
-              <img src={left} alt="left palm" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img
+                src={left}
+                alt="left palm"
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
             </div>
           ) : (
             <span style={{ fontSize: 28, width: 36, textAlign: "center" }}>🤚</span>
@@ -199,7 +238,11 @@ export default function PalmComparePage() {
         >
           {right ? (
             <div style={thumb}>
-              <img src={right} alt="right palm" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img
+                src={right}
+                alt="right palm"
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
             </div>
           ) : (
             <span style={{ fontSize: 28, width: 36, textAlign: "center" }}>✋</span>
@@ -227,9 +270,28 @@ export default function PalmComparePage() {
           Skip → Go to my kundali
         </button>
 
-        <input ref={fileRef}    type="file" accept="image/*"                       onChange={onFileSelected} style={{ display: "none" }} />
-        <input ref={cameraRef}  type="file" accept="image/*" capture="environment" onChange={onFileSelected} style={{ display: "none" }} />
-        <input ref={galleryRef} type="file" accept="image/*"                       onChange={onFileSelected} style={{ display: "none" }} />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          onChange={onFileSelected}
+          style={{ display: "none" }}
+        />
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={onFileSelected}
+          style={{ display: "none" }}
+        />
+        <input
+          ref={galleryRef}
+          type="file"
+          accept="image/*"
+          onChange={onFileSelected}
+          style={{ display: "none" }}
+        />
 
         {error && (
           <p style={{ color: "#f87171", fontSize: 13, textAlign: "center", margin: "8px 0 0" }}>{error}</p>
@@ -237,26 +299,35 @@ export default function PalmComparePage() {
       </div>
 
       <p style={{ fontSize: 11, color: "#64748b", textAlign: "center", marginTop: 16, lineHeight: 1.6 }}>
-        Tip: bright, even lighting and a clear view of each palm work best. Photos are analyzed and discarded — never stored.
+        Tip: bright, even lighting and a clear view of each palm work best. Photos are analyzed and discarded
+        — never stored.
       </p>
 
       {chooserOpen && (
         <div
           onClick={() => setChooserOpen(false)}
           style={{
-            position: "fixed", inset: 0, zIndex: 100,
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
             background: "rgba(0,0,0,0.7)",
-            display: "flex", alignItems: "flex-end", justifyContent: "center",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: "100%", maxWidth: 480,
+              width: "100%",
+              maxWidth: 480,
               background: "#0f0e20",
-              borderTopLeftRadius: 20, borderTopRightRadius: 20,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
               border: "1px solid rgba(168,85,247,0.35)",
-              padding: 18, display: "grid", gap: 10,
+              padding: 18,
+              display: "grid",
+              gap: 10,
             }}
           >
             <p style={{ color: "#94a3b8", textAlign: "center", margin: "4px 0 8px", fontSize: 13 }}>

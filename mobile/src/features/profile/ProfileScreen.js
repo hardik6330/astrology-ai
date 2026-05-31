@@ -1,15 +1,15 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
-import ScreenContainer from "../components/ScreenContainer";
-import CosmicCard from "../components/CosmicCard";
-import MagicButton from "../components/MagicButton";
-import MenuButton from "../components/MenuButton";
-import { useColors } from "../theme/ThemeContext";
-import { useChart } from "../context/ChartContext";
-import { signOf, ZE } from "../shared/astrology";
-import { useStyles } from "../theme/useStyles";
-import { radius, spacing, fontSize } from "../theme/tokens";
-import { useBackToKundali } from "../utils/useBackToKundali";
+import ScreenContainer from "@/components/ScreenContainer";
+import CosmicCard from "@/components/CosmicCard";
+import MagicButton from "@/components/MagicButton";
+import MenuButton from "@/components/MenuButton";
+import { useColors } from "@/theme/ThemeContext";
+import { useChart } from "@/context/ChartContext";
+import { signOf, ZE } from "@/shared/astrology";
+import { useStyles } from "@/theme/useStyles";
+import { radius, spacing, fontSize } from "@/theme/tokens";
+import { useBackToKundali } from "@/utils/useBackToKundali";
 
 export default function ProfileScreen({ navigation }) {
   const { form, chart } = useChart();

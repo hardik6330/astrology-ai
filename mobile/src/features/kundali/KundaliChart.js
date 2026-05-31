@@ -1,8 +1,8 @@
 import React from "react";
 import { View } from "react-native";
 import Svg, { Rect, Line, Polygon, G, Text as SvgText } from "react-native-svg";
-import { SIGNS, signOf, nm } from "../shared/astrology";
-import { useTheme } from "../theme/ThemeContext";
+import { SIGNS, signOf, nm } from "../../shared/astrology";
+import { useTheme } from "../../theme/ThemeContext";
 
 // Theme-aware KundaliChart. Strokes and labels switch shade based on the
 // active palette so it reads on both dark and light backgrounds.

@@ -7,15 +7,15 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Modal } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import ScreenContainer from "../components/ScreenContainer";
-import CosmicCard from "../components/CosmicCard";
-import { useChart } from "../context/ChartContext";
-import { analyzePalm } from "../services/api";
-import { useColors } from "../theme/ThemeContext";
-import { useStyles } from "../theme/useStyles";
-import { radius, spacing } from "../theme/tokens";
-import { gatePalmImage, warmUpGate } from "../utils/palmGate";
-import { useBackToKundali } from "../utils/useBackToKundali";
+import ScreenContainer from "../../components/ScreenContainer";
+import CosmicCard from "../../components/CosmicCard";
+import { useChart } from "../../context/ChartContext";
+import { analyzePalm } from "../../services/api";
+import { useColors } from "../../theme/ThemeContext";
+import { useStyles } from "../../theme/useStyles";
+import { radius, spacing } from "../../theme/tokens";
+import { gatePalmImage, warmUpGate } from "./palmGate";
+import { useBackToKundali } from "../../utils/useBackToKundali";
 
 export default function PalmStepScreen({ navigation }) {
   const { form, setPalm, setPalmComparison, setPalmPhoto, setPalmAnalyzing, setPalmClaimedHand } = useChart();

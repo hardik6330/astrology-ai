@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { searchCities, getCityDetails } from "../services/api";
+import { useCitySearch, lookupCityDetails } from "@/features/location/hooks";
 import { color, gradient, radius, shadow } from "../theme/tokens.js";
 
 // Generate a UUID for the Places sessiontoken. Browser-native crypto when
@@ -23,37 +23,27 @@ export default function CitySearch({
   placeholder = "Search your birth city...",
 }) {
   const [input, setInput] = useState(value || "");
-  const [predictions, setPredictions] = useState([]);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const sessionTokenRef = useRef(makeSessionToken());
   const wrapRef = useRef(null);
+
+  // Suppress search when the input still equals the most-recently picked
+  // value — prevents a needless autocomplete call right after selection.
+  const querySuppressed = input.trim() === (value || "").trim();
+  const { data: predictions = [], isFetching: loading } = useCitySearch(
+    querySuppressed ? "" : input,
+    sessionTokenRef.current
+  );
 
   // Keep input in sync if the parent resets `value` (e.g. on form clear).
   useEffect(() => {
     setInput(value || "");
   }, [value]);
 
-  // Debounced autocomplete — wait 300ms after the last keystroke before firing.
+  // Open the dropdown when results land.
   useEffect(() => {
-    const q = input.trim();
-    if (q.length < 2) {
-      setPredictions([]);
-      return;
-    }
-    if (q === (value || "").trim()) return; // already selected, don't re-search
-    const t = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const res = await searchCities(q, sessionTokenRef.current);
-        setPredictions(res);
-        setOpen(true);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [input, value]);
+    if (predictions.length > 0) setOpen(true);
+  }, [predictions]);
 
   // Close dropdown when clicking outside.
   useEffect(() => {
@@ -68,7 +58,7 @@ export default function CitySearch({
     setOpen(false);
     setInput(prediction.description);
     try {
-      const details = await getCityDetails(prediction.placeId, sessionTokenRef.current, birthTimestamp);
+      const details = await lookupCityDetails(prediction.placeId, sessionTokenRef.current, birthTimestamp);
       // Rotate sessiontoken — sessions end after Place Details is called.
       sessionTokenRef.current = makeSessionToken();
       onSelect({

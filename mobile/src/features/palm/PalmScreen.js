@@ -5,20 +5,20 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
-import ScreenContainer from "../components/ScreenContainer";
-import CosmicCard from "../components/CosmicCard";
-import MagicButton from "../components/MagicButton";
-import MenuButton from "../components/MenuButton";
-import { useChart } from "../context/ChartContext";
+import ScreenContainer from "../../components/ScreenContainer";
+import CosmicCard from "../../components/CosmicCard";
+import MagicButton from "../../components/MagicButton";
+import MenuButton from "../../components/MenuButton";
+import { useChart } from "../../context/ChartContext";
 import {
   analyzePalm, comparePalms, fetchSaved, fetchPalmHistory, fetchPalmById,
-} from "../services/api";
-import { gatePalmImage, warmUpGate } from "../utils/palmGate";
-import { useBackToKundali } from "../utils/useBackToKundali";
-import { SkeletonPalm } from "../components/Skeleton";
-import { useColors } from "../theme/ThemeContext";
-import { useStyles } from "../theme/useStyles";
-import { radius, spacing, fontSize } from "../theme/tokens";
+} from "../../services/api";
+import { gatePalmImage, warmUpGate } from "./palmGate";
+import { useBackToKundali } from "../../utils/useBackToKundali";
+import { SkeletonPalm } from "../../components/Skeleton";
+import { useColors } from "../../theme/ThemeContext";
+import { useStyles } from "../../theme/useStyles";
+import { radius, spacing, fontSize } from "../../theme/tokens";
 
 // Friendly UI copy for each Gemini rejection category.
 const REJECT_INFO = {

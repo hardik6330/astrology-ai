@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, Linking, StyleSheet } from "react-native";
-import ScreenContainer from "../components/ScreenContainer";
-import CosmicCard from "../components/CosmicCard";
-import MenuButton from "../components/MenuButton";
-import { useStyles } from "../theme/useStyles";
-import { radius, spacing, fontSize } from "../theme/tokens";
-import { useBackToKundali } from "../utils/useBackToKundali";
+import ScreenContainer from "@/components/ScreenContainer";
+import CosmicCard from "@/components/CosmicCard";
+import MenuButton from "@/components/MenuButton";
+import { useStyles } from "@/theme/useStyles";
+import { radius, spacing, fontSize } from "@/theme/tokens";
+import { useBackToKundali } from "@/utils/useBackToKundali";
 
 const FAQ = [
   {

@@ -4,8 +4,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { useChart } from "../context/ChartContext";
+import { useAuth } from "./AuthContext";
+import { useChart } from "@/context/ChartContext";
 
 const DEFAULT_OTP = "123456";
 const RESEND_SECS = 30;

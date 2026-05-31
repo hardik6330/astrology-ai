@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { dummyLogin, primeAuthPhone } from "../services/api";
+import { dummyLogin, primeAuthPhone } from "@/services/api";
 
 const KEY     = "app_token";
 const ACC_KEY = "app_account";

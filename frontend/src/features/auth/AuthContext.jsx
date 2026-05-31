@@ -4,7 +4,7 @@
 // changing `login()` to call /api/auth/verify-otp.
 
 import { createContext, useContext, useState } from "react";
-import { dummyLogin } from "../services/api";
+import { dummyLogin } from "@/services/api";
 
 const KEY = "app_token";
 const AuthContext = createContext(null);

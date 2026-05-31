@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import ScreenContainer from "../components/ScreenContainer";
-import CosmicCard from "../components/CosmicCard";
-import MagicButton from "../components/MagicButton";
-import MenuButton from "../components/MenuButton";
-import { Label, PremiumInput, DateField } from "../components/PremiumInput";
-import Picker from "../components/Picker";
-import CitySearch from "../components/CitySearch";
-import { useChart } from "../context/ChartContext";
-import { computeChart } from "../shared/astrology";
-import { useStyles } from "../theme/useStyles";
-import { spacing, fontSize } from "../theme/tokens";
+import ScreenContainer from "@/components/ScreenContainer";
+import CosmicCard from "@/components/CosmicCard";
+import MagicButton from "@/components/MagicButton";
+import MenuButton from "@/components/MenuButton";
+import { Label, PremiumInput, DateField } from "@/components/PremiumInput";
+import Picker from "@/components/Picker";
+import CitySearch from "@/features/location/CitySearch";
+import { useChart } from "@/context/ChartContext";
+import { computeChart } from "@/shared/astrology";
+import { useStyles } from "@/theme/useStyles";
+import { spacing, fontSize } from "@/theme/tokens";
 
 const GENDERS = [
   { label: "Male",   value: "Male" },
@@ -24,6 +24,8 @@ export default function HomeScreen({ navigation }) {
     redirectToReading, consumeRedirect,
   } = useChart();
   const [error, setError] = useState("");
+  // Freeze the page scroll while the city dropdown is open so the list scrolls.
+  const [suggestOpen, setSuggestOpen] = useState(false);
   const styles = useStyles(makeStyles);
 
   // Hide the side-menu trigger on first visit (before any chart exists)
@@ -91,7 +93,7 @@ export default function HomeScreen({ navigation }) {
   }
 
   return (
-    <ScreenContainer showMenu={false}>
+    <ScreenContainer showMenu={false} scrollEnabled={!suggestOpen}>
       <View style={styles.headerRow}>
         {showMenu ? <MenuButton /> : <View style={{ width: 40 }} />}
         <View style={{ flex: 1 }}>
@@ -142,6 +144,7 @@ export default function HomeScreen({ navigation }) {
             value={form.city}
             birthTimestamp={birthTimestamp}
             onSelect={onCitySelected}
+            onOpenChange={setSuggestOpen}
           />
         </View>
 

@@ -4,15 +4,15 @@ import {
   KeyboardAvoidingView, Platform, StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MenuButton from "../components/MenuButton";
-import { useChart } from "../context/ChartContext";
-import { chatCompletion, fetchChatHistory } from "../services/api";
-import { buildFactSheet } from "../shared/astrology";
-import { SkeletonChat } from "../components/Skeleton";
-import { useColors } from "../theme/ThemeContext";
-import { useStyles } from "../theme/useStyles";
-import { radius, spacing, fontSize } from "../theme/tokens";
-import { useBackToKundali } from "../utils/useBackToKundali";
+import MenuButton from "@/components/MenuButton";
+import { useChart } from "@/context/ChartContext";
+import { chatCompletion, fetchChatHistory } from "@/services/api";
+import { buildFactSheet } from "@/shared/astrology";
+import { SkeletonChat } from "@/components/Skeleton";
+import { useColors } from "@/theme/ThemeContext";
+import { useStyles } from "@/theme/useStyles";
+import { radius, spacing, fontSize } from "@/theme/tokens";
+import { useBackToKundali } from "@/utils/useBackToKundali";
 
 const SUGGESTIONS = [
   "When will I marry?",

@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet } from "react-native";
-import { PremiumInput } from "./PremiumInput";
-import { useColors } from "../theme/ThemeContext";
-import { useStyles } from "../theme/useStyles";
-import { spacing, fontSize, radius } from "../theme/tokens";
-import { searchCities, getCityDetails } from "../services/api";
+import { PremiumInput } from "@/components/PremiumInput";
+import { useColors } from "@/theme/ThemeContext";
+import { useStyles } from "@/theme/useStyles";
+import { spacing, fontSize, radius } from "@/theme/tokens";
+import { searchCities, getCityDetails } from "@/services/api";
 
 // Lightweight UUID — RN runtime doesn't ship crypto.randomUUID on all
 // versions, so use a deterministic fallback.
@@ -17,7 +17,7 @@ function makeSessionToken() {
 
 // Mobile mirror of frontend/src/components/CitySearch.jsx. Debounced
 // autocomplete → backend proxy → select → onSelect({city, lat, lon, tz, ...}).
-export default function CitySearch({ value, onSelect, birthTimestamp, placeholder = "Search your birth city..." }) {
+export default function CitySearch({ value, onSelect, onOpenChange, birthTimestamp, placeholder = "Search your birth city..." }) {
   const [input, setInput] = useState(value || "");
   const [predictions, setPredictions] = useState([]);
   const [open, setOpen] = useState(false);
@@ -69,6 +69,14 @@ export default function CitySearch({ value, onSelect, birthTimestamp, placeholde
     }
   }
 
+  // While the suggestion list is visible, ask the parent screen to freeze its
+  // own ScrollView so vertical drags scroll the list instead of the page —
+  // nestedScrollEnabled alone is unreliable for an absolute dropdown on Android.
+  const showDropdown = open && (loading || predictions.length > 0);
+  useEffect(() => {
+    onOpenChange?.(showDropdown);
+  }, [showDropdown, onOpenChange]);
+
   return (
     <View style={{ position: "relative" }}>
       <PremiumInput
@@ -78,7 +86,7 @@ export default function CitySearch({ value, onSelect, birthTimestamp, placeholde
         autoCapitalize="words"
         autoCorrect={false}
       />
-      {open && (loading || predictions.length > 0) && (
+      {showDropdown && (
         <View style={styles.dropdown}>
           {loading && (
             <View style={styles.hintRow}>
@@ -86,10 +94,11 @@ export default function CitySearch({ value, onSelect, birthTimestamp, placeholde
               <Text style={styles.hint}>Searching…</Text>
             </View>
           )}
-          <ScrollView 
-              style={{ maxHeight: 240 }} 
+          <ScrollView
+              style={{ maxHeight: 240 }}
               keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
             >
             {predictions.map((item) => (
               <Pressable key={item.placeId} style={styles.item} onPress={() => pick(item)}>

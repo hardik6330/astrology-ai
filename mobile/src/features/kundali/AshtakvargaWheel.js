@@ -1,10 +1,10 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Svg, { Path, G, Text as SvgText, Circle } from "react-native-svg";
-import CosmicCard from "./CosmicCard";
-import { useStyles } from "../theme/useStyles";
-import { useColors } from "../theme/ThemeContext";
-import { radius, spacing, fontSize } from "../theme/tokens";
+import CosmicCard from "../../components/CosmicCard";
+import { useStyles } from "../../theme/useStyles";
+import { useColors } from "../../theme/ThemeContext";
+import { radius, spacing, fontSize } from "../../theme/tokens";
 
 const SIZE = 280;
 const CX = SIZE / 2;

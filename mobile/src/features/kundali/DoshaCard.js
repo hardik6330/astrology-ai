@@ -1,8 +1,8 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import CosmicCard from "./CosmicCard";
-import { useStyles } from "../theme/useStyles";
-import { radius, spacing, fontSize } from "../theme/tokens";
+import CosmicCard from "../../components/CosmicCard";
+import { useStyles } from "../../theme/useStyles";
+import { radius, spacing, fontSize } from "../../theme/tokens";
 
 // Pill colour by dosha state.
 function pillTone(state, colors) {

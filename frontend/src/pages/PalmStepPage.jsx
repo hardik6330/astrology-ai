@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChart } from "../context/ChartContext";
-import { analyzePalm } from "../services/api";
+import { useAnalyzePalm } from "@/features/palm/hooks";
 import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 
 // Mobile browsers can populate <input type=file capture="environment"> with
@@ -67,6 +67,7 @@ function resizeToBase64(file, maxDim = 600, quality = 0.8) {
         canvas.getContext("2d").drawImage(img, 0, 0, w, h);
         resolve(canvas.toDataURL("image/jpeg", quality));
       };
+      const analyze = useAnalyzePalm({ form });
       img.onerror = reject;
       img.src = e.target.result;
     };
@@ -109,7 +110,8 @@ export default function PalmStepPage() {
 
   function analyzeInBackground(dataUrl, hand) {
     setPalmAnalyzing(true);
-    analyzePalm(dataUrl, form, hand)
+    analyze
+      .mutateAsync({ imageBase64: dataUrl, claimedHand: hand })
       .then((result) => setPalm(result))
       .catch(() => {
         /* surfaced on /palm if the user visits it */

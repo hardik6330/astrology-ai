@@ -1,30 +1,31 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet,
+  View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet, BackHandler,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import ScreenContainer from "../components/ScreenContainer";
-import CosmicCard from "../components/CosmicCard";
-import MagicButton from "../components/MagicButton";
-import BottomNav from "../components/BottomNav";
-import MenuButton from "../components/MenuButton";
-import KundaliChart from "../components/KundaliChart";
-import DoshaCard from "../components/DoshaCard";
-import PanchangCard from "../components/PanchangCard";
-import PlanetaryStrengthCard from "../components/PlanetaryStrengthCard";
-import DashaWheel from "../components/DashaWheel";
-import AshtakvargaWheel from "../components/AshtakvargaWheel";
+import { useFocusEffect } from "@react-navigation/native";
+import ScreenContainer from "../../components/ScreenContainer";
+import CosmicCard from "../../components/CosmicCard";
+import MagicButton from "../../components/MagicButton";
+import BottomNav from "../../components/BottomNav";
+import MenuButton from "../../components/MenuButton";
+import KundaliChart from "../kundali/KundaliChart";
+import DoshaCard from "../kundali/DoshaCard";
+import PanchangCard from "../kundali/PanchangCard";
+import PlanetaryStrengthCard from "../kundali/PlanetaryStrengthCard";
+import DashaWheel from "../kundali/DashaWheel";
+import AshtakvargaWheel from "../kundali/AshtakvargaWheel";
 import * as Location from "expo-location";
-import { useChart } from "../context/ChartContext";
-import { useColors } from "../theme/ThemeContext";
-import { useStyles } from "../theme/useStyles";
-import { radius, spacing, fontSize } from "../theme/tokens";
+import { useChart } from "../../context/ChartContext";
+import { useColors } from "../../theme/ThemeContext";
+import { useStyles } from "../../theme/useStyles";
+import { radius, spacing, fontSize } from "../../theme/tokens";
 import {
   signOf, ZE, fmtDate, fmtDay, computeDaily, buildFactSheet,
-} from "../shared/astrology";
-import { MSGS } from "../shared/prompts";
-import { chatCompletionJSON, fetchSaved, fetchDailyDates } from "../services/api";
-import { SkeletonReading, SkeletonAIReading } from "../components/Skeleton";
+} from "../../shared/astrology";
+import { MSGS } from "../../shared/prompts";
+import { chatCompletionJSON, fetchSaved, fetchDailyDates } from "../../services/api";
+import { SkeletonReading, SkeletonAIReading } from "../../components/Skeleton";
 
 // Coerce any LLM value into renderable text (some lite models return objects).
 function asText(v) {
@@ -107,6 +108,23 @@ export default function ReadingScreen({ navigation, route }) {
   useEffect(() => {
     if (route.params?.tab && SUB_TABS.includes(route.params.tab)) setTab(route.params.tab);
   }, [route.params?.tab]);
+
+  // Reading is the home base once a chart exists. Android hardware back from
+  // a sub-tab returns to Kundali; from Kundali it exits the app rather than
+  // popping into the birth-form / PalmStep flow (which would start a fresh
+  // reading). A new reading is only ever begun by editing birth data in
+  // Profile → Home. No-op on iOS (no hardware back).
+  useFocusEffect(
+    useCallback(() => {
+      const onBack = () => {
+        if (tab !== "kundali") { setTab("kundali"); return true; }
+        BackHandler.exitApp();
+        return true;
+      };
+      const sub = BackHandler.addEventListener("hardwareBackPress", onBack);
+      return () => sub.remove();
+    }, [tab]),
+  );
 
   useEffect(() => {
     fetchDailyDates(form).then((dates) => setSavedDates(new Set(dates)));

@@ -1,20 +1,11 @@
-import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ChartProvider } from "./context/ChartContext";
-import { AuthProvider } from "./context/AuthContext";
-import AuthGate from "./components/AuthGate";
-import ProtectedRoute from "./components/ProtectedRoute";
-import RouteErrorBoundary from "./components/RouteErrorBoundary";
-import HomePage from "./pages/HomePage";
-import LoginPage from "./pages/LoginPage";
-
-// Lazy-load the heavy authenticated pages.
-const ReadingPage = lazy(() => import("./pages/ReadingPage"));
-const ChatPage    = lazy(() => import("./pages/ChatPage"));
-const PalmPage     = lazy(() => import("./pages/PalmPage"));
-const PalmStepPage    = lazy(() => import("./pages/PalmStepPage"));
-const PalmComparePage = lazy(() => import("./pages/PalmComparePage"));
-const ProfilePage  = lazy(() => import("./pages/ProfilePage"));
+import { Suspense } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { ChartProvider } from "@/context/ChartContext";
+import { AuthProvider } from "@/features/auth/AuthContext";
+import { queryClient } from "@/lib/queryClient";
+import { appRoutes } from "@/routes";
 
 function PageLoader() {
   return (
@@ -25,81 +16,24 @@ function PageLoader() {
 }
 
 // Phone-OTP auth gates the whole app. /reading|/chat|/palm additionally
-// require a generated chart (ProtectedRoute).
+// require a generated chart (ProtectedRoute). Route table lives in routes.jsx.
 export default function App() {
   return (
-    <AuthProvider>
-      <ChartProvider>
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/" element={<AuthGate><RouteErrorBoundary><HomePage /></RouteErrorBoundary></AuthGate>} />
-              <Route
-                path="/reading"
-                element={
-                  <AuthGate>
-                    <RouteErrorBoundary>
-                      <ProtectedRoute><ReadingPage /></ProtectedRoute>
-                    </RouteErrorBoundary>
-                  </AuthGate>
-                }
-              />
-              <Route
-                path="/chat"
-                element={
-                  <AuthGate>
-                    <RouteErrorBoundary>
-                      <ProtectedRoute><ChatPage /></ProtectedRoute>
-                    </RouteErrorBoundary>
-                  </AuthGate>
-                }
-              />
-              <Route
-                path="/palm"
-                element={
-                  <AuthGate>
-                    <RouteErrorBoundary>
-                      <ProtectedRoute><PalmPage /></ProtectedRoute>
-                    </RouteErrorBoundary>
-                  </AuthGate>
-                }
-              />
-              <Route
-                path="/palm-step"
-                element={
-                  <AuthGate>
-                    <RouteErrorBoundary>
-                      <ProtectedRoute><PalmStepPage /></ProtectedRoute>
-                    </RouteErrorBoundary>
-                  </AuthGate>
-                }
-              />
-              <Route
-                path="/palm-compare"
-                element={
-                  <AuthGate>
-                    <RouteErrorBoundary>
-                      <ProtectedRoute><PalmComparePage /></ProtectedRoute>
-                    </RouteErrorBoundary>
-                  </AuthGate>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <AuthGate>
-                    <RouteErrorBoundary>
-                      <ProfilePage />
-                    </RouteErrorBoundary>
-                  </AuthGate>
-                }
-              />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </ChartProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ChartProvider>
+          <BrowserRouter>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {appRoutes().map((r) => (
+                  <Route key={r.path} path={r.path} element={r.element} />
+                ))}
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </ChartProvider>
+      </AuthProvider>
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+    </QueryClientProvider>
   );
 }

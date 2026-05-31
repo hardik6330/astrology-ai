@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Switch } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useChart } from "../context/ChartContext";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../features/auth/AuthContext";
 import { useTheme } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";

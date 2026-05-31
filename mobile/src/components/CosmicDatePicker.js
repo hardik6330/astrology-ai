@@ -1,10 +1,57 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View, Text, Pressable, StyleSheet, Modal, ScrollView,
 } from "react-native";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
+
+// Fixed row height lets us deterministically center the selected value when the
+// picker opens.
+const ITEM_HEIGHT = 40;
+const VISIBLE_HEIGHT = 200; // must match styles.pickerRow height
+
+// Defined at MODULE scope (not inside the component) so its identity is stable
+// across re-renders. Inlining it made React remount the ScrollView on every
+// selection, snapping the wheel back to the top instead of holding position.
+function PickerColumn({ items, current, onPick, styles, flex = 1, format }) {
+  const ref = useRef(null);
+  const didInit = useRef(false);
+  const centerSelected = (animated) => {
+    const idx = items.indexOf(current);
+    if (idx < 0 || !ref.current) return;
+    const y = Math.max(0, idx * ITEM_HEIGHT - (VISIBLE_HEIGHT - ITEM_HEIGHT) / 2);
+    ref.current.scrollTo({ y, animated });
+  };
+  return (
+    <View style={[styles.column, { flex }]}>
+      <ScrollView
+        ref={ref}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => {
+          if (didInit.current) return;
+          didInit.current = true;       // one-shot: only on open, not on every pick
+          centerSelected(false);
+        }}
+      >
+        {items.map((item) => {
+          const isSelected = current === item;
+          return (
+            <Pressable
+              key={String(item)}
+              onPress={() => onPick(item)}
+              style={[styles.item, isSelected && styles.itemSelected]}
+            >
+              <Text style={[styles.itemText, isSelected && styles.itemTextSelected]}>
+                {format ? format(item) : item}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
 
 export default function CosmicDatePicker({ visible, value, onClose, onSelect, maxDate }) {
   const styles = useStyles(makeStyles);
@@ -41,27 +88,6 @@ export default function CosmicDatePicker({ visible, value, onClose, onSelect, ma
     onClose();
   };
 
-  const Column = ({ items, current, onPick, flex = 1 }) => (
-    <View style={[styles.column, { flex }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {items.map((item) => {
-          const isSelected = current === item;
-          return (
-            <Pressable
-              key={String(item)}
-              onPress={() => onPick(item)}
-              style={[styles.item, isSelected && styles.itemSelected]}
-            >
-              <Text style={[styles.itemText, isSelected && styles.itemTextSelected]}>
-                {item}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
@@ -69,11 +95,11 @@ export default function CosmicDatePicker({ visible, value, onClose, onSelect, ma
           <Text style={styles.title}>Birth Date</Text>
           
           <View style={styles.pickerRow}>
-            <Column items={days} current={date.d} onPick={(d) => setDate(prev => ({ ...prev, d }))} flex={0.8} />
+            <PickerColumn items={days} current={date.d} onPick={(d) => setDate(prev => ({ ...prev, d }))} flex={0.8} styles={styles} />
             <View style={styles.divider} />
-            <Column items={months} current={date.m} onPick={(m) => setDate(prev => ({ ...prev, m }))} flex={0.8} />
+            <PickerColumn items={months} current={date.m} onPick={(m) => setDate(prev => ({ ...prev, m }))} flex={0.8} styles={styles} />
             <View style={styles.divider} />
-            <Column items={years} current={date.y} onPick={(y) => setDate(prev => ({ ...prev, y }))} flex={1.2} />
+            <PickerColumn items={years} current={date.y} onPick={(y) => setDate(prev => ({ ...prev, y }))} flex={1.2} styles={styles} />
           </View>
 
           <View style={styles.footer}>
@@ -128,7 +154,8 @@ const makeStyles = (c) =>
       marginHorizontal: spacing.xs,
     },
     item: {
-      paddingVertical: spacing.sm,
+      height: ITEM_HEIGHT,
+      justifyContent: "center",
       alignItems: "center",
       borderRadius: radius.sm,
     },

@@ -1,9 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import CosmicCard from "./CosmicCard";
-import { useStyles } from "../theme/useStyles";
-import { useColors } from "../theme/ThemeContext";
-import { radius, spacing, fontSize } from "../theme/tokens";
+import CosmicCard from "../../components/CosmicCard";
+import { useStyles } from "../../theme/useStyles";
+import { useColors } from "../../theme/ThemeContext";
+import { radius, spacing, fontSize } from "../../theme/tokens";
 
 function barColor(score, c) {
   if (score >= 75) return c.success;

@@ -73,10 +73,10 @@ export function DateField({ value, onChange, mode = "date" }) {
   return (
     <>
       <Pressable style={styles.input} onPress={() => setShow(true)}>
-        <Text style={value ? styles.inputText : styles.placeholderText}>
+        <Text style={value ? styles.inputText : styles.placeholderText} numberOfLines={1}>
           {displayValue()}
         </Text>
-        <Text style={{ fontSize: 16, color: c.textDim }}>
+        <Text style={styles.fieldIcon} allowFontScaling={false}>
           {mode === "date" ? "📅" : "🕒"}
         </Text>
       </Pressable>
@@ -105,6 +105,7 @@ const makeStyles = (c) =>
     label: { fontSize: fontSize.xs, color: c.textDim, marginBottom: spacing.xs },
     input: {
       backgroundColor: c.inputBg,
+      color: c.text,                 // typed text — white in dark mode, dark in light
       borderWidth: 1, borderColor: c.cardBorder,
       borderRadius: radius.md,
       paddingHorizontal: spacing.md, paddingVertical: spacing.md,
@@ -113,8 +114,11 @@ const makeStyles = (c) =>
       justifyContent: "space-between",
       minHeight: 48,
     },
-    inputText:       { color: c.text, fontSize: fontSize.md },
-    placeholderText: { color: c.textMuted, fontSize: fontSize.md },
+    // flexShrink lets a long value truncate instead of shoving the trailing
+    // icon out of the field; the icon keeps a fixed slot beside it.
+    inputText:       { flexShrink: 1, color: c.text, fontSize: fontSize.md },
+    placeholderText: { flexShrink: 1, color: c.textMuted, fontSize: fontSize.md },
+    fieldIcon:       { marginLeft: spacing.sm, fontSize: 16, lineHeight: 20, color: c.textDim },
     doneBtn:         { alignSelf: "flex-end", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
     doneText:        { fontWeight: "600" },
   });

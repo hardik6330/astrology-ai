@@ -104,4 +104,4 @@ cd backend && DB_HOST=<host> DB_PORT=<port> DB_USER=root DB_PASS='<pass>' DB_NAM
 - Mobile root: `mobile/App.js` → `mobile/src/navigation/RootNavigator.js`
 - Mobile splash: `mobile/src/components/SplashScreen.js`
 - Mobile drawer: `mobile/src/components/DrawerContent.js`
-- Auth (mobile): `mobile/src/context/AuthContext.js`
+- Auth (mobile): `mobile/src/features/auth/AuthContext.js`

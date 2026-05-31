@@ -11,11 +11,11 @@ import Animated, {
   useSharedValue, useAnimatedStyle,
   withRepeat, withTiming, withDelay, withSequence, Easing,
 } from "react-native-reanimated";
-import { useAuth } from "../context/AuthContext";
-import { useChart } from "../context/ChartContext";
-import { useColors } from "../theme/ThemeContext";
-import { useStyles } from "../theme/useStyles";
-import { radius, spacing } from "../theme/tokens";
+import { useAuth } from "./AuthContext";
+import { useChart } from "@/context/ChartContext";
+import { useColors } from "@/theme/ThemeContext";
+import { useStyles } from "@/theme/useStyles";
+import { radius, spacing } from "@/theme/tokens";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 

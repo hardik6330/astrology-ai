@@ -6,16 +6,16 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, StyleSheet, Image, Modal, ActivityIndicator } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import ScreenContainer from "../components/ScreenContainer";
-import CosmicCard from "../components/CosmicCard";
-import MagicButton from "../components/MagicButton";
-import { useChart } from "../context/ChartContext";
-import { comparePalms } from "../services/api";
-import { useBackToKundali } from "../utils/useBackToKundali";
-import { useColors } from "../theme/ThemeContext";
-import { useStyles } from "../theme/useStyles";
-import { radius, spacing } from "../theme/tokens";
-import { gatePalmImage, warmUpGate } from "../utils/palmGate";
+import ScreenContainer from "../../components/ScreenContainer";
+import CosmicCard from "../../components/CosmicCard";
+import MagicButton from "../../components/MagicButton";
+import { useChart } from "../../context/ChartContext";
+import { comparePalms } from "../../services/api";
+import { useBackToKundali } from "../../utils/useBackToKundali";
+import { useColors } from "../../theme/ThemeContext";
+import { useStyles } from "../../theme/useStyles";
+import { radius, spacing } from "../../theme/tokens";
+import { gatePalmImage, warmUpGate } from "./palmGate";
 
 export default function PalmCompareScreen({ navigation }) {
   const {

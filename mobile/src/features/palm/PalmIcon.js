@@ -1,6 +1,6 @@
 import React from "react";
 import Svg, { Path } from "react-native-svg";
-import { color as theme } from "../theme/tokens";
+import { color as theme } from "../../theme/tokens";
 
 // Vector palm/hand icon — renders identically on every platform and font.
 // Use anywhere we need the "palm reading" glyph instead of an emoji.

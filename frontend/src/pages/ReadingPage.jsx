@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { signOf, ZE, fmtDate, fmtDay, computeDaily, buildFactSheet } from "../astrology";
 import { MSGS } from "../prompts";
-import { chatCompletionJSON, fetchSaved, fetchDailyDates } from "../services/api";
+import { chatCompletionJSON, fetchSaved } from "../services/api";
 import { useChart } from "../context/ChartContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { useDailyDates, kundaliKeys } from "@/features/kundali/hooks";
 import KundaliChart from "../components/KundaliChart";
 import BottomNav from "../components/BottomNav";
 import DoshaCard from "../components/DoshaCard";
@@ -128,13 +130,13 @@ export default function ReadingPage() {
 
   const [selDate, setSelDate] = useState(() => new Date(new Date().setHours(12, 0, 0, 0)));
   const [guideMap, setGuideMap] = useState({}); // iso date -> AI guidance
-  const [savedDates, setSavedDates] = useState(new Set()); // dates with saved guidance
   const todayBtnRef = useRef(null);
 
-  // Load which dates already have guidance, and scroll the strip to today.
-  useEffect(() => {
-    fetchDailyDates(form).then((dates) => setSavedDates(new Set(dates)));
-  }, [form]);
+  // Dates with saved guidance — drives the "dot under date" indicator.
+  // React Query caches per-form and refetches on form change automatically.
+  const { data: savedDatesArr = [] } = useDailyDates(form);
+  const savedDates = useMemo(() => new Set(savedDatesArr), [savedDatesArr]);
+  const qc = useQueryClient();
 
   useEffect(() => {
     todayBtnRef.current?.scrollIntoView({ inline: "center", block: "nearest" });
@@ -207,7 +209,7 @@ Running period: ${d.dasha}`;
       const saved = await fetchSaved("daily", form, key);
       const result = saved || (await chatCompletionJSON([], "daily", { ctx, form, date: key }));
       setGuideMap((m) => ({ ...m, [key]: result }));
-      setSavedDates((s) => new Set(s).add(key));
+      qc.invalidateQueries({ queryKey: kundaliKeys.dailyDates(form) });
     } catch (e) {
       setError("Daily guidance failed: " + e.message);
     }

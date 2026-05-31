@@ -6,7 +6,7 @@ import CosmicBackdrop from "./CosmicBackdrop";
 import { useColors } from "../theme/ThemeContext";
 import { spacing } from "../theme/tokens";
 
-export default function ScreenContainer({ children, scroll = true, padded = true, showMenu = true }) {
+export default function ScreenContainer({ children, scroll = true, scrollEnabled = true, padded = true, showMenu = true }) {
   const colors = useColors();
   const inner = (
     <View style={[padded && styles.padded, { paddingBottom: spacing.xl }]}>
@@ -27,6 +27,7 @@ export default function ScreenContainer({ children, scroll = true, padded = true
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          scrollEnabled={scrollEnabled}
         >
           {inner}
         </ScrollView>

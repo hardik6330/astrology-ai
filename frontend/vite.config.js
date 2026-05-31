@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => {
     // the ~2MB mediapipe bundle to the client.
     resolve: {
       alias: {
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
         "@mediapipe/hands": fileURLToPath(new URL("./src/utils/mediapipeStub.js", import.meta.url)),
       },
     },
