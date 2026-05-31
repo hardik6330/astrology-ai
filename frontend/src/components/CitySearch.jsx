@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { searchCities, getCityDetails } from "../services/api";
+import { color, gradient, radius, shadow } from "../theme/tokens.js";
 
 // Generate a UUID for the Places sessiontoken. Browser-native crypto when
 // available; tiny fallback for old browsers / non-secure contexts (LAN dev).
@@ -95,19 +96,62 @@ export default function CitySearch({
         autoComplete="off"
       />
       {open && (predictions.length > 0 || loading) && (
-        <ul style={dropdownStyle}>
-          {loading && <li style={hintStyle}>Searching…</li>}
+        <ul
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            marginTop: 8,
+            background: "rgba(15, 14, 32, 0.98)",
+            border: `1px solid ${color.primaryBorder}`,
+            borderRadius: radius.lg,
+            listStyle: "none",
+            padding: 8,
+            maxHeight: 300,
+            overflowY: "auto",
+            zIndex: 1000,
+            boxShadow: shadow.card,
+            backdropFilter: "blur(12px)",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+        >
+          <style>{`
+            ul::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
+          {loading && (
+            <li style={{ padding: "12px 16px", fontSize: 13, color: color.textDim }}>Searching…</li>
+          )}
           {predictions.map((p) => (
             <li
               key={p.placeId}
-              style={itemStyle}
               onMouseDown={(e) => {
                 e.preventDefault();
                 pick(p);
               }}
+              style={{
+                padding: "10px 16px",
+                cursor: "pointer",
+                borderRadius: radius.md,
+                transition: "all 0.2s ease",
+                marginBottom: 2,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(168, 85, 247, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
             >
-              <div style={{ fontSize: 14, color: "#fff" }}>{p.mainText || p.description}</div>
-              {p.secondaryText && <div style={{ fontSize: 11, color: "#888" }}>{p.secondaryText}</div>}
+              <div style={{ fontSize: 14, color: color.text, fontWeight: 500 }}>
+                {p.mainText || p.description}
+              </div>
+              {p.secondaryText && (
+                <div style={{ fontSize: 11, color: color.textDim, marginTop: 2 }}>{p.secondaryText}</div>
+              )}
             </li>
           ))}
         </ul>
@@ -115,30 +159,3 @@ export default function CitySearch({
     </div>
   );
 }
-
-const dropdownStyle = {
-  position: "absolute",
-  top: "100%",
-  left: 0,
-  right: 0,
-  marginTop: 4,
-  background: "#1a1a2e",
-  border: "1px solid #333",
-  borderRadius: 8,
-  listStyle: "none",
-  padding: 0,
-  maxHeight: 240,
-  overflowY: "auto",
-  zIndex: 50,
-  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-};
-const itemStyle = {
-  padding: "10px 14px",
-  cursor: "pointer",
-  borderBottom: "1px solid #2a2a3e",
-};
-const hintStyle = {
-  padding: "10px 14px",
-  fontSize: 13,
-  color: "#888",
-};

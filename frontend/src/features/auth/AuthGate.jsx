@@ -9,8 +9,15 @@ export default function AuthGate({ children }) {
 
   if (hydrating) {
     return (
-      <div style={{ display: "grid", placeItems: "center", minHeight: "100vh",
-                    background: "#050508", color: "#94a3b8" }}>
+      <div
+        style={{
+          display: "grid",
+          placeItems: "center",
+          minHeight: "100vh",
+          background: "#050508",
+          color: "#94a3b8",
+        }}
+      >
         <div style={{ fontSize: 32, animation: "pulse-gold 2s infinite ease-in-out" }}>✨</div>
       </div>
     );

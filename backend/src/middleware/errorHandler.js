@@ -1,6 +1,9 @@
-// Centralized async error handler — every controller throws a plain Error
-// (or one with a known .code) and this middleware translates it into the
-// right HTTP status + JSON body. Mount LAST in the middleware chain.
+// Centralized error handler. Mount LAST in the middleware chain.
+//
+// Controllers/services throw AppError (or any Error with .status / .code)
+// and this middleware translates it into the right HTTP status + JSON body.
+
+import { AppError } from '../errors/AppError.js';
 
 const STATUS_BY_CODE = {
   AI_OVERLOADED:   503,
@@ -9,6 +12,9 @@ const STATUS_BY_CODE = {
   RATE_LIMITED:    429,
   NOT_FOUND:       404,
   BAD_REQUEST:     400,
+  UNAUTHORIZED:    401,
+  FORBIDDEN:       403,
+  CONFLICT:        409,
 };
 
 export function errorHandler(err, req, res, _next) {
@@ -20,10 +26,10 @@ export function errorHandler(err, req, res, _next) {
   });
 }
 
-// Tiny helper so controllers can throw a tagged HTTP error in one line.
+// Back-compat shim for callers still using httpError(). Prefer AppError.
+// TODO: remove once all controllers/services migrate to AppError.
 export function httpError(status, message, code) {
-  const err = new Error(message);
-  err.status = status;
-  if (code) err.code = code;
-  return err;
+  return new AppError(message, status, code);
 }
+
+export { AppError };

@@ -1,0 +1,223 @@
+import React, { useState, useEffect, useRef } from "react";
+import { color, gradient, radius, shadow } from "../theme/tokens.js";
+
+function CustomTimePicker({ value, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  // Parse current value (HH:mm)
+  const getInitialTime = () => {
+    if (!value) return { h: 12, m: 0, ampm: "AM" };
+    const [h24, m] = value.split(":").map(Number);
+    const ampm = h24 >= 12 ? "PM" : "AM";
+    const h12 = h24 % 12 || 12;
+    return { h: h12, m: m, ampm };
+  };
+
+  const [time, setTime] = useState(getInitialTime());
+
+  useEffect(() => {
+    setTime(getInitialTime());
+  }, [value]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelect = (newTime) => {
+    const updated = { ...time, ...newTime };
+    setTime(updated);
+
+    // Convert to 24h format for parent
+    let h24 = updated.h % 12;
+    if (updated.ampm === "PM") h24 += 12;
+    const formatted = `${String(h24).padStart(2, "0")}:${String(updated.m).padStart(2, "0")}`;
+    onChange(formatted);
+  };
+
+  const handleNow = () => {
+    const now = new Date();
+    const h24 = now.getHours();
+    const m = now.getMinutes();
+    const ampm = h24 >= 12 ? "PM" : "AM";
+    const h12 = h24 % 12 || 12;
+    handleSelect({ h: h12, m, ampm });
+  };
+
+  const displayValue = () => {
+    if (!value) return "";
+    const { h, m, ampm } = getInitialTime();
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
+  };
+
+  const hours = Array.from({ length: 12 }, (_, i) => i + 1);
+  const minutes = Array.from({ length: 60 }, (_, i) => i);
+
+  const Column = ({ title, items, current, onSelect, type }) => (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        maxHeight: "200px",
+        overflowY: "auto",
+        flex: 1,
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "10px",
+          color: color.textDim,
+          marginBottom: "8px",
+          fontWeight: "bold",
+          textTransform: "uppercase",
+          letterSpacing: "1px",
+        }}
+      >
+        {title}
+      </div>
+      {items.map((item) => {
+        const isSelected = current === item;
+        return (
+          <button
+            key={item}
+            onClick={() => onSelect(item)}
+            style={{
+              width: "100%",
+              padding: "8px 0",
+              border: "none",
+              background: isSelected ? gradient.magic : "transparent",
+              color: isSelected ? "#fff" : color.text,
+              borderRadius: radius.sm,
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: isSelected ? "700" : "400",
+              transition: "all 0.2s ease",
+              marginBottom: "2px",
+            }}
+          >
+            {type === "minute" ? String(item).padStart(2, "0") : item}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div ref={containerRef} style={{ position: "relative" }}>
+      <input
+        type="text"
+        className="premium-input"
+        value={displayValue()}
+        onClick={() => setIsOpen(!isOpen)}
+        readOnly
+        placeholder="--:-- --"
+        style={{ cursor: "pointer" }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          right: "12px",
+          top: "50%",
+          transform: "translateY(-50%)",
+          color: color.textDim,
+          pointerEvents: "none",
+          fontSize: "14px",
+        }}
+      >
+        🕒
+      </div>
+
+      {isOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            marginTop: 8,
+            background: "rgba(15, 14, 32, 0.98)",
+            border: `1px solid ${color.primaryBorder}`,
+            borderRadius: radius.lg,
+            padding: "16px 8px",
+            boxShadow: shadow.card,
+            zIndex: 1000,
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          <div style={{ display: "flex", gap: "4px" }}>
+            <Column title="Hour" items={hours} current={time.h} onSelect={(h) => handleSelect({ h })} />
+            <div style={{ width: "1px", background: color.cardBorder, margin: "10px 0" }} />
+            <Column
+              title="Min"
+              items={minutes}
+              current={time.m}
+              onSelect={(m) => handleSelect({ m })}
+              type="minute"
+            />
+            <div style={{ width: "1px", background: color.cardBorder, margin: "10px 0" }} />
+            <Column
+              title="AM/PM"
+              items={["AM", "PM"]}
+              current={time.ampm}
+              onSelect={(ampm) => handleSelect({ ampm })}
+            />
+          </div>
+
+          <div
+            style={{
+              marginTop: 12,
+              paddingTop: 12,
+              borderTop: `1px solid ${color.cardBorder}`,
+              textAlign: "center",
+            }}
+          >
+            <button
+              onClick={handleNow}
+              style={{
+                background: "transparent",
+                border: `1px solid ${color.primaryBorder}`,
+                color: color.primaryLight,
+                padding: "6px 16px",
+                borderRadius: radius.pill,
+                cursor: "pointer",
+                fontSize: "10px",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                transition: "all 0.3s ease",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = color.primarySoft;
+                e.currentTarget.style.borderColor = color.primary;
+                e.currentTarget.style.boxShadow = `0 0 12px ${color.primarySoft}`;
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.borderColor = color.primaryBorder;
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              <span style={{ fontSize: "12px" }}>✨</span> Now
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default CustomTimePicker;

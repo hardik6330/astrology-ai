@@ -8,10 +8,10 @@ import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
 
 const ITEMS = [
-  // Home goes straight into the Kundali tab; Reading lands on the All Over
+  // Home goes straight into the Kundali tab; Reading lands on the Insights
   // (AI synthesis) tab. Both target the Reading screen with a tab param.
-  { key: "Home",    label: "Home",           icon: "🏠", route: "Reading", params: { tab: "kundali" }, desc: "Your kundali chart" },
-  { key: "Reading", label: "Reading",        icon: "✨", route: "Reading", params: { tab: "reading" }, desc: "Your AI cosmic reading" },
+  { key: "Home",    label: "Birth Chart",    icon: "🏠", route: "Reading", params: { tab: "kundali" }, desc: "Your kundali chart" },
+  { key: "Reading", label: "Insights",       icon: "✨", route: "Reading", params: { tab: "reading" }, desc: "Your AI cosmic reading" },
   { key: "Palm",    label: "Palm Reading",   icon: "✋", route: "Palm",    desc: "Hand-line insights" },
   { key: "Chat",    label: "AI Astrologer",  icon: "💬", route: "Chat",    desc: "Ask the stars anything" },
   { key: "Profile", label: "Profile",        icon: "👤", route: "Profile", desc: "Birth details & identity" },

@@ -15,24 +15,34 @@ import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 function isMobileDevice() {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent || "";
-  const touch = typeof window !== "undefined" &&
-    window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  const touch =
+    typeof window !== "undefined" && window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
   return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(ua) || touch;
 }
 
 const cardBtn = {
-  display: "flex", alignItems: "center", gap: 16,
-  padding: "16px 18px", borderRadius: 14,
+  display: "flex",
+  alignItems: "center",
+  gap: 16,
+  padding: "16px 18px",
+  borderRadius: 14,
   border: "1px solid rgba(168, 85, 247, 0.35)",
   background: "rgba(168, 85, 247, 0.08)",
-  cursor: "pointer", color: "#fff", textAlign: "left", width: "100%",
+  cursor: "pointer",
+  color: "#fff",
+  textAlign: "left",
+  width: "100%",
 };
 
 const skipBtn = {
-  marginTop: 8, padding: "12px 16px", borderRadius: 14,
+  marginTop: 8,
+  padding: "12px 16px",
+  borderRadius: 14,
   border: "1px solid rgba(255,255,255,0.12)",
   background: "transparent",
-  cursor: "pointer", color: "#94a3b8", fontWeight: 600,
+  cursor: "pointer",
+  color: "#94a3b8",
+  fontWeight: 600,
   width: "100%",
 };
 
@@ -45,14 +55,15 @@ const skipBtn = {
 function resizeToBase64(file, maxDim = 600, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
         const w = Math.round(img.width * scale);
         const h = Math.round(img.height * scale);
         const canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
+        canvas.width = w;
+        canvas.height = h;
         canvas.getContext("2d").drawImage(img, 0, 0, w, h);
         resolve(canvas.toDataURL("image/jpeg", quality));
       };
@@ -67,34 +78,42 @@ function resizeToBase64(file, maxDim = 600, quality = 0.8) {
 export default function PalmStepPage() {
   const navigate = useNavigate();
   const { form, setPalm, setPalmComparison, setPalmPhoto, setPalmAnalyzing, setPalmClaimedHand } = useChart();
-  const fileRef    = useRef(null);   // generic file picker (desktop default)
-  const cameraRef  = useRef(null);   // mobile-only camera capture
-  const galleryRef = useRef(null);   // mobile-only gallery picker
+  const fileRef = useRef(null); // generic file picker (desktop default)
+  const cameraRef = useRef(null); // mobile-only camera capture
+  const galleryRef = useRef(null); // mobile-only gallery picker
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [chooserOpen, setChooserOpen] = useState(false);   // shown on mobile
+  const [chooserOpen, setChooserOpen] = useState(false); // shown on mobile
   // Which hand button the user just tapped — sent to the backend so the
   // gate can reject if the photo actually shows the opposite hand.
-  const [claimedHand, setClaimedHand] = useState(null);    // "Left" | "Right" | null
+  const [claimedHand, setClaimedHand] = useState(null); // "Left" | "Right" | null
 
   // Pre-load the MediaPipe model in the background while the user is
   // still choosing a hand — so the first File they pick gets gated
   // without a noticeable delay.
-  useEffect(() => { warmUpGate(); }, []);
+  useEffect(() => {
+    warmUpGate();
+  }, []);
 
   const isMobile = useMemo(() => isMobileDevice(), []);
 
-  // Both paths (upload + skip) land on /reading (All Over). When a palm photo
+  // Both paths (upload + skip) land on /reading (Insights). When a palm photo
   // was provided we kick off the analysis in the background so the result is
   // ready in ChartContext.palm by the time the user opens the Palm tab.
-  function goToReading() { navigate("/reading"); }
-  function goToPalm()    { navigate("/palm"); }
+  function goToReading() {
+    navigate("/reading");
+  }
+  function goToPalm() {
+    navigate("/palm");
+  }
 
   function analyzeInBackground(dataUrl, hand) {
     setPalmAnalyzing(true);
     analyzePalm(dataUrl, form, hand)
       .then((result) => setPalm(result))
-      .catch(() => { /* surfaced on /palm if the user visits it */ })
+      .catch(() => {
+        /* surfaced on /palm if the user visits it */
+      })
       .finally(() => setPalmAnalyzing(false));
   }
 
@@ -109,14 +128,23 @@ export default function PalmStepPage() {
     }
   }
 
-  function openCamera()  { setChooserOpen(false); cameraRef.current?.click(); }
-  function openGallery() { setChooserOpen(false); galleryRef.current?.click(); }
+  function openCamera() {
+    setChooserOpen(false);
+    cameraRef.current?.click();
+  }
+  function openGallery() {
+    setChooserOpen(false);
+    galleryRef.current?.click();
+  }
 
   async function onFileSelected(e) {
     const file = e.target.files?.[0];
     // Reset value so re-picking the same file still fires onChange.
     e.target.value = "";
-    if (!file) { goToReading(); return; }
+    if (!file) {
+      goToReading();
+      return;
+    }
     setBusy(true);
     try {
       // Client-side gate — MediaPipe Hands + pixel heuristics. Rejected
@@ -148,9 +176,7 @@ export default function PalmStepPage() {
       <div className="stars"></div>
 
       <div className="cosmic-card" style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-        <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 8px" }}>
-          ✋ Add a Palm Reading?
-        </h2>
+        <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 8px" }}>✋ Add a Palm Reading?</h2>
         <p style={{ fontSize: 13, color: "#94a3b8", margin: 0, lineHeight: 1.5 }}>
           Optional — we'll analyse your palm while your kundali is being built.
         </p>
@@ -234,9 +260,7 @@ export default function PalmStepPage() {
           </p>
         )}
         {error && (
-          <p style={{ color: "#f87171", fontSize: 13, textAlign: "center", margin: "8px 0 0" }}>
-            {error}
-          </p>
+          <p style={{ color: "#f87171", fontSize: 13, textAlign: "center", margin: "8px 0 0" }}>{error}</p>
         )}
       </div>
 
@@ -248,19 +272,27 @@ export default function PalmStepPage() {
         <div
           onClick={() => setChooserOpen(false)}
           style={{
-            position: "fixed", inset: 0, zIndex: 100,
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
             background: "rgba(0,0,0,0.7)",
-            display: "flex", alignItems: "flex-end", justifyContent: "center",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: "100%", maxWidth: 480,
+              width: "100%",
+              maxWidth: 480,
               background: "#0f0e20",
-              borderTopLeftRadius: 20, borderTopRightRadius: 20,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
               border: "1px solid rgba(168,85,247,0.35)",
-              padding: 18, display: "grid", gap: 10,
+              padding: 18,
+              display: "grid",
+              gap: 10,
             }}
           >
             <p style={{ color: "#94a3b8", textAlign: "center", margin: "4px 0 8px", fontSize: 13 }}>

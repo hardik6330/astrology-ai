@@ -1040,7 +1040,7 @@ Running period: ${d.dasha}`;
           </>
         )}
 
-        {/* ─────────── TAB: All Over (AI reading) ─────────── */}
+        {/* ─────────── TAB: Insights (AI reading) ─────────── */}
         {tab === "reading" && (
           <>
             {overloaded && !interp && (

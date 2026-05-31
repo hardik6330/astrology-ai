@@ -41,8 +41,9 @@ export function initFirebase() {
     initialized = true;
     logger.info('Firebase Admin initialised');
   } catch (err) {
-    logger.fatal({ err }, 'Failed to init Firebase Admin — auth will not work');
-    throw err;
+    logger.warn({ err }, 'Firebase Admin not initialized — auth will not work');
+    // Don't throw, just log a warning and continue
+    return null;
   }
   return admin;
 }

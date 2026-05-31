@@ -110,7 +110,7 @@ export default function HomeScreen({ navigation }) {
             <PremiumInput
               value={form.name}
               onChangeText={(v) => set("name", v)}
-              placeholder="Enter your name..."
+              placeholder="Enter name..."
               autoCapitalize="words"
             />
           </View>

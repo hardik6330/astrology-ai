@@ -1,39 +1,30 @@
 import * as palm from '../services/palmService.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { AppError } from '../errors/AppError.js';
 
-export async function getSavedPalm(req, res, next) {
-  try {
-    const result = await palm.getSavedPalm(req.query);
-    if (!result) throw httpError(404, 'No saved palm reading found', 'NOT_FOUND');
-    res.json(result);
-  } catch (err) { next(err); }
-}
+export const getSavedPalm = asyncHandler(async (req, res) => {
+  const result = await palm.getSavedPalm(req.query);
+  if (!result) throw AppError.notFound('No saved palm reading found');
+  res.json(result);
+});
 
-export async function getPalmHistory(req, res, next) {
-  try {
-    const readings = await palm.getPalmHistory(req.query);
-    res.json({ readings });
-  } catch (err) { next(err); }
-}
+export const getPalmHistory = asyncHandler(async (req, res) => {
+  const readings = await palm.getPalmHistory(req.query);
+  res.json({ readings });
+});
 
-export async function getPalmById(req, res, next) {
-  try {
-    const result = await palm.getPalmById(req.params.id, req.query);
-    if (!result) throw httpError(404, 'Reading not found', 'NOT_FOUND');
-    res.json(result);
-  } catch (err) { next(err); }
-}
+export const getPalmById = asyncHandler(async (req, res) => {
+  const result = await palm.getPalmById(req.params.id, req.query);
+  if (!result) throw AppError.notFound('Reading not found');
+  res.json(result);
+});
 
-export async function analyzePalm(req, res, next) {
-  try {
-    const content = await palm.analyzePalm(req.body);
-    res.json({ content });
-  } catch (err) { next(err); }
-}
+export const analyzePalm = asyncHandler(async (req, res) => {
+  const content = await palm.analyzePalm(req.body);
+  res.json({ content });
+});
 
-export async function comparePalms(req, res, next) {
-  try {
-    const content = await palm.comparePalms(req.body);
-    res.json({ content });
-  } catch (err) { next(err); }
-}
+export const comparePalms = asyncHandler(async (req, res) => {
+  const content = await palm.comparePalms(req.body);
+  res.json({ content });
+});

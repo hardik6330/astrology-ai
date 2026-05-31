@@ -1,24 +1,19 @@
 import * as daily from '../services/dailyService.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { AppError } from '../errors/AppError.js';
 
-export async function getSavedDaily(req, res, next) {
-  try {
-    const content = await daily.getSavedDaily(req.query, req.query.targetDate);
-    if (!content) throw httpError(404, 'No saved guidance found', 'NOT_FOUND');
-    res.json({ content });
-  } catch (err) { next(err); }
-}
+export const getSavedDaily = asyncHandler(async (req, res) => {
+  const content = await daily.getSavedDaily(req.query, req.query.targetDate);
+  if (!content) throw AppError.notFound('No saved guidance found');
+  res.json({ content });
+});
 
-export async function getDailyDates(req, res, next) {
-  try {
-    const dates = await daily.getDailyDates(req.query);
-    res.json({ dates });
-  } catch (err) { next(err); }
-}
+export const getDailyDates = asyncHandler(async (req, res) => {
+  const dates = await daily.getDailyDates(req.query);
+  res.json({ dates });
+});
 
-export async function getDailyGuidance(req, res, next) {
-  try {
-    const content = await daily.generateDailyGuidance(req.body);
-    res.json({ content });
-  } catch (err) { next(err); }
-}
+export const getDailyGuidance = asyncHandler(async (req, res) => {
+  const content = await daily.generateDailyGuidance(req.body);
+  res.json({ content });
+});

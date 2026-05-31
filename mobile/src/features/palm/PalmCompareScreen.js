@@ -1,6 +1,6 @@
 // Two-hand "Full Life Comparison" flow for mobile. User picks a left
 // palm photo, then a right one, then we kick off the comparison analysis
-// in the background and navigate to the Reading "All Over" tab. The
+// in the background and navigate to the Reading "Insights" tab. The
 // PalmScreen renders the synthesis when the user opens Palm.
 
 import React, { useState } from "react";

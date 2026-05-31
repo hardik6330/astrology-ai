@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, Platform } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { useColors } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
+import CosmicDatePicker from "./CosmicDatePicker";
+import CosmicTimePicker from "./CosmicTimePicker";
 
 export function Label({ children }) {
   const styles = useStyles(makeStyles);
@@ -75,20 +76,25 @@ export function DateField({ value, onChange, mode = "date" }) {
         <Text style={value ? styles.inputText : styles.placeholderText}>
           {displayValue()}
         </Text>
+        <Text style={{ fontSize: 16, color: c.textDim }}>
+          {mode === "date" ? "📅" : "🕒"}
+        </Text>
       </Pressable>
-      {show && (
-        <DateTimePicker
-          value={toDate()}
-          mode={mode}
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={onPick}
-          maximumDate={mode === "date" ? new Date() : undefined}
+
+      {mode === "date" ? (
+        <CosmicDatePicker
+          visible={show}
+          value={value}
+          onClose={() => setShow(false)}
+          onSelect={onChange}
         />
-      )}
-      {Platform.OS === "ios" && show && (
-        <Pressable onPress={() => setShow(false)} style={styles.doneBtn}>
-          <Text style={[styles.doneText, { color: c.primaryLight }]}>Done</Text>
-        </Pressable>
+      ) : (
+        <CosmicTimePicker
+          visible={show}
+          value={value}
+          onClose={() => setShow(false)}
+          onSelect={onChange}
+        />
       )}
     </>
   );
@@ -102,7 +108,10 @@ const makeStyles = (c) =>
       borderWidth: 1, borderColor: c.cardBorder,
       borderRadius: radius.md,
       paddingHorizontal: spacing.md, paddingVertical: spacing.md,
-      color: c.text, fontSize: fontSize.md, minHeight: 48,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      minHeight: 48,
     },
     inputText:       { color: c.text, fontSize: fontSize.md },
     placeholderText: { color: c.textMuted, fontSize: fontSize.md },

@@ -86,7 +86,11 @@ export default function CitySearch({ value, onSelect, birthTimestamp, placeholde
               <Text style={styles.hint}>Searching…</Text>
             </View>
           )}
-          <ScrollView style={{ maxHeight: 240 }} keyboardShouldPersistTaps="handled">
+          <ScrollView 
+              style={{ maxHeight: 240 }} 
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
             {predictions.map((item) => (
               <Pressable key={item.placeId} style={styles.item} onPress={() => pick(item)}>
                 <Text style={styles.mainText} numberOfLines={1}>
@@ -113,11 +117,12 @@ const makeStyles = (c) =>
       top: "100%",
       left: 0,
       right: 0,
-      marginTop: 4,
+      marginTop: 8,
       backgroundColor: c.cardBgSolid || "#0f0f18",
       borderWidth: 1,
-      borderColor: c.cardBorder || "#333",
-      borderRadius: radius.md,
+      borderColor: c.primaryBorder || "#333",
+      borderRadius: radius.lg,
+      padding: spacing.xs,
       maxHeight: 240,
       zIndex: 100,
       elevation: 5,
@@ -127,13 +132,12 @@ const makeStyles = (c) =>
       shadowRadius: 8,
     },
     item: {
-      paddingVertical: spacing.sm,
+      paddingVertical: spacing.md,
       paddingHorizontal: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: c.cardBorder || "#2a2a3e",
+      borderRadius: radius.md,
     },
-    mainText: { color: c.text || "#fff", fontSize: fontSize.md },
-    subText:  { color: c.textMuted, fontSize: fontSize.xs, marginTop: 2 },
-    hintRow:  { flexDirection: "row", alignItems: "center", padding: spacing.sm, gap: spacing.sm },
-    hint:     { color: c.textMuted, fontSize: fontSize.sm },
+    mainText: { color: c.text || "#fff", fontSize: fontSize.md, fontWeight: "600" },
+    subText:  { color: c.textDim, fontSize: fontSize.xs, marginTop: 2 },
+    hintRow:  { flexDirection: "row", alignItems: "center", padding: spacing.md, gap: spacing.sm },
+    hint:     { color: c.textDim, fontSize: fontSize.sm },
   });

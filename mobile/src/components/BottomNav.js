@@ -5,10 +5,10 @@ import { useStyles } from "../theme/useStyles";
 import { radius } from "../theme/tokens";
 
 const TABS = [
-  { key: "kundali",  label: "Kundali",  icon: "🪔", route: "Reading", params: { tab: "kundali" } },
+  { key: "kundali",  label: "Birth Chart", icon: "🪔", route: "Reading", params: { tab: "kundali" } },
   { key: "planets",  label: "Planets",  icon: "🪐", route: "Reading", params: { tab: "planets" } },
   { key: "timeline", label: "Timeline", icon: "🔮", route: "Reading", params: { tab: "timeline" } },
-  { key: "reading",  label: "All Over", icon: "✨", route: "Reading", params: { tab: "reading" } },
+  { key: "reading",  label: "Insights", icon: "✨", route: "Reading", params: { tab: "reading" } },
 ];
 
 export default function BottomNav({ activeKey, navigation, onLocalTab }) {

@@ -22,4 +22,8 @@ export const auth = getAuth(firebaseApp);
 
 // Analytics fails silently in environments where it's not supported (SSR,
 // non-https http preview). We don't await this — page rendering shouldn't block.
-analyticsSupported().then((ok) => { if (ok) getAnalytics(firebaseApp); }).catch(() => {});
+analyticsSupported()
+  .then((ok) => {
+    if (ok) getAnalytics(firebaseApp);
+  })
+  .catch(() => {});

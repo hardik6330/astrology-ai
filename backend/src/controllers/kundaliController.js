@@ -1,17 +1,14 @@
 import * as kundali from '../services/kundaliService.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { AppError } from '../errors/AppError.js';
 
-export async function getSavedInterpretation(req, res, next) {
-  try {
-    const content = await kundali.getSavedInterpretation(req.query);
-    if (!content) throw httpError(404, 'No saved reading found', 'NOT_FOUND');
-    res.json({ content });
-  } catch (err) { next(err); }
-}
+export const getSavedInterpretation = asyncHandler(async (req, res) => {
+  const content = await kundali.getSavedInterpretation(req.query);
+  if (!content) throw AppError.notFound('No saved reading found');
+  res.json({ content });
+});
 
-export async function interpretChart(req, res, next) {
-  try {
-    const content = await kundali.generateInterpretation(req.body);
-    res.json({ content });
-  } catch (err) { next(err); }
-}
+export const interpretChart = asyncHandler(async (req, res) => {
+  const content = await kundali.generateInterpretation(req.body);
+  res.json({ content });
+});

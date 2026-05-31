@@ -3,6 +3,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { computeChart } from "../astrology";
 import { useChart } from "../context/ChartContext";
 import CitySearch from "../components/CitySearch";
+import CustomDatePicker from "../components/CustomDatePicker";
+import CustomTimePicker from "../components/CustomTimePicker";
+import CustomSelect from "../components/CustomSelect";
 
 const lbl = { fontSize: 13, color: "#888", display: "block", marginBottom: 4 };
 
@@ -124,44 +127,33 @@ export default function HomePage() {
               <label style={lbl}>Full Name</label>
               <input
                 className="premium-input"
-                placeholder="Enter your name..."
+                placeholder="Enter name..."
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
               />
             </div>
             <div>
               <label style={lbl}>Gender</label>
-              <select
-                className="premium-input"
+              <CustomSelect
                 value={form.gender}
                 onChange={(e) => set("gender", e.target.value)}
-              >
-                <option value="">— optional —</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
+                placeholder="— optional —"
+                options={[
+                  { label: "Male", value: "Male" },
+                  { label: "Female", value: "Female" },
+                  { label: "Other", value: "Other" },
+                ]}
+              />
             </div>
           </div>
           <div className="grid-2">
             <div>
               <label style={lbl}>Birth Date</label>
-              <input
-                type="date"
-                className="premium-input"
-                value={form.date}
-                max={today}
-                onChange={(e) => set("date", e.target.value)}
-              />
+              <CustomDatePicker value={form.date} max={today} onChange={(val) => set("date", val)} />
             </div>
             <div>
               <label style={lbl}>Birth Time</label>
-              <input
-                type="time"
-                className="premium-input"
-                value={form.time}
-                onChange={(e) => set("time", e.target.value)}
-              />
+              <CustomTimePicker value={form.time} onChange={(val) => set("time", val)} />
             </div>
           </div>
           <div>

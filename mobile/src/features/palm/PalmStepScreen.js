@@ -1,7 +1,7 @@
 // Onboarding step shown between the birth-detail form and the kundali
 // reading. The user picks a hand (right/left) and then a source (camera
 // or gallery), mirroring the main PalmScreen. Skipping at any point
-// takes them straight to the All Over reading.
+// takes them straight to the Insights reading.
 // Hand-side is a UI label only — not sent to AI.
 
 import React, { useState, useEffect } from "react";
@@ -32,7 +32,7 @@ export default function PalmStepScreen({ navigation }) {
   // Android hardware back → Reading/Kundali instead of exiting the app.
   useBackToKundali(navigation);
 
-  // Both paths (upload + skip) land on the Reading "All Over" tab. When a
+  // Both paths (upload + skip) land on the Reading "Insights" tab. When a
   // palm photo was provided we kick off the analysis in the background so the
   // result is ready in ChartContext.palm by the time the user opens Palm.
   function goToReading() {

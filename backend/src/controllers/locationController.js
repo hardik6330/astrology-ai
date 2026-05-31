@@ -1,18 +1,15 @@
 import * as loc from '../services/locationService.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
-export async function search(req, res, next) {
-  try {
-    const { q, token } = req.query;
-    const results = await loc.searchCities(q, token);
-    res.json({ results });
-  } catch (err) { next(err); }
-}
+export const search = asyncHandler(async (req, res) => {
+  const { q, token } = req.query;
+  const results = await loc.searchCities(q, token);
+  res.json({ results });
+});
 
-export async function details(req, res, next) {
-  try {
-    const { placeId, token, ts } = req.query;
-    const timestamp = ts ? Number(ts) : undefined;
-    const data = await loc.getCityDetails(placeId, token, timestamp);
-    res.json(data);
-  } catch (err) { next(err); }
-}
+export const details = asyncHandler(async (req, res) => {
+  const { placeId, token, ts } = req.query;
+  const timestamp = ts ? Number(ts) : undefined;
+  const data = await loc.getCityDetails(placeId, token, timestamp);
+  res.json(data);
+});

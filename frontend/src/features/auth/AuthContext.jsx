@@ -10,17 +10,22 @@ const KEY = "app_token";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken]     = useState(() => localStorage.getItem(KEY));
+  const [token, setToken] = useState(() => localStorage.getItem(KEY));
   const [account, setAccount] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("app_account") || "null"); }
-    catch { return null; }
+    try {
+      return JSON.parse(localStorage.getItem("app_account") || "null");
+    } catch {
+      return null;
+    }
   });
 
   // Calls backend /auth/dummy-login. On success returns any savedForm so
   // the caller can hydrate ChartContext and route the user straight to
   // their kundali. Falls back to a local-only session on network failure.
   async function login({ phone }) {
-    let tok, acc, savedForm = null;
+    let tok,
+      acc,
+      savedForm = null;
     try {
       const data = await dummyLogin(phone);
       tok = data.token;
