@@ -1,0 +1,135 @@
+import React, { useEffect, useRef } from "react";
+import { View, Text, ScrollView, Pressable } from "react-native";
+import CosmicCard from "../../../components/CosmicCard";
+import { useColors } from "../../../theme/ThemeContext";
+import { useStyles } from "../../../theme/useStyles";
+import { spacing } from "../../../theme/tokens";
+import { WD_SHORT, MONTHS } from "../constants";
+import { makeStyles } from "../styles";
+
+export default function DailyCard({
+  form, dailyTransit, guide, monthDays, selDate, todayIso, savedDates, selectDay, loadDaily, dailyBusy,
+  activeLoc, locError, getGpsLocation,
+}) {
+  const color = useColors();
+  const s = useStyles(makeStyles);
+  const stripRef = useRef(null);
+  const DAY_W = 56; // 50px button + 6px gap
+
+  // Center today's date when the strip first renders.
+  useEffect(() => {
+    const idx = monthDays.findIndex((d) => d.toISOString().split("T")[0] === todayIso);
+    if (idx < 0) return;
+    // Defer until after layout so the ScrollView has a measured width.
+    const id = setTimeout(() => {
+      stripRef.current?.scrollTo({ x: Math.max(0, idx * DAY_W - 120), animated: false });
+    }, 50);
+    return () => clearTimeout(id);
+  }, [monthDays, todayIso]);
+
+  if (!dailyTransit) return null;
+  const dStr = (d) => d.toISOString().split("T")[0];
+  return (
+    <CosmicCard>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+        <Text style={[s.cardTitle, { marginBottom: 0 }]}>
+          {(form.name || "Your")}{form.name ? "'s" : ""} Daily Insights
+        </Text>
+
+        <View style={{ textAlign: "right" }}>
+          {activeLoc?.isGps ? (
+            <Text style={{ fontSize: 11, color: color.primaryLight, fontWeight: "500" }}>
+              📍 {activeLoc.n} (Live)
+            </Text>
+          ) : (
+            <Pressable onPress={getGpsLocation}>
+              <Text
+                style={{
+                  color: locError ? color.danger : color.primaryLight,
+                  textDecorationLine: "underline",
+                  fontSize: 11,
+                }}
+              >
+                {locError ? "⚠️ GPS Blocked" : "📍 Use Live Location"}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      <ScrollView ref={stripRef} horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }} contentContainerStyle={{ gap: 6, paddingBottom: 4 }}>
+        {monthDays.map((d) => {
+          const id = dStr(d);
+          const active  = id === dStr(selDate);
+          const isToday = id === todayIso;
+          const hasData = savedDates.has(id);
+          return (
+            <Pressable
+              key={id}
+              onPress={() => selectDay(d)}
+              style={[s.dayBtn, active && s.dayBtnActive, !active && hasData && s.dayBtnHasData]}
+            >
+              <Text style={[s.dayBtnTop, active && { color: color.primaryLight }]}>
+                {isToday ? "TODAY" : WD_SHORT[d.getDay()]}
+              </Text>
+              <Text style={[s.dayBtnNum, active && { color: color.primaryLight }]}>{d.getDate()}</Text>
+              <Text style={s.dayBtnMo}>{MONTHS[d.getMonth()]}</Text>
+              {hasData && <View style={s.dayDot} />}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <Text style={s.alignPct}>{dailyTransit.alignment}% Aligned</Text>
+      {guide?.dayTitle && <Text style={s.dayTitle}>{guide.dayTitle}</Text>}
+      {guide?.intro && <Text style={s.dayIntro}>{guide.intro}</Text>}
+      <Text style={s.dayMeta}>
+        {dailyTransit.weekday} · ruled by {dailyTransit.dayLord} · Moon in {dailyTransit.moonSign}
+      </Text>
+
+      <View style={s.chipRow}>
+        {[
+          ["WEAR", dailyTransit.luckyColor],
+          ["MANIFEST", "◆ " + dailyTransit.luckyNumber],
+          ...(dailyTransit.auspicious ? [["AUSPICIOUS", `${dailyTransit.auspicious.start} – ${dailyTransit.auspicious.end}`]] : []),
+          ...(dailyTransit.rahuKaal ? [["RAHU KAAL", `${dailyTransit.rahuKaal.start} – ${dailyTransit.rahuKaal.end}`]] : []),
+        ].map(([l, v]) => (
+          <View key={l} style={s.chip}>
+            <Text style={[s.chipLabel, l === "RAHU KAAL" && { color: color.danger }]}>{l}</Text>
+            <Text style={s.chipValue}>{v}</Text>
+          </View>
+        ))}
+      </View>
+
+      {guide?.action && (
+        <View style={s.action}>
+          <Text style={s.actionLabel}>ACTION OF THE DAY</Text>
+          <Text style={s.actionText}>"{guide.action}"</Text>
+        </View>
+      )}
+
+      {!guide && (
+        <Pressable onPress={() => loadDaily(selDate)} disabled={dailyBusy} style={[s.revealBtn, dailyBusy && { opacity: 0.5 }]}>
+          <Text style={s.revealText}>
+            {dailyBusy ? "Reading the sky…" : "✨ Reveal This Day's Full Guidance"}
+          </Text>
+        </Pressable>
+      )}
+
+      {guide && (
+        <View style={{ marginTop: spacing.md, gap: 10 }}>
+          {[
+            ["SELF", guide.self], ["LOVE", guide.love], ["RELATIONSHIP", guide.relationship],
+            ["FAMILY", guide.family], ["JOB", guide.job], ["HEALTH", guide.health],
+            ["WEALTH", guide.wealth], ["SPIRITUAL", guide.spiritual], ["AVOID", guide.avoid],
+          ].map(([l, v]) => v ? (
+            <View key={l}>
+              <Text style={s.guideLabel}>{l}</Text>
+              <Text style={s.guideText}>{v}</Text>
+            </View>
+          ) : null)}
+        </View>
+      )}
+    </CosmicCard>
+  );
+}

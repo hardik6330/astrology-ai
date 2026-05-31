@@ -1,0 +1,33 @@
+import React from "react";
+import { View, Text, Image } from "react-native";
+import CosmicCard from "../../../components/CosmicCard";
+import MagicButton from "../../../components/MagicButton";
+import { useStyles } from "../../../theme/useStyles";
+import { spacing } from "../../../theme/tokens";
+import { REJECT_INFO } from "../constants";
+import { makeStyles } from "../styles";
+
+// Shown when a single-hand reading came back imageQuality === "unusable".
+export default function RejectView({ palm, preview, reset }) {
+  const s = useStyles(makeStyles);
+  const info = REJECT_INFO[palm.rejectReason] || REJECT_INFO.default;
+
+  return (
+    <CosmicCard style={{ borderColor: "rgba(248,113,113,0.4)", backgroundColor: "rgba(248,113,113,0.06)", alignItems: "center" }}>
+      {preview?.uri ? (
+        <View style={s.rejectThumb}>
+          <Image source={{ uri: preview.uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+        </View>
+      ) : null}
+      <Text style={{ fontSize: 44, lineHeight: 58 }}>{info.icon}</Text>
+      <Text style={s.rejectTitle}>{info.title}</Text>
+      <Text style={s.rejectTip}>{info.tip}</Text>
+      {palm.retakeReason ? (
+        <Text style={s.rejectReason}>{palm.retakeReason}</Text>
+      ) : null}
+      <MagicButton style={{ width: "100%", marginTop: spacing.md }} onPress={reset}>
+        📷 Upload Another Photo
+      </MagicButton>
+    </CosmicCard>
+  );
+}
