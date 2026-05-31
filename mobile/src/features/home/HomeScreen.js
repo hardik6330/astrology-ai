@@ -10,7 +10,7 @@ import CitySearch from "@/features/location/CitySearch";
 import { useChart } from "@/context/ChartContext";
 import { computeChart } from "@/shared/astrology";
 import { useStyles } from "@/theme/useStyles";
-import { spacing, fontSize } from "@/theme/tokens";
+import { radius, spacing, fontSize } from "@/theme/tokens";
 
 const GENDERS = [
   { label: "Male",   value: "Male" },
@@ -70,13 +70,13 @@ export default function HomeScreen({ navigation }) {
   }
 
   function generate() {
-    if (!form.date || !form.time || !form.city) {
-      setError("All fields are required!");
-      return;
-    }
+    if (!form.name?.trim()) return setError("Please enter your name.");
+    if (!form.gender) return setError("Please select your gender.");
+    if (!form.date)  return setError("Please select your birth date.");
+    if (!form.time)  return setError("Please select your birth time.");
+    if (!form.city)  return setError("Please select your birth city.");
     if (form.lat == null || form.lon == null || form.tz == null) {
-      setError("Please pick your city from the suggestions.");
-      return;
+      return setError("Please pick your city from the suggestions list.");
     }
     setError("");
     try {
@@ -122,7 +122,7 @@ export default function HomeScreen({ navigation }) {
               value={form.gender}
               onChange={(v) => set("gender", v)}
               options={GENDERS}
-              placeholder="— optional —"
+              placeholder="Select gender"
             />
           </View>
         </View>
@@ -148,16 +148,16 @@ export default function HomeScreen({ navigation }) {
           />
         </View>
 
+        {error ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errText}>⚠️ {error}</Text>
+          </View>
+        ) : null}
+
         <MagicButton onPress={generate} style={{ marginTop: spacing.md }}>
           Reveal My Destiny ↗
         </MagicButton>
       </CosmicCard>
-
-      {error ? (
-        <CosmicCard error>
-          <Text style={styles.errText}>⚠️ {error}</Text>
-        </CosmicCard>
-      ) : null}
     </ScreenContainer>
   );
 }
@@ -176,5 +176,15 @@ const makeStyles = (c) =>
     row:     { flexDirection: "row", gap: spacing.md, marginBottom: spacing.md },
     col:     { flex: 1, minWidth: 0 },
     field:   { marginBottom: spacing.md },
-    errText: { color: c.danger, fontSize: fontSize.sm },
+    // Inline validation error, shown right above the submit button so it's
+    // visible the moment the user taps (the old card rendered below the fold).
+    errorBox: {
+      flexDirection: "row",
+      backgroundColor: "rgba(248,113,113,0.10)",
+      borderWidth: 1, borderColor: c.danger,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    errText: { color: c.danger, fontSize: fontSize.sm, flex: 1 },
   });

@@ -13,7 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useAuth } from "./AuthContext";
 import { useChart } from "@/context/ChartContext";
-import { useColors } from "@/theme/ThemeContext";
+import { useTheme } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing } from "@/theme/tokens";
 
@@ -203,7 +203,7 @@ const RESEND_SECS = 30;
 export default function LoginScreen() {
   const { login } = useAuth();
   const { applySavedForm } = useChart();
-  const color = useColors();
+  const { theme, colors: color } = useTheme();
   const s = useStyles(makeStyles);
 
   const [phone, setPhone] = useState("");
@@ -259,7 +259,7 @@ export default function LoginScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
         <View style={s.wrap}>
-          <BlurView intensity={60} tint="dark" style={s.card}>
+          <BlurView intensity={60} tint={theme === "light" ? "light" : "dark"} style={s.card}>
             <Text style={s.emoji}>🪐</Text>
             <Text style={s.title}>Sign in to Astrology AI</Text>
             <Text style={s.subtitle}>
@@ -339,14 +339,14 @@ const makeStyles = (c) => StyleSheet.create({
     overflow: "hidden",
   },
   emoji: { fontSize: 52, textAlign: "center", marginBottom: 14, lineHeight: 60 },
-  title: { color: "#fff", fontSize: 22, fontWeight: "800", textAlign: "center", letterSpacing: 0.3 },
-  subtitle: { color: "rgba(203,213,225,0.85)", fontSize: 13, textAlign: "center", marginTop: 8, marginBottom: 26, lineHeight: 19, paddingHorizontal: 8 },
-  label: { color: "rgba(203,213,225,0.85)", fontSize: 11, letterSpacing: 1.5, marginBottom: 8, fontWeight: "600", textTransform: "uppercase" },
+  title: { color: c.text, fontSize: 22, fontWeight: "800", textAlign: "center", letterSpacing: 0.3 },
+  subtitle: { color: c.textBody, fontSize: 13, textAlign: "center", marginTop: 8, marginBottom: 26, lineHeight: 19, paddingHorizontal: 8 },
+  label: { color: c.textDim, fontSize: 11, letterSpacing: 1.5, marginBottom: 8, fontWeight: "600", textTransform: "uppercase" },
   input: {
     width: "100%", paddingHorizontal: 14, paddingVertical: 13, borderRadius: 12,
-    backgroundColor: "rgba(148,163,184,0.10)",
-    borderWidth: 1, borderColor: "rgba(148,163,184,0.22)",
-    color: "#fff", fontSize: 15,
+    backgroundColor: c.inputBg,
+    borderWidth: 1, borderColor: c.cardBorder,
+    color: c.text, fontSize: 15,
   },
   // Standalone OTP input — drop the row's flex:1 (was eating vertical
   // space + breaking centered text on Android), use real width + tracking.
