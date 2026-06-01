@@ -1,6 +1,8 @@
 import React from "react";
-import { View, Text, Image, Pressable, ActivityIndicator, Animated } from "react-native";
+import { View, Text, ActivityIndicator, Animated } from "react-native";
+import { Image } from "expo-image";
 import CosmicCard from "../../../components/CosmicCard";
+import PressableScale from "../../../components/PressableScale";
 import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { spacing, fontSize } from "../../../theme/tokens";
@@ -25,7 +27,7 @@ export default function UploadView({
           </Text>
 
           {/* Premium headline card — Both Hands · Full Life Comparison */}
-          <Pressable
+          <PressableScale
             onPress={() => navigation.navigate("PalmCompare")}
             style={({ pressed }) => [s.uploadBothBtn, pressed && { opacity: 0.85 }, { marginTop: spacing.md }]}
           >
@@ -41,9 +43,9 @@ export default function UploadView({
               </Text>
             </View>
             <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
-          </Pressable>
+          </PressableScale>
 
-          <Pressable
+          <PressableScale
             onPress={() => { setError(""); setActiveHand("Right"); }}
             style={({ pressed }) => [s.uploadHandBtn, pressed && { opacity: 0.7 }, { marginTop: spacing.sm }]}
           >
@@ -53,8 +55,8 @@ export default function UploadView({
               <Text style={s.uploadHandSub}>Tap to take or pick a photo</Text>
             </View>
             <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
-          </Pressable>
-          <Pressable
+          </PressableScale>
+          <PressableScale
             onPress={() => { setError(""); setActiveHand("Left"); }}
             style={({ pressed }) => [s.uploadHandBtn, pressed && { opacity: 0.7 }, { marginTop: spacing.sm }]}
           >
@@ -64,7 +66,7 @@ export default function UploadView({
               <Text style={s.uploadHandSub}>Tap to take or pick a photo</Text>
             </View>
             <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
-          </Pressable>
+          </PressableScale>
 
           {gating && (
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, marginTop: spacing.md }}>
@@ -88,7 +90,7 @@ export default function UploadView({
             </View>
           ) : null}
           <View style={s.scanFrame}>
-            <Image source={{ uri: preview.uri }} style={s.scanImage} resizeMode="cover" />
+            <Image source={{ uri: preview.uri }} style={s.scanImage} contentFit="cover" transition={200} />
             <Animated.View
               pointerEvents="none"
               style={[

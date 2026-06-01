@@ -15,6 +15,7 @@ import LoginScreen       from "../features/auth/LoginScreen";
 import DrawerContent     from "../components/DrawerContent";
 import { color } from "../theme/tokens";
 import { useAuth } from "../features/auth/AuthContext";
+import { useChart } from "../context/ChartContext";
 
 const Drawer = createDrawerNavigator();
 const Stack  = createNativeStackNavigator();
@@ -29,9 +30,15 @@ const navTheme = {
 };
 
 function MainDrawer() {
+  // Returning users already have a saved chart → open straight on the Birth
+  // Chart tab (Reading), skipping the Home birth-detail form. New users (no
+  // chart yet) start on Home so they can enter their details. The chart is
+  // set synchronously by applySavedForm before login flips the token, so it's
+  // already present when this drawer first mounts.
+  const { chart } = useChart();
   return (
     <Drawer.Navigator
-      initialRouteName="Home"
+      initialRouteName={chart ? "Reading" : "Home"}
       drawerContent={(props) => <DrawerContent {...props} />}
       screenOptions={{
         headerShown: false,

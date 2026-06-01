@@ -3,6 +3,7 @@ import { Pressable, Text, StyleSheet, ActivityIndicator, View } from "react-nati
 import { useStyles } from "../theme/useStyles";
 import { useColors } from "../theme/ThemeContext";
 import { radius, spacing, fontSize, shadow } from "../theme/tokens";
+import { haptics } from "../utils/haptics";
 
 export default function MagicButton({
   onPress, children, loading, disabled, variant = "primary", style,
@@ -12,7 +13,7 @@ export default function MagicButton({
   const isPrimary = variant === "primary";
   return (
     <Pressable
-      onPress={onPress}
+      onPress={(e) => { haptics.tap(); onPress?.(e); }}
       disabled={loading || disabled}
       style={({ pressed }) => [
         styles.btn,

@@ -16,6 +16,8 @@ import { useStyles } from "../../theme/useStyles";
 import { radius, spacing } from "../../theme/tokens";
 import { gatePalmImage, warmUpGate } from "./palmGate";
 import { useBackToKundali } from "../../utils/useBackToKundali";
+import { haptics } from "../../utils/haptics";
+import { compressPhoto } from "../../utils/compressImage";
 
 export default function PalmStepScreen({ navigation }) {
   const { form, setPalm, setPalmComparison, setPalmPhoto, setPalmAnalyzing, setPalmClaimedHand } = useChart();
@@ -86,18 +88,20 @@ export default function PalmStepScreen({ navigation }) {
       const gateResult = await gatePalmImage(a, activeHand);
       if (!gateResult.ok) {
         setError(gateResult.retakeReason);
+        haptics.warning();
         setBusy(false);
         setActiveHand(null); // Hide drawer on failure
         return;
       }
 
+      const img = await compressPhoto(a);
       // Clear old data so PalmScreen shows the scanning animation for the new photo
       setPalm(null);
       setPalmComparison(null);
-      setPalmPhoto(a.uri);
+      setPalmPhoto(img.uri);
       setPalmClaimedHand(activeHand);   // share with PalmScreen for the scan-screen badge
       // activeHand is "Right" | "Left" — already in the right shape.
-      analyzeInBackground(a.base64, activeHand);
+      analyzeInBackground(img.base64, activeHand);
       goToPalm();
     } catch {
       setError("Couldn't open the picker.");

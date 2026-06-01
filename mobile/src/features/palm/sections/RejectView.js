@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Image } from "react-native";
+import { View, Text } from "react-native";
+import { Image } from "expo-image";
 import CosmicCard from "../../../components/CosmicCard";
 import MagicButton from "../../../components/MagicButton";
 import { useStyles } from "../../../theme/useStyles";
@@ -16,7 +17,7 @@ export default function RejectView({ palm, preview, reset }) {
     <CosmicCard style={{ borderColor: "rgba(248,113,113,0.4)", backgroundColor: "rgba(248,113,113,0.06)", alignItems: "center" }}>
       {preview?.uri ? (
         <View style={s.rejectThumb}>
-          <Image source={{ uri: preview.uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+          <Image source={{ uri: preview.uri }} style={{ width: "100%", height: "100%" }} contentFit="cover" transition={200} />
         </View>
       ) : null}
       <Text style={{ fontSize: 44, lineHeight: 58 }}>{info.icon}</Text>

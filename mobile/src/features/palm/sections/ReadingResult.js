@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Image, Pressable } from "react-native";
+import { View, Text, Pressable } from "react-native";
+import { Image } from "expo-image";
 import CosmicCard from "../../../components/CosmicCard";
 import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
@@ -23,7 +24,7 @@ export default function ReadingResult({ palm, preview, reset }) {
             </View>
           ) : null}
           <View style={s.palmPhoto}>
-            <Image source={{ uri: preview.uri }} style={{ width: "100%", aspectRatio: 3 / 4 }} resizeMode="cover" />
+            <Image source={{ uri: preview.uri }} style={{ width: "100%", aspectRatio: 3 / 4 }} contentFit="cover" transition={200} />
           </View>
         </CosmicCard>
       )}

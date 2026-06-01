@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View, Text, ScrollView, BackHandler } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import * as Location from "expo-location";
 import BottomNav from "../../components/BottomNav";
 import MenuButton from "../../components/MenuButton";
@@ -14,6 +15,7 @@ import { spacing, fontSize } from "../../theme/tokens";
 import { signOf, computeDaily, buildFactSheet } from "../../shared/astrology";
 import { MSGS } from "../../shared/prompts";
 import { chatCompletionJSON, fetchSaved, fetchDailyDates } from "../../services/api";
+import { haptics } from "../../utils/haptics";
 import { SUB_TABS, iso } from "./constants";
 import { makeStyles } from "./styles";
 import KundaliTab from "./sections/KundaliTab";
@@ -135,11 +137,13 @@ export default function ReadingScreen({ navigation, route }) {
             form,
           }))
       );
+      haptics.success();
     } catch (e) {
       if (e.code === "AI_OVERLOADED") {
         setOverloaded(true);
         setCooldown(40);
-      } else setError(e.message);
+        haptics.warning();
+      } else { setError(e.message); haptics.warning(); }
     } finally {
       clearInterval(iv);
       setLoading(false);
@@ -230,36 +234,40 @@ Running period: ${d.dasha}`;
             </CosmicCard>
           ) : null}
 
-          {tab === "kundali" && (
-            <KundaliTab
-              chart={chart}
-              chartStyle={chartStyle}
-              setChartStyle={setChartStyle}
-              daily={{
-                form, dailyTransit, guide, monthDays, selDate, todayIso,
-                savedDates, selectDay, loadDaily, dailyBusy,
-                activeLoc, locError, getGpsLocation,
-              }}
-            />
-          )}
+          {/* key={tab} remounts on every switch so the section cross-fades in
+              instead of hard-cutting. */}
+          <Animated.View key={tab} entering={FadeIn.duration(200)}>
+            {tab === "kundali" && (
+              <KundaliTab
+                chart={chart}
+                chartStyle={chartStyle}
+                setChartStyle={setChartStyle}
+                daily={{
+                  form, dailyTransit, guide, monthDays, selDate, todayIso,
+                  savedDates, selectDay, loadDaily, dailyBusy,
+                  activeLoc, locError, getGpsLocation,
+                }}
+              />
+            )}
 
-          {tab === "planets" && <PlanetsTab chart={chart} now={now} />}
+            {tab === "planets" && <PlanetsTab chart={chart} now={now} />}
 
-          {tab === "timeline" && <TimelineTab chart={chart} />}
+            {tab === "timeline" && <TimelineTab chart={chart} />}
 
-          {tab === "reading" && (
-            <ReadingTab
-              interp={interp}
-              loading={loading}
-              overloaded={overloaded}
-              cooldown={cooldown}
-              loadMsg={loadMsg}
-              generateReading={generateReading}
-              navigation={navigation}
-              chart={chart}
-              form={form}
-            />
-          )}
+            {tab === "reading" && (
+              <ReadingTab
+                interp={interp}
+                loading={loading}
+                overloaded={overloaded}
+                cooldown={cooldown}
+                loadMsg={loadMsg}
+                generateReading={generateReading}
+                navigation={navigation}
+                chart={chart}
+                form={form}
+              />
+            )}
+          </Animated.View>
         </ScrollView>
       </SafeAreaView>
 

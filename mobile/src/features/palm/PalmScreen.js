@@ -9,6 +9,8 @@ import { useChart } from "../../context/ChartContext";
 import { analyzePalm, fetchSaved, fetchPalmHistory, fetchPalmById } from "../../services/api";
 import { gatePalmImage, warmUpGate } from "./palmGate";
 import { useBackToKundali } from "../../utils/useBackToKundali";
+import { haptics } from "../../utils/haptics";
+import { compressPhoto } from "../../utils/compressImage";
 import { useColors } from "../../theme/ThemeContext";
 import { useStyles } from "../../theme/useStyles";
 import { SCAN_MSGS } from "./constants";
@@ -191,9 +193,11 @@ export default function PalmScreen({ navigation }) {
       const gateResult = await gatePalmImage(a, hand);
       if (!gateResult.ok) {
         setError(gateResult.retakeReason);
+        haptics.warning();
         return;
       }
-      runAnalyze({ uri: a.uri, base64: a.base64 }, hand);
+      const img = await compressPhoto(a);
+      runAnalyze(img, hand);
     } finally {
       setGating(false);
     }
@@ -212,11 +216,13 @@ export default function PalmScreen({ navigation }) {
       const result = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand);
       setPalm(result);
       setRescan(false);
+      haptics.success();
     } catch (err) {
       if (err.code === "AI_OVERLOADED") {
         setOverloaded(true);
         setCooldown(50);
       } else setError(err.message);
+      haptics.warning();
     } finally {
       clearInterval(iv);
       setScanning(false);

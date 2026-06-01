@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Switch } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import PressableScale from "./PressableScale";
 import { useChart } from "../context/ChartContext";
 import { useAuth } from "../features/auth/AuthContext";
 import { useTheme } from "../theme/ThemeContext";
@@ -81,7 +82,7 @@ export default function DrawerContent({ navigation, state }) {
               : true;
             const active = routeMatches && tabMatches;
             return (
-              <Pressable
+              <PressableScale
                 key={item.key}
                 onPress={() => go(item.route, item.params)}
                 style={({ pressed }) => [
@@ -95,7 +96,7 @@ export default function DrawerContent({ navigation, state }) {
                   <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
                   <Text style={styles.itemDesc} numberOfLines={1}>{item.desc}</Text>
                 </View>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>

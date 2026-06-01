@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Image, Pressable, ActivityIndicator, Animated } from "react-native";
+import { View, Text, Pressable, ActivityIndicator, Animated } from "react-native";
+import { Image } from "expo-image";
 import CosmicCard from "../../../components/CosmicCard";
 import MagicButton from "../../../components/MagicButton";
 import { useColors } from "../../../theme/ThemeContext";
@@ -60,7 +61,7 @@ export default function CompareView({
             ].map(([label, uri, hand]) => (
               <View key={hand} style={s.compareTile}>
                 <View style={s.compareImageWrap}>
-                  {uri ? <Image source={{ uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" /> : null}
+                  {uri ? <Image source={{ uri }} style={{ width: "100%", height: "100%" }} contentFit="cover" transition={200} /> : null}
                   {palmAnalyzing && !palmComparison && uri ? (
                     <Animated.View style={{
                       position: "absolute", left: 0, right: 0, height: 2,

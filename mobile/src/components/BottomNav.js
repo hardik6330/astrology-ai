@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStyles } from "../theme/useStyles";
 import { radius } from "../theme/tokens";
+import { haptics } from "../utils/haptics";
 
 const TABS = [
   { key: "kundali",  label: "Birth Chart", icon: "🪔", route: "Reading", params: { tab: "kundali" } },
@@ -16,6 +17,7 @@ export default function BottomNav({ activeKey, navigation, onLocalTab }) {
   const styles = useStyles(makeStyles);
 
   function go(tab) {
+    haptics.select();
     if (onLocalTab) onLocalTab(tab.key);
     else navigation.navigate("Reading", tab.params);
   }

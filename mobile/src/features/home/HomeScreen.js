@@ -9,6 +9,7 @@ import Picker from "@/components/Picker";
 import CitySearch from "@/features/location/CitySearch";
 import { useChart } from "@/context/ChartContext";
 import { computeChart } from "@/shared/astrology";
+import { haptics } from "@/utils/haptics";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
 
@@ -70,13 +71,14 @@ export default function HomeScreen({ navigation }) {
   }
 
   function generate() {
-    if (!form.name?.trim()) return setError("Please enter your name.");
-    if (!form.gender) return setError("Please select your gender.");
-    if (!form.date)  return setError("Please select your birth date.");
-    if (!form.time)  return setError("Please select your birth time.");
-    if (!form.city)  return setError("Please select your birth city.");
+    const fail = (msg) => { haptics.warning(); setError(msg); };
+    if (!form.name?.trim()) return fail("Please enter your name.");
+    if (!form.gender) return fail("Please select your gender.");
+    if (!form.date)  return fail("Please select your birth date.");
+    if (!form.time)  return fail("Please select your birth time.");
+    if (!form.city)  return fail("Please select your birth city.");
     if (form.lat == null || form.lon == null || form.tz == null) {
-      return setError("Please pick your city from the suggestions list.");
+      return fail("Please pick your city from the suggestions list.");
     }
     setError("");
     try {

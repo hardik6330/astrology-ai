@@ -1,6 +1,7 @@
 import React from "react";
-import { Text, Pressable } from "react-native";
+import { Text } from "react-native";
 import CosmicCard from "../../../components/CosmicCard";
+import PressableScale from "../../../components/PressableScale";
 import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { makeStyles } from "../styles";
@@ -21,9 +22,10 @@ export default function PastReadings({ history, loadPast }) {
           ", " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
         const bad = h.imageQuality === "unusable";
         return (
-          <Pressable
+          <PressableScale
             key={h.id}
             onPress={() => !bad && loadPast(h.id)}
+            haptic={!bad}
             disabled={bad}
             style={[s.historyRow, bad && { opacity: 0.5 }]}
           >
@@ -32,7 +34,7 @@ export default function PastReadings({ history, loadPast }) {
               {bad ? <Text style={{ color: color.danger, fontSize: 10 }}>  · unreadable</Text> : null}
             </Text>
             <Text style={s.historyDate}>{when}</Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </CosmicCard>

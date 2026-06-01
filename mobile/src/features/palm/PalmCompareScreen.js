@@ -4,7 +4,8 @@
 // PalmScreen renders the synthesis when the user opens Palm.
 
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet, Image, Modal, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, StyleSheet, Modal, ActivityIndicator } from "react-native";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import ScreenContainer from "../../components/ScreenContainer";
 import CosmicCard from "../../components/CosmicCard";
@@ -12,6 +13,8 @@ import MagicButton from "../../components/MagicButton";
 import { useChart } from "../../context/ChartContext";
 import { comparePalms } from "../../services/api";
 import { useBackToKundali } from "../../utils/useBackToKundali";
+import { haptics } from "../../utils/haptics";
+import { compressPhoto } from "../../utils/compressImage";
 import { useColors } from "../../theme/ThemeContext";
 import { useStyles } from "../../theme/useStyles";
 import { radius, spacing } from "../../theme/tokens";
@@ -73,14 +76,16 @@ export default function PalmCompareScreen({ navigation }) {
       const gateResult = await gatePalmImage(a, claimedHand);
       if (!gateResult.ok) {
         setError(gateResult.retakeReason);
+        haptics.warning();
         setBusy(false);
         setPickingHand(null); // Hide drawer on failure
         return;
       }
 
+      const img = await compressPhoto(a);
       setPickingHand(null);
-      if (hand === "left")  { setLeft({ uri: a.uri, base64: a.base64 });  setPalmLeftPhoto(a.uri); }
-      if (hand === "right") { setRight({ uri: a.uri, base64: a.base64 }); setPalmRightPhoto(a.uri); }
+      if (hand === "left")  { setLeft({ uri: img.uri, base64: img.base64 });  setPalmLeftPhoto(img.uri); }
+      if (hand === "right") { setRight({ uri: img.uri, base64: img.base64 }); setPalmRightPhoto(img.uri); }
     } catch {
       setError("Couldn't open the picker.");
     } finally {
@@ -142,7 +147,7 @@ export default function PalmCompareScreen({ navigation }) {
             style={({ pressed }) => [s.handBtn, pressed && { opacity: 0.7 }]}
           >
             {left ? (
-              <Image source={{ uri: left.uri }} style={s.thumb} />
+              <Image source={{ uri: left.uri }} style={s.thumb} contentFit="cover" transition={150} />
             ) : (
               <Text style={s.handIcon}>🤚</Text>
             )}
@@ -162,7 +167,7 @@ export default function PalmCompareScreen({ navigation }) {
             style={({ pressed }) => [s.handBtn, pressed && { opacity: 0.7 }, !left && { opacity: 0.5 }]}
           >
             {right ? (
-              <Image source={{ uri: right.uri }} style={s.thumb} />
+              <Image source={{ uri: right.uri }} style={s.thumb} contentFit="cover" transition={150} />
             ) : (
               <Text style={s.handIcon}>✋</Text>
             )}
