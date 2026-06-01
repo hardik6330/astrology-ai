@@ -66,3 +66,13 @@ export const palmCompareBody = z.object({
 export const userQuery = formSchema.partial({ gender: true }).extend({
   targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
+
+// Auth — the client trades a Firebase ID token (or, on the dummy path, a raw
+// phone number) for our own session JWT. See services/authService.js.
+export const verifyBody = z.object({
+  idToken: z.string().min(20),
+});
+
+export const dummyBody = z.object({
+  phone: z.string().min(10).max(20),
+});
