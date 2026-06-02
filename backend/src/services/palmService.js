@@ -4,6 +4,7 @@ import { callGeminiVision, callGeminiVisionMulti } from '../ai/gemini.js';
 import { PALM_SYSTEM, PALM_GATE_SYSTEM, PALM_BOTH_HANDS_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
+import { notifyInsightReady } from './pushService.js';
 import { validateImage } from '../utils/imageValidator.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
@@ -103,6 +104,12 @@ async function runGate({ image, claimedHand, skipGate = false }) {
 async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash }) {
   const user = await findOrCreateUser(form);
 
+  // Push "your insight is ready" to this user's registered devices. Fired only
+  // when the reading is NEWLY produced for them — not on plain cache hits.
+  const fireInsightPush = () =>
+    notifyInsightReady(user.phone || form.phone)
+      .catch((err) => log.warn({ err: err.message }, 'palm-insight-ready push failed'));
+
   // Same image already analyzed (e.g. user retries same photo)? Only
   // dedupe SUCCESSFUL readings — never short-circuit on a cached
   // "unusable" row, otherwise a one-time rejection (gate misfire,
@@ -137,6 +144,8 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
       imageHash,
       reading: parsed,
     });
+    // Newly persisted reading — notify the user.
+    if (parsed.imageQuality !== 'unusable') fireInsightPush();
   } catch (saveError) {
     log.error({ err: saveError }, 'Palm save failed');
   }
@@ -210,6 +219,10 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
   return dedupe(`palmBoth|${userKey(form)}|${combinedHash}`, async () => {
     const user = await findOrCreateUser(form);
 
+    const fireInsightPush = () =>
+      notifyInsightReady(user.phone || form.phone)
+        .catch((err) => log.warn({ err: err.message }, 'palm-both-insight-ready push failed'));
+
     // Same pair already analyzed? Return the saved Both reading.
     const dup = await PalmReading.findOne({
       where: { userId: user.id, imageHash: combinedHash, imageQuality: 'clear' },
@@ -251,6 +264,7 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
         imageHash: combinedHash,
         reading: parsed,
       });
+      if (parsed.imageQuality !== 'unusable') fireInsightPush();
     } catch (saveError) {
       log.error({ err: saveError }, 'Both-hands palm save failed');
     }
