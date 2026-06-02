@@ -11,6 +11,7 @@ import { analyzePalm, fetchSaved, fetchPalmHistory, fetchPalmById } from "../../
 import { gatePalmImage, warmUpGate } from "./palmGate";
 import { useBackToKundali } from "../../utils/useBackToKundali";
 import { haptics } from "../../utils/haptics";
+import { logEvent } from "../../features/notifications/analytics";
 import { compressPhoto } from "../../utils/compressImage";
 import { useColors } from "../../theme/ThemeContext";
 import { useStyles } from "../../theme/useStyles";
@@ -215,6 +216,7 @@ export default function PalmScreen({ navigation }) {
     const iv = setInterval(() => { i++; setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]); }, 1800);
     try {
       const result = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand);
+      logEvent("palm_analysis_success", { hand, user_name: form.name });
       setPalm(result);
       setRescan(false);
       haptics.success();

@@ -10,6 +10,7 @@ import CitySearch from "@/features/location/CitySearch";
 import { useChart } from "@/context/ChartContext";
 import { computeChart } from "@/shared/astrology";
 import { haptics } from "@/utils/haptics";
+import { logEvent } from "@/features/notifications/analytics";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
 
@@ -84,6 +85,11 @@ export default function HomeScreen({ navigation }) {
     try {
       const ch = computeChart(form.date, form.time, {
         n: form.city, lat: form.lat, lon: form.lon, tz: form.tz,
+      });
+      logEvent("generate_kundali", {
+        user_name: form.name,
+        city: form.city,
+        gender: form.gender
       });
       setChart(ch);
       resetReading();

@@ -10,6 +10,7 @@ import { useChart } from "@/context/ChartContext";
 import { chatCompletion, fetchChatHistory } from "@/services/api";
 import { buildFactSheet } from "@/shared/astrology";
 import { SkeletonChat } from "@/components/Skeleton";
+import { logEvent } from "@/features/notifications/analytics";
 import { useColors } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
@@ -98,6 +99,7 @@ export default function ChatScreen({ navigation }) {
   async function ask() {
     const q = input.trim();
     if (!q || busy || !chart) return;
+    logEvent("chat_question_asked", { user_name: form.name });
     setInput("");
     const history = [...chatMsgs, { role: "user", content: q }];
     setChatMsgs([...history, { role: "assistant", content: "…" }]);

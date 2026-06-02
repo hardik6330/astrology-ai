@@ -7,6 +7,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { dummyLogin, primeAuthPhone } from "@/services/api";
 import { registerForPush, unregisterForPush } from "@/features/notifications/push";
+import { logEvent } from "@/features/notifications/analytics";
 
 const KEY     = "app_token";
 const ACC_KEY = "app_account";
@@ -55,6 +56,7 @@ export function AuthProvider({ children }) {
     await AsyncStorage.setItem(KEY, token);
     await AsyncStorage.setItem(ACC_KEY, JSON.stringify(acc));
     primeAuthPhone(acc.phone);
+    logEvent("login", { phone: acc.phone });
     // Return the credentials without committing them — the caller hydrates
     // ChartContext first, then calls commitSession() so HomeScreen mounts
     // already knowing whether to redirect a returning user.
@@ -70,6 +72,7 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
+    logEvent("logout", { phone: account?.phone });
     // Disable the push token server-side BEFORE clearing the JWT — the
     // unregister call needs the token to authenticate.
     await unregisterForPush();
