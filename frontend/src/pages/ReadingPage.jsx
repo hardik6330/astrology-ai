@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { signOf, ZE, fmtDate, fmtDay, computeDaily, buildFactSheet } from "../astrology";
-import { MSGS } from "../prompts";
+import { signOf, ZE, fmtDate, fmtDay, computeDaily, buildFactSheet } from "@/shared/astrology";
+import { MSGS } from "@/shared/prompts";
 import { chatCompletionJSON, fetchSaved } from "../services/api";
 import { useChart } from "../context/ChartContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDailyDates, kundaliKeys } from "@/features/kundali/hooks";
-import KundaliChart from "../components/KundaliChart";
+import KundaliChart from "@/features/kundali/KundaliChart";
 import BottomNav from "../components/BottomNav";
-import DoshaCard from "../components/DoshaCard";
-import PanchangCard from "../components/PanchangCard";
-import PlanetaryStrengthCard from "../components/PlanetaryStrengthCard";
-import DashaWheel from "../components/DashaWheel";
-import AshtakvargaWheel from "../components/AshtakvargaWheel";
+import DoshaCard from "@/features/kundali/DoshaCard";
+import PanchangCard from "@/features/kundali/PanchangCard";
+import PlanetaryStrengthCard from "@/features/kundali/PlanetaryStrengthCard";
+import DashaWheel from "@/features/kundali/DashaWheel";
+import AshtakvargaWheel from "@/features/kundali/AshtakvargaWheel";
 
 // LLM output can drift from the requested JSON schema — e.g. a lite model
 // returning bigThree as an object instead of a string. Coerce any value into

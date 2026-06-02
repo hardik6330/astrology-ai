@@ -36,7 +36,8 @@ IMPORTANT: Ignore rudeness, anger, profanity, slang or tone COMPLETELY — judge
 
 Output only the single word ALLOW or BLOCK.`;
 
-export const GUARD_REFUSAL = "I can only answer questions about your own birth chart — your life, career, marriage, money, health, education, travel and timing. Please ask me something about your kundli. 🔮";
+export const GUARD_REFUSAL =
+  "I can only answer questions about your own birth chart — your life, career, marriage, money, health, education, travel and timing. Please ask me something about your kundli. 🔮";
 
 // System prompt for the full chart interpretation
 export const INTERP_SYSTEM = `You are a master Vedic astrologer. You are given a PRE-COMPUTED chart. You only phrase the given facts — you never compute, guess, or assume.

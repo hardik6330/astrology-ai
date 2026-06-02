@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { computeChart } from "../astrology";
+import { computeChart } from "@/shared/astrology";
 
 const ChartContext = createContext(null);
 

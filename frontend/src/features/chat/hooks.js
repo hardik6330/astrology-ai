@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatCompletion, fetchChatHistory } from "@/services/api";
-import { buildFactSheet } from "@/astrology";
+import { buildFactSheet } from "@/shared/astrology";
 
 // Query keys are factored out so mutations can invalidate them by reference.
 export const chatKeys = {

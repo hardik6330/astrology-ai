@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { computeChart } from "../astrology";
+import { computeChart } from "@/shared/astrology";
 import { useChart } from "../context/ChartContext";
 import CitySearch from "../components/CitySearch";
-import CustomDatePicker from "../components/CustomDatePicker";
-import CustomTimePicker from "../components/CustomTimePicker";
+import CustomDatePicker from "@/components/picker/CustomDatePicker";
+import CustomTimePicker from "@/components/picker/CustomTimePicker";
 import CustomSelect from "../components/CustomSelect";
 
 const lbl = { fontSize: 13, color: "#888", display: "block", marginBottom: 4 };
