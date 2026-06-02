@@ -15,12 +15,14 @@ import { registerWebPushToken } from "@/services/api";
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || "";
 
 let foregroundUnsub = null;
+let swRegistration = null;
 
 // Register the FCM service worker. Vite serves public/ at the root, so the file
 // is reachable at /firebase-messaging-sw.js with whole-app scope.
 async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return null;
-  return navigator.serviceWorker.register("/firebase-messaging-sw.js");
+  swRegistration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+  return swRegistration;
 }
 
 // Call after login. Idempotent — backend upserts on the token.
@@ -47,12 +49,19 @@ export async function registerForWebPush() {
     await registerWebPushToken(token);
 
     // Foreground messages aren't shown by the browser automatically — render
-    // them ourselves. The SW handles background; guard against double-binding.
+    // them ourselves. Use the SW registration's showNotification (NOT the
+    // `new Notification()` constructor, which Chrome/Brave reject when a service
+    // worker is active). The SW handles background; guard against double-binding.
     foregroundUnsub?.();
     foregroundUnsub = onMessage(messaging, (payload) => {
       const { title, body } = payload.notification || {};
-      if (Notification.permission === "granted") {
-        new Notification(title || "Astrology AI", { body: body || "", icon: "/icon.svg" });
+      const reg = swRegistration || swReg;
+      if (Notification.permission === "granted" && reg) {
+        reg.showNotification(title || "Astrology AI", {
+          body: body || "",
+          icon: "/icon.svg",
+          data: payload.data || {},
+        });
       }
     });
   } catch (err) {

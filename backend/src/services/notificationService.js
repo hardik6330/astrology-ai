@@ -52,6 +52,12 @@ export async function sendToTokens(rows, { title, body, data = {} }) {
       // drop the notification. Letting FCM fall back to its auto-created default
       // channel guarantees display until the app defines its own channels.
       android: { priority: 'high' },
+      // Web push: give the SW an icon + a click-through URL so background
+      // notifications render consistently across Chrome/Brave/Firefox.
+      webpush: {
+        notification: { title, body, icon: '/icon.svg' },
+        fcmOptions: stringData.screen ? { link: `/${stringData.screen}` } : undefined,
+      },
     });
     res.responses.forEach((r, i) => {
       if (r.success) { sent++; return; }
