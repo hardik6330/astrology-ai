@@ -38,6 +38,18 @@ function allEnabledTokens() {
   return PushToken.findAll({ where: { enabled: true }, attributes: ['id', 'token'] });
 }
 
+// Tokens for every device of the account(s) on a given phone. Push tokens hang
+// off AuthAccount, while charts hang off User — phone is the bridge between them.
+async function tokensForPhone(phone) {
+  if (!phone) return [];
+  const accounts = await AuthAccount.findAll({ where: { phone }, attributes: ['id'] });
+  if (!accounts.length) return [];
+  return PushToken.findAll({
+    where: { enabled: true, accountId: { [Op.in]: accounts.map((a) => a.id) } },
+    attributes: ['id', 'token'],
+  });
+}
+
 // Tokens for accounts whose last login is older than `days` (and never null).
 async function inactiveAccountTokens(days) {
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -86,4 +98,19 @@ export async function sendReEngagement() {
   const rows = await inactiveAccountTokens(3);
   log.info({ audience: rows.length }, 're-engagement audience');
   return sendToTokens(rows, COPY.inactivity);
+}
+
+// ── Event-triggered (fired inline from feature services) ─────────────────────
+
+// "Your Kundali insight is ready." Fired after a fresh interpretation is
+// generated + persisted. Best-effort: the caller must not await or let a push
+// failure affect the HTTP response.
+export async function notifyInsightReady(phone) {
+  const rows = await tokensForPhone(phone);
+  if (!rows.length) return { sent: 0, failed: 0, disabled: 0 };
+  return sendToTokens(rows, {
+    title: '✨ Your Kundali insight is ready!',
+    body: 'Tap to open your personalized cosmic reading.',
+    data: { type: 'insight', screen: 'reading' },
+  });
 }

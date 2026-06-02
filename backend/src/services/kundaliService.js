@@ -4,6 +4,7 @@ import { callGemini } from '../ai/gemini.js';
 import { INTERP_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
+import { notifyInsightReady } from './pushService.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
 import { userKey } from '../utils/userKey.js';
@@ -81,6 +82,11 @@ export async function generateInterpretation({ form, factSheet }) {
     } catch (saveError) {
       log.error({ err: saveError }, 'Kundali save failed');
     }
+
+    // Fire-and-forget: ping the user's devices that their fresh insight is
+    // ready. Never await — a push hiccup must not delay or fail the response.
+    notifyInsightReady(user.phone || form.phone)
+      .catch((err) => log.warn({ err: err.message }, 'insight-ready push failed'));
 
     return cleaned;
   });
