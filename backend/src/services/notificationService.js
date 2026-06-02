@@ -46,7 +46,10 @@ export async function sendToTokens(rows, { title, body, data = {} }) {
       tokens: batch.map((r) => r.token),
       notification: { title, body },
       data: stringData,
-      android: { priority: 'high', notification: { channelId: 'default' } },
+      // No explicit channelId: a non-existent channel makes Android 8+ silently
+      // drop the notification. Letting FCM fall back to its auto-created default
+      // channel guarantees display until the app defines its own channels.
+      android: { priority: 'high' },
     });
     res.responses.forEach((r, i) => {
       if (r.success) { sent++; return; }
