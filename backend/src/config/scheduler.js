@@ -25,7 +25,7 @@ async function run(name, fn) {
 
 export function startScheduler() {
   cron.schedule('0 8 * * *',  () => run('morning',  sendDailyMorning),  TZ);  // 08:00 IST
-  cron.schedule('0 19 * * *', () => run('evening',  sendDailyEvening),  TZ);  // 19:00 IST
+  cron.schedule('0 16 * * *', () => run('evening',  sendDailyEvening),  TZ);  // 16:00 IST
   cron.schedule('0 10 * * *', () => run('reengage', sendReEngagement),  TZ);  // 10:00 IST
-  log.info('Push scheduler started (Asia/Kolkata) — morning 08:00, evening 19:00, reengage 10:00');
+  log.info('Push scheduler started (Asia/Kolkata) — morning 08:00, evening 16:00, reengage 10:00');
 }
