@@ -1,0 +1,48 @@
+/* Firebase Cloud Messaging service worker — handles web push while the tab is
+ * closed or backgrounded. Served at the site root (public/ → /firebase-messaging-sw.js)
+ * so its scope covers the whole app; that path is where the SDK looks by default.
+ *
+ * A service worker can't import ES modules, so it loads the Firebase "compat"
+ * builds via importScripts and hardcodes the config (keep in sync with
+ * src/features/auth/firebaseConfig.js).
+ */
+importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
+
+firebase.initializeApp({
+  apiKey: "AIzaSyDeP9lVD48v__XAi3w5PS-gR9Hl9Ou2_lg",
+  authDomain: "astrology-ai-abc38.firebaseapp.com",
+  projectId: "astrology-ai-abc38",
+  storageBucket: "astrology-ai-abc38.firebasestorage.app",
+  messagingSenderId: "160095118157",
+  appId: "1:160095118157:web:1ddb20119df02911facd04",
+  measurementId: "G-3QWLMK4B4S",
+});
+
+const messaging = firebase.messaging();
+
+// Background messages: render a native notification. (Foreground messages are
+// handled in-page by onMessage in webPush.js so we don't double-notify.)
+messaging.onBackgroundMessage((payload) => {
+  const { title, body } = payload.notification || {};
+  self.registration.showNotification(title || "Astrology AI", {
+    body: body || "",
+    icon: "/icon.svg",
+    data: payload.data || {},
+  });
+});
+
+// Focus or open the app when the user taps the notification.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const screen = event.notification?.data?.screen;
+  const url = screen ? `/${screen}` : "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if ("focus" in client) return client.focus();
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});

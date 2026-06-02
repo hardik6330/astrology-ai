@@ -80,6 +80,17 @@ export async function authFetch(url, init = {}) {
   return res;
 }
 
+// Register this browser's FCM token so cron/insight campaigns can reach it.
+// authFetch attaches the Bearer JWT; backend stores it in PushTokens.
+export async function registerWebPushToken(token) {
+  const res = await authFetch(`${API_URL}/push/register`, {
+    method: "POST",
+    body: JSON.stringify({ token, platform: "web" }),
+  });
+  if (!res.ok) throw new Error(`web push register failed (HTTP ${res.status})`);
+  return res.json();
+}
+
 // Trim the conversation to the last N turns before sending. The full
 // transcript still lives in ChatContext (and on the backend, for topic
 // recall) — this just keeps the per-turn prompt size bounded.

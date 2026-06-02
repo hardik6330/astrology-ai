@@ -3,8 +3,9 @@
 // LoginPage and the rest of the app. Swap in real verification later by
 // changing `login()` to call /api/auth/verify-otp.
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { dummyLogin } from "@/services/api";
+import { registerForWebPush, teardownWebPush } from "@/features/notifications/webPush";
 
 const KEY = "app_token";
 const AuthContext = createContext(null);
@@ -18,6 +19,13 @@ export function AuthProvider({ children }) {
       return null;
     }
   });
+
+  // Already signed in from a prior session — register the web push token on
+  // launch (covers permission changes / token rotation while away).
+  useEffect(() => {
+    if (token) registerForWebPush();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Calls backend /auth/dummy-login. On success returns any savedForm so
   // the caller can hydrate ChartContext and route the user straight to
@@ -39,10 +47,13 @@ export function AuthProvider({ children }) {
     localStorage.setItem("app_account", JSON.stringify(acc));
     setToken(tok);
     setAccount(acc);
+    // Register this browser for push now that we have a real account + JWT.
+    registerForWebPush();
     return { savedForm };
   }
 
   function logout() {
+    teardownWebPush();
     localStorage.removeItem(KEY);
     localStorage.removeItem("app_account");
     setToken(null);

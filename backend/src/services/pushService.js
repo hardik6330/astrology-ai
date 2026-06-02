@@ -40,14 +40,28 @@ function allEnabledTokens() {
 
 // Tokens for every device of the account(s) on a given phone. Push tokens hang
 // off AuthAccount, while charts hang off User — phone is the bridge between them.
+// Matched on the last 10 digits so "+919876543210" (real Firebase) and
+// "9876543210" (dummy login) resolve to the same account.
 async function tokensForPhone(phone) {
-  if (!phone) return [];
-  const accounts = await AuthAccount.findAll({ where: { phone }, attributes: ['id'] });
-  if (!accounts.length) return [];
-  return PushToken.findAll({
+  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
+  if (digits.length !== 10) {
+    log.warn({ phone }, 'tokensForPhone: no usable 10-digit phone');
+    return [];
+  }
+  const accounts = await AuthAccount.findAll({
+    where: { phone: { [Op.like]: `%${digits}` } },
+    attributes: ['id'],
+  });
+  if (!accounts.length) {
+    log.info({ digits }, 'tokensForPhone: no account for phone');
+    return [];
+  }
+  const rows = await PushToken.findAll({
     where: { enabled: true, accountId: { [Op.in]: accounts.map((a) => a.id) } },
     attributes: ['id', 'token'],
   });
+  log.info({ digits, accounts: accounts.length, tokens: rows.length }, 'tokensForPhone resolved');
+  return rows;
 }
 
 // Tokens for accounts whose last login is older than `days` (and never null).
