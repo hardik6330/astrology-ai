@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useRef } from "react";
 import { View, Text } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
+import { logScreenView } from "../features/notifications/analytics";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen        from "../features/home/HomeScreen";
 import ReadingScreen     from "../features/reading/ReadingScreen";
@@ -74,6 +75,8 @@ function MainDrawer() {
 
 export default function RootNavigator() {
   const { token, hydrating } = useAuth();
+  const navigationRef = useRef();
+  const routeNameRef = useRef();
 
   // While AsyncStorage is being read, show a neutral placeholder so we
   // don't flash the Login screen over a valid existing session.
@@ -86,7 +89,22 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer 
+      theme={navTheme}
+      ref={navigationRef}
+      onReady={() => {
+        routeNameRef.current = navigationRef.current.getCurrentRoute().name;
+      }}
+      onStateChange={async () => {
+        const previousRouteName = routeNameRef.current;
+        const currentRouteName = navigationRef.current.getCurrentRoute().name;
+
+        if (previousRouteName !== currentRouteName) {
+          await logScreenView(currentRouteName);
+        }
+        routeNameRef.current = currentRouteName;
+      }}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {token ? (
           <Stack.Screen name="Main"  component={MainDrawer} />

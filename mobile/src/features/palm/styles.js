@@ -222,7 +222,9 @@ export const makeStyles = (c) => StyleSheet.create({
     flexDirection: "row", gap: 12, alignItems: "flex-start",
     paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10,
     borderWidth: 1, borderColor: "rgba(248,113,113,0.35)",
-    backgroundColor: "rgba(15,14,32,0.55)",
+    // Theme-neutral red wash instead of a hardcoded dark fill — the old
+    // near-black box turned into an unreadable grey card in light mode.
+    backgroundColor: "rgba(248,113,113,0.10)",
     marginBottom: 10,
   },
   rejectRowIcon:  { fontSize: 26, lineHeight: 34 },
