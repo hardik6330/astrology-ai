@@ -6,8 +6,8 @@ on:
     - cron: '0 3 * * *'
     # Re-engage: 10:00 IST (04:30 UTC)
     - cron: '30 4 * * *'
-    # Evening: 16:30 IST (11:00 UTC)
-    - cron: '0 11 * * *'
+    # Evening: 16:45 IST (11:15 UTC)
+    - cron: '15 11 * * *'
   workflow_dispatch: # Allows manual trigger for testing
 
 jobs:
