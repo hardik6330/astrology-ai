@@ -6,8 +6,8 @@ on:
     - cron: '0 3 * * *'
     # Re-engage: 10:00 IST (04:30 UTC)
     - cron: '30 4 * * *'
-    # Evening: 16:25 IST (10:55 UTC)
-    - cron: '55 10 * * *'
+    # Evening: 16:30 IST (11:00 UTC)
+    - cron: '0 11 * * *'
   workflow_dispatch: # Allows manual trigger for testing
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
             echo "job=morning" >> $GITHUB_OUTPUT
           elif [ "$HOUR" == "04" ]; then
             echo "job=reengage" >> $GITHUB_OUTPUT
-          elif [ "$HOUR" == "10" ]; then
+          elif [ "$HOUR" == "11" ]; then
             echo "job=evening" >> $GITHUB_OUTPUT
           else
             echo "job=morning" >> $GITHUB_OUTPUT # Default for manual trigger
