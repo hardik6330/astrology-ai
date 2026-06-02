@@ -52,3 +52,11 @@ export function verifyIdToken(idToken) {
   if (!initialized) initFirebase();
   return admin.auth().verifyIdToken(idToken);
 }
+
+// FCM messaging handle. Throws a clear error rather than a vague null-deref when
+// credentials are missing, so the cron route can surface "push not configured".
+export function getMessaging() {
+  if (!initialized) initFirebase();
+  if (!initialized) throw new Error('Firebase not initialised — set FIREBASE_SERVICE_ACCOUNT_B64');
+  return admin.messaging();
+}

@@ -140,6 +140,34 @@ export async function dummyLogin(phone) {
   return res.json(); // { token, account: { id, phone } }
 }
 
+// ── Push tokens ──
+// Both endpoints require the session JWT (requireAuth on the backend), so we
+// read it straight from AsyncStorage rather than threading it through callers.
+async function authHeaders() {
+  const token = await AsyncStorage.getItem("app_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// Send this device's FCM token to the backend so cron campaigns can reach it.
+export async function registerPushToken(fcmToken, platform) {
+  const res = await fetchWithRetry(`${API_URL}/push/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ token: fcmToken, platform }),
+  });
+  if (!res.ok) throw new Error(`push register failed (HTTP ${res.status})`);
+  return res.json();
+}
+
+// Soft-disable this device's token on logout so the user stops getting pushes.
+export async function unregisterPushToken(fcmToken) {
+  await fetchWithRetry(`${API_URL}/push/unregister`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ token: fcmToken }),
+  }).catch(() => { /* best-effort — logout shouldn't block on this */ });
+}
+
 // Fire-and-forget ping to wake the serverless backend on app start.
 // Hits "/" (the root route returns "Server is running") so the cold start
 // finishes before the user submits their first real request.

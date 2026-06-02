@@ -131,7 +131,7 @@ export default function DrawerContent({ navigation, state }) {
           }}
           style={({ pressed }) => [styles.logoutRow, pressed && { opacity: 0.7 }]}
         >
-          <Text style={styles.icon}>↩</Text>
+          <Text style={[styles.icon, styles.logoutIcon]}>↩</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.logoutLabel}>Log out</Text>
             <Text style={styles.themeSub} numberOfLines={1}>
@@ -195,7 +195,10 @@ const makeStyles = (c) =>
       flexDirection: "row", alignItems: "center", gap: spacing.md,
       paddingHorizontal: spacing.lg, paddingVertical: 12,
     },
-    logoutLabel: { color: c.danger, fontSize: 14, fontWeight: "700" },
+    // dangerStrong reads brighter in dark mode (#ef4444 vs the softer #f87171);
+    // icon shares the same red so the row isn't half-white, half-red.
+    logoutIcon:  { color: c.dangerStrong },
+    logoutLabel: { color: c.dangerStrong, fontSize: 14, fontWeight: "700" },
 
     footerTitle:   { color: c.textDim, fontSize: 12, fontWeight: "600" },
     footerVersion: { color: c.textFaint, fontSize: 11, marginTop: 4 },

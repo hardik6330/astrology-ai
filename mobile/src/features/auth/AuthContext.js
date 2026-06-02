@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { dummyLogin, primeAuthPhone } from "@/services/api";
+import { registerForPush, unregisterForPush } from "@/features/notifications/push";
 
 const KEY     = "app_token";
 const ACC_KEY = "app_account";
@@ -29,6 +30,9 @@ export function AuthProvider({ children }) {
           setAccount(acc);
           primeAuthPhone(acc?.phone);
         }
+        // Already signed in from a previous session — refresh the push token
+        // (handles app updates / FCM rotation that happened while closed).
+        if (t) registerForPush();
       } catch { /* ignore */ }
       finally { setHydrating(false); }
     })();
@@ -56,11 +60,19 @@ export function AuthProvider({ children }) {
     // already knowing whether to redirect a returning user.
     return {
       savedForm,
-      commitSession: () => { setToken(token); setAccount(acc); },
+      commitSession: () => {
+        setToken(token);
+        setAccount(acc);
+        // Register this device for push now that we have a real account/JWT.
+        registerForPush();
+      },
     };
   }
 
   async function logout() {
+    // Disable the push token server-side BEFORE clearing the JWT — the
+    // unregister call needs the token to authenticate.
+    await unregisterForPush();
     await AsyncStorage.multiRemove([KEY, ACC_KEY]);
     primeAuthPhone(null);
     setToken(null);

@@ -22,6 +22,10 @@ const schema = z.object({
   // re-enable the Google Places fallback path that's currently commented out
   // in locationService.js.
   GOOGLE_MAPS_API_KEY: z.string().optional(),
+  // Shared secret that external cron callers (cron-job.org / GitHub Actions)
+  // must present in the `x-cron-secret` header to trigger scheduled pushes.
+  // Optional so dev boots without it, but the cron routes 503 until it's set.
+  CRON_SECRET:     z.string().min(16).optional(),
 });
 
 const parsed = schema.safeParse(process.env);

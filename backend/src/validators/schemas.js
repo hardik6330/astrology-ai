@@ -76,3 +76,13 @@ export const verifyBody = z.object({
 export const dummyBody = z.object({
   phone: z.string().min(10).max(20),
 });
+
+// Device push-token registration. Token length cap matches PushToken's column.
+export const pushRegisterBody = z.object({
+  token:    z.string().min(20).max(512),
+  platform: z.enum(['android', 'ios']).optional(),
+});
+
+export const pushUnregisterBody = z.object({
+  token: z.string().min(20).max(512),
+});

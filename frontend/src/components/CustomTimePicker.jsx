@@ -1,6 +1,94 @@
 import React, { useState, useEffect, useRef } from "react";
 import { color, gradient, radius, shadow } from "../theme/tokens.js";
 
+// One scrollable column (hour / minute / am-pm). Module-level + stable so React
+// reconciles it in place on every pick — inlining it would remount the scroll
+// container and snap the list back to the top. On open it centers the selected
+// value once (didInit guard) so e.g. 11:40 opens scrolled to 11 and 40.
+function Column({ title, items, current, onSelect, type, open }) {
+  const containerRef = useRef(null);
+  const selectedRef = useRef(null);
+  const didInit = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      didInit.current = false; // reset so it re-centers next time it opens
+      return;
+    }
+    if (didInit.current) return;
+    const c = containerRef.current;
+    const sel = selectedRef.current;
+    if (!c || !sel) return;
+    didInit.current = true;
+    // offsetTop is relative to the (position:relative) scroll container, so it
+    // maps directly onto scrollTop. Center the selected row in the viewport.
+    c.scrollTop = sel.offsetTop - c.clientHeight / 2 + sel.clientHeight / 2;
+  }, [open, current]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        maxHeight: "200px",
+        overflowY: "auto",
+        flex: 1,
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "10px",
+          color: color.textDim,
+          marginBottom: "8px",
+          fontWeight: "bold",
+          textTransform: "uppercase",
+          letterSpacing: "1px",
+          position: "sticky",
+          top: 0,
+          background: "rgba(15, 14, 32, 0.98)",
+          width: "100%",
+          textAlign: "center",
+          paddingBottom: "4px",
+          zIndex: 1,
+        }}
+      >
+        {title}
+      </div>
+      {items.map((item) => {
+        const isSelected = current === item;
+        return (
+          <button
+            key={item}
+            ref={isSelected ? selectedRef : null}
+            onClick={() => onSelect(item)}
+            style={{
+              width: "100%",
+              padding: "8px 0",
+              border: "none",
+              background: isSelected ? gradient.magic : "transparent",
+              color: isSelected ? "#fff" : color.text,
+              borderRadius: radius.sm,
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: isSelected ? "700" : "400",
+              transition: "all 0.2s ease",
+              marginBottom: "2px",
+              flexShrink: 0,
+            }}
+          >
+            {type === "minute" ? String(item).padStart(2, "0") : item}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function CustomTimePicker({ value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -59,58 +147,6 @@ function CustomTimePicker({ value, onChange }) {
   const hours = Array.from({ length: 12 }, (_, i) => i + 1);
   const minutes = Array.from({ length: 60 }, (_, i) => i);
 
-  const Column = ({ title, items, current, onSelect, type }) => (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        maxHeight: "200px",
-        overflowY: "auto",
-        flex: 1,
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "10px",
-          color: color.textDim,
-          marginBottom: "8px",
-          fontWeight: "bold",
-          textTransform: "uppercase",
-          letterSpacing: "1px",
-        }}
-      >
-        {title}
-      </div>
-      {items.map((item) => {
-        const isSelected = current === item;
-        return (
-          <button
-            key={item}
-            onClick={() => onSelect(item)}
-            style={{
-              width: "100%",
-              padding: "8px 0",
-              border: "none",
-              background: isSelected ? gradient.magic : "transparent",
-              color: isSelected ? "#fff" : color.text,
-              borderRadius: radius.sm,
-              cursor: "pointer",
-              fontSize: "14px",
-              fontWeight: isSelected ? "700" : "400",
-              transition: "all 0.2s ease",
-              marginBottom: "2px",
-            }}
-          >
-            {type === "minute" ? String(item).padStart(2, "0") : item}
-          </button>
-        );
-      })}
-    </div>
-  );
-
   return (
     <div ref={containerRef} style={{ position: "relative" }}>
       <input
@@ -154,7 +190,13 @@ function CustomTimePicker({ value, onChange }) {
           }}
         >
           <div style={{ display: "flex", gap: "4px" }}>
-            <Column title="Hour" items={hours} current={time.h} onSelect={(h) => handleSelect({ h })} />
+            <Column
+              title="Hour"
+              items={hours}
+              current={time.h}
+              onSelect={(h) => handleSelect({ h })}
+              open={isOpen}
+            />
             <div style={{ width: "1px", background: color.cardBorder, margin: "10px 0" }} />
             <Column
               title="Min"
@@ -162,6 +204,7 @@ function CustomTimePicker({ value, onChange }) {
               current={time.m}
               onSelect={(m) => handleSelect({ m })}
               type="minute"
+              open={isOpen}
             />
             <div style={{ width: "1px", background: color.cardBorder, margin: "10px 0" }} />
             <Column
@@ -169,6 +212,7 @@ function CustomTimePicker({ value, onChange }) {
               items={["AM", "PM"]}
               current={time.ampm}
               onSelect={(ampm) => handleSelect({ ampm })}
+              open={isOpen}
             />
           </div>
 
