@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, TextInput, FlatList, Pressable,
-  KeyboardAvoidingView, Platform, StyleSheet,
+  Keyboard, Platform, StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -39,7 +39,23 @@ export default function ChatScreen({ navigation }) {
   const [hydrating, setHydrating] = useState(true);
   const [phIdx, setPhIdx]   = useState(0);
   const [phText, setPhText] = useState("");
+  const [kbHeight, setKbHeight] = useState(0);
   const listRef = useRef(null);
+
+  // SDK 54 enables Android edge-to-edge, so `adjustResize` no longer shrinks
+  // the window and KeyboardAvoidingView can't lift the input. Track the
+  // keyboard height ourselves and pad the container by it — works on both
+  // platforms regardless of windowSoftInputMode. iOS uses the *Will* events
+  // for a smooth slide; Android only fires the *Did* events reliably.
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const onShow = (e) => setKbHeight(e.endCoordinates?.height ?? 0);
+    const onHide = () => setKbHeight(0);
+    const subShow = Keyboard.addListener(showEvt, onShow);
+    const subHide = Keyboard.addListener(hideEvt, onHide);
+    return () => { subShow.remove(); subHide.remove(); };
+  }, []);
 
   useEffect(() => {
     const full = PLACEHOLDERS[phIdx];
@@ -134,11 +150,7 @@ export default function ChatScreen({ navigation }) {
           entering={FadeInDown.duration(400).springify()}
           style={{ flex: 1 }}
         >
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
-          >
+          <View style={{ flex: 1, paddingBottom: kbHeight }}>
           {/* Header */}
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
             <View style={s.headerRow}>
@@ -206,7 +218,7 @@ export default function ChatScreen({ navigation }) {
               </Pressable>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
         </Animated.View>
       </SafeAreaView>
     </View>

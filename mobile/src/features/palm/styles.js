@@ -200,7 +200,7 @@ export const makeStyles = (c) => StyleSheet.create({
   },
 
   // ── Both-Hands comparison view ──
-  compareTile: { flex: 1, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "rgba(168,85,247,0.3)", backgroundColor: "rgba(15,14,32,0.6)" },
+  compareTile: { flex: 1, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "rgba(168,85,247,0.3)", backgroundColor: c.cardBgSolid },
   compareImageWrap: { width: "100%", aspectRatio: 3 / 4, backgroundColor: "#0f0e20" },
   compareHand: { textAlign: "center", color: c.primaryLight, fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", fontWeight: "700", marginTop: 8 },
   compareSub:  { textAlign: "center", color: c.textMuted, fontSize: 12, marginTop: 2, marginBottom: 8 },
@@ -222,9 +222,7 @@ export const makeStyles = (c) => StyleSheet.create({
     flexDirection: "row", gap: 12, alignItems: "flex-start",
     paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10,
     borderWidth: 1, borderColor: "rgba(248,113,113,0.35)",
-    // Theme-neutral red wash instead of a hardcoded dark fill — the old
-    // near-black box turned into an unreadable grey card in light mode.
-    backgroundColor: "rgba(248,113,113,0.10)",
+    backgroundColor: c.cardBgSolid,
     marginBottom: 10,
   },
   rejectRowIcon:  { fontSize: 26, lineHeight: 34 },
