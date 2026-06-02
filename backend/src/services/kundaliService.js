@@ -29,19 +29,16 @@ export async function generateInterpretation({ form, factSheet }) {
   return dedupe(`interpret|${userKey(form)}`, async () => {
     const user = await findOrCreateUser(form);
 
-    // Notify this user's devices their insight is ready. Fire-and-forget on
-    // EVERY return path (cached / sibling-copy / fresh) so the push lands
-    // whenever an interpretation is delivered, not only on first generation.
+    // Push "your insight is ready" to this user's registered devices. Fired only
+    // when the insight is NEWLY produced for them (fresh generation or first
+    // sibling-copy) — not on plain cache hits. Fire-and-forget; never blocks.
     const fireInsightPush = () =>
       notifyInsightReady(user.phone || form.phone)
         .catch((err) => log.warn({ err: err.message }, 'insight-ready push failed'));
 
-    // 1. Already saved for THIS user? Return that.
+    // 1. Already saved for THIS user? Return that (no push — nothing new).
     const existing = await Kundali.findOne({ where: { userId: user.id } });
-    if (existing) {
-      fireInsightPush();
-      return asContent(existing.interpretation);
-    }
+    if (existing) return asContent(existing.interpretation);
 
     // 2. Same birth data already interpreted for ANOTHER user (different
     //    phone)? Reuse the existing chart + interpretation — chart math is

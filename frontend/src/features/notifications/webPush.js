@@ -65,26 +65,6 @@ export async function registerForWebPush() {
   }
 }
 
-// Show an "insight ready" notification immediately, client-side — fired the
-// moment a freshly generated kundali arrives. No FCM round-trip, so it's instant
-// and reliable as long as notification permission is granted and any service
-// worker is registered (falls back to the PWA worker via serviceWorker.ready).
-export async function notifyInsightReadyLocal() {
-  try {
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    const reg =
-      (await navigator.serviceWorker.getRegistration(FCM_SW_SCOPE)) || (await navigator.serviceWorker.ready);
-    if (!reg) return;
-    await reg.showNotification("✨ Your Kundali insight is ready!", {
-      body: "Tap to open your personalized cosmic reading.",
-      icon: "/icon.svg",
-      data: { screen: "reading" },
-    });
-  } catch (err) {
-    console.warn("[webPush] local insight notification skipped:", err?.message);
-  }
-}
-
 // Stop foreground listening on logout. (The token is left registered; add a
 // /push/unregister call here later if you want logout to silence the device.)
 export function teardownWebPush() {

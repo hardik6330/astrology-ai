@@ -123,8 +123,8 @@ export async function notifyInsightReady(phone) {
   const rows = await tokensForPhone(phone);
   if (!rows.length) return { sent: 0, failed: 0, disabled: 0 };
   return sendToTokens(rows, {
-    title: '✨ Your Kundali insight is ready!',
-    body: 'Tap to open your personalized cosmic reading.',
+    title: '✨ Your Insight Data is Ready!',
+    body: 'You can read it now — tap to open your reading.',
     data: { type: 'insight', screen: 'reading' },
   });
 }

@@ -16,6 +16,7 @@ import routes from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { seedFromStaticCities } from './services/locationService.js';
 import { SEED_CITIES } from './services/locationSeed.js';
+import { startScheduler } from './config/scheduler.js';
 
 const app = express();
 
@@ -68,6 +69,14 @@ async function start() {
     logger.info(`Server running on port ${env.PORT}`);
     logLanUrls(env.PORT);
   });
+
+  // Start the in-process push scheduler — but NOT on Vercel, where the function
+  // is ephemeral and the timers would never fire. Vercel sets process.env.VERCEL.
+  if (!process.env.VERCEL) {
+    startScheduler();
+  } else {
+    logger.warn('Vercel detected — in-process scheduler skipped (use external cron)');
+  }
 
   // Graceful shutdown — let in-flight requests finish before exiting.
   function shutdown(signal) {

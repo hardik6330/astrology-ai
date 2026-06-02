@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatCompletionJSON, fetchSaved, fetchDailyDates } from "@/services/api";
 import { buildFactSheet } from "@/astrology";
-import { notifyInsightReadyLocal } from "@/features/notifications/webPush";
 
 export const kundaliKeys = {
   saved: (form) => ["kundali", "saved", form?.name, form?.date, form?.time, form?.city],
@@ -54,8 +53,6 @@ export function useGenerateKundali({ form, chart } = {}) {
     },
     onSuccess: (data) => {
       qc.setQueryData(kundaliKeys.saved(form), data);
-      // Insight just arrived on the client — fire the notification instantly.
-      notifyInsightReadyLocal();
     },
   });
 }

@@ -1,16 +1,21 @@
 import * as push from '../services/pushService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { httpError } from '../middleware/errorHandler.js';
 
-// Each handler runs one campaign and reports the fan-out stats. Auth is the
-// shared cron secret (see middleware/cronAuth.js), not a user JWT.
-export const dailyMorning = asyncHandler(async (_req, res) => {
-  res.json(await push.sendDailyMorning());
-});
+// Single cron entrypoint. The external scheduler picks which campaign to run
+// via the ?job= query param — one URL, one cron line per job.
+const JOBS = {
+  morning:  push.sendDailyMorning,   // ~08:00 — daily horoscope, all tokens
+  evening:  push.sendDailyEvening,   // ~19:00 — evening reflection, all tokens
+  reengage: push.sendReEngagement,   // once/day — users idle 3+ days
+};
 
-export const dailyEvening = asyncHandler(async (_req, res) => {
-  res.json(await push.sendDailyEvening());
-});
-
-export const reEngagement = asyncHandler(async (_req, res) => {
-  res.json(await push.sendReEngagement());
+export const run = asyncHandler(async (req, res) => {
+  const { job } = req.query;
+  const handler = JOBS[job];
+  if (!handler) {
+    throw httpError(400, `unknown job '${job ?? ''}' — use one of: ${Object.keys(JOBS).join(', ')}`, 'BAD_JOB');
+  }
+  const result = await handler();
+  res.json({ job, ...result });
 });
