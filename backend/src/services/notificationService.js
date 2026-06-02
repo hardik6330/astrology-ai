@@ -40,6 +40,8 @@ export async function sendToTokens(rows, { title, body, data = {} }) {
 
   let sent = 0, failed = 0;
   const deadIds = [];
+  const errorCounts = {};   // { 'messaging/...': count } — for diagnosis
+  let sampleError = null;   // first human-readable failure message
 
   for (const batch of chunk(rows, FCM_BATCH)) {
     const res = await messaging.sendEachForMulticast({
@@ -54,7 +56,10 @@ export async function sendToTokens(rows, { title, body, data = {} }) {
     res.responses.forEach((r, i) => {
       if (r.success) { sent++; return; }
       failed++;
-      if (r.error && DEAD_TOKEN_CODES.has(r.error.code)) deadIds.push(batch[i].id);
+      const code = r.error?.code || 'unknown';
+      errorCounts[code] = (errorCounts[code] || 0) + 1;
+      if (!sampleError) sampleError = r.error?.message || code;
+      if (r.error && DEAD_TOKEN_CODES.has(code)) deadIds.push(batch[i].id);
     });
   }
 
@@ -63,6 +68,8 @@ export async function sendToTokens(rows, { title, body, data = {} }) {
     log.info({ count: deadIds.length }, 'disabled dead push tokens');
   }
 
+  if (failed) log.warn({ errorCounts, sampleError }, 'push send had failures');
   log.info({ sent, failed, disabled: deadIds.length, total: rows.length }, 'push fan-out done');
-  return { sent, failed, disabled: deadIds.length };
+  // Surface the error breakdown so a manual cron/test call can see WHY it failed.
+  return { sent, failed, disabled: deadIds.length, ...(failed && { errors: errorCounts, sampleError }) };
 }
