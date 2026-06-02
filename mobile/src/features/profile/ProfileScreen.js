@@ -6,6 +6,7 @@ import MagicButton from "@/components/MagicButton";
 import MenuButton from "@/components/MenuButton";
 import { useColors } from "@/theme/ThemeContext";
 import { useChart } from "@/context/ChartContext";
+import { useAuth } from "@/features/auth/AuthContext";
 import { signOf, ZE } from "@/shared/astrology";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
@@ -13,6 +14,7 @@ import { useBackToKundali } from "@/utils/useBackToKundali";
 
 export default function ProfileScreen({ navigation }) {
   const { form, chart } = useChart();
+  const { logout } = useAuth();
   const color = useColors();
   const s = useStyles(makeStyles);
   useBackToKundali(navigation);
@@ -114,6 +116,10 @@ export default function ProfileScreen({ navigation }) {
       <MagicButton onPress={() => navigation.navigate("Home")}>
         ✏️  Update Birth Details
       </MagicButton>
+
+      <Pressable onPress={logout} style={s.logoutBtn}>
+        <Text style={s.logoutText}>🚪  Logout</Text>
+      </Pressable>
     </ScreenContainer>
   );
 }
@@ -160,4 +166,16 @@ const makeStyles = (c) =>
     },
     detailKey: { color: c.textMuted, fontSize: 12 },
     detailVal: { color: c.text, fontSize: 13, fontWeight: "600" },
+
+    logoutBtn: {
+      marginTop: spacing.xl,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: c.danger + "40",
+      backgroundColor: c.danger + "10",
+    },
+    logoutText: { color: c.danger, fontSize: 14, fontWeight: "600" },
   });
