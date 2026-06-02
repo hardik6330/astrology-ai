@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import MenuButton from "@/components/MenuButton";
 import { useChart } from "@/context/ChartContext";
 import { chatCompletion, fetchChatHistory } from "@/services/api";
@@ -127,11 +128,15 @@ export default function ChatScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
       <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
-        <KeyboardAvoidingView
+        <Animated.View 
+          entering={FadeInDown.duration(400).springify()}
           style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
         >
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+          >
           {/* Header */}
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
             <View style={s.headerRow}>
@@ -200,6 +205,7 @@ export default function ChatScreen({ navigation }) {
             </View>
           </View>
         </KeyboardAvoidingView>
+        </Animated.View>
       </SafeAreaView>
     </View>
   );

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View, Text, ScrollView, BackHandler } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInRight } from "react-native-reanimated";
 import * as Location from "expo-location";
 import BottomNav from "../../components/BottomNav";
 import MenuButton from "../../components/MenuButton";
@@ -236,7 +236,7 @@ Running period: ${d.dasha}`;
 
           {/* key={tab} remounts on every switch so the section cross-fades in
               instead of hard-cutting. */}
-          <Animated.View key={tab} entering={FadeIn.duration(200)}>
+          <Animated.View key={tab} entering={FadeInRight.duration(300).springify()}>
             {tab === "kundali" && (
               <KundaliTab
                 chart={chart}

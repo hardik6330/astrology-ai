@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Animated, Easing } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import AnimatedRE, { FadeIn, FadeInRight } from "react-native-reanimated";
 import * as ImagePicker from "expo-image-picker";
 import ScreenContainer from "../../components/ScreenContainer";
 import MenuButton from "../../components/MenuButton";
@@ -329,33 +330,41 @@ export default function PalmScreen({ navigation }) {
 
             {/* Past readings */}
             {!palm && !scanning && history.length > 0 && (
-              <PastReadings history={history} loadPast={loadPast} />
+              <AnimatedRE.View entering={FadeInRight.duration(400).springify()}>
+                <PastReadings history={history} loadPast={loadPast} />
+              </AnimatedRE.View>
             )}
 
             {/* Upload / scanning view */}
             {!palm && (
-              <UploadView
-                navigation={navigation}
-                setActiveHand={setActiveHand}
-                setError={setError}
-                gating={gating}
-                error={error}
-                preview={preview}
-                scanning={scanning}
-                activeHand={activeHand}
-                scanAnim={scanAnim}
-                scanMsg={scanMsg}
-              />
+              <AnimatedRE.View entering={FadeIn.duration(400)}>
+                <UploadView
+                  navigation={navigation}
+                  setActiveHand={setActiveHand}
+                  setError={setError}
+                  gating={gating}
+                  error={error}
+                  preview={preview}
+                  scanning={scanning}
+                  activeHand={activeHand}
+                  scanAnim={scanAnim}
+                  scanMsg={scanMsg}
+                />
+              </AnimatedRE.View>
             )}
 
             {/* Reading view */}
             {palm && !unusable && (
-              <ReadingResult palm={palm} preview={preview} reset={reset} />
+              <AnimatedRE.View entering={FadeIn.duration(400)}>
+                <ReadingResult palm={palm} preview={preview} reset={reset} />
+              </AnimatedRE.View>
             )}
 
             {/* Unusable */}
             {palm && unusable && (
-              <RejectView palm={palm} preview={preview} reset={reset} />
+              <AnimatedRE.View entering={FadeIn.duration(400)}>
+                <RejectView palm={palm} preview={preview} reset={reset} />
+              </AnimatedRE.View>
             )}
           </>
         )}
