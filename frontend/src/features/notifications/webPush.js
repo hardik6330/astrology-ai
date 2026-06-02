@@ -14,16 +14,11 @@ import { registerWebPushToken } from "@/services/api";
 // Project Settings → Cloud Messaging → Web Push certificates.
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || "";
 
-let foregroundUnsub = null;
-let swRegistration = null;
+// Dedicated scope the Firebase SDK uses for its service worker. Kept separate
+// from the PWA worker's "/" scope so the two never clobber each other.
+const FCM_SW_SCOPE = "/firebase-cloud-messaging-push-scope";
 
-// Register the FCM service worker. Vite serves public/ at the root, so the file
-// is reachable at /firebase-messaging-sw.js with whole-app scope.
-async function registerServiceWorker() {
-  if (!("serviceWorker" in navigator)) return null;
-  swRegistration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-  return swRegistration;
-}
+let foregroundUnsub = null;
 
 // Call after login. Idempotent — backend upserts on the token.
 export async function registerForWebPush() {
@@ -39,23 +34,24 @@ export async function registerForWebPush() {
     const permission = await Notification.requestPermission();
     if (permission !== "granted") return;
 
-    const swReg = await registerServiceWorker();
-    const token = await getToken(messaging, {
-      vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: swReg || undefined,
-    });
+    // Do NOT pass serviceWorkerRegistration — let the SDK register
+    // firebase-messaging-sw.js at its OWN scope (FCM_SW_SCOPE). Registering it
+    // ourselves at "/" collides with the vite-plugin-pwa worker (also "/"), and
+    // the PWA's auto-register clobbers it — so pushes hit the wrong SW and Chrome
+    // shows its generic "site updated in the background" placeholder.
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
     if (!token) return;
 
     await registerWebPushToken(token);
 
-    // Foreground messages aren't shown by the browser automatically — render
-    // them ourselves. Use the SW registration's showNotification (NOT the
-    // `new Notification()` constructor, which Chrome/Brave reject when a service
-    // worker is active). The SW handles background; guard against double-binding.
+    // Foreground messages aren't shown automatically — render them via the FCM
+    // SW's showNotification (NOT the `new Notification()` constructor, which
+    // Chrome/Brave reject when a service worker is active). Background messages
+    // are handled by onBackgroundMessage in firebase-messaging-sw.js.
     foregroundUnsub?.();
-    foregroundUnsub = onMessage(messaging, (payload) => {
+    foregroundUnsub = onMessage(messaging, async (payload) => {
       const { title, body } = payload.notification || {};
-      const reg = swRegistration || swReg;
+      const reg = await navigator.serviceWorker.getRegistration(FCM_SW_SCOPE);
       if (Notification.permission === "granted" && reg) {
         reg.showNotification(title || "Astrology AI", {
           body: body || "",
