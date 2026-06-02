@@ -10,6 +10,7 @@ import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import SplashScreen from "./src/components/SplashScreen";
 import { warmupBackend } from "./src/services/api";
+import { setupForegroundNotifications } from "./src/features/notifications/push";
 
 function ThemedStatusBar() {
   const { theme } = useTheme();
@@ -38,6 +39,11 @@ function AppShell() {
   // Wake the Vercel serverless backend in the background while the
   // splash plays, so the first real API call doesn't pay the cold start.
   useEffect(() => { warmupBackend(); }, []);
+
+  // Arm the foreground notification handler once. FCM won't draw a banner
+  // while the app is open — this listens and renders it via notifee. No-op in
+  // Expo Go; only fires real notifications in a native build.
+  useEffect(() => { setupForegroundNotifications(); }, []);
 
   // Block the splash from rendering until the saved theme has loaded from
   // AsyncStorage — otherwise the user sees a brief default-dark flash before

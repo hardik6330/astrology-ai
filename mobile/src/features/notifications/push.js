@@ -10,12 +10,20 @@ import { Platform } from "react-native";
 import { registerPushToken, unregisterPushToken } from "@/services/api";
 
 let unsubscribeRefresh = null;
+let unsubscribeForeground = null;
+let androidChannelId = null;
 
 // Lazy require: a static import of the Firebase module throws at load time when
 // the native module isn't compiled in (Expo Go / pre-Firebase APK). Requiring
 // it inside the guarded functions keeps the app bootable with push disabled.
 function getMessaging() {
   return require("@react-native-firebase/messaging").default;
+}
+
+// Same lazy-require guard for notifee (also a native module, absent in Expo Go).
+function getNotifee() {
+  const mod = require("@notifee/react-native");
+  return { notifee: mod.default, AndroidImportance: mod.AndroidImportance };
 }
 
 // Ask the OS for permission to DISPLAY notifications. On Android this is only
@@ -67,5 +75,52 @@ export async function unregisterForPush() {
     if (token) await unregisterPushToken(token);
   } catch (err) {
     if (__DEV__) console.warn("[push] unregisterForPush skipped:", err?.message);
+  }
+}
+
+// ── Foreground display ───────────────────────────────────────────────────────
+//
+// FCM does NOT draw a notification while the app is in the FOREGROUND — it just
+// hands the message to messaging().onMessage and stops (same rule as the web /
+// browser). So when the user is actively in the app, nothing shows unless we
+// render it ourselves. notifee.displayNotification() draws a real system
+// notification on demand, matching what the OS does automatically when the app
+// is backgrounded.
+//
+// Idempotent + guarded: safe to call on every app launch; a no-op in Expo Go.
+export async function setupForegroundNotifications() {
+  try {
+    const { notifee, AndroidImportance } = getNotifee();
+    const messaging = getMessaging();
+
+    // Android requires a channel before any notification can be shown (8.0+).
+    androidChannelId = await notifee.createChannel({
+      id: "default",
+      name: "General",
+      importance: AndroidImportance.HIGH,
+    });
+
+    // Re-arm cleanly if called twice (e.g. fast refresh / re-login).
+    unsubscribeForeground?.();
+    unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
+      const n = remoteMessage?.notification;
+      // Fall back to data fields if the payload is data-only.
+      const title = n?.title || remoteMessage?.data?.title;
+      const body = n?.body || remoteMessage?.data?.body;
+      if (!title && !body) return;
+
+      await notifee.displayNotification({
+        title,
+        body,
+        data: remoteMessage?.data || {},
+        android: {
+          channelId: androidChannelId,
+          smallIcon: "ic_launcher",
+          pressAction: { id: "default" },
+        },
+      });
+    });
+  } catch (err) {
+    if (__DEV__) console.warn("[push] setupForegroundNotifications skipped:", err?.message);
   }
 }
