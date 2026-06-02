@@ -27,3 +27,6 @@ npm-debug.log*
 .vscode/
 .idea/
 *.swp
+
+# temp base64 of firebase service account — local only, delete after use
+firebase-b64.txt
