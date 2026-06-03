@@ -181,18 +181,16 @@ function PushModal({ user, onClose }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
   async function send(e) {
     e.preventDefault();
     setError("");
-    setResult(null);
     if (!title.trim() || !body.trim()) return setError("Title and message are both required.");
     setBusy(true);
     try {
-      const res = await adminPushUser(user.id, title.trim(), body.trim());
-      setResult(res);
+      await adminPushUser(user.id, title.trim(), body.trim());
+      onClose(); // success → dismiss the composer
     } catch (err) {
       setError(err.message || "Send failed");
     } finally {
@@ -253,13 +251,6 @@ function PushModal({ user, onClose }) {
         </Button>
 
         <ErrorText style={{ fontSize: 12.5, margin: "8px 0 0" }}>{error}</ErrorText>
-        {result && (
-          <p className="mt-2 mb-0 text-[12.5px] text-success">
-            {result.sent > 0
-              ? `Sent ${result.sent} · failed ${result.failed} · pruned ${result.disabled}`
-              : "No active devices for this user — nothing was sent."}
-          </p>
-        )}
       </Card>
     </div>
   );
