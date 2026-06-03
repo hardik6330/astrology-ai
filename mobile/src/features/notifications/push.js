@@ -103,22 +103,30 @@ export async function setupForegroundNotifications() {
     // Re-arm cleanly if called twice (e.g. fast refresh / re-login).
     unsubscribeForeground?.();
     unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
-      const n = remoteMessage?.notification;
-      // Fall back to data fields if the payload is data-only.
-      const title = n?.title || remoteMessage?.data?.title;
-      const body = n?.body || remoteMessage?.data?.body;
-      if (!title && !body) return;
+      // This callback runs asynchronously when a push arrives — OUTSIDE the
+      // setup try/catch below. Guard it independently so a missing/partial
+      // native module (RNFBAppModule, notifee) can never surface as an
+      // uncaught error / red screen.
+      try {
+        const n = remoteMessage?.notification;
+        // Fall back to data fields if the payload is data-only.
+        const title = n?.title || remoteMessage?.data?.title;
+        const body = n?.body || remoteMessage?.data?.body;
+        if (!title && !body) return;
 
-      await notifee.displayNotification({
-        title,
-        body,
-        data: remoteMessage?.data || {},
-        android: {
-          channelId: androidChannelId,
-          smallIcon: "ic_launcher",
-          pressAction: { id: "default" },
-        },
-      });
+        await notifee.displayNotification({
+          title,
+          body,
+          data: remoteMessage?.data || {},
+          android: {
+            channelId: androidChannelId,
+            smallIcon: "ic_launcher",
+            pressAction: { id: "default" },
+          },
+        });
+      } catch (err) {
+        if (__DEV__) console.warn("[push] onMessage display skipped:", err?.message);
+      }
     });
   } catch (err) {
     if (__DEV__) console.warn("[push] setupForegroundNotifications skipped:", err?.message);

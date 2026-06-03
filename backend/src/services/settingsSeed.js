@@ -13,6 +13,20 @@ export const SETTING_DEFAULTS = [
   { key: 'insights_cost',   value: '20',  description: 'Credits deducted to unlock the AI insights for a profile' },
   { key: 'daily_cost',      value: '15',  description: 'Credits deducted per day to reveal daily guidance' },
   { key: 'palm_cost',       value: '30',  description: 'Credits deducted per palm reading' },
+
+  // Engagement notifications (randomised "vibe" pushes). All times are IST.
+  { key: 'notif_enabled',       value: 'true', description: 'Master switch for randomised engagement notifications' },
+  { key: 'notif_source',        value: 'pool', description: "Notification text source: 'pool' (curated) or 'ai' (Flash-generated)" },
+  { key: 'notif_audience',      value: 'all',  description: "Who receives it: 'all' | 'random_one' | 'random_sample'" },
+  { key: 'notif_sample_pct',    value: '25',   description: 'Percent of users to send to when audience = random_sample' },
+  { key: 'notif_window_start',  value: '9',    description: 'Earliest send hour, IST (0-23)' },
+  { key: 'notif_window_end',    value: '21',   description: 'Latest send hour, IST (0-23, exclusive)' },
+  { key: 'notif_min_gap_hours', value: '5',    description: 'Minimum random gap between sends (hours)' },
+  { key: 'notif_max_gap_hours', value: '12',   description: 'Maximum random gap between sends (hours)' },
+  { key: 'notif_max_tokens',    value: '500',  description: 'Max devices per send (caps fan-out so Vercel never times out)' },
+  // Runtime state — the next scheduled send instant (epoch ms). Managed by the
+  // engage job's atomic claim; admins normally leave this alone.
+  { key: 'notif_next_at',       value: '0',    description: 'Internal: next engagement send time (epoch ms) — auto-managed' },
 ];
 
 export async function seedSettings() {

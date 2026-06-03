@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useCallback } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
 import MagicButton from "@/components/MagicButton";
@@ -28,7 +29,10 @@ export default function ProfileScreen({ navigation }) {
   // the shared store as AI actions spend them elsewhere.
   const credits = useCredits();
   const costs = useCosts();
-  useEffect(() => { getCredits(); }, []);
+  // Refetch every time Profile comes into focus (drawer screens stay mounted,
+  // so a one-time mount effect would go stale). The shared store also updates
+  // this live whenever an AI action spends credits.
+  useFocusEffect(useCallback(() => { getCredits(); }, []));
   const low = credits != null && credits < LOW;
   const initial = (form.name || "?").trim().charAt(0).toUpperCase();
 

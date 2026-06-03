@@ -9,7 +9,7 @@ import { AuthProvider, useAuth } from "./src/features/auth/AuthContext";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import SplashScreen from "./src/components/SplashScreen";
-import { warmupBackend } from "./src/services/api";
+import { warmupBackend, getCredits } from "./src/services/api";
 import { setupForegroundNotifications, requestDisplayPermission } from "./src/features/notifications/push";
 
 function ThemedStatusBar() {
@@ -29,6 +29,13 @@ function AuthLifecycle() {
     if (prev && !token) clearAll();
     prevTokenRef.current = token;
   }, [token, clearAll]);
+
+  // Load the credit balance the moment a session exists (login OR relaunch
+  // with a saved token), so the badge/cost-gating is correct app-wide without
+  // waiting for the user to open Profile. getCredits() no-ops without a token.
+  useEffect(() => {
+    if (token) getCredits();
+  }, [token]);
   return null;
 }
 

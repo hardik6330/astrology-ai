@@ -9,6 +9,7 @@ import Location from './Location.js';
 import Admin from './Admin.js';
 import Setting from './Setting.js';
 import CreditTransaction from './CreditTransaction.js';
+import NotificationTemplate from './NotificationTemplate.js';
 
 // Relationships
 User.hasOne(Kundali, { foreignKey: 'userId', onDelete: 'CASCADE' });
@@ -32,9 +33,9 @@ User.hasMany(CreditTransaction, { foreignKey: 'userId', onDelete: 'CASCADE' });
 CreditTransaction.belongsTo(User, { foreignKey: 'userId' });
 
 // Admin has no association — it's a standalone back-office login.
-// Setting is a standalone key/value store — no association.
+// Setting + NotificationTemplate are standalone — no associations.
 
 export {
   User, AuthAccount, Kundali, DailyData, ChatMessage, PalmReading,
-  PushToken, Location, Admin, Setting, CreditTransaction,
+  PushToken, Location, Admin, Setting, CreditTransaction, NotificationTemplate,
 };

@@ -19,6 +19,7 @@ import { seedFromStaticCities } from './services/locationService.js';
 import { SEED_CITIES } from './services/locationSeed.js';
 import { seedAdmin } from './services/adminSeed.js';
 import { seedSettings } from './services/settingsSeed.js';
+import { seedNotificationTemplates } from './services/notificationSeed.js';
 import { startScheduler } from './config/scheduler.js';
 
 const app = express();
@@ -70,6 +71,9 @@ async function start() {
     // One-time settings seed: inserts default credit/cost keys if missing.
     // Idempotent + best-effort — admin edits are preserved, never blocks boot.
     seedSettings().catch((err) => logger.warn({ err }, 'Settings seed skipped'));
+    // One-time notification-pool seed: curated English engagement hooks, only
+    // inserted when the table is empty (admin curation is preserved).
+    seedNotificationTemplates().catch((err) => logger.warn({ err }, 'Notification seed skipped'));
   } catch (err) {
     logger.fatal({ err }, 'Database init failed');
     if (env.NODE_ENV === 'production') process.exit(1);
