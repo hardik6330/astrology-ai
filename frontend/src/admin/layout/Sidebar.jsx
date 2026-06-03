@@ -3,13 +3,14 @@
 // user back to /admin/login on sign-out.
 
 import { NavLink, useNavigate } from "react-router-dom";
-import { LuLayoutDashboard, LuUsers, LuBell, LuUser, LuLogOut, LuShield } from "react-icons/lu";
+import { LuLayoutDashboard, LuUsers, LuBell, LuSettings, LuUser, LuLogOut, LuShield } from "react-icons/lu";
 import { useAdminAuth } from "@/admin/context/AdminAuthContext";
 
 const NAV = [
   { to: "/admin", label: "Dashboard", Icon: LuLayoutDashboard, end: true },
   { to: "/admin/users", label: "Users", Icon: LuUsers },
   { to: "/admin/push", label: "Push Notification", Icon: LuBell },
+  { to: "/admin/settings", label: "System Settings", Icon: LuSettings },
 ];
 
 // Shared nav-link classes; active state swaps the left border + bg + text.

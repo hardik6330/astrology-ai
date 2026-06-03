@@ -9,6 +9,7 @@ export const getSavedInterpretation = asyncHandler(async (req, res) => {
 });
 
 export const interpretChart = asyncHandler(async (req, res) => {
-  const content = await kundali.generateInterpretation(req.body);
-  res.json({ content });
+  // Service returns { content, balance } — balance lets the client refresh the
+  // credit badge after the charge.
+  res.json(await kundali.generateInterpretation(req.body));
 });

@@ -14,6 +14,9 @@ const User = sequelize.define('User', {
   birthDate: { type: DataTypes.STRING, allowNull: false },
   birthTime: { type: DataTypes.STRING, allowNull: false },
   birthCity: { type: DataTypes.STRING, allowNull: false },
+  // Spendable Cosmic Credits balance. New profiles are granted the
+  // initial_credits bonus on creation (see userService.findOrCreateUser).
+  credits:   { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
 }, { timestamps: true });
 
 export default User;

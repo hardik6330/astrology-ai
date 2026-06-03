@@ -1,7 +1,8 @@
 // Verifies our own JWT on every protected request. The token is minted in
 // /api/auth/verify-otp once we've confirmed the Firebase ID token.
 //
-// On success: req.auth = { accountId, firebaseUid, phone }
+// On success: req.auth = { accountId, firebaseUid, phone, userId }
+//   (userId is the User-row id when one existed at login, else null)
 // On failure: 401 with { error: 'unauthorized' }.
 
 import jwt from 'jsonwebtoken';
@@ -20,9 +21,9 @@ export function requireAuth(req, res, next) {
   }
 }
 
-export function signAppToken({ accountId, firebaseUid, phone }) {
+export function signAppToken({ accountId, firebaseUid, phone, userId = null }) {
   return jwt.sign(
-    { accountId, firebaseUid, phone },
+    { accountId, firebaseUid, phone, userId },
     env.JWT_SECRET,
     { expiresIn: env.JWT_EXPIRES_IN },
   );

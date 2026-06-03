@@ -6,6 +6,9 @@ import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 import BottomNav from "../components/BottomNav";
 import Card from "@/common/Card";
 import Button from "@/common/Button";
+import { useCosts } from "@/common/useCosts";
+import { useCredits } from "@/common/useCredits";
+import LowCreditsCard from "@/common/LowCreditsCard";
 
 // Resize an image File to max 800px on the long edge, output JPEG base64.
 // Keeps the upload small + speeds up the Gemini call.
@@ -98,8 +101,6 @@ const SCAN_MSGS = [
 ];
 
 // Shared presentation classes (kept DRY across the compare + single-hand views).
-const BACK_BTN =
-  "mb-5 cursor-pointer rounded-lg border border-[rgba(99,102,241,0.4)] bg-[rgba(99,102,241,0.1)] px-4 py-2 text-xs text-[#a5b4fc]";
 const BLUEPRINT =
   "mb-6 rounded-[20px] border border-[rgba(168,85,247,0.3)] bg-[linear-gradient(135deg,rgba(99,102,241,0.2)_0%,rgba(168,85,247,0.2)_100%)] p-[clamp(1.25rem,5vw,2rem)] text-center shadow-[0_0_30px_rgba(168,85,247,0.15)]";
 const BLUEPRINT_KICKER = "mx-0 mt-0 mb-1.5 text-xs font-bold tracking-[3px] text-[#a855f7] uppercase";
@@ -143,6 +144,9 @@ function useCameraSupport() {
 
 export default function PalmPage() {
   const navigate = useNavigate();
+  const costs = useCosts();
+  const palmCost = costs?.palm ?? 30;
+  const credits = useCredits();
   const {
     form,
     palm,
@@ -157,6 +161,8 @@ export default function PalmPage() {
     setPalmComparison,
     palmOverloaded,
     setPalmOverloaded,
+    palmLowCredits,
+    setPalmLowCredits,
     palmLeftPhoto,
     setPalmLeftPhoto,
     palmRightPhoto,
@@ -170,6 +176,9 @@ export default function PalmPage() {
   const [scanning, setScanning] = useState(palmAnalyzing);
   const [scanMsg, setScanMsg] = useState(SCAN_MSGS[0]);
   const [error, setError] = useState("");
+  // Set when a palm action is rejected for INSUFFICIENT_CREDITS — drives the
+  // prominent "not enough credits" card instead of a tiny red line.
+  const [lowCredits, setLowCredits] = useState(false);
   const [overloaded, setOverloaded] = useState(false);
   const [cooldown, setCooldown] = useState(0); // seconds remaining before retry is allowed (shared with compare overload)
   // After the user clicks "Scan a Different Palm" we must NOT auto-restore the
@@ -273,6 +282,7 @@ export default function PalmPage() {
 
   async function runAnalyze(dataUrl, hand) {
     setError("");
+    setLowCredits(false);
     setOverloaded(false);
     setPreview(dataUrl);
     setPalmPhoto(dataUrl);
@@ -292,6 +302,12 @@ export default function PalmPage() {
       if (err.code === "AI_OVERLOADED") {
         setOverloaded(true);
         setCooldown(50); // disable retry button for 50s
+      } else if (err.code === "INSUFFICIENT_CREDITS") {
+        setLowCredits(true);
+        // Drop the un-analyzed photo so the upload card shows the hand-pick
+        // buttons again instead of rendering an empty shell.
+        setPreview(null);
+        setPalmPhoto(null);
       } else setError(err.message);
     } finally {
       clearInterval(iv);
@@ -344,6 +360,8 @@ export default function PalmPage() {
     setClaimedHand(null);
     setPalmClaimedHand(null);
     setError("");
+    setLowCredits(false);
+    setPalmLowCredits(false);
     setRescan(true);
     if (fileRef.current) fileRef.current.value = "";
     if (cameraRef.current) cameraRef.current.value = "";
@@ -351,13 +369,23 @@ export default function PalmPage() {
 
   const unusable = palm?.imageQuality === "unusable";
 
+  // Can't afford a palm reading — either the balance is already too low, or a
+  // single-hand (`lowCredits`) / compare (`palmLowCredits`) attempt came back
+  // 402. Drives the prominent card and disables every scan button.
+  const cannotAfford = lowCredits || palmLowCredits || (credits != null && credits < palmCost);
+
+  // Prominent "not enough credits" card — shown on both the single-hand and
+  // compare views.
+  const lowCreditsCard = cannotAfford && <LowCreditsCard cost={palmCost} action="A palm reading" />;
+
   // Both-Hands comparison view replaces the single-hand UI entirely. Four
   // states: still analyzing (scan animation), Pro overloaded (cooldown
   // card), either hand unusable (per-hand retake card), or ready.
   const inCompareMode =
     !!palmComparison ||
     (palmAnalyzing && palmLeftPhoto && palmRightPhoto) ||
-    (palmOverloaded && palmLeftPhoto && palmRightPhoto);
+    (palmOverloaded && palmLeftPhoto && palmRightPhoto) ||
+    (palmLowCredits && palmLeftPhoto && palmRightPhoto);
   if (inCompareMode) {
     const c = palmComparison?.comparison;
     const leftBad = palmComparison?.left?.imageQuality === "unusable";
@@ -370,6 +398,7 @@ export default function PalmPage() {
       setPalmRightPhoto(null);
       setPalmAnalyzing(false);
       setPalmOverloaded(false);
+      setPalmLowCredits(false);
       navigate("/palm-compare");
     }
 
@@ -378,11 +407,13 @@ export default function PalmPage() {
     // still ticking down — see compareCooldown below.
     function retryCompare() {
       setPalmOverloaded(false);
+      setPalmLowCredits(false);
       setPalmAnalyzing(true);
       comparePalms(palmLeftPhoto, palmRightPhoto, form)
         .then((result) => setPalmComparison(result))
         .catch((err) => {
           if (err?.code === "AI_OVERLOADED") setPalmOverloaded(true);
+          else if (err?.code === "INSUFFICIENT_CREDITS") setPalmLowCredits(true);
         })
         .finally(() => setPalmAnalyzing(false));
     }
@@ -395,10 +426,6 @@ export default function PalmPage() {
         <div className="cosmos"></div>
         <div className="stars"></div>
 
-        <button onClick={() => navigate("/", { state: { edit: true } })} className={BACK_BTN}>
-          ← New Reading
-        </button>
-
         <div className="mb-6 text-center">
           <p className="text-[13px] font-semibold tracking-[1px] text-[#a855f7] uppercase">
             {form.name || "Your"} · Full Life Comparison
@@ -407,6 +434,8 @@ export default function PalmPage() {
             🔒 Your photos are analyzed and discarded — never stored.
           </p>
         </div>
+
+        {lowCreditsCard}
 
         {/* Both photos, side by side */}
         {(palmLeftPhoto || palmRightPhoto) && (
@@ -648,10 +677,6 @@ export default function PalmPage() {
       <div className="cosmos"></div>
       <div className="stars"></div>
 
-      <button onClick={() => navigate("/")} className={BACK_BTN}>
-        ← New Reading
-      </button>
-
       <div className="mb-6 text-center">
         <p className="text-[13px] font-semibold tracking-[1px] text-accent uppercase">
           {form.name || "Your"} Palm Reading
@@ -660,6 +685,8 @@ export default function PalmPage() {
           🔒 Your photo is analyzed and discarded — never stored.
         </p>
       </div>
+
+      {lowCreditsCard}
 
       {overloaded && !palm && (
         <Card
@@ -743,15 +770,22 @@ export default function PalmPage() {
                 🖐️
               </div>
               <p className="mx-0 mt-0 mb-1.5 text-[15px] font-semibold text-ink">Scan Your Palm</p>
-              <p className="mx-0 mt-0 mb-5 text-xs leading-[1.6] text-dim">
+              <p className="mx-0 mt-0 mb-3 text-xs leading-[1.6] text-dim">
                 Pick which hand you're uploading. We'll check the photo matches the hand you choose.
               </p>
+              {/* Cost reminder — palm reading is a charged AI action. */}
+              <div className="mx-auto mb-4 inline-flex items-center gap-1.5 rounded-full border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] px-3 py-1 text-[11.5px] font-semibold text-[#c084fc]">
+                ✨ {palmCost} credits per reading
+              </div>
               <div className="grid gap-2.5">
                 <button
                   onClick={() => pickForHand("Right")}
-                  disabled={gating}
+                  disabled={gating || cannotAfford}
                   className="flex w-full items-center gap-3.5 rounded-xl border border-[rgba(168,85,247,0.35)] bg-[rgba(168,85,247,0.08)] px-4 py-3.5 text-left text-ink"
-                  style={{ cursor: gating ? "wait" : "pointer", opacity: gating ? 0.5 : 1 }}
+                  style={{
+                    cursor: gating || cannotAfford ? "not-allowed" : "pointer",
+                    opacity: gating || cannotAfford ? 0.5 : 1,
+                  }}
                 >
                   <span className="w-8 text-center text-[26px]">✋</span>
                   <span className="flex-1">
@@ -764,9 +798,12 @@ export default function PalmPage() {
                 </button>
                 <button
                   onClick={() => pickForHand("Left")}
-                  disabled={gating}
+                  disabled={gating || cannotAfford}
                   className="flex w-full items-center gap-3.5 rounded-xl border border-[rgba(168,85,247,0.35)] bg-[rgba(168,85,247,0.08)] px-4 py-3.5 text-left text-ink"
-                  style={{ cursor: gating ? "wait" : "pointer", opacity: gating ? 0.5 : 1 }}
+                  style={{
+                    cursor: gating || cannotAfford ? "not-allowed" : "pointer",
+                    opacity: gating || cannotAfford ? 0.5 : 1,
+                  }}
                 >
                   <span className="w-8 text-center text-[26px]">🤚</span>
                   <span className="flex-1">
@@ -791,9 +828,10 @@ export default function PalmPage() {
               {/* Premium upsell — both-hands "Full Life Comparison". */}
               <button
                 onClick={() => navigate("/palm-compare")}
-                className="mt-3.5 w-full cursor-pointer rounded-[10px] border border-[rgba(192,132,252,0.4)] bg-[linear-gradient(135deg,rgba(168,85,247,0.10),rgba(99,102,241,0.10))] px-3 py-2.5 text-[12.5px] font-semibold text-[#c4b5fd]"
+                disabled={cannotAfford}
+                className="mt-3.5 w-full cursor-pointer rounded-[10px] border border-[rgba(192,132,252,0.4)] bg-[linear-gradient(135deg,rgba(168,85,247,0.10),rgba(99,102,241,0.10))] px-3 py-2.5 text-[12.5px] font-semibold text-[#c4b5fd] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                ✋🤚 Compare Both Hands · Full Life Reading →
+                ✋🤚 Compare Both Hands · Full Life Reading · {palmCost} Credits →
               </button>
 
               {gating && <p className="mx-0 mt-3 mb-0 text-center text-[13px] text-dim">Reading photo…</p>}

@@ -3,8 +3,10 @@
 // boilerplate now lives in @/common/apiClient; this module keeps the
 // domain-specific bits (auth 401-redirect, phone scoping, content double-parse).
 
-import { API_BASE as API_URL, request } from "@/common/apiClient";
+import { API_BASE as API_URL, request, unwrap } from "@/common/apiClient";
 import { tokenStore } from "@/common/tokenStore";
+import { noteBalance } from "@/common/creditsStore";
+import { noteCosts } from "@/common/costsStore";
 
 // Re-export under the original name so existing importers keep working.
 export const API_BASE = API_URL;
@@ -77,7 +79,7 @@ export async function registerWebPushToken(token) {
     body: JSON.stringify({ token, platform: "web" }),
   });
   if (!res.ok) throw new Error(`web push register failed (HTTP ${res.status})`);
-  return res.json();
+  return unwrap(await res.json());
 }
 
 // Trim the conversation to the last N turns before sending. The full
@@ -117,7 +119,8 @@ export async function chatCompletion(messages, type = "chat", extraData = {}) {
     if (errBody.code) err.code = errBody.code;
     throw err;
   }
-  const data = await res.json();
+  const data = unwrap(await res.json());
+  noteBalance(data.balance); // refresh the credit badge after a charge
   return (data.content || "").trim();
 }
 
@@ -135,7 +138,7 @@ export async function fetchSaved(type, form, targetDate) {
   const res = await authFetch(`${API_URL}/${type}?${params}`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("Failed to load saved data");
-  const data = await res.json();
+  const data = unwrap(await res.json());
 
   // Parse once; if the payload was double-encoded (a JSON string of a JSON
   // string) the first parse yields a string — parse again to reach the object.
@@ -151,7 +154,7 @@ export async function fetchDailyDates(form) {
   try {
     const res = await authFetch(`${API_URL}/daily-dates?${params}`);
     if (!res.ok) return [];
-    const data = await res.json();
+    const data = unwrap(await res.json());
     return data.dates || [];
   } catch {
     return [];
@@ -165,7 +168,7 @@ export async function fetchPalmHistory(form) {
   try {
     const res = await authFetch(`${API_URL}/palm/history?${params}`);
     if (!res.ok) return [];
-    const data = await res.json();
+    const data = unwrap(await res.json());
     return data.readings || [];
   } catch {
     return [];
@@ -177,7 +180,7 @@ export async function fetchPalmById(id, form) {
   const params = formParams(form);
   const res = await authFetch(`${API_URL}/palm/${id}?${params}`);
   if (!res.ok) return null;
-  const data = await res.json();
+  const data = unwrap(await res.json());
   let parsed = JSON.parse((data.content || "").replace(/```json|```/g, "").trim());
   if (typeof parsed === "string") parsed = JSON.parse(parsed);
   return parsed;
@@ -199,7 +202,8 @@ export async function analyzePalm(imageBase64, form, claimedHand) {
     if (errBody.code) e.code = errBody.code;
     throw e;
   }
-  const data = await res.json();
+  const data = unwrap(await res.json());
+  noteBalance(data.balance);
   let parsed = JSON.parse((data.content || "").replace(/```json|```/g, "").trim());
   if (typeof parsed === "string") parsed = JSON.parse(parsed);
   return parsed;
@@ -225,10 +229,29 @@ export async function comparePalms(leftBase64, rightBase64, form) {
     if (errBody.code) e.code = errBody.code;
     throw e;
   }
-  const data = await res.json();
+  const data = unwrap(await res.json());
+  noteBalance(data.balance);
   let parsed = JSON.parse((data.content || "").replace(/```json|```/g, "").trim());
   if (typeof parsed === "string") parsed = JSON.parse(parsed);
   return parsed;
+}
+
+// Current credit balance for the logged-in user — populates the credit badge.
+// The user is resolved server-side from the auth token, so no form is needed.
+// No-ops (returns null) without a token so it never bounces a logged-out
+// visitor to /login.
+export async function getCredits() {
+  if (!appToken.get()) return null;
+  try {
+    const res = await authFetch(`${API_URL}/credits`);
+    if (!res.ok) return null;
+    const data = unwrap(await res.json());
+    noteBalance(data.credits);
+    noteCosts(data.costs);
+    return data.credits;
+  } catch {
+    return null;
+  }
 }
 
 // Fetch the saved chat history for a person. Returns an array of
@@ -241,7 +264,7 @@ export async function searchCities(query, token) {
   const params = new URLSearchParams({ q: query, token });
   const res = await fetch(`${API_URL}/locations/search?${params}`);
   if (!res.ok) return [];
-  const data = await res.json();
+  const data = unwrap(await res.json());
   return data.results || [];
 }
 
@@ -262,7 +285,7 @@ export async function fetchChatHistory(form) {
   try {
     const res = await authFetch(`${API_URL}/chat?${params}`);
     if (!res.ok) return [];
-    const data = await res.json();
+    const data = unwrap(await res.json());
     return data.messages || [];
   } catch {
     return [];

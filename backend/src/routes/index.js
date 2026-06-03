@@ -8,21 +8,27 @@ import locationRoutes from './locationRoutes.js';
 import pushRoutes     from './pushRoutes.js';
 import cronRoutes     from './cronRoutes.js';
 import adminRoutes    from './adminRoutes.js';
+import creditRoutes   from './creditRoutes.js';
+import { requireAuth } from '../middleware/auth.js';
 
-// Single mounting point for every feature router. Auth routes are public
-// (used by the web login flow); the rest are currently open so the mobile
-// app can call them without a token. Re-add `requireAuth` here when ready
-// to fully enforce sign-in on every API.
+// Single mounting point for every feature router.
 const router = Router();
 
-router.use(authRoutes);
+// ── Public / self-guarded ──────────────────────────────────────────────────
+router.use(authRoutes);      // login / verify — must be reachable without a token
+router.use(locationRoutes);  // Google Places proxy, used during onboarding (no credits)
+router.use(cronRoutes);      // guarded by its own cron secret
+router.use(adminRoutes);     // guarded by requireAdmin
+router.use(pushRoutes);      // self-guards each route with requireAuth
+
+// ── Signed-in user required ─────────────────────────────────────────────────
+// The AI/credit features must identify the caller so credits can be charged to
+// the right account. requireAuth puts req.auth = { accountId, firebaseUid, phone }.
+router.use(requireAuth);
+router.use(creditRoutes);
 router.use(kundaliRoutes);
 router.use(dailyRoutes);
 router.use(chatRoutes);
 router.use(palmRoutes);
-router.use(locationRoutes);
-router.use(pushRoutes);
-router.use(cronRoutes);
-router.use(adminRoutes);
 
 export default router;

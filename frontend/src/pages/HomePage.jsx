@@ -12,6 +12,7 @@ import Button from "@/common/Button";
 import { EMOJIS } from "@/utils/emojis";
 
 const lbl = "mb-1 block text-[13px] text-[#888]";
+const errLbl = "mt-1 mb-0 text-[12px] text-danger";
 
 // Landing page — the birth-detail form. On submit it computes the chart
 // and routes to the protected /reading page.
@@ -20,6 +21,9 @@ export default function HomePage() {
   const location = useLocation();
   const { form, setForm, chart, setChart, setInterp, setDaily, setChatMsgs } = useChart();
   const [error, setError] = useState("");
+  // Per-field errors keyed by field name (name/date/time/city). Cleared as
+  // soon as the user fixes that field.
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // Returning user: if ChartContext already has a chart, skip the form and
   // land on Reading. Suppressed when the user explicitly came here to edit
@@ -29,7 +33,11 @@ export default function HomePage() {
     if (chart && !editMode) navigate("/reading", { replace: true });
   }, [chart, editMode, navigate]);
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    // Clear this field's error the moment it gets a value.
+    if (v) setFieldErrors((e) => (e[k] ? { ...e, [k]: "" } : e));
+  };
 
   // Today in local YYYY-MM-DD — used as the <input type=date> max attribute
   // and the defensive check below. Built locally (not via toISOString) so
@@ -57,6 +65,7 @@ export default function HomePage() {
     }
     if (!picked) return;
     setError("");
+    setFieldErrors((e) => (e.city ? { ...e, city: "" } : e));
     setForm((f) => ({
       ...f,
       city: picked.city,
@@ -69,18 +78,22 @@ export default function HomePage() {
   }
 
   function generate() {
-    if (!form.date || !form.time || !form.city) {
-      setError("All fields are required!");
+    // Collect an error per required field so each one is flagged individually.
+    const fe = {};
+    if (!form.name?.trim()) fe.name = "Name is required.";
+    if (!form.date) fe.date = "Birth date is required.";
+    else if (form.date > today) fe.date = "Birth date can't be in the future.";
+    if (!form.time) fe.time = "Birth time is required.";
+    if (!form.city?.trim()) fe.city = "Birth city is required.";
+    else if (form.lat == null || form.lon == null || form.tz == null)
+      fe.city = "Please pick your city from the suggestions.";
+
+    if (Object.keys(fe).length) {
+      setFieldErrors(fe);
+      setError("Please fill in all required fields.");
       return;
     }
-    if (form.date > today) {
-      setError("Birth date can't be in the future.");
-      return;
-    }
-    if (form.lat == null || form.lon == null || form.tz == null) {
-      setError("Please pick your city from the suggestions.");
-      return;
-    }
+    setFieldErrors({});
     setError("");
     try {
       const ch = computeChart(form.date, form.time, {
@@ -127,6 +140,7 @@ export default function HomePage() {
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
               />
+              {fieldErrors.name && <p className={errLbl}>{fieldErrors.name}</p>}
             </div>
             <div>
               <label className={lbl}>Gender</label>
@@ -146,6 +160,7 @@ export default function HomePage() {
             <div>
               <label className={lbl}>Birth Date</label>
               <CustomDatePicker value={form.date} max={today} onChange={(val) => set("date", val)} />
+              {fieldErrors.date && <p className={errLbl}>{fieldErrors.date}</p>}
             </div>
             <div>
               <label className={lbl}>Birth Time</label>
@@ -154,6 +169,7 @@ export default function HomePage() {
                 onChange={(val) => set("time", val)}
                 disabled={form.unknownTime}
               />
+              {fieldErrors.time && <p className={errLbl}>{fieldErrors.time}</p>}
             </div>
           </div>
 
@@ -180,6 +196,7 @@ export default function HomePage() {
           <div>
             <label className={lbl}>Birth City</label>
             <CitySearch value={form.city} birthTimestamp={birthTimestamp} onSelect={onCitySelected} />
+            {fieldErrors.city && <p className={errLbl}>{fieldErrors.city}</p>}
           </div>
           <Button variant="magic" onClick={generate} fullWidth className="mt-2">
             Reveal My Destiny {EMOJIS.ARROW_UP_RIGHT}

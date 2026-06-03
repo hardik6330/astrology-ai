@@ -16,11 +16,18 @@ export const API_BASE =
     ? `${window.location.protocol}//${window.location.hostname}:5000/api`
     : RAW_API_URL || "http://localhost:5000/api";
 
+// The backend wraps every success response as { success, message, data }.
+// Unwrap to the inner `data` so callers see the same payload as before. Bodies
+// without the envelope (legacy / non-/api endpoints) pass through untouched.
+export function unwrap(body) {
+  return body && body.success === true && "data" in body ? body.data : body;
+}
+
 /**
- * Make a JSON request and return the parsed body.
+ * Make a JSON request and return the parsed body (unwrapped from the envelope).
  * @param {string} path  e.g. "/admin/login" (appended to base) or a full URL
  * @param {{method?, body?, token?, headers?, base?}} opts
- * @returns parsed JSON on 2xx
+ * @returns the response `data` on 2xx
  * @throws Error with `.status` (HTTP code) and `.code` (backend error code)
  */
 export async function request(path, { method = "GET", body, token, headers = {}, base = API_BASE } = {}) {
@@ -41,5 +48,5 @@ export async function request(path, { method = "GET", body, token, headers = {},
     if (data.code) err.code = data.code;
     throw err;
   }
-  return data;
+  return unwrap(data);
 }

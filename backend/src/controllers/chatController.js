@@ -7,6 +7,6 @@ export const getChatHistory = asyncHandler(async (req, res) => {
 });
 
 export const chatWithAstrologer = asyncHandler(async (req, res) => {
-  const content = await chat.answerAndPersist(req.body);
-  res.json({ content });
+  // Service returns { content, balance }.
+  res.json(await chat.answerAndPersist(req.body));
 });

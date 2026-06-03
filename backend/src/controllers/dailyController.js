@@ -14,6 +14,6 @@ export const getDailyDates = asyncHandler(async (req, res) => {
 });
 
 export const getDailyGuidance = asyncHandler(async (req, res) => {
-  const content = await daily.generateDailyGuidance(req.body);
-  res.json({ content });
+  // Service returns { content, balance }.
+  res.json(await daily.generateDailyGuidance(req.body));
 });

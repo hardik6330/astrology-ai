@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useChart } from "@/context/ChartContext";
 import { useChatHistory, useSendChatMessage } from "@/features/chat/hooks";
 import Card from "@/common/Card";
+import { useCosts } from "@/common/useCosts";
+import { useCredits } from "@/common/useCredits";
+import LowCreditsCard from "@/common/LowCreditsCard";
 
 import { EMOJIS } from "@/utils/emojis";
 
@@ -21,11 +24,17 @@ export default function ChatPage() {
   const [chatInput, setChatInput] = useState("");
   const [phIdx, setPhIdx] = useState(0);
   const [phText, setPhText] = useState("");
+  const [lowCredits, setLowCredits] = useState(false); // 402 on send
   const scrollRef = useRef(null);
 
   const { data: savedHistory } = useChatHistory(form);
   const sendMessage = useSendChatMessage({ form, chart });
   const chatBusy = sendMessage.isPending;
+  const costs = useCosts();
+  const chatCost = costs?.chat ?? 5;
+  const credits = useCredits();
+  // Block sending once the balance can't cover one message (or after a 402).
+  const cannotAfford = lowCredits || (credits != null && credits < chatCost);
 
   const PLACEHOLDERS = [
     "Ask about your future…",
@@ -89,8 +98,9 @@ export default function ChatPage() {
   async function askChat(e) {
     if (e) e.preventDefault();
     const q = chatInput.trim();
-    if (!q || chatBusy || !chart) return;
+    if (!q || chatBusy || !chart || cannotAfford) return;
     setChatInput("");
+    setLowCredits(false);
     const history = [...chatMsgs, { role: "user", content: q }];
     setChatMsgs([...history, { role: "assistant", content: "…" }]);
 
@@ -104,6 +114,13 @@ export default function ChatPage() {
         return c;
       });
     } catch (err) {
+      if (err.code === "INSUFFICIENT_CREDITS") {
+        // Drop the "…" placeholder and the user turn; surface the credit card.
+        setChatMsgs((m) => m.slice(0, -2));
+        setChatInput(q); // give the question back so they can resend after topping up
+        setLowCredits(true);
+        return;
+      }
       setChatMsgs((m) => {
         const c = m.slice();
         c[c.length - 1] = { role: "assistant", content: "Error: " + err.message };
@@ -190,17 +207,25 @@ export default function ChatPage() {
               ))}
             </div>
           )}
+          {cannotAfford && (
+            <div className="mb-2.5">
+              <LowCreditsCard cost={chatCost} action="Each chat message" />
+            </div>
+          )}
+          <p className="mx-1 mb-1.5 text-center text-[10.5px] text-muted">
+            {EMOJIS.SPARKLES} {chatCost} credits per message
+          </p>
           <form onSubmit={askChat} className="flex gap-2">
             <input
-              className="premium-input flex-1"
-              placeholder={phText + "▍"}
+              className="premium-input flex-1 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder={cannotAfford ? "Out of credits — top up to chat" : phText + "▍"}
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              disabled={chatBusy}
+              disabled={chatBusy || cannotAfford}
             />
             <button
               type="submit"
-              disabled={chatBusy || !chatInput.trim()}
+              disabled={chatBusy || cannotAfford || !chatInput.trim()}
               className="cursor-pointer rounded-[10px] border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.15)] px-5 py-2.5 text-[13px] font-semibold text-[#c084fc] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {chatBusy ? "…" : "Ask"}

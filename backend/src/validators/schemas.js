@@ -89,6 +89,15 @@ export const adminBroadcastBody = z.object({
   body:  z.string().trim().min(1, 'body is required').max(500),
 });
 
+// Admin settings update — a batch of { key, value } pairs. Values arrive as
+// strings (the column type); feature code coerces with Number() where needed.
+export const adminSettingsBody = z.object({
+  settings: z.array(z.object({
+    key:   z.string().trim().min(1, 'key is required').max(64),
+    value: z.string().trim().min(1, 'value is required').max(255),
+  })).min(1, 'at least one setting is required'),
+});
+
 // Device push-token registration. Token length cap matches PushToken's column.
 export const pushRegisterBody = z.object({
   token:    z.string().min(20).max(512),

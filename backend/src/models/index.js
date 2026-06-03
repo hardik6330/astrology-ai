@@ -7,6 +7,8 @@ import PalmReading from './PalmReading.js';
 import PushToken from './PushToken.js';
 import Location from './Location.js';
 import Admin from './Admin.js';
+import Setting from './Setting.js';
+import CreditTransaction from './CreditTransaction.js';
 
 // Relationships
 User.hasOne(Kundali, { foreignKey: 'userId', onDelete: 'CASCADE' });
@@ -26,6 +28,13 @@ PalmReading.belongsTo(User, { foreignKey: 'userId' });
 AuthAccount.hasMany(PushToken, { foreignKey: 'accountId', onDelete: 'CASCADE' });
 PushToken.belongsTo(AuthAccount, { foreignKey: 'accountId' });
 
-// Admin has no association — it's a standalone back-office login.
+User.hasMany(CreditTransaction, { foreignKey: 'userId', onDelete: 'CASCADE' });
+CreditTransaction.belongsTo(User, { foreignKey: 'userId' });
 
-export { User, AuthAccount, Kundali, DailyData, ChatMessage, PalmReading, PushToken, Location, Admin };
+// Admin has no association — it's a standalone back-office login.
+// Setting is a standalone key/value store — no association.
+
+export {
+  User, AuthAccount, Kundali, DailyData, ChatMessage, PalmReading,
+  PushToken, Location, Admin, Setting, CreditTransaction,
+};

@@ -20,11 +20,11 @@ export const getPalmById = asyncHandler(async (req, res) => {
 });
 
 export const analyzePalm = asyncHandler(async (req, res) => {
-  const content = await palm.analyzePalm(req.body);
-  res.json({ content });
+  // Service returns { content, balance }.
+  res.json(await palm.analyzePalm(req.body));
 });
 
 export const comparePalms = asyncHandler(async (req, res) => {
-  const content = await palm.comparePalms(req.body);
-  res.json({ content });
+  // Service returns { content, balance }.
+  res.json(await palm.comparePalms(req.body));
 });

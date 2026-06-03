@@ -3,7 +3,7 @@
 // it tripped) with cached, deduped queries keyed under ["admin", …].
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { adminStats, adminUsers, adminMe } from "./adminApi";
+import { adminStats, adminUsers, adminMe, adminGetSettings } from "./adminApi";
 
 export function useAdminStats() {
   return useQuery({ queryKey: ["admin", "stats"], queryFn: adminStats });
@@ -24,5 +24,12 @@ export function useAdminMe() {
     queryFn: () => adminMe().then((d) => d.admin),
     // A stale/invalid token is a hard 401 — don't retry, surface it immediately.
     retry: false,
+  });
+}
+
+export function useAdminSettings() {
+  return useQuery({
+    queryKey: ["admin", "settings"],
+    queryFn: () => adminGetSettings().then((d) => d.settings),
   });
 }

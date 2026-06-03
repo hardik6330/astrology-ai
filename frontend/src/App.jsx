@@ -6,6 +6,7 @@ import { ChartProvider } from "@/context/ChartContext";
 import { AuthProvider } from "@/features/auth/AuthContext";
 import { queryClient } from "@/lib/queryClient";
 import Loading from "@/common/Loading";
+import CreditBadge from "@/common/CreditBadge";
 import { appRoutes } from "@/routes";
 
 function PageLoader() {
@@ -19,6 +20,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ChartProvider>
+          <CreditBadge />
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>

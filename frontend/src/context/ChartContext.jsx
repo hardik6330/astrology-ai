@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { computeChart } from "@/shared/astrology";
+import { creditsStore } from "@/common/creditsStore";
 
 const ChartContext = createContext(null);
 
@@ -71,6 +72,10 @@ export function ChartProvider({ children }) {
   // True when the Both-Hands Pro call returned AI_OVERLOADED. PalmPage's
   // compare view reads this and shows the cooldown card with a retry.
   const [palmOverloaded, setPalmOverloaded] = useState(false);
+  // True when the Both-Hands Pro call was rejected for INSUFFICIENT_CREDITS.
+  // Set from the compare flow (which may start on PalmComparePage and finish
+  // after navigation), read by PalmPage to show the "not enough credits" card.
+  const [palmLowCredits, setPalmLowCredits] = useState(false);
   const [palmLeftPhoto, setPalmLeftPhoto] = useState(null);
   const [palmRightPhoto, setPalmRightPhoto] = useState(null);
 
@@ -106,6 +111,7 @@ export function ChartProvider({ children }) {
     setPalmClaimedHand(null);
     setPalmComparison(null);
     setPalmOverloaded(false);
+    setPalmLowCredits(false);
     setPalmLeftPhoto(null);
     setPalmRightPhoto(null);
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -125,8 +131,10 @@ export function ChartProvider({ children }) {
     setPalmClaimedHand(null);
     setPalmComparison(null);
     setPalmOverloaded(false);
+    setPalmLowCredits(false);
     setPalmLeftPhoto(null);
     setPalmRightPhoto(null);
+    creditsStore.clear(); // don't let a new login inherit the previous balance
     sessionStorage.removeItem(STORAGE_KEY);
   }
 
@@ -153,6 +161,8 @@ export function ChartProvider({ children }) {
     setPalmComparison,
     palmOverloaded,
     setPalmOverloaded,
+    palmLowCredits,
+    setPalmLowCredits,
     palmLeftPhoto,
     setPalmLeftPhoto,
     palmRightPhoto,

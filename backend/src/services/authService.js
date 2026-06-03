@@ -44,6 +44,21 @@ async function findSavedFormByPhone(phone) {
   };
 }
 
+// Resolve the User-row id for a phone (last-10-digit match, most-recently
+// updated named profile) so it can be baked into the session JWT. Returns
+// null when the phone has no profile yet (brand-new user) — the credit
+// endpoint then falls back to a phone lookup.
+async function userIdForPhone(phone) {
+  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
+  if (digits.length !== 10) return null;
+  const user = await User.findOne({
+    where: { phone: { [Op.like]: `%${digits}` }, name: { [Op.ne]: '' } },
+    order: [['updatedAt', 'DESC']],
+    attributes: ['id'],
+  });
+  return user ? user.id : null;
+}
+
 // Upsert the auth ledger row for a (firebaseUid, phone) pair and stamp the
 // login time. Returns the AuthAccount.
 async function upsertAccount(firebaseUid, phone) {
@@ -73,6 +88,7 @@ export async function verifyOtp(idToken) {
     accountId:   account.id,
     firebaseUid: account.firebaseUid,
     phone:       account.phone,
+    userId:      await userIdForPhone(account.phone),
   });
 
   return { token, account: { id: account.id, phone: account.phone } };
@@ -96,6 +112,7 @@ export async function dummyLogin(rawPhone) {
     accountId:   account.id,
     firebaseUid: account.firebaseUid,
     phone:       account.phone,
+    userId:      await userIdForPhone(digits),
   });
 
   const savedForm = await findSavedFormByPhone(digits);

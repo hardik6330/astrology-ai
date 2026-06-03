@@ -44,3 +44,13 @@ export function adminBroadcast(title, body) {
 export function adminPushUser(userId, title, body) {
   return adminFetch(`/admin/users/${userId}/push`, { method: "POST", body: { title, body } });
 }
+
+// GET /admin/settings → { settings: [{ key, value, description }] }.
+export function adminGetSettings() {
+  return adminFetch("/admin/settings");
+}
+
+// POST /admin/settings → persists [{ key, value }] and returns the fresh list.
+export function adminSaveSettings(settings) {
+  return adminFetch("/admin/settings", { method: "POST", body: { settings } });
+}

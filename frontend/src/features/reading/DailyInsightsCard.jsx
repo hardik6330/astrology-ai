@@ -4,6 +4,8 @@ import { chatCompletionJSON, fetchSaved } from "../../services/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDailyDates, kundaliKeys } from "@/features/kundali/hooks";
 import Card from "@/common/Card";
+import { useCosts } from "@/common/useCosts";
+import { useCredits } from "@/common/useCredits";
 import { EMOJIS } from "@/utils/emojis";
 
 const WD_SHORT = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
@@ -14,6 +16,9 @@ const iso = (d) => d.toISOString().split("T")[0];
 // Self-contained daily-guidance widget: detects GPS for accurate transit,
 // shows a month date-strip, and fetches/generates AI guidance per day.
 export default function DailyInsightsCard({ chart, form, onError }) {
+  const costs = useCosts();
+  const dailyCost = costs?.daily ?? 15;
+  const credits = useCredits();
   const cityObj = useMemo(
     () =>
       form.lat != null && form.lon != null && form.tz != null
@@ -25,6 +30,10 @@ export default function DailyInsightsCard({ chart, form, onError }) {
   const [currentLoc, setCurrentLoc] = useState(null);
   const [, setLocError] = useState(false);
   const [dailyBusy, setDailyBusy] = useState(false);
+  const [lowCredits, setLowCredits] = useState(false); // 402 on generate
+  // Can't afford a day's guidance — either the balance is already too low or a
+  // generate attempt just came back 402. Drives the disabled button label.
+  const cannotAfford = lowCredits || (credits != null && credits < dailyCost);
 
   const getGpsLocation = () => {
     if (!navigator.geolocation) return;
@@ -115,6 +124,7 @@ export default function DailyInsightsCard({ chart, form, onError }) {
     const key = iso(date);
     if (dailyBusy || !chart || guideMap[key]) return;
     setDailyBusy(true);
+    setLowCredits(false);
     const d = computeDaily(chart, activeLoc, date);
     const ctx = `PERSON: ${form.name || "Unknown"} | GENDER: ${form.gender || "NOT SPECIFIED — use name or they/them"}
 NATAL: Lagna ${signOf(chart.angles.ascSid)}, Moon ${signOf(chart.planets[1].sid)}, Nakshatra ${chart.nakshatra}
@@ -129,7 +139,8 @@ Running period: ${d.dasha}`;
       setGuideMap((m) => ({ ...m, [key]: result }));
       qc.invalidateQueries({ queryKey: kundaliKeys.dailyDates(form) });
     } catch (e) {
-      onError?.("Daily guidance failed: " + e.message);
+      if (e.code === "INSUFFICIENT_CREDITS") setLowCredits(true);
+      else onError?.("Daily guidance failed: " + e.message);
     }
     setDailyBusy(false);
   }
@@ -244,10 +255,14 @@ Running period: ${d.dasha}`;
       {!guide && (
         <button
           onClick={() => loadDaily(selDate)}
-          disabled={dailyBusy}
-          className="w-full cursor-pointer rounded-[10px] border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] p-[11px] text-[13px] font-semibold text-[#c084fc] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={dailyBusy || cannotAfford}
+          className="w-full cursor-pointer rounded-[10px] border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] p-2.75 text-[13px] font-semibold text-[#c084fc] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {dailyBusy ? "Reading the sky…" : `${EMOJIS.SPARKLES} Reveal This Day's Full Guidance`}
+          {dailyBusy
+            ? "Reading the sky…"
+            : cannotAfford
+              ? `Not enough credits · ${dailyCost} needed`
+              : `${EMOJIS.SPARKLES} Reveal This Day's Full Guidance · ${dailyCost} Credits`}
         </button>
       )}
       {guide && (

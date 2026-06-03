@@ -1,14 +1,51 @@
 import Card from "@/common/Card";
 import Button from "@/common/Button";
 import { asText } from "./asText";
+import { useCosts } from "@/common/useCosts";
+import LowCreditsCard from "@/common/LowCreditsCard";
 import { EMOJIS } from "@/utils/emojis";
 
 // Insights tab: the AI-generated reading — blueprint, core cards, strengths /
-// challenges, key placements, remedies, and the chat CTA. Also renders the
+// challenges, key placements, remedies, and the chat CTA. Locked by default
+// (a "Unlock for N credits" preview) until the user pays; also renders the
 // overloaded-retry and loading states while the reading is being generated.
-export default function InsightsTab({ interp, loading, loadMsg, overloaded, cooldown, onRetry, onOpenChat }) {
+export default function InsightsTab({
+  interp,
+  loading,
+  loadMsg,
+  overloaded,
+  cooldown,
+  lowCredits,
+  onUnlock,
+  onRetry,
+  onOpenChat,
+}) {
+  const costs = useCosts();
+  const cost = costs?.insights ?? 20;
+
   return (
     <>
+      {lowCredits && !interp && (
+        <div className="mb-4">
+          <LowCreditsCard cost={cost} action="The detailed AI analysis" />
+        </div>
+      )}
+      {!interp && !loading && !overloaded && !lowCredits && (
+        <Card className="text-center" style={{ padding: "2.5rem 1.5rem" }}>
+          <div className="mb-3 text-5xl">{EMOJIS.SPARKLES || "✨"}</div>
+          <p className="mx-0 mt-0 mb-1.5 text-[17px] font-bold text-ink">Unlock Your Cosmic Blueprint</p>
+          <p className="mx-auto mt-0 mb-5 max-w-95 text-[13px] leading-[1.6] text-subtle">
+            A deep, personalised AI reading of your chart — core identity, career, relationships, strengths,
+            remedies and more.
+          </p>
+          <Button variant="magic" onClick={onUnlock} fullWidth>
+            Unlock Detailed AI Analysis · {cost} Credits
+          </Button>
+          <p className="mx-0 mt-3 mb-0 text-[11px] text-muted">
+            One-time charge per chart. Re-viewing is always free.
+          </p>
+        </Card>
+      )}
       {overloaded && !interp && (
         <Card
           className="text-center"

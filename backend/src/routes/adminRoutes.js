@@ -6,7 +6,7 @@ import * as admin from '../controllers/adminController.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { writeLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
-import { adminLoginBody, adminBroadcastBody } from '../validators/schemas.js';
+import { adminLoginBody, adminBroadcastBody, adminSettingsBody } from '../validators/schemas.js';
 
 const router = Router();
 
@@ -18,5 +18,8 @@ router.get ('/admin/stats', requireAdmin, admin.stats);
 router.get ('/admin/users', requireAdmin, admin.users);
 router.post('/admin/push/broadcast', requireAdmin, validate(adminBroadcastBody, 'body'), admin.broadcast);
 router.post('/admin/users/:id/push', requireAdmin, validate(adminBroadcastBody, 'body'), admin.pushUser);
+
+router.get ('/admin/settings', requireAdmin, admin.settings);
+router.post('/admin/settings', requireAdmin, validate(adminSettingsBody, 'body'), admin.saveSettings);
 
 export default router;

@@ -74,11 +74,26 @@ async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, retries = 
   }
 }
 
+// Bearer header for the session JWT (or {} when not logged in). The AI/credit
+// routes require it — read straight from AsyncStorage so callers don't thread
+// the token through.
+async function authHeaders() {
+  const token = await AsyncStorage.getItem("app_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// The backend wraps every success response as { success, message, data }.
+// Unwrap to the inner `data` so callers see the same payload as before.
+// Bodies without the envelope pass through untouched.
+function unwrap(body) {
+  return body && body.success === true && "data" in body ? body.data : body;
+}
+
 async function postJSON(endpoint, body) {
   const url = `${API_URL}${endpoint}`;
   const res = await fetchWithRetry(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -89,13 +104,13 @@ async function postJSON(endpoint, body) {
     err.url = url;
     throw err;
   }
-  return res.json();
+  return unwrap(await res.json());
 }
 
 async function getJSON(endpoint, params) {
   const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
   const url = `${API_URL}${endpoint}${qs}`;
-  const res = await fetchWithRetry(url);
+  const res = await fetchWithRetry(url, { headers: { ...(await authHeaders()) } });
   if (res.status === 404) return null;
   if (!res.ok) {
     const err = new Error(`Failed to load (HTTP ${res.status}) → ${url}`);
@@ -103,7 +118,7 @@ async function getJSON(endpoint, params) {
     err.url = url;
     throw err;
   }
-  return res.json();
+  return unwrap(await res.json());
 }
 
 function formParams(form) {
@@ -137,16 +152,12 @@ export async function dummyLogin(phone) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Login failed (HTTP ${res.status})`);
   }
-  return res.json(); // { token, account: { id, phone } }
+  return unwrap(await res.json()); // { token, account: { id, phone } }
 }
 
 // ── Push tokens ──
-// Both endpoints require the session JWT (requireAuth on the backend), so we
-// read it straight from AsyncStorage rather than threading it through callers.
-async function authHeaders() {
-  const token = await AsyncStorage.getItem("app_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+// Both endpoints require the session JWT (requireAuth on the backend); the
+// shared authHeaders() helper above attaches it.
 
 // Send this device's FCM token to the backend so cron campaigns can reach it.
 export async function registerPushToken(fcmToken, platform) {
@@ -156,7 +167,7 @@ export async function registerPushToken(fcmToken, platform) {
     body: JSON.stringify({ token: fcmToken, platform }),
   });
   if (!res.ok) throw new Error(`push register failed (HTTP ${res.status})`);
-  return res.json();
+  return unwrap(await res.json());
 }
 
 // Soft-disable this device's token on logout so the user stops getting pushes.

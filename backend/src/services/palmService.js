@@ -4,6 +4,7 @@ import { callGeminiVision, callGeminiVisionMulti } from '../ai/gemini.js';
 import { PALM_SYSTEM, PALM_GATE_SYSTEM, PALM_BOTH_HANDS_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
+import { charge, grant, getBalance } from './creditService.js';
 import { notifyInsightReady } from './pushService.js';
 import { validateImage } from '../utils/imageValidator.js';
 import { asContent } from '../utils/asContent.js';
@@ -118,14 +119,17 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
   const dup = await PalmReading.findOne({
     where: { userId: user.id, imageHash, imageQuality: 'clear' },
   });
-  if (dup) return asContent(dup.reading);
+  if (dup) return { content: asContent(dup.reading), balance: await getBalance(user.id) };
 
-  const userPrompt = `NAME: ${form.name}\nGENDER: ${form.gender || 'NOT SPECIFIED'}\n\nAnalyze this palm photograph.`;
-  const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, base64, mimeType, true, KUNDLI_MODELS, THINK_BUDGET.PALM);
+  // Fresh analysis → charge once (dups above are free). Throws 402
+  // INSUFFICIENT_CREDITS if the balance is short.
+  const { charged, balance } = await charge({ userId: user.id, costKey: 'palm_cost', reason: 'palm' });
 
-  const cleaned = cleanJson(raw);
   let parsed;
   try {
+    const userPrompt = `NAME: ${form.name}\nGENDER: ${form.gender || 'NOT SPECIFIED'}\n\nAnalyze this palm photograph.`;
+    const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, base64, mimeType, true, KUNDLI_MODELS, THINK_BUDGET.PALM);
+    const cleaned = cleanJson(raw);
     parsed = typeof raw === 'string' ? JSON.parse(cleaned) : raw;
   } catch (e) {
     log.error({ err: e.message }, 'Palm JSON parse failed');
@@ -134,6 +138,14 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
 
   if (claimedHand && parsed.imageQuality !== 'unusable') {
     parsed.handType = claimedHand;
+  }
+
+  // Unusable result → refund: the user shouldn't pay for a reading they can't use.
+  let finalBalance = balance;
+  if (parsed.imageQuality === 'unusable' && charged) {
+    const refund = await grant({ userId: user.id, amount: charged, reason: 'refund', meta: { for: 'palm' } })
+      .catch((err) => { log.warn({ err: err.message }, 'palm refund failed'); return null; });
+    if (refund) finalBalance = refund.balance;
   }
 
   try {
@@ -150,7 +162,7 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
     log.error({ err: saveError }, 'Palm save failed');
   }
 
-  return JSON.stringify(parsed);
+  return { content: JSON.stringify(parsed), balance: finalBalance };
 }
 
 // Gate rejections are NO LONGER persisted. They're cheap to re-compute and
@@ -168,8 +180,10 @@ export async function analyzePalm({ image, form, claimedHand, skipGate }) {
 
   return dedupe(`palm|${userKey(form)}|${gateResult.imageHash}`, async () => {
     if (!gateResult.ok) {
+      // Bad photo never reaches Pro → no charge. balance:null leaves the
+      // client's known balance unchanged.
       await persistGateRejection(form, gateResult.imageHash, gateResult.rejection);
-      return JSON.stringify(gateResult.rejection);
+      return { content: JSON.stringify(gateResult.rejection), balance: null };
     }
     return runProAndPersist({
       form, claimedHand,
@@ -203,11 +217,16 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
   // Stage 2 — if EITHER hand failed the gate, return rejection without
   // calling Pro. Frontend renders the existing per-hand retake card.
   if (!leftGate.ok || !rightGate.ok) {
-    return JSON.stringify({
-      left:  leftGate.ok  ? { imageQuality: 'clear' } : leftGate.rejection,
-      right: rightGate.ok ? { imageQuality: 'clear' } : rightGate.rejection,
-      comparison: null,
-    });
+    // A failed gate never reaches Pro → no charge. balance:null leaves the
+    // client's known balance unchanged.
+    return {
+      content: JSON.stringify({
+        left:  leftGate.ok  ? { imageQuality: 'clear' } : leftGate.rejection,
+        right: rightGate.ok ? { imageQuality: 'clear' } : rightGate.rejection,
+        comparison: null,
+      }),
+      balance: null,
+    };
   }
 
   // Combined hash for dedupe — same pair of photos uploaded twice returns
@@ -223,11 +242,14 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
       notifyInsightReady(user.phone || form.phone)
         .catch((err) => log.warn({ err: err.message }, 'palm-both-insight-ready push failed'));
 
-    // Same pair already analyzed? Return the saved Both reading.
+    // Same pair already analyzed? Return the saved Both reading (free).
     const dup = await PalmReading.findOne({
       where: { userId: user.id, imageHash: combinedHash, imageQuality: 'clear' },
     });
-    if (dup) return asContent(dup.reading);
+    if (dup) return { content: asContent(dup.reading), balance: await getBalance(user.id) };
+
+    // Fresh comparison → charge once (palm_cost). Throws 402 if short.
+    const { charged, balance } = await charge({ userId: user.id, costKey: 'palm_cost', reason: 'palm', meta: { mode: 'compare' } });
 
     // Stage 3 — single Pro Vision call with BOTH images.
     const userPrompt =
@@ -235,17 +257,16 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
       `GENDER: ${form.gender || 'NOT SPECIFIED'}\n\n` +
       `Two palm photos follow. First image = LEFT hand (Potential). Second image = RIGHT hand (Reality). Read each and write the evolution story per the schema.`;
 
-    const raw = await callGeminiVisionMulti(
-      PALM_BOTH_HANDS_SYSTEM, userPrompt,
-      [
-        { base64: leftGate.base64,  mimeType: leftGate.mimeType  },
-        { base64: rightGate.base64, mimeType: rightGate.mimeType },
-      ],
-      true, KUNDLI_MODELS, THINK_BUDGET.PALM,
-    );
-
     let parsed;
     try {
+      const raw = await callGeminiVisionMulti(
+        PALM_BOTH_HANDS_SYSTEM, userPrompt,
+        [
+          { base64: leftGate.base64,  mimeType: leftGate.mimeType  },
+          { base64: rightGate.base64, mimeType: rightGate.mimeType },
+        ],
+        true, KUNDLI_MODELS, THINK_BUDGET.PALM,
+      );
       parsed = JSON.parse(cleanJson(raw));
     } catch (e) {
       log.error({ err: e.message }, 'Both-hands Pro JSON parse failed');
@@ -254,6 +275,14 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
 
     // Stamp handType — Pro should have done this, but be defensive.
     parsed.handType = 'Both';
+
+    // Unusable result → refund (don't bill for a comparison they can't use).
+    let finalBalance = balance;
+    if (parsed.imageQuality === 'unusable' && charged) {
+      const refund = await grant({ userId: user.id, amount: charged, reason: 'refund', meta: { for: 'palm', mode: 'compare' } })
+        .catch((err) => { log.warn({ err: err.message }, 'palm-compare refund failed'); return null; });
+      if (refund) finalBalance = refund.balance;
+    }
 
     // Stage 4 — persist the combined reading under handType="Both".
     try {
@@ -281,6 +310,6 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
       response.left  = { imageQuality: 'unusable', retakeReason: parsed.retakeReason };
       response.right = { imageQuality: 'unusable', retakeReason: parsed.retakeReason };
     }
-    return JSON.stringify(response);
+    return { content: JSON.stringify(response), balance: finalBalance };
   });
 }

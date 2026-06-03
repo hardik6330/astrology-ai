@@ -9,6 +9,7 @@ import { verifyPassword } from '../utils/password.js';
 import { signAdminToken } from '../middleware/auth.js';
 import { sendToTokens } from './notificationService.js';
 import { sendCustomToPhone } from './pushService.js';
+import * as settings from './settingsService.js';
 import { httpError } from '../middleware/errorHandler.js';
 
 export async function loginAdmin(username, password) {
@@ -75,4 +76,14 @@ export async function pushToUser({ userId, title, body }) {
   if (!user) throw httpError(404, 'User not found', 'NOT_FOUND');
   if (!user.phone) throw httpError(409, 'User has no phone on record', 'NO_PHONE');
   return sendCustomToPhone(user.phone, { title, body });
+}
+
+// ── System settings (credits + feature costs) ───────────────────────────────
+
+export function listSettings() {
+  return settings.getAll();
+}
+
+export function saveSettings(updates) {
+  return settings.updateMany(updates);
 }

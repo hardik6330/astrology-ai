@@ -153,7 +153,7 @@ const labelCls = "mb-1.5 block text-xs tracking-[1px] text-subtle";
 const inputCls =
   "w-full rounded-[10px] border border-(--c-border) bg-(--c-input-bg) px-3.5 py-3 text-ink outline-none";
 const primaryBtnCls =
-  "mt-4 w-full cursor-pointer rounded-xl border-none bg-(--grad-primary) px-4 py-[13px] text-sm font-bold text-ink";
+  "mt-4 w-full cursor-pointer rounded-xl border-none bg-(image:--grad-primary) px-4 py-[13px] text-sm font-bold text-ink";
 const linkBtnCls = "cursor-pointer border-none bg-transparent p-0 text-xs text-[#a78bfa]";
 
 // Orbital cosmic backdrop: three faint orbital rings rotate at different

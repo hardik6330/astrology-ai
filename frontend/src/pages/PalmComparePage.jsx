@@ -60,6 +60,7 @@ export default function PalmComparePage() {
     setPalmRightPhoto,
     setPalmAnalyzing,
     setPalmOverloaded,
+    setPalmLowCredits,
   } = useChart();
 
   const compare = useComparePalms({ form });
@@ -132,6 +133,7 @@ export default function PalmComparePage() {
   function analyzeInBackground() {
     setPalmAnalyzing(true);
     setPalmOverloaded(false);
+    setPalmLowCredits(false);
     compare
       .mutateAsync({ leftImage: left, rightImage: right })
       .then((result) => setPalmComparison(result))
@@ -139,6 +141,8 @@ export default function PalmComparePage() {
         // Pro 2.5 was overloaded (502 / AI_OVERLOADED). PalmPage's compare
         // view picks up palmOverloaded and renders the cooldown card.
         if (err?.code === "AI_OVERLOADED") setPalmOverloaded(true);
+        // Out of credits — PalmPage reads palmLowCredits and shows the card.
+        else if (err?.code === "INSUFFICIENT_CREDITS") setPalmLowCredits(true);
       })
       .finally(() => setPalmAnalyzing(false));
   }

@@ -33,16 +33,32 @@ export default function ReadingPage() {
   const [error, setError] = useState("");
   const [overloaded, setOverloaded] = useState(false); // AI tried 3× and gave up
   const [cooldown, setCooldown] = useState(0); // seconds until retry is allowed
+  const [lowCredits, setLowCredits] = useState(false); // 402 on unlock
   const fetched = useRef(false);
 
   // Frozen "current instant" so dasha progress bars are stable across renders.
   const [now] = useState(() => Date.now());
 
-  // Generate the AI interpretation once when the page first mounts.
-  // generateReading() is also called by the retry button when the AI was overloaded.
-  async function generateReading() {
+  // On mount, load ONLY a previously-unlocked interpretation (a free GET).
+  // We never auto-generate: generating costs credits, so it must be triggered
+  // explicitly via the Unlock button below.
+  useEffect(() => {
+    if (!chart || interp || fetched.current) return;
+    fetched.current = true;
+    fetchSaved("interpret", form)
+      .then((saved) => {
+        if (saved) setInterp(saved);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chart, interp, form]);
+
+  // Generate (and pay for) the AI interpretation — user-initiated via the
+  // "Unlock" button, and reused by the retry button after an AI overload.
+  async function unlockInsight() {
     if (!chart) return;
     setError("");
+    setLowCredits(false);
     setOverloaded(false);
     let mi = 0;
     setLoading(true);
@@ -52,6 +68,7 @@ export default function ReadingPage() {
       setLoadMsg(MSGS[mi % MSGS.length]);
     }, 2000);
     try {
+      // Already unlocked for this chart? The GET returns it for free.
       const saved = await fetchSaved("interpret", form);
       setInterp(
         saved || (await chatCompletionJSON([], "interpret", { factSheet: buildFactSheet(chart, form), form }))
@@ -60,19 +77,14 @@ export default function ReadingPage() {
       if (e.code === "AI_OVERLOADED") {
         setOverloaded(true);
         setCooldown(40);
+      } else if (e.code === "INSUFFICIENT_CREDITS") {
+        setLowCredits(true);
       } else setError(e.message);
     } finally {
       clearInterval(iv);
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    if (!chart || interp || fetched.current) return;
-    fetched.current = true;
-    generateReading();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chart, interp, form]);
 
   // Cooldown tick — disables the retry button so users can't spam Pro
   // while it's overloaded.
@@ -82,18 +94,19 @@ export default function ReadingPage() {
     return () => clearTimeout(id);
   }, [cooldown]);
 
+  // After a 402, show the "not enough credits" card for 5s, then fall back to
+  // the unlock card so the user can try again once they've topped up.
+  useEffect(() => {
+    if (!lowCredits) return;
+    const id = setTimeout(() => setLowCredits(false), 5000);
+    return () => clearTimeout(id);
+  }, [lowCredits]);
+
   return (
     <div className="relative mx-auto max-w-180 px-4 pt-8 pb-30">
       <div className="cosmos"></div>
       <div className="stars"></div>
       <div className="shooting-star"></div>
-
-      <button
-        onClick={() => navigate("/", { state: { edit: true } })}
-        className="mb-5 cursor-pointer rounded-lg border border-[rgba(99,102,241,0.4)] bg-[rgba(99,102,241,0.1)] px-4 py-2 text-xs text-[#a5b4fc]"
-      >
-        ← New Reading
-      </button>
 
       {error && (
         <Card style={{ borderColor: "#ef4444", background: "rgba(239, 68, 68, 0.1)" }}>
@@ -123,7 +136,9 @@ export default function ReadingPage() {
             loadMsg={loadMsg}
             overloaded={overloaded}
             cooldown={cooldown}
-            onRetry={generateReading}
+            lowCredits={lowCredits}
+            onUnlock={unlockInsight}
+            onRetry={unlockInsight}
             onOpenChat={() => navigate("/chat")}
           />
         )}

@@ -14,9 +14,11 @@ import './models/index.js';                       // register associations
 
 import routes from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { responseWrapper } from './middleware/responseWrapper.js';
 import { seedFromStaticCities } from './services/locationService.js';
 import { SEED_CITIES } from './services/locationSeed.js';
 import { seedAdmin } from './services/adminSeed.js';
+import { seedSettings } from './services/settingsSeed.js';
 import { startScheduler } from './config/scheduler.js';
 
 const app = express();
@@ -31,7 +33,8 @@ app.use(express.json({ limit: '10mb' }));
 
 app.get('/', (_req, res) => res.send('Server is running'));
 
-app.use('/api', routes);
+// Envelope all /api JSON responses as { success, message, data }.
+app.use('/api', responseWrapper, routes);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
@@ -64,6 +67,9 @@ async function start() {
     // One-time admin seed: creates the default back-office admin from env only
     // if no admin exists yet. No-op thereafter. Best-effort — never blocks boot.
     seedAdmin().catch((err) => logger.warn({ err }, 'Admin seed skipped'));
+    // One-time settings seed: inserts default credit/cost keys if missing.
+    // Idempotent + best-effort — admin edits are preserved, never blocks boot.
+    seedSettings().catch((err) => logger.warn({ err }, 'Settings seed skipped'));
   } catch (err) {
     logger.fatal({ err }, 'Database init failed');
     if (env.NODE_ENV === 'production') process.exit(1);

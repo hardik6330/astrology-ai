@@ -26,7 +26,7 @@ export default function AdminProfile() {
 
       {/* cosmic-card padding/margin-bottom override inline (see AdminPush). */}
       <Card className="max-w-110" style={{ padding: 24, marginBottom: 0 }}>
-        <div className="grid h-14 w-14 place-items-center rounded-full bg-(--grad-primary) text-[22px] font-bold text-ink">
+        <div className="grid h-14 w-14 place-items-center rounded-full bg-(image:--grad-primary) text-[22px] font-bold text-ink">
           {(admin?.name || admin?.username || "A").charAt(0).toUpperCase()}
         </div>
         <div className="mt-3.5">

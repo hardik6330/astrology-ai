@@ -30,3 +30,11 @@ export const pushUser = asyncHandler(async (req, res) => {
   const { title, body } = req.body;
   res.json(await adminSvc.pushToUser({ userId: req.params.id, title, body }));
 });
+
+export const settings = asyncHandler(async (_req, res) => {
+  res.json({ settings: await adminSvc.listSettings() });
+});
+
+export const saveSettings = asyncHandler(async (req, res) => {
+  res.json({ settings: await adminSvc.saveSettings(req.body.settings) });
+});

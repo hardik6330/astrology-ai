@@ -21,6 +21,7 @@ export function errorHandler(err, req, res, _next) {
   const status = err.status || STATUS_BY_CODE[err.code] || 500;
   if (status >= 500) console.error('[error]', err);
   res.status(status).json({
+    success: false,
     error: err.message || 'Internal error',
     ...(err.code && { code: err.code }),
   });

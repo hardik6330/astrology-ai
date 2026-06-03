@@ -4,6 +4,7 @@ import { callGemini } from '../ai/gemini.js';
 import { INTERP_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
+import { charge, grant, getBalance } from './creditService.js';
 import { notifyInsightReady } from './pushService.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
@@ -36,62 +37,82 @@ export async function generateInterpretation({ form, factSheet }) {
       notifyInsightReady(user.phone || form.phone)
         .catch((err) => log.warn({ err: err.message }, 'insight-ready push failed'));
 
-    // 1. Already saved for THIS user? Return that (no push — nothing new).
+    // 1. Already saved for THIS user? Return that — already unlocked, so it's a
+    //    free re-view (no charge, no push).
     const existing = await Kundali.findOne({ where: { userId: user.id } });
-    if (existing) return asContent(existing.interpretation);
+    if (existing) {
+      return { content: asContent(existing.interpretation), balance: await getBalance(user.id) };
+    }
 
-    // 2. Same birth data already interpreted for ANOTHER user (different
-    //    phone)? Reuse the existing chart + interpretation — chart math is
-    //    deterministic from birth data, so the answer is identical and a
-    //    fresh Gemini call would just burn tokens. We still create a new
-    //    Kundali row owned by THIS user so per-user lifecycle (delete,
-    //    re-interpret) stays clean.
-    const sibling = await User.findOne({
-      where: {
-        name: form.name,
-        birthDate: form.date,
-        birthTime: form.time,
-        birthCity: form.city,
-        gender: form.gender || null,
-        id: { [Op.ne]: user.id },
-      },
+    // New insight for this profile → charge once. A saved insight above is free;
+    // changing birth details makes a new profile, so it charges again. Throws
+    // 402 INSUFFICIENT_CREDITS (surfaced to the client) if the balance is short.
+    const { charged, balance } = await charge({
+      userId: user.id, costKey: 'insights_cost', reason: 'insights',
     });
-    if (sibling) {
-      const siblingKundali = await Kundali.findOne({ where: { userId: sibling.id } });
-      if (siblingKundali) {
-        try {
-          await Kundali.create({
-            userId: user.id,
-            chartData: siblingKundali.chartData,
-            interpretation: siblingKundali.interpretation,
-          });
-          log.info({ userId: user.id, copiedFrom: sibling.id }, 'Kundali copied from sibling user');
-        } catch (saveError) {
-          log.error({ err: saveError }, 'Kundali sibling-copy save failed');
-        }
-        fireInsightPush();
-        return asContent(siblingKundali.interpretation);
-      }
-    }
 
-    // 3. Call Gemini with the compact fact sheet (token-light).
-    const userPrompt = `${factSheet}\n\nInterpret this birth chart.`;
-    const generated = await callGemini(INTERP_SYSTEM, userPrompt, true, KUNDLI_MODELS, THINK_BUDGET.KUNDLI);
-
-    // 4. Sanitize + parse + persist (best-effort — log but don't block the response).
-    const cleaned = cleanJson(generated);
     try {
-      const parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
-      await Kundali.create({
-        userId: user.id,
-        chartData: { factSheet },
-        interpretation: parsed,
+      // 2. Same birth data already interpreted for ANOTHER user (different
+      //    phone)? Reuse the existing chart + interpretation — chart math is
+      //    deterministic from birth data, so the answer is identical and a
+      //    fresh Gemini call would just burn tokens. We still create a new
+      //    Kundali row owned by THIS user so per-user lifecycle (delete,
+      //    re-interpret) stays clean.
+      const sibling = await User.findOne({
+        where: {
+          name: form.name,
+          birthDate: form.date,
+          birthTime: form.time,
+          birthCity: form.city,
+          gender: form.gender || null,
+          id: { [Op.ne]: user.id },
+        },
       });
-    } catch (saveError) {
-      log.error({ err: saveError }, 'Kundali save failed');
-    }
+      if (sibling) {
+        const siblingKundali = await Kundali.findOne({ where: { userId: sibling.id } });
+        if (siblingKundali) {
+          try {
+            await Kundali.create({
+              userId: user.id,
+              chartData: siblingKundali.chartData,
+              interpretation: siblingKundali.interpretation,
+            });
+            log.info({ userId: user.id, copiedFrom: sibling.id }, 'Kundali copied from sibling user');
+          } catch (saveError) {
+            log.error({ err: saveError }, 'Kundali sibling-copy save failed');
+          }
+          fireInsightPush();
+          return { content: asContent(siblingKundali.interpretation), balance };
+        }
+      }
 
-    fireInsightPush();
-    return cleaned;
+      // 3. Call Gemini with the compact fact sheet (token-light).
+      const userPrompt = `${factSheet}\n\nInterpret this birth chart.`;
+      const generated = await callGemini(INTERP_SYSTEM, userPrompt, true, KUNDLI_MODELS, THINK_BUDGET.KUNDLI);
+
+      // 4. Sanitize + parse + persist (best-effort — log but don't block the response).
+      const cleaned = cleanJson(generated);
+      try {
+        const parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
+        await Kundali.create({
+          userId: user.id,
+          chartData: { factSheet },
+          interpretation: parsed,
+        });
+      } catch (saveError) {
+        log.error({ err: saveError }, 'Kundali save failed');
+      }
+
+      fireInsightPush();
+      return { content: cleaned, balance };
+    } catch (e) {
+      // Generation failed after we charged — refund so the user isn't billed
+      // for an insight they didn't get.
+      if (charged) {
+        await grant({ userId: user.id, amount: charged, reason: 'refund', meta: { for: 'insights' } })
+          .catch((err) => log.warn({ err: err.message }, 'insights refund failed'));
+      }
+      throw e;
+    }
   });
 }

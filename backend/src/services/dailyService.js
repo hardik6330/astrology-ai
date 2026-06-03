@@ -3,6 +3,7 @@ import { callGemini } from '../ai/gemini.js';
 import { DAILY_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
+import { charge, grant, getBalance } from './creditService.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
 import { userKey } from '../utils/userKey.js';
@@ -41,20 +42,34 @@ export async function generateDailyGuidance({ form, ctx, targetDate }) {
     const user = await findOrCreateUser(form);
 
     const existing = await DailyData.findOne({ where: { userId: user.id, date } });
-    if (existing) return asContent(existing.guidance);
+    if (existing) return { content: asContent(existing.guidance), balance: await getBalance(user.id) };
 
-    const generated = await callGemini(DAILY_SYSTEM, ctx + "\n\nGive today's guidance.", true, KUNDLI_MODELS, THINK_BUDGET.DAILY);
-    const cleaned = cleanJson(generated);
+    // New day → charge once. Saved days above are free re-views. Throws 402
+    // INSUFFICIENT_CREDITS if the balance can't cover it.
+    const { charged, balance } = await charge({
+      userId: user.id, costKey: 'daily_cost', reason: 'daily', meta: { date },
+    });
 
-    if (generated) {
-      try {
-        const parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
-        await DailyData.create({ userId: user.id, date, guidance: parsed });
-      } catch (saveError) {
-        log.error({ err: saveError }, 'Daily save failed');
+    let generated;
+    try {
+      generated = await callGemini(DAILY_SYSTEM, ctx + "\n\nGive today's guidance.", true, KUNDLI_MODELS, THINK_BUDGET.DAILY);
+      if (!generated) throw new Error('AI returned empty guidance');
+    } catch (e) {
+      if (charged) {
+        await grant({ userId: user.id, amount: charged, reason: 'refund', meta: { for: 'daily', date } })
+          .catch((err) => log.warn({ err: err.message }, 'daily refund failed'));
       }
+      throw e;
     }
 
-    return cleaned;
+    const cleaned = cleanJson(generated);
+    try {
+      const parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
+      await DailyData.create({ userId: user.id, date, guidance: parsed });
+    } catch (saveError) {
+      log.error({ err: saveError }, 'Daily save failed');
+    }
+
+    return { content: cleaned, balance };
   });
 }
