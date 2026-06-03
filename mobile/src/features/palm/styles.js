@@ -47,6 +47,16 @@ export const makeStyles = (c) => StyleSheet.create({
 
   uploadTitle: { color: c.text, fontSize: 16, fontWeight: "600", marginBottom: 6 },
   uploadHint:  { color: c.textDim, fontSize: 12, textAlign: "center", lineHeight: 18 },
+  costPill: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: c.primaryBorder,
+    backgroundColor: c.primarySoft,
+  },
+  costPillText: { fontSize: 11.5, fontWeight: "600" },
 
   uploadHandBtn: {
     flexDirection: "row", alignItems: "center", gap: spacing.md,

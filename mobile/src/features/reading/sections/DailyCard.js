@@ -3,16 +3,24 @@ import { View, Text, ScrollView, Pressable } from "react-native";
 import CosmicCard from "../../../components/CosmicCard";
 import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
+import { useCosts } from "../../../hooks/useCosts";
+import { useCredits } from "../../../hooks/useCredits";
 import { spacing } from "../../../theme/tokens";
 import { WD_SHORT, MONTHS } from "../constants";
 import { makeStyles } from "../styles";
 
 export default function DailyCard({
   form, dailyTransit, guide, monthDays, selDate, todayIso, savedDates, selectDay, loadDaily, dailyBusy,
-  activeLoc, locError, getGpsLocation,
+  dailyLowCredits, activeLoc, locError, getGpsLocation,
 }) {
   const color = useColors();
   const s = useStyles(makeStyles);
+  const costs = useCosts();
+  const dailyCost = costs?.daily ?? 15;
+  const credits = useCredits();
+  // Can't afford a day's guidance — balance already too low, or a generate
+  // attempt just came back 402. Drives the disabled button label.
+  const cannotAfford = dailyLowCredits || (credits != null && credits < dailyCost);
   const stripRef = useRef(null);
   const DAY_W = 56; // 50px button + 6px gap
 
@@ -109,9 +117,17 @@ export default function DailyCard({
       )}
 
       {!guide && (
-        <Pressable onPress={() => loadDaily(selDate)} disabled={dailyBusy} style={[s.revealBtn, dailyBusy && { opacity: 0.5 }]}>
+        <Pressable
+          onPress={() => loadDaily(selDate)}
+          disabled={dailyBusy || cannotAfford}
+          style={[s.revealBtn, (dailyBusy || cannotAfford) && { opacity: 0.5 }]}
+        >
           <Text style={s.revealText}>
-            {dailyBusy ? "Reading the sky…" : "✨ Reveal This Day's Full Guidance"}
+            {dailyBusy
+              ? "Reading the sky…"
+              : cannotAfford
+                ? `Not enough credits · ${dailyCost} needed`
+                : `✨ Reveal This Day's Full Guidance · ${dailyCost} Credits`}
           </Text>
         </Pressable>
       )}

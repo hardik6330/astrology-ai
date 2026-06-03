@@ -5,8 +5,11 @@ import AnimatedRE, { FadeIn, FadeInRight } from "react-native-reanimated";
 import * as ImagePicker from "expo-image-picker";
 import ScreenContainer from "../../components/ScreenContainer";
 import MenuButton from "../../components/MenuButton";
+import LowCreditsCard from "../../components/LowCreditsCard";
 import { SkeletonPalm } from "../../components/Skeleton";
 import { useChart } from "../../context/ChartContext";
+import { useCosts } from "../../hooks/useCosts";
+import { useCredits } from "../../hooks/useCredits";
 import { analyzePalm, fetchSaved, fetchPalmHistory, fetchPalmById } from "../../services/api";
 import { gatePalmImage, warmUpGate } from "./palmGate";
 import { useBackToKundali } from "../../utils/useBackToKundali";
@@ -33,11 +36,21 @@ export default function PalmScreen({ navigation }) {
     palmClaimedHand, setPalmClaimedHand,
     palmComparison, setPalmComparison,
     palmOverloaded, setPalmOverloaded,
+    palmLowCredits, setPalmLowCredits,
     palmLeftPhoto, setPalmLeftPhoto,
     palmRightPhoto, setPalmRightPhoto,
   } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
+  const costs = useCosts();
+  const palmCost = costs?.palm ?? 30;
+  const credits = useCredits();
+  // Single-hand 402 flag (local); compare 402 lives in context (palmLowCredits)
+  // because that flow finishes after a screen navigation.
+  const [lowCredits, setLowCredits] = useState(false);
+  // Can't afford a palm reading — balance already too low, or a single/compare
+  // attempt came back 402. Drives the card + disables every scan button.
+  const cannotAfford = lowCredits || palmLowCredits || (credits != null && credits < palmCost);
   // Mirror context.palmPhoto so a photo uploaded on PalmStepScreen still
   // shows up here (the screen unmounts in between).
   const [preview, setPreview]   = useState(palmPhoto ? { uri: palmPhoto } : null);
@@ -207,6 +220,7 @@ export default function PalmScreen({ navigation }) {
 
   async function runAnalyze(img, hand) {
     setError("");
+    setLowCredits(false);
     setOverloaded(false);
     setPreview(img);
     setPalmPhoto(img.uri);
@@ -224,6 +238,12 @@ export default function PalmScreen({ navigation }) {
       if (err.code === "AI_OVERLOADED") {
         setOverloaded(true);
         setCooldown(50);
+      } else if (err.code === "INSUFFICIENT_CREDITS") {
+        setLowCredits(true);
+        // Drop the un-analyzed photo so the upload card shows the hand-pick
+        // buttons again instead of an empty scan frame.
+        setPreview(null);
+        setPalmPhoto(null);
       } else setError(err.message);
       haptics.warning();
     } finally {
@@ -258,6 +278,8 @@ export default function PalmScreen({ navigation }) {
     setPalmAnalyzing(false);
     setActiveHand(null);
     setError("");
+    setLowCredits(false);
+    setPalmLowCredits(false);
     setRescan(true);
   }
 
@@ -268,7 +290,13 @@ export default function PalmScreen({ navigation }) {
   const inCompareMode =
     !!palmComparison
     || (palmAnalyzing && palmLeftPhoto && palmRightPhoto)
-    || (palmOverloaded && palmLeftPhoto && palmRightPhoto);
+    || (palmOverloaded && palmLeftPhoto && palmRightPhoto)
+    || (palmLowCredits && palmLeftPhoto && palmRightPhoto);
+
+  // Shared "not enough credits" card for both views.
+  const lowCreditsCard = cannotAfford ? (
+    <LowCreditsCard cost={palmCost} action="A palm reading" onTopUp={() => navigation.navigate("Profile")} />
+  ) : null;
 
   if (inCompareMode) {
     return (
@@ -282,6 +310,8 @@ export default function PalmScreen({ navigation }) {
             </View>
             <View style={{ width: 40 }} />
           </View>
+
+          {lowCreditsCard}
 
           <CompareView
             palmComparison={palmComparison}
@@ -321,6 +351,8 @@ export default function PalmScreen({ navigation }) {
           <SkeletonPalm />
         ) : (
           <>
+            {!palm && !scanning && lowCreditsCard}
+
             {overloaded && !palm && (
               <OverloadedCard
                 cooldown={cooldown}
@@ -351,6 +383,8 @@ export default function PalmScreen({ navigation }) {
                   activeHand={activeHand}
                   scanAnim={scanAnim}
                   scanMsg={scanMsg}
+                  palmCost={palmCost}
+                  cannotAfford={cannotAfford}
                 />
               </AnimatedRE.View>
             )}

@@ -2,24 +2,52 @@ import React from "react";
 import { View, Text } from "react-native";
 import CosmicCard from "../../../components/CosmicCard";
 import MagicButton from "../../../components/MagicButton";
+import LowCreditsCard from "../../../components/LowCreditsCard";
 import { SkeletonAIReading } from "../../../components/Skeleton";
 import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
+import { useCosts } from "../../../hooks/useCosts";
 import { spacing } from "../../../theme/tokens";
 import { signOf } from "../../../shared/astrology";
 import { asText } from "../constants";
 import { makeStyles } from "../styles";
 
-// Reading tab: the AI-generated narrative interpretation. Handles the
-// overloaded / loading / loaded states.
+// Reading tab: the AI-generated narrative interpretation. Locked by default
+// (an "Unlock for N credits" preview) until the user pays; also handles the
+// overloaded / loading / low-credits / loaded states.
 export default function ReadingTab({
-  interp, loading, overloaded, cooldown, loadMsg, generateReading, navigation, chart, form,
+  interp, loading, overloaded, cooldown, lowCredits, loadMsg, generateReading, navigation, chart, form,
 }) {
   const color = useColors();
   const s = useStyles(makeStyles);
+  const costs = useCosts();
+  const cost = costs?.insights ?? 20;
 
   return (
     <>
+      {lowCredits && !interp && (
+        <LowCreditsCard
+          cost={cost}
+          action="The detailed AI analysis"
+          onTopUp={() => navigation.navigate("Profile")}
+        />
+      )}
+
+      {!interp && !loading && !overloaded && !lowCredits && (
+        <CosmicCard style={{ alignItems: "center", paddingVertical: spacing.xl }}>
+          <Text style={{ fontSize: 44, lineHeight: 56, marginBottom: 10 }}>✨</Text>
+          <Text style={s.lockTitle}>Unlock Your Cosmic Blueprint</Text>
+          <Text style={s.lockBody}>
+            A deep, personalised AI reading of your chart — core identity, career, relationships,
+            strengths, remedies and more.
+          </Text>
+          <MagicButton style={{ width: "100%", marginTop: spacing.md }} onPress={generateReading}>
+            {`Unlock Detailed AI Analysis · ${cost} Credits`}
+          </MagicButton>
+          <Text style={s.lockNote}>One-time charge per chart. Re-viewing is always free.</Text>
+        </CosmicCard>
+      )}
+
       {overloaded && !interp && (
         <CosmicCard style={s.aiBusyCard}>
           <Text style={{ fontSize: 36, lineHeight: 48, textAlign: "center" }}>⏳</Text>

@@ -15,6 +15,9 @@ import { useColors } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
 import { useBackToKundali } from "@/utils/useBackToKundali";
+import { useCosts } from "@/hooks/useCosts";
+import { useCredits } from "@/hooks/useCredits";
+import LowCreditsCard from "@/components/LowCreditsCard";
 
 const SUGGESTIONS = [
   "When will I marry?",
@@ -37,6 +40,12 @@ export default function ChatScreen({ navigation }) {
   const [input, setInput]   = useState("");
   const [busy, setBusy]     = useState(false);
   const [hydrating, setHydrating] = useState(true);
+  const [lowCredits, setLowCredits] = useState(false); // 402 on send
+  const costs = useCosts();
+  const chatCost = costs?.chat ?? 5;
+  const credits = useCredits();
+  // Block sending once the balance can't cover one message (or after a 402).
+  const cannotAfford = lowCredits || (credits != null && credits < chatCost);
   const [phIdx, setPhIdx]   = useState(0);
   const [phText, setPhText] = useState("");
   const [kbHeight, setKbHeight] = useState(0);
@@ -114,9 +123,10 @@ export default function ChatScreen({ navigation }) {
 
   async function ask() {
     const q = input.trim();
-    if (!q || busy || !chart) return;
+    if (!q || busy || !chart || cannotAfford) return;
     logEvent("chat_question_asked", { user_name: form.name });
     setInput("");
+    setLowCredits(false);
     const history = [...chatMsgs, { role: "user", content: q }];
     setChatMsgs([...history, { role: "assistant", content: "…" }]);
     setBusy(true);
@@ -130,6 +140,15 @@ export default function ChatScreen({ navigation }) {
         return copy;
       });
     } catch (err) {
+      if (err.code === "INSUFFICIENT_CREDITS") {
+        // Drop the "…" placeholder and the user turn; surface the credit card
+        // and give the question back so they can resend after topping up.
+        setChatMsgs((m) => m.slice(0, -2));
+        setInput(q);
+        setLowCredits(true);
+        setBusy(false);
+        return;
+      }
       setChatMsgs((m) => {
         const copy = m.slice();
         copy[copy.length - 1] = { role: "assistant", content: "Error: " + err.message };
@@ -202,18 +221,32 @@ export default function ChatScreen({ navigation }) {
                 ))}
               </View>
             )}
+            {cannotAfford && (
+              <View style={{ marginBottom: spacing.sm }}>
+                <LowCreditsCard
+                  cost={chatCost}
+                  action="Each chat message"
+                  onTopUp={() => navigation.navigate("Profile")}
+                />
+              </View>
+            )}
+            <Text style={s.costNote}>✨ {chatCost} credits per message</Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
               <TextInput
                 value={input}
                 onChangeText={setInput}
-                placeholder={phText + "▍"}
+                placeholder={cannotAfford ? "Out of credits — top up to chat" : phText + "▍"}
                 placeholderTextColor={color.textMuted}
-                style={s.input}
+                style={[s.input, cannotAfford && { opacity: 0.5 }]}
                 multiline
-                editable={!busy}
+                editable={!busy && !cannotAfford}
                 onSubmitEditing={ask}
               />
-              <Pressable onPress={ask} disabled={busy || !input.trim()} style={[s.sendBtn, (busy || !input.trim()) && { opacity: 0.5 }]}>
+              <Pressable
+                onPress={ask}
+                disabled={busy || cannotAfford || !input.trim()}
+                style={[s.sendBtn, (busy || cannotAfford || !input.trim()) && { opacity: 0.5 }]}
+              >
                 <Text style={s.sendText}>{busy ? "…" : "Ask"}</Text>
               </Pressable>
             </View>
@@ -273,6 +306,8 @@ const makeStyles = (c) => StyleSheet.create({
     backgroundColor: c.primarySoft,
   },
   suggestionText: { color: c.accentLight, fontSize: 12 },
+
+  costNote: { color: c.textMuted, fontSize: 10.5, textAlign: "center", marginBottom: 6 },
 
   input: {
     flex: 1,

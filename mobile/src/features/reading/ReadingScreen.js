@@ -34,6 +34,8 @@ export default function ReadingScreen({ navigation, route }) {
   const [error, setError]         = useState("");
   const [overloaded, setOverloaded] = useState(false);
   const [cooldown, setCooldown]   = useState(0);
+  const [lowCredits, setLowCredits] = useState(false); // 402 on unlock
+  const [dailyLowCredits, setDailyLowCredits] = useState(false); // 402 on daily generate
   const [dailyBusy, setDailyBusy] = useState(false);
   const [locError, setLocError]   = useState(false);
   const fetchedRef = useRef(false);
@@ -120,6 +122,7 @@ export default function ReadingScreen({ navigation, route }) {
   async function generateReading() {
     if (!chart) return;
     setError("");
+    setLowCredits(false);
     setOverloaded(false);
     setLoading(true);
     setLoadMsg(MSGS?.[0] || "Reading your chart…");
@@ -143,6 +146,9 @@ export default function ReadingScreen({ navigation, route }) {
         setOverloaded(true);
         setCooldown(40);
         haptics.warning();
+      } else if (e.code === "INSUFFICIENT_CREDITS") {
+        setLowCredits(true);
+        haptics.warning();
       } else { setError(e.message); haptics.warning(); }
     } finally {
       clearInterval(iv);
@@ -150,10 +156,9 @@ export default function ReadingScreen({ navigation, route }) {
     }
   }
 
-  // Auto-generate the AI reading whenever the chart changes (first load OR
-  // after the user updates birth details). The ref is reset on chart change
-  // so a fresh fetch fires; the guard still prevents duplicate calls within
-  // the same chart instance.
+  // On mount (and chart change), load ONLY a previously-unlocked reading via a
+  // free GET. We never auto-generate: generating costs credits, so it must be
+  // triggered explicitly via the Unlock button in ReadingTab.
   useEffect(() => {
     if (!chart) return;
     fetchedRef.current = false;
@@ -162,7 +167,9 @@ export default function ReadingScreen({ navigation, route }) {
   useEffect(() => {
     if (!chart || interp || fetchedRef.current) return;
     fetchedRef.current = true;
-    generateReading();
+    fetchSaved("interpret", form)
+      .then((saved) => { if (saved) setInterp(saved); })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chart, interp]);
 
@@ -176,6 +183,7 @@ export default function ReadingScreen({ navigation, route }) {
     const key = iso(date);
     if (dailyBusy || !chart || guideMap[key]) return;
     setDailyBusy(true);
+    setDailyLowCredits(false);
     const d = computeDaily(chart, activeLoc, date);
     const ctx = `PERSON: ${form.name || "Unknown"} | GENDER: ${form.gender || "NOT SPECIFIED"}
 NATAL: Lagna ${signOf(chart.angles.ascSid)}, Moon ${signOf(chart.planets[1].sid)}, Nakshatra ${chart.nakshatra}
@@ -189,7 +197,8 @@ Running period: ${d.dasha}`;
       setGuideMap((m) => ({ ...m, [key]: result }));
       setSavedDates((s) => new Set(s).add(key));
     } catch (e) {
-      setError("Daily guidance failed: " + e.message);
+      if (e.code === "INSUFFICIENT_CREDITS") setDailyLowCredits(true);
+      else setError("Daily guidance failed: " + e.message);
     }
     setDailyBusy(false);
   }
@@ -244,8 +253,8 @@ Running period: ${d.dasha}`;
                 setChartStyle={setChartStyle}
                 daily={{
                   form, dailyTransit, guide, monthDays, selDate, todayIso,
-                  savedDates, selectDay, loadDaily, dailyBusy,
-                  activeLoc, locError, getGpsLocation,
+                  savedDates, selectDay, loadDaily, dailyBusy, dailyLowCredits,
+                  activeLoc, locError, getGpsLocation, navigation,
                 }}
               />
             )}
@@ -260,6 +269,7 @@ Running period: ${d.dasha}`;
                 loading={loading}
                 overloaded={overloaded}
                 cooldown={cooldown}
+                lowCredits={lowCredits}
                 loadMsg={loadMsg}
                 generateReading={generateReading}
                 navigation={navigation}

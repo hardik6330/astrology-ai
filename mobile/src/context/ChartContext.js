@@ -3,6 +3,7 @@ import React, {
 } from "react";
 import { computeChart } from "../shared/astrology";
 import { getItem, setItem, removeItem } from "../utils/storage";
+import { creditsStore } from "../services/creditsStore";
 
 // Birth form is persisted to AsyncStorage so app relaunches preserve the
 // last-entered chart. The form carries lat/lon/tz alongside the city name,
@@ -53,6 +54,10 @@ export function ChartProvider({ children }) {
   // True when the Both-Hands Pro call returned AI_OVERLOADED — drives the
   // cooldown card on PalmScreen.
   const [palmOverloaded, setPalmOverloaded] = useState(false);
+  // True when the Both-Hands Pro call was rejected for INSUFFICIENT_CREDITS.
+  // Set from the compare flow (which starts on PalmCompareScreen and finishes
+  // after navigation), read by PalmScreen to show the "not enough credits" card.
+  const [palmLowCredits, setPalmLowCredits] = useState(false);
   const [palmLeftPhoto, setPalmLeftPhoto]   = useState(null);
   const [palmRightPhoto, setPalmRightPhoto] = useState(null);
 
@@ -91,6 +96,7 @@ export function ChartProvider({ children }) {
     setPalmClaimedHand(null);
     setPalmComparison(null);
     setPalmOverloaded(false);
+    setPalmLowCredits(false);
     setPalmLeftPhoto(null);
     setPalmRightPhoto(null);
   }, []);
@@ -127,6 +133,7 @@ export function ChartProvider({ children }) {
     setPalmClaimedHand(null);
     setPalmComparison(null);
     setPalmOverloaded(false);
+    setPalmLowCredits(false);
     setPalmLeftPhoto(null);
     setPalmRightPhoto(null);
     setRedirectToReading(true);
@@ -149,8 +156,10 @@ export function ChartProvider({ children }) {
     setPalmClaimedHand(null);
     setPalmComparison(null);
     setPalmOverloaded(false);
+    setPalmLowCredits(false);
     setPalmLeftPhoto(null);
     setPalmRightPhoto(null);
+    creditsStore.clear(); // don't let a new login inherit the previous balance
     await removeItem(STORAGE_KEY);
   }, []);
 
@@ -168,6 +177,7 @@ export function ChartProvider({ children }) {
       palmClaimedHand, setPalmClaimedHand,
       palmComparison, setPalmComparison,
       palmOverloaded, setPalmOverloaded,
+      palmLowCredits, setPalmLowCredits,
       palmLeftPhoto, setPalmLeftPhoto,
       palmRightPhoto, setPalmRightPhoto,
       currentLoc, setCurrentLoc,
@@ -177,7 +187,7 @@ export function ChartProvider({ children }) {
       redirectToReading,
       consumeRedirect,
     }),
-    [hydrated, form, chart, interp, daily, chatMsgs, palm, palmPhoto, palmAnalyzing, palmClaimedHand, palmComparison, palmOverloaded, palmLeftPhoto, palmRightPhoto, currentLoc, setCurrentLoc, resetReading, clearAll, applySavedForm, redirectToReading, consumeRedirect]
+    [hydrated, form, chart, interp, daily, chatMsgs, palm, palmPhoto, palmAnalyzing, palmClaimedHand, palmComparison, palmOverloaded, palmLowCredits, palmLeftPhoto, palmRightPhoto, currentLoc, setCurrentLoc, resetReading, clearAll, applySavedForm, redirectToReading, consumeRedirect]
   );
 
   return <ChartContext.Provider value={value}>{children}</ChartContext.Provider>;

@@ -9,6 +9,8 @@
 
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { noteBalance } from "./creditsStore";
+import { noteCosts } from "./costsStore";
 
 // Phone is cached after the dummy OTP login and attached to every form
 // payload so the backend can stamp it on the User row. Kept in a module ref
@@ -209,7 +211,25 @@ export async function chatCompletion(messages, type = "chat", extra = {}) {
     body = { ctx: extra.ctx, form, targetDate: extra.date };
   }
   const data = await postJSON(endpoint, body);
+  noteBalance(data.balance); // refresh the credit badge after a charge
   return (data.content || "").trim();
+}
+
+// Current credit balance for the logged-in user — populates the credit badge.
+// The user is resolved server-side from the auth token, so no form is needed.
+// No-ops (returns null) without a token so it never bounces a logged-out user.
+export async function getCredits() {
+  const token = await AsyncStorage.getItem("app_token");
+  if (!token) return null;
+  try {
+    const data = await getJSON("/credits");
+    if (!data) return null;
+    noteBalance(data.credits);
+    noteCosts(data.costs);
+    return data.credits;
+  } catch {
+    return null;
+  }
 }
 
 export async function chatCompletionJSON(messages, type, extra) {
@@ -252,12 +272,13 @@ export async function fetchPalmById(id, form) {
 }
 
 export async function analyzePalm(imageBase64, form, claimedHand) {
-  const data = await postJSON("/palm", { 
-    image: imageBase64, 
-    form: attachPhone(form), 
+  const data = await postJSON("/palm", {
+    image: imageBase64,
+    form: attachPhone(form),
     claimedHand,
     skipGate: true // mobile now uses local TFJS gate, skip backend Flash gate
   });
+  noteBalance(data.balance);
   return parseContent(data.content);
 }
 
@@ -270,6 +291,7 @@ export async function comparePalms(leftBase64, rightBase64, form) {
     form: attachPhone(form),
     skipGate: true // mobile now uses local TFJS gate, skip backend Flash gate
   });
+  noteBalance(data.balance);
   return parseContent(data.content);
 }
 

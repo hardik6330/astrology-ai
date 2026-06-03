@@ -16,6 +16,11 @@ export const makeStyles = (c) => StyleSheet.create({
   },
   backText: { color: c.accentLight, fontSize: 12, fontWeight: "600" },
 
+  // Insights lock-by-default preview card.
+  lockTitle: { color: c.text, fontSize: 17, fontWeight: "700", marginBottom: 6, textAlign: "center" },
+  lockBody:  { color: c.textBody, fontSize: 13, lineHeight: 20, textAlign: "center", paddingHorizontal: spacing.sm },
+  lockNote:  { color: c.textMuted, fontSize: 11, marginTop: spacing.sm, textAlign: "center" },
+
   heroLabel: { color: c.primaryLight, fontSize: 13, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", textAlign: "center" },
   heroSub:   { color: c.textMuted, fontSize: 12, marginTop: 4, textAlign: "center" },
 

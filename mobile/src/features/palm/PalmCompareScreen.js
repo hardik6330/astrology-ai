@@ -27,6 +27,7 @@ export default function PalmCompareScreen({ navigation }) {
     setPalmLeftPhoto, setPalmRightPhoto,
     setPalmAnalyzing,
     setPalmOverloaded,
+    setPalmLowCredits,
   } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
@@ -96,6 +97,7 @@ export default function PalmCompareScreen({ navigation }) {
   function analyzeInBackground() {
     setPalmAnalyzing(true);
     setPalmOverloaded(false);
+    setPalmLowCredits(false);
     comparePalms(
       `data:image/jpeg;base64,${left.base64}`,
       `data:image/jpeg;base64,${right.base64}`,
@@ -104,6 +106,8 @@ export default function PalmCompareScreen({ navigation }) {
       .then((result) => setPalmComparison(result))
       .catch((err) => {
         if (err?.code === 'AI_OVERLOADED') setPalmOverloaded(true);
+        // Out of credits — PalmScreen reads palmLowCredits and shows the card.
+        else if (err?.code === 'INSUFFICIENT_CREDITS') setPalmLowCredits(true);
       })
       .finally(() => setPalmAnalyzing(false));
   }

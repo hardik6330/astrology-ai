@@ -12,6 +12,7 @@ import { makeStyles } from "../styles";
 // chosen, then the animated scan frame while the analysis runs.
 export default function UploadView({
   navigation, setActiveHand, setError, gating, error, preview, scanning, activeHand, scanAnim, scanMsg,
+  palmCost = 30, cannotAfford = false,
 }) {
   const color = useColors();
   const s = useStyles(makeStyles);
@@ -26,10 +27,16 @@ export default function UploadView({
             Pick which hand you're uploading. We'll check the photo matches the hand you choose.
           </Text>
 
+          {/* Cost reminder — palm reading is a charged AI action. */}
+          <View style={s.costPill}>
+            <Text style={[s.costPillText, { color: color.primaryLight }]}>✨ {palmCost} credits per reading</Text>
+          </View>
+
           {/* Premium headline card — Both Hands · Full Life Comparison */}
           <PressableScale
             onPress={() => navigation.navigate("PalmCompare")}
-            style={({ pressed }) => [s.uploadBothBtn, pressed && { opacity: 0.85 }, { marginTop: spacing.md }]}
+            disabled={cannotAfford}
+            style={({ pressed }) => [s.uploadBothBtn, (pressed || cannotAfford) && { opacity: cannotAfford ? 0.5 : 0.85 }, { marginTop: spacing.md }]}
           >
             {/* Split glyphs to avoid Android clipping of joined "✋🤚". */}
             <View style={s.uploadBothIconWrap}>
@@ -47,7 +54,8 @@ export default function UploadView({
 
           <PressableScale
             onPress={() => { setError(""); setActiveHand("Right"); }}
-            style={({ pressed }) => [s.uploadHandBtn, pressed && { opacity: 0.7 }, { marginTop: spacing.sm }]}
+            disabled={cannotAfford}
+            style={({ pressed }) => [s.uploadHandBtn, (pressed || cannotAfford) && { opacity: cannotAfford ? 0.5 : 0.7 }, { marginTop: spacing.sm }]}
           >
             <Text style={s.uploadHandIcon}>✋</Text>
             <View style={{ flex: 1 }}>
@@ -58,7 +66,8 @@ export default function UploadView({
           </PressableScale>
           <PressableScale
             onPress={() => { setError(""); setActiveHand("Left"); }}
-            style={({ pressed }) => [s.uploadHandBtn, pressed && { opacity: 0.7 }, { marginTop: spacing.sm }]}
+            disabled={cannotAfford}
+            style={({ pressed }) => [s.uploadHandBtn, (pressed || cannotAfford) && { opacity: cannotAfford ? 0.5 : 0.7 }, { marginTop: spacing.sm }]}
           >
             <Text style={s.uploadHandIcon}>🤚</Text>
             <View style={{ flex: 1 }}>

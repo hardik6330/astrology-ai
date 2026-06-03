@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
@@ -11,6 +11,11 @@ import { signOf, ZE } from "@/shared/astrology";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
 import { useBackToKundali } from "@/utils/useBackToKundali";
+import { useCredits } from "@/hooks/useCredits";
+import { useCosts } from "@/hooks/useCosts";
+import { getCredits } from "@/services/api";
+
+const LOW = 20;
 
 export default function ProfileScreen({ navigation }) {
   const { form, chart } = useChart();
@@ -18,6 +23,13 @@ export default function ProfileScreen({ navigation }) {
   const color = useColors();
   const s = useStyles(makeStyles);
   useBackToKundali(navigation);
+
+  // Cosmic Credits — fetched fresh each time Profile opens, and kept live by
+  // the shared store as AI actions spend them elsewhere.
+  const credits = useCredits();
+  const costs = useCosts();
+  useEffect(() => { getCredits(); }, []);
+  const low = credits != null && credits < LOW;
   const initial = (form.name || "?").trim().charAt(0).toUpperCase();
 
   function fmtTime(t) {
@@ -62,6 +74,39 @@ export default function ProfileScreen({ navigation }) {
         <Text style={s.name}>{form.name || "Seeker"}</Text>
         <Text style={s.tagline}>{form.city || "Birth place not set"}</Text>
       </View>
+
+      {/* Cosmic Credits — the only place the balance is shown. */}
+      <CosmicCard style={[s.creditsCard, low && s.creditsCardLow]}>
+        <View style={s.creditsTopRow}>
+          <View style={s.creditsLabelWrap}>
+            <Text style={s.creditsSpark}>✨</Text>
+            <Text style={s.creditsLabel}>Cosmic Credits</Text>
+          </View>
+          <Text style={[s.creditsValue, { color: low ? color.danger : color.primaryLight }]}>
+            {credits == null ? "—" : credits}
+          </Text>
+        </View>
+        <Text style={s.creditsSub}>
+          {low
+            ? "Low balance — top up to keep using AI features."
+            : "Spent on AI readings, daily guidance, chat and palm."}
+        </Text>
+        {costs && (
+          <View style={s.costsRow}>
+            {[
+              ["Insights", costs.insights],
+              ["Daily", costs.daily],
+              ["Chat", costs.chat],
+              ["Palm", costs.palm],
+            ].map(([l, v]) => (
+              <View key={l} style={s.costChip}>
+                <Text style={s.costChipLabel}>{l}</Text>
+                <Text style={s.costChipValue}>{v}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </CosmicCard>
 
       {chart && (
         <View style={s.row3}>
@@ -157,6 +202,23 @@ const makeStyles = (c) =>
     },
     miniLabel: { color: c.textMuted, fontSize: 10, marginTop: 6, textTransform: "uppercase" },
     miniValue: { color: c.text, fontSize: 12, lineHeight: 20, fontWeight: "700", marginTop: 4 },
+
+    creditsCard: { borderColor: c.primaryBorder },
+    creditsCardLow: { borderColor: "rgba(248,113,113,0.45)", backgroundColor: "rgba(248,113,113,0.06)" },
+    creditsTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    creditsLabelWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
+    creditsSpark: { fontSize: 16 },
+    creditsLabel: { color: c.text, fontSize: fontSize.md, fontWeight: "700" },
+    creditsValue: { fontSize: 26, fontWeight: "800" },
+    creditsSub: { color: c.textMuted, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
+    costsRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+    costChip: {
+      flex: 1, alignItems: "center",
+      backgroundColor: c.inputBg,
+      borderRadius: radius.md, paddingVertical: 8,
+    },
+    costChipLabel: { color: c.textMuted, fontSize: 9.5, textTransform: "uppercase", letterSpacing: 0.5 },
+    costChipValue: { color: c.primaryLight, fontSize: 14, fontWeight: "700", marginTop: 2 },
 
     cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 22, fontWeight: "700", marginBottom: spacing.md },
     detailRow: {
