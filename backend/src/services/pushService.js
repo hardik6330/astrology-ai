@@ -116,6 +116,19 @@ export async function sendReEngagement() {
 
 // ── Event-triggered (fired inline from feature services) ─────────────────────
 
+// "Welcome — your first chat is free." Onboarding nudge fired exactly once,
+// when a user first adds their birth data (i.e. a brand-new User row is
+// created). Pushes them toward the chat CTA. Best-effort, never blocks.
+export async function notifyWelcome(phone) {
+  const rows = await tokensForPhone(phone);
+  if (!rows.length) return { sent: 0, failed: 0, disabled: 0 };
+  return sendToTokens(rows, {
+    title: '🔮 Welcome to Astrology AI!',
+    body: 'Your first chat is FREE! Got questions about your life, marriage, or career? Just ask away!',
+    data: { type: 'welcome', screen: 'chat' },
+  });
+}
+
 // "Your Kundali insight is ready." Fired after a fresh interpretation is
 // generated + persisted. Best-effort: the caller must not await or let a push
 // failure affect the HTTP response.

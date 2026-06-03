@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { useChart } from "../context/ChartContext";
 import { useAnalyzePalm } from "@/features/palm/hooks";
 import { gatePalmImage, warmUpGate } from "../utils/palmGate";
+import Card from "@/common/Card";
+import { EMOJIS } from "@/utils/emojis";
 
 // Mobile browsers can populate <input type=file capture="environment"> with
 // the camera directly. Desktop/laptop browsers ignore `capture` and always
@@ -20,31 +22,13 @@ function isMobileDevice() {
   return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(ua) || touch;
 }
 
-const cardBtn = {
-  display: "flex",
-  alignItems: "center",
-  gap: 16,
-  padding: "16px 18px",
-  borderRadius: 14,
-  border: "1px solid rgba(168, 85, 247, 0.35)",
-  background: "rgba(168, 85, 247, 0.08)",
-  cursor: "pointer",
-  color: "#fff",
-  textAlign: "left",
-  width: "100%",
-};
-
-const skipBtn = {
-  marginTop: 8,
-  padding: "12px 16px",
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.12)",
-  background: "transparent",
-  cursor: "pointer",
-  color: "#94a3b8",
-  fontWeight: 600,
-  width: "100%",
-};
+const CARD_BTN =
+  "flex w-full cursor-pointer items-center gap-4 rounded-[14px] border border-[rgba(168,85,247,0.35)] bg-[rgba(168,85,247,0.08)] px-4.5 py-4 text-left text-ink";
+const SKIP_BTN =
+  "mt-2 w-full cursor-pointer rounded-[14px] border border-white/12 bg-transparent px-4 py-3 font-semibold text-dim";
+// Compare upsell reuses the card-button shape but with a distinct gradient.
+const COMPARE_BTN =
+  "flex w-full cursor-pointer items-center gap-4 rounded-[14px] border border-[rgba(192,132,252,0.55)] bg-[linear-gradient(135deg,rgba(168,85,247,0.18),rgba(99,102,241,0.18))] px-4.5 py-4 text-left text-ink";
 
 // Resize image File → JPEG base64 data URL (max 600px on long edge).
 // Mirrors PalmPage.resizeToBase64 so first-time uploads get the same
@@ -173,148 +157,109 @@ export default function PalmStepPage() {
   }
 
   return (
-    <div style={{ maxWidth: 560, margin: "0 auto", padding: "2rem 1rem", position: "relative" }}>
+    <div className="relative mx-auto max-w-140 px-4 py-8">
       <div className="cosmos"></div>
       <div className="stars"></div>
 
-      <div className="cosmic-card" style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-        <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 8px" }}>✋ Add a Palm Reading?</h2>
-        <p style={{ fontSize: 13, color: "#94a3b8", margin: 0, lineHeight: 1.5 }}>
+      {/* cosmic-card bottom margin (unlayered) overridden inline. */}
+      <Card className="text-center" style={{ marginBottom: "1.5rem" }}>
+        <h2 className="m-0 mb-2 text-2xl font-bold">{EMOJIS.HAND} Add a Palm Reading?</h2>
+        <p className="m-0 text-[13px] leading-normal text-dim">
           Optional — we'll analyse your palm while your kundali is being built.
         </p>
-      </div>
+      </Card>
 
-      <div className="cosmic-card" style={{ display: "grid", gap: 12 }}>
-        <button type="button" onClick={() => onHandTap("Right")} disabled={busy} style={cardBtn}>
-          <span style={{ fontSize: 28, width: 36, textAlign: "center" }}>✋</span>
-          <span style={{ flex: 1 }}>
-            <strong style={{ display: "block", fontSize: 15 }}>Right Hand</strong>
-            <span style={{ fontSize: 12, color: "#94a3b8" }}>
+      <Card className="grid gap-3">
+        <button type="button" onClick={() => onHandTap("Right")} disabled={busy} className={CARD_BTN}>
+          <span className="w-9 text-center text-[28px]">{EMOJIS.HAND}</span>
+          <span className="flex-1">
+            <strong className="block text-[15px]">Right Hand</strong>
+            <span className="text-xs text-dim">
               {isMobile ? "Take a photo or pick from gallery" : "Upload a clear photo of your right palm"}
             </span>
           </span>
-          <span style={{ fontSize: 22, color: "#a855f7" }}>›</span>
+          <span className="text-[22px] text-[#a855f7]">{EMOJIS.CHEVRON_RIGHT}</span>
         </button>
 
         <button
           type="button"
           onClick={() => navigate("/palm-compare")}
           disabled={busy}
-          style={{
-            ...cardBtn,
-            border: "1px solid rgba(192, 132, 252, 0.55)",
-            background: "linear-gradient(135deg, rgba(168,85,247,0.18), rgba(99,102,241,0.18))",
-          }}
+          className={COMPARE_BTN}
         >
-          <span style={{ fontSize: 28, width: 36, textAlign: "center" }}>✋🤚</span>
-          <span style={{ flex: 1 }}>
-            <strong style={{ display: "block", fontSize: 15 }}>Both Hands · Full Life Comparison</strong>
-            <span style={{ fontSize: 12, color: "#c4b5fd" }}>
+          <span className="w-9 text-center text-[28px]">✋🤚</span>
+          <span className="flex-1">
+            <strong className="block text-[15px]">Both Hands · Full Life Comparison</strong>
+            <span className="text-xs text-[#c4b5fd]">
               Compare your inborn potential against your current reality
             </span>
           </span>
-          <span style={{ fontSize: 22, color: "#c084fc" }}>›</span>
+          <span className="text-[22px] text-[#c084fc]">›</span>
         </button>
 
-        <button type="button" onClick={() => onHandTap("Left")} disabled={busy} style={cardBtn}>
-          <span style={{ fontSize: 28, width: 36, textAlign: "center" }}>🤚</span>
-          <span style={{ flex: 1 }}>
-            <strong style={{ display: "block", fontSize: 15 }}>Left Hand</strong>
-            <span style={{ fontSize: 12, color: "#94a3b8" }}>
+        <button type="button" onClick={() => onHandTap("Left")} disabled={busy} className={CARD_BTN}>
+          <span className="w-9 text-center text-[28px]">{EMOJIS.HAND}</span>
+          <span className="flex-1">
+            <strong className="block text-[15px]">Left Hand</strong>
+            <span className="text-xs text-dim">
               {isMobile ? "Take a photo or pick from gallery" : "Upload a clear photo of your left palm"}
             </span>
           </span>
-          <span style={{ fontSize: 22, color: "#a855f7" }}>›</span>
+          <span className="text-[22px] text-[#a855f7]">{EMOJIS.CHEVRON_RIGHT}</span>
         </button>
 
-        <button type="button" onClick={goToReading} disabled={busy} style={skipBtn}>
+        <button type="button" onClick={goToReading} disabled={busy} className={SKIP_BTN}>
           Skip → Go to my kundali
         </button>
 
         {/* Desktop: single file input. Mobile: separate inputs so the
             camera-capture attribute only applies to the camera button. */}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          onChange={onFileSelected}
-          style={{ display: "none" }}
-        />
+        <input ref={fileRef} type="file" accept="image/*" onChange={onFileSelected} className="hidden" />
         <input
           ref={cameraRef}
           type="file"
           accept="image/*"
           capture="environment"
           onChange={onFileSelected}
-          style={{ display: "none" }}
+          className="hidden"
         />
-        <input
-          ref={galleryRef}
-          type="file"
-          accept="image/*"
-          onChange={onFileSelected}
-          style={{ display: "none" }}
-        />
+        <input ref={galleryRef} type="file" accept="image/*" onChange={onFileSelected} className="hidden" />
 
-        {busy && (
-          <p style={{ color: "#94a3b8", fontSize: 13, textAlign: "center", margin: "8px 0 0" }}>
-            Reading photo…
-          </p>
-        )}
-        {error && (
-          <p style={{ color: "#f87171", fontSize: 13, textAlign: "center", margin: "8px 0 0" }}>{error}</p>
-        )}
-      </div>
+        {busy && <p className="mx-0 mt-2 mb-0 text-center text-[13px] text-dim">Reading photo…</p>}
+        {error && <p className="mx-0 mt-2 mb-0 text-center text-[13px] text-danger">{error}</p>}
+      </Card>
 
-      <p style={{ fontSize: 11, color: "#64748b", textAlign: "center", marginTop: 16, lineHeight: 1.5 }}>
+      <p className="mt-4 text-center text-[11px] leading-normal text-muted">
         Tip: bright, even lighting and a clear view of the palm work best.
       </p>
 
       {chooserOpen && (
         <div
           onClick={() => setChooserOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 100,
-            background: "rgba(0,0,0,0.7)",
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "center",
-          }}
+          className="fixed inset-0 z-100 flex items-end justify-center bg-black/70"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 480,
-              background: "#0f0e20",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              border: "1px solid rgba(168,85,247,0.35)",
-              padding: 18,
-              display: "grid",
-              gap: 10,
-            }}
+            className="grid w-full max-w-120 gap-2.5 rounded-t-[20px] border border-[rgba(168,85,247,0.35)] bg-[#0f0e20] p-4.5"
           >
-            <p style={{ color: "#94a3b8", textAlign: "center", margin: "4px 0 8px", fontSize: 13 }}>
+            <p className="mx-0 mt-1 mb-2 text-center text-[13px] text-dim">
               How would you like to add the photo?
             </p>
-            <button type="button" onClick={openCamera} style={cardBtn}>
-              <span style={{ fontSize: 26, width: 36, textAlign: "center" }}>📷</span>
-              <span style={{ flex: 1 }}>
-                <strong style={{ display: "block", fontSize: 15 }}>Take a Photo</strong>
-                <span style={{ fontSize: 12, color: "#94a3b8" }}>Use your camera</span>
+            <button type="button" onClick={openCamera} className={CARD_BTN}>
+              <span className="w-9 text-center text-[26px]">📷</span>
+              <span className="flex-1">
+                <strong className="block text-[15px]">Take a Photo</strong>
+                <span className="text-xs text-dim">Use your camera</span>
               </span>
             </button>
-            <button type="button" onClick={openGallery} style={cardBtn}>
-              <span style={{ fontSize: 26, width: 36, textAlign: "center" }}>🖼️</span>
-              <span style={{ flex: 1 }}>
-                <strong style={{ display: "block", fontSize: 15 }}>Choose from Gallery</strong>
-                <span style={{ fontSize: 12, color: "#94a3b8" }}>Pick an existing photo</span>
+            <button type="button" onClick={openGallery} className={CARD_BTN}>
+              <span className="w-9 text-center text-[26px]">🖼️</span>
+              <span className="flex-1">
+                <strong className="block text-[15px]">Choose from Gallery</strong>
+                <span className="text-xs text-dim">Pick an existing photo</span>
               </span>
             </button>
-            <button type="button" onClick={() => setChooserOpen(false)} style={skipBtn}>
+            <button type="button" onClick={() => setChooserOpen(false)} className={SKIP_BTN}>
               Cancel
             </button>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { color, gradient, radius, shadow } from "@/theme/tokens.js";
 
 // One scrollable column (hour / minute / am-pm). Module-level + stable so React
@@ -89,7 +89,7 @@ function Column({ title, items, current, onSelect, type, open }) {
   );
 }
 
-function CustomTimePicker({ value, onChange }) {
+function CustomTimePicker({ value, onChange, disabled }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -119,6 +119,7 @@ function CustomTimePicker({ value, onChange }) {
   }, []);
 
   const handleSelect = (newTime) => {
+    if (disabled) return;
     const updated = { ...time, ...newTime };
     setTime(updated);
 
@@ -130,6 +131,7 @@ function CustomTimePicker({ value, onChange }) {
   };
 
   const handleNow = () => {
+    if (disabled) return;
     const now = new Date();
     const h24 = now.getHours();
     const m = now.getMinutes();
@@ -153,10 +155,14 @@ function CustomTimePicker({ value, onChange }) {
         type="text"
         className="premium-input"
         value={displayValue()}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
         readOnly
         placeholder="--:-- --"
-        style={{ cursor: "pointer" }}
+        style={{
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.6 : 1,
+          backgroundColor: disabled ? "rgba(255,255,255,0.03)" : undefined,
+        }}
       />
       <div
         style={{
@@ -167,12 +173,13 @@ function CustomTimePicker({ value, onChange }) {
           color: color.textDim,
           pointerEvents: "none",
           fontSize: "14px",
+          opacity: disabled ? 0.3 : 1,
         }}
       >
         🕒
       </div>
 
-      {isOpen && (
+      {!disabled && isOpen && (
         <div
           style={{
             position: "absolute",

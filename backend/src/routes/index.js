@@ -7,6 +7,7 @@ import palmRoutes     from './palmRoutes.js';
 import locationRoutes from './locationRoutes.js';
 import pushRoutes     from './pushRoutes.js';
 import cronRoutes     from './cronRoutes.js';
+import adminRoutes    from './adminRoutes.js';
 
 // Single mounting point for every feature router. Auth routes are public
 // (used by the web login flow); the rest are currently open so the mobile
@@ -22,5 +23,6 @@ router.use(palmRoutes);
 router.use(locationRoutes);
 router.use(pushRoutes);
 router.use(cronRoutes);
+router.use(adminRoutes);
 
 export default router;

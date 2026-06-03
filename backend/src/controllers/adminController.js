@@ -1,0 +1,27 @@
+import * as adminSvc from '../services/adminService.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+
+export const login = asyncHandler(async (req, res) => {
+  const result = await adminSvc.loginAdmin(req.body.username, req.body.password);
+  res.json(result);
+});
+
+// req.admin is set by requireAdmin after verifying the admin JWT. We hydrate
+// the full row (name + createdAt) rather than echoing the bare token payload.
+export const me = asyncHandler(async (req, res) => {
+  const admin = await adminSvc.getAdmin(req.admin.adminId);
+  res.json({ admin });
+});
+
+export const stats = asyncHandler(async (_req, res) => {
+  res.json(await adminSvc.getStats());
+});
+
+export const users = asyncHandler(async (req, res) => {
+  const { limit, offset, search } = req.query;
+  res.json(await adminSvc.listUsers({ limit, offset, search }));
+});
+
+export const broadcast = asyncHandler(async (req, res) => {
+  res.json(await adminSvc.broadcastPush(req.body));
+});

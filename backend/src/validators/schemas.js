@@ -77,6 +77,18 @@ export const dummyBody = z.object({
   phone: z.string().min(10).max(20),
 });
 
+// Back-office admin login — username + password.
+export const adminLoginBody = z.object({
+  username: z.string().trim().min(1, 'username is required').max(64),
+  password: z.string().min(1, 'password is required').max(128),
+});
+
+// Admin push broadcast — title + body sent to every enabled device.
+export const adminBroadcastBody = z.object({
+  title: z.string().trim().min(1, 'title is required').max(120),
+  body:  z.string().trim().min(1, 'body is required').max(500),
+});
+
 // Device push-token registration. Token length cap matches PushToken's column.
 export const pushRegisterBody = z.object({
   token:    z.string().min(20).max(512),

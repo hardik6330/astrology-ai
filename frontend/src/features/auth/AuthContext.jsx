@@ -4,17 +4,21 @@
 // changing `login()` to call /api/auth/verify-otp.
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { tokenStore } from "@/common/tokenStore";
 import { dummyLogin } from "@/services/api";
 import { registerForWebPush, teardownWebPush } from "@/features/notifications/webPush";
 
-const KEY = "app_token";
+// appToken (the bearer) is shared with services/api.js; appAccount holds the
+// cached account JSON.
+const appToken = tokenStore("app_token");
+const appAccount = tokenStore("app_account");
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem(KEY));
+  const [token, setToken] = useState(() => appToken.get());
   const [account, setAccount] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("app_account") || "null");
+      return JSON.parse(appAccount.get() || "null");
     } catch {
       return null;
     }
@@ -43,8 +47,8 @@ export function AuthProvider({ children }) {
       tok = `dummy.${Date.now()}`;
       acc = { phone };
     }
-    localStorage.setItem(KEY, tok);
-    localStorage.setItem("app_account", JSON.stringify(acc));
+    appToken.set(tok);
+    appAccount.set(JSON.stringify(acc));
     setToken(tok);
     setAccount(acc);
     // Register this browser for push now that we have a real account + JWT.
@@ -54,8 +58,8 @@ export function AuthProvider({ children }) {
 
   function logout() {
     teardownWebPush();
-    localStorage.removeItem(KEY);
-    localStorage.removeItem("app_account");
+    appToken.remove();
+    appAccount.remove();
     setToken(null);
     setAccount(null);
   }

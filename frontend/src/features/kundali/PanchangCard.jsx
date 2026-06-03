@@ -1,5 +1,6 @@
 // Five vedic time-elements at the moment of birth.
 
+import Card from "@/common/Card";
 export default function PanchangCard({ panchang }) {
   if (!panchang) return null;
   const items = [
@@ -11,37 +12,17 @@ export default function PanchangCard({ panchang }) {
   ];
 
   return (
-    <div className="cosmic-card">
-      <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: "#fff" }}>Panchang Snapshot</p>
-      <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 12px" }}>
-        Five vedic time-elements at the moment of birth.
-      </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
+    <Card>
+      <p className="m-0 mb-1 text-sm font-semibold text-ink">Panchang Snapshot</p>
+      <p className="m-0 mb-3 text-[11px] text-muted">Five vedic time-elements at the moment of birth.</p>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
         {items.map(([k, v]) => (
-          <div
-            key={k}
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 10,
-              padding: "10px 12px",
-            }}
-          >
-            <p
-              style={{
-                fontSize: 10,
-                color: "#64748b",
-                textTransform: "uppercase",
-                letterSpacing: 1,
-                margin: 0,
-              }}
-            >
-              {k}
-            </p>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", margin: "3px 0 0" }}>{v}</p>
+          <div key={k} className="rounded-[10px] border border-white/8 bg-white/4 px-3 py-2.5">
+            <p className="m-0 text-[10px] tracking-[1px] text-muted uppercase">{k}</p>
+            <p className="mt-0.75 mb-0 text-[13px] font-bold text-ink">{v}</p>
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

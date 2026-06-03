@@ -17,7 +17,7 @@ function makeSessionToken() {
 
 // Mobile mirror of frontend/src/components/CitySearch.jsx. Debounced
 // autocomplete → backend proxy → select → onSelect({city, lat, lon, tz, ...}).
-export default function CitySearch({ value, onSelect, onOpenChange, birthTimestamp, placeholder = "Search your birth city..." }) {
+export default function CitySearch({ value, onSelect, onOpenChange, birthTimestamp, error, placeholder = "Search your birth city..." }) {
   const [input, setInput] = useState(value || "");
   const [predictions, setPredictions] = useState([]);
   const [open, setOpen] = useState(false);
@@ -85,6 +85,7 @@ export default function CitySearch({ value, onSelect, onOpenChange, birthTimesta
         placeholder={placeholder}
         autoCapitalize="words"
         autoCorrect={false}
+        error={error}
       />
       {showDropdown && (
         <View style={styles.dropdown}>

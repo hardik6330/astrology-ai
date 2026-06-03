@@ -1,5 +1,6 @@
 // 0–100 strength per planet, derived from dignity + house + motion.
 
+import Card from "@/common/Card";
 function barColor(score) {
   if (score >= 75) return "#4ade80";
   if (score >= 50) return "#c084fc";
@@ -10,48 +11,38 @@ function barColor(score) {
 export default function PlanetaryStrengthCard({ strengths }) {
   if (!strengths?.length) return null;
   return (
-    <div className="cosmic-card">
-      <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: "#fff" }}>
-        Planetary Strength Meter
-      </p>
-      <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 12px" }}>
+    <Card>
+      <p className="m-0 mb-1 text-sm font-semibold text-ink">Planetary Strength Meter</p>
+      <p className="m-0 mb-3 text-[11px] text-muted">
         Each planet rated 0–100 from dignity, house and motion.
       </p>
       {strengths.map((s) => {
         const col = barColor(s.score);
         return (
-          <div key={s.planet} style={{ marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 5 }}>
-              <span style={{ color: "#cbd5e1", fontSize: 12.5, fontWeight: 600, width: 90 }}>
+          <div key={s.planet} className="mb-3">
+            <div className="mb-1.25 flex items-center">
+              <span className="w-22.5 text-[12.5px] font-semibold text-subtle">
                 {s.planet}
-                {s.retro ? <span style={{ color: "#f87171", fontSize: 11 }}> ℞</span> : null}
+                {s.retro ? <span className="text-[11px] text-danger"> ℞</span> : null}
               </span>
-              <span style={{ flex: 1, color: "#64748b", fontSize: 10.5 }}>
+              <span className="flex-1 text-[10.5px] text-muted">
                 {s.label}
                 {s.house ? ` · H${s.house}` : ""}
               </span>
-              <span style={{ color: col, fontSize: 12, fontWeight: 700 }}>{s.score}</span>
+              {/* Score color is data-driven → inline. */}
+              <span className="text-xs font-bold" style={{ color: col }}>
+                {s.score}
+              </span>
             </div>
-            <div
-              style={{
-                height: 7,
-                background: "rgba(255,255,255,0.05)",
-                borderRadius: 9999,
-                overflow: "hidden",
-              }}
-            >
+            <div className="h-1.75 overflow-hidden rounded-full bg-white/5">
               <div
-                style={{
-                  width: `${s.score}%`,
-                  height: "100%",
-                  background: col,
-                  boxShadow: `0 0 10px ${col}44`,
-                }}
+                className="h-full"
+                style={{ width: `${s.score}%`, background: col, boxShadow: `0 0 10px ${col}44` }}
               />
             </div>
           </div>
         );
       })}
-    </div>
+    </Card>
   );
 }

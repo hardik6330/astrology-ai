@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChart } from "@/context/ChartContext";
 import { useChatHistory, useSendChatMessage } from "@/features/chat/hooks";
+import Card from "@/common/Card";
+
+import { EMOJIS } from "@/utils/emojis";
 
 const SUGGESTIONS = [
   "When will I marry?",
@@ -65,7 +68,7 @@ export default function ChatPage() {
   // Shown as the first astrologer message before any conversation starts
   // (display-only — not stored in the database).
   const welcomeMsg =
-    `Namaste ${form.name || "there"} 🙏 I'm your personal Vedic astrologer. ` +
+    `Namaste ${form.name || "there"} ${EMOJIS.NAMASTE} I'm your personal Vedic astrologer. ` +
     `Ask me anything about your life — career, marriage, money, health, timing — and ` +
     `I'll answer from your kundali. What would you like to know?`;
 
@@ -110,115 +113,58 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="full-screen" style={{ display: "flex", flexDirection: "column", position: "relative" }}>
+    <div className="full-screen relative flex flex-col">
       <div className="cosmos"></div>
       <div className="stars"></div>
 
       {/* Fixed inner column — header and input stay, only messages scroll */}
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 720,
-          margin: "0 auto",
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minHeight: 0,
-          padding: "1rem",
-        }}
-      >
+      <div className="mx-auto flex w-full max-w-180 min-h-0 flex-1 flex-col p-4">
         {/* Header (fixed) */}
-        <div style={{ flexShrink: 0 }}>
+        <div className="shrink-0">
           <button
             onClick={() => navigate("/reading")}
-            style={{
-              fontSize: 12,
-              padding: "8px 16px",
-              borderRadius: 8,
-              cursor: "pointer",
-              color: "#a5b4fc",
-              border: "1px solid rgba(99,102,241,0.4)",
-              background: "rgba(99,102,241,0.1)",
-              marginBottom: 12,
-            }}
+            className="mb-3 cursor-pointer rounded-lg border border-[rgba(99,102,241,0.4)] bg-[rgba(99,102,241,0.1)] px-4 py-2 text-xs text-[#a5b4fc]"
           >
-            ← Back to Reading
+            {EMOJIS.LEFT_ARROW} Back to Reading
           </button>
-          <div className="cosmic-card" style={{ textAlign: "center", marginBottom: 12, padding: "1rem" }}>
-            <h2
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                margin: "0 0 4px",
-                background: "linear-gradient(to right, #fff, #a855f7)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              💬 Ask About Your Kundli
+          {/* cosmic-card padding/margin overridden inline (unlayered). */}
+          <Card className="text-center" style={{ marginBottom: 12, padding: "1rem" }}>
+            <h2 className="m-0 mb-1 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-[22px] font-bold text-transparent">
+              {EMOJIS.CHAT} Ask About Your Kundli
             </h2>
-            <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>
+            <p className="m-0 text-xs text-[#aaa]">
               {form.name ? `${form.name}'s chart` : "Your chart"} · answered from your birth chart only
             </p>
-          </div>
+          </Card>
         </div>
 
         {/* Message list (the ONLY scrolling area) */}
         <div
           ref={scrollRef}
-          className="hide-scrollbar"
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            padding: "12px 4px",
-          }}
+          className="hide-scrollbar flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-1 py-3"
         >
           {[{ role: "assistant", content: welcomeMsg }, ...chatMsgs].map((m, i) => {
             const isUser = m.role === "user";
             const avatar = (
+              // bg/border are role-driven → inline; shape/size → utilities.
               <div
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-base"
                 style={{
-                  flexShrink: 0,
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 16,
                   background: isUser ? "rgba(99,102,241,0.25)" : "rgba(168,85,247,0.2)",
-                  border: "1px solid " + (isUser ? "rgba(99,102,241,0.5)" : "rgba(168,85,247,0.45)"),
+                  borderColor: isUser ? "rgba(99,102,241,0.5)" : "rgba(168,85,247,0.45)",
                 }}
               >
-                {isUser ? "🧑" : "🔮"}
+                {isUser ? EMOJIS.PERSON : EMOJIS.CRYSTAL_BALL}
               </div>
             );
             return (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "flex-start",
-                  width: "100%",
-                  flexDirection: isUser ? "row-reverse" : "row",
-                }}
-              >
+              <div key={i} className={`flex w-full items-start gap-2 ${isUser ? "flex-row-reverse" : ""}`}>
                 {avatar}
                 <div
+                  className="max-w-[78%] rounded-[14px] border px-3.5 py-2.5 text-[13.5px] leading-[1.65] whitespace-pre-wrap"
                   style={{
-                    maxWidth: "78%",
-                    fontSize: 13.5,
-                    lineHeight: 1.65,
-                    padding: "10px 14px",
-                    borderRadius: 14,
-                    whiteSpace: "pre-wrap",
                     background: isUser ? "rgba(99,102,241,0.18)" : "rgba(255,255,255,0.04)",
-                    border: "1px solid " + (isUser ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)"),
+                    borderColor: isUser ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)",
                     color: isUser ? "#e0e7ff" : "#cbd5e1",
                   }}
                 >
@@ -230,32 +176,23 @@ export default function ChatPage() {
         </div>
 
         {/* Input + suggestions (fixed) */}
-        <div style={{ flexShrink: 0, paddingTop: 8 }}>
+        <div className="shrink-0 pt-2">
           {chatMsgs.length === 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+            <div className="mb-2.5 flex flex-wrap gap-2">
               {SUGGESTIONS.map((q) => (
                 <button
                   key={q}
                   onClick={() => setChatInput(q)}
-                  style={{
-                    fontSize: 12,
-                    padding: "6px 12px",
-                    borderRadius: 16,
-                    cursor: "pointer",
-                    color: "#a5b4fc",
-                    border: "1px solid rgba(168,85,247,0.3)",
-                    background: "rgba(168,85,247,0.08)",
-                  }}
+                  className="cursor-pointer rounded-2xl border border-[rgba(168,85,247,0.3)] bg-[rgba(168,85,247,0.08)] px-3 py-1.5 text-xs text-[#a5b4fc]"
                 >
                   {q}
                 </button>
               ))}
             </div>
           )}
-          <form onSubmit={askChat} style={{ display: "flex", gap: 8 }}>
+          <form onSubmit={askChat} className="flex gap-2">
             <input
-              className="premium-input"
-              style={{ flex: 1 }}
+              className="premium-input flex-1"
               placeholder={phText + "▍"}
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
@@ -264,17 +201,7 @@ export default function ChatPage() {
             <button
               type="submit"
               disabled={chatBusy || !chatInput.trim()}
-              style={{
-                padding: "10px 20px",
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: chatBusy ? "not-allowed" : "pointer",
-                border: "1px solid rgba(168,85,247,0.4)",
-                background: "rgba(168,85,247,0.15)",
-                color: "#c084fc",
-                opacity: chatBusy ? 0.5 : 1,
-              }}
+              className="cursor-pointer rounded-[10px] border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.15)] px-5 py-2.5 text-[13px] font-semibold text-[#c084fc] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {chatBusy ? "…" : "Ask"}
             </button>

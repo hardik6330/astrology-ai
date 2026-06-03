@@ -4,8 +4,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ErrorText from "@/common/ErrorText";
 import { useAuth } from "./AuthContext";
 import { useChart } from "@/context/ChartContext";
+import { EMOJIS } from "@/utils/emojis";
 
 const DEFAULT_OTP = "123456";
 const RESEND_SECS = 30;
@@ -67,13 +69,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={pageWrap}>
+    <div className="relative grid min-h-screen place-items-center overflow-hidden bg-[radial-gradient(circle_at_20%_30%,#1e1b4b_0%,#050508_70%)] p-4">
       <CosmicBackdrop />
-      <div style={card}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontSize: 44, marginBottom: 12 }}>🪐</div>
-          <h1 style={{ margin: 0, fontSize: 24, color: "#fff", fontWeight: 700 }}>Sign in to Astrology AI</h1>
-          <p style={{ margin: "8px 0 0", color: "#94a3b8", fontSize: 13 }}>
+      <div className="relative z-1 w-full max-w-95 rounded-[20px] border border-(--c-border) bg-[rgba(var(--panel-rgb),0.78)] p-7 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[8px]">
+        <div className="mb-7 text-center">
+          <div className="mb-3 text-[44px]">{EMOJIS.SATURN}</div>
+          <h1 className="m-0 text-2xl font-bold text-ink">Sign in to Astrology AI</h1>
+          <p className="mt-2 mb-0 text-[13px] text-dim">
             {step === "phone"
               ? "We'll send you a one-time code over SMS."
               : `Code sent to ${phone}. Enter it below.`}
@@ -82,7 +84,7 @@ export default function LoginPage() {
 
         {step === "phone" && (
           <form onSubmit={sendOtp}>
-            <label style={label}>Phone number</label>
+            <label className={labelCls}>Phone number</label>
             <input
               type="tel"
               inputMode="numeric"
@@ -90,11 +92,11 @@ export default function LoginPage() {
               placeholder="10-digit mobile number"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              style={{ ...input, width: "100%" }}
+              className={`${inputCls} text-sm`}
               disabled={busy}
               maxLength={10}
             />
-            <button type="submit" disabled={busy} style={primaryBtn}>
+            <button type="submit" disabled={busy} className={primaryBtnCls}>
               {busy ? "Sending…" : "Send OTP"}
             </button>
           </form>
@@ -102,7 +104,7 @@ export default function LoginPage() {
 
         {step === "otp" && (
           <form onSubmit={verifyOtp}>
-            <label style={label}>6-digit code</label>
+            <label className={labelCls}>6-digit code</label>
             <input
               type="text"
               inputMode="numeric"
@@ -111,28 +113,28 @@ export default function LoginPage() {
               placeholder="••••••"
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-              style={{ ...input, letterSpacing: 6, fontSize: 18, textAlign: "center" }}
+              className={`${inputCls} text-center text-lg tracking-[6px]`}
               disabled={busy}
             />
-            <button type="submit" disabled={busy} style={primaryBtn}>
+            <button type="submit" disabled={busy} className={primaryBtnCls}>
               {busy ? "Verifying…" : "Verify & continue"}
             </button>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, fontSize: 12 }}>
+            <div className="mt-3.5 flex justify-between text-xs">
               <button
                 type="button"
                 onClick={() => {
                   setStep("phone");
                   setOtp("");
                 }}
-                style={linkBtn}
+                className={linkBtnCls}
               >
-                ← Change number
+                {EMOJIS.LEFT_ARROW} Change number
               </button>
               <button
                 type="button"
                 onClick={sendOtp}
                 disabled={resendIn > 0 || busy}
-                style={{ ...linkBtn, opacity: resendIn > 0 ? 0.5 : 1 }}
+                className={`${linkBtnCls} ${resendIn > 0 ? "opacity-50" : "opacity-100"}`}
               >
                 {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend OTP"}
               </button>
@@ -140,11 +142,19 @@ export default function LoginPage() {
           </form>
         )}
 
-        {error && <p style={{ color: "#f87171", fontSize: 12.5, marginTop: 14 }}>{error}</p>}
+        <ErrorText style={{ fontSize: 12.5, margin: "14px 0 0" }}>{error}</ErrorText>
       </div>
     </div>
   );
 }
+
+// Shared Tailwind class strings for the form controls.
+const labelCls = "mb-1.5 block text-xs tracking-[1px] text-subtle";
+const inputCls =
+  "w-full rounded-[10px] border border-(--c-border) bg-(--c-input-bg) px-3.5 py-3 text-ink outline-none";
+const primaryBtnCls =
+  "mt-4 w-full cursor-pointer rounded-xl border-none bg-(--grad-primary) px-4 py-[13px] text-sm font-bold text-ink";
+const linkBtnCls = "cursor-pointer border-none bg-transparent p-0 text-xs text-[#a78bfa]";
 
 // Orbital cosmic backdrop: three faint orbital rings rotate at different
 // speeds, each carrying a small "planet" dot. Tiny crisp stars dot the
@@ -266,15 +276,6 @@ function CosmicBackdrop() {
   );
 }
 
-const pageWrap = {
-  minHeight: "100vh",
-  display: "grid",
-  placeItems: "center",
-  background: "radial-gradient(circle at 20% 30%, #1e1b4b 0%, #050508 70%)",
-  padding: 16,
-  position: "relative",
-  overflow: "hidden",
-};
 const backdrop = {
   position: "absolute",
   inset: 0,
@@ -321,47 +322,4 @@ const shootingStar = {
   background: "linear-gradient(90deg, transparent, #fff, transparent)",
   boxShadow: "0 0 8px #fff, 0 0 14px rgba(167,139,250,0.6)",
   animation: "shoot 14s ease-in infinite",
-};
-const card = {
-  position: "relative",
-  zIndex: 1,
-  width: "100%",
-  maxWidth: 380,
-  background: "rgba(15,15,24,0.78)",
-  border: "1px solid rgba(148,163,184,0.2)",
-  borderRadius: 20,
-  padding: 28,
-  backdropFilter: "blur(8px)",
-  boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-};
-const label = { display: "block", color: "#cbd5e1", fontSize: 12, marginBottom: 6, letterSpacing: 1 };
-const input = {
-  flex: 1,
-  padding: "12px 14px",
-  borderRadius: 10,
-  background: "rgba(148,163,184,0.06)",
-  border: "1px solid rgba(148,163,184,0.2)",
-  color: "#fff",
-  fontSize: 14,
-  outline: "none",
-};
-const primaryBtn = {
-  width: "100%",
-  marginTop: 16,
-  padding: "13px 16px",
-  borderRadius: 12,
-  border: "none",
-  cursor: "pointer",
-  fontWeight: 700,
-  fontSize: 14,
-  background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
-  color: "#fff",
-};
-const linkBtn = {
-  background: "none",
-  border: "none",
-  color: "#a78bfa",
-  cursor: "pointer",
-  fontSize: 12,
-  padding: 0,
 };

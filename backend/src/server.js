@@ -16,6 +16,7 @@ import routes from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { seedFromStaticCities } from './services/locationService.js';
 import { SEED_CITIES } from './services/locationSeed.js';
+import { seedAdmin } from './services/adminSeed.js';
 import { startScheduler } from './config/scheduler.js';
 
 const app = express();
@@ -60,6 +61,9 @@ async function start() {
     // No-op once they're in. Best-effort — failure must not block startup.
     seedFromStaticCities(SEED_CITIES).catch((err) =>
       logger.warn({ err }, 'Location seed skipped'));
+    // One-time admin seed: creates the default back-office admin from env only
+    // if no admin exists yet. No-op thereafter. Best-effort — never blocks boot.
+    seedAdmin().catch((err) => logger.warn({ err }, 'Admin seed skipped'));
   } catch (err) {
     logger.fatal({ err }, 'Database init failed');
     if (env.NODE_ENV === 'production') process.exit(1);

@@ -1,35 +1,24 @@
 // ── API layer ──
-// Single place that talks to the chat endpoint. Pages call these helpers
-// instead of hand-rolling fetch + headers + JSON parsing each time.
+// Page-facing helpers. The URL resolution + low-level fetch/headers/error/JSON
+// boilerplate now lives in @/common/apiClient; this module keeps the
+// domain-specific bits (auth 401-redirect, phone scoping, content double-parse).
 
-// API URL resolution priority:
-// 1. If VITE_API_URL is set to a NON-localhost value (e.g. a real ngrok/prod URL), use it as-is.
-// 2. Otherwise derive it from the page's hostname + port 5000 — so opening the
-//    frontend on http://192.168.x.x:5173 from a phone automatically targets
-//    the dev machine's backend at http://192.168.x.x:5000/api. No env edits needed.
-const RAW_API_URL = import.meta.env.VITE_API_URL || "";
-const isLocalDefault = !RAW_API_URL || /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(RAW_API_URL);
-const API_URL =
-  isLocalDefault && typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:5000/api`
-    : RAW_API_URL || "http://localhost:5000/api";
+import { API_BASE as API_URL, request } from "@/common/apiClient";
+import { tokenStore } from "@/common/tokenStore";
 
+// Re-export under the original name so existing importers keep working.
 export const API_BASE = API_URL;
+
+// Session storage shared with the auth context (same localStorage keys).
+const appToken = tokenStore("app_token");
+const appAccount = tokenStore("app_account");
 
 // Dummy login — POSTs the phone to /auth/dummy-login. Backend findOrCreates
 // the AuthAccount and, when it recognises an existing user, returns their
 // saved birth details so we can skip the home form.
-export async function dummyLogin(phone) {
-  const res = await fetch(`${API_URL}/auth/dummy-login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Login failed (HTTP ${res.status})`);
-  }
-  return res.json(); // { token, account: { id, phone }, savedForm? }
+export function dummyLogin(phone) {
+  // → { token, account: { id, phone }, savedForm? }
+  return request("/auth/dummy-login", { method: "POST", body: { phone } });
 }
 
 // Pulls the logged-in phone from the dummy AuthContext store and attaches
@@ -38,7 +27,7 @@ export async function dummyLogin(phone) {
 function attachPhone(form) {
   if (!form) return form;
   try {
-    const acc = JSON.parse(localStorage.getItem("app_account") || "null");
+    const acc = JSON.parse(appAccount.get() || "null");
     if (acc?.phone && !form.phone) return { ...form, phone: acc.phone };
   } catch {
     /* ignore */
@@ -66,13 +55,13 @@ function formParams(form) {
 // attached centrally. On 401 we clear the token and reload — the router
 // will then bounce the user to /login.
 export async function authFetch(url, init = {}) {
-  const token = localStorage.getItem("app_token");
+  const token = appToken.get();
   const headers = new Headers(init.headers || {});
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const res = await fetch(url, { ...init, headers });
   if (res.status === 401) {
-    localStorage.removeItem("app_token");
+    appToken.remove();
     if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
       window.location.assign("/login");
     }
@@ -259,15 +248,12 @@ export async function searchCities(query, token) {
 // Resolve a Place ID to {coordinates, timezone, ...}. `birthTimestamp` is
 // seconds since epoch — sent so Google's Time Zone API returns the
 // DST-aware offset AT the user's birth moment.
-export async function getCityDetails(placeId, token, birthTimestamp) {
+export function getCityDetails(placeId, token, birthTimestamp) {
   const params = new URLSearchParams({ placeId, token });
   if (birthTimestamp) params.set("ts", String(birthTimestamp));
-  const res = await fetch(`${API_URL}/locations/details?${params}`);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Location lookup failed (HTTP ${res.status})`);
-  }
-  return res.json();
+  // `token` here is the Google Places sessiontoken (a query param), NOT an auth
+  // bearer — so it's passed in the path, not as request()'s token option.
+  return request(`/locations/details?${params}`);
 }
 
 export async function fetchChatHistory(form) {

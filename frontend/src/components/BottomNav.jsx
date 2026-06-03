@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { EMOJIS } from "@/utils/emojis";
 
 // Floating bottom tab bar — shared between ReadingPage and PalmPage so users
 // can jump between sections from any sub-page.
@@ -10,13 +11,13 @@ import { useNavigate } from "react-router-dom";
 //                 switch its local tab state. If absent (e.g. on /palm), we navigate
 //                 to /reading and pass the tab key in location state.
 const TABS = [
-  ["kundali", "Birth Chart", "🪔"],
-  ["planets", "Planets", "🪐"],
-  ["timeline", "Timeline", "🔮"],
-  ["reading", "Insights", "✨"],
-  ["palm", "Palm", "🖐️"],
-  ["chat", "Chat", "💬"],
-  ["profile", "Profile", "👤"],
+  ["kundali", "Birth Chart", EMOJIS.DIYA],
+  ["planets", "Planets", EMOJIS.SATURN],
+  ["timeline", "Timeline", EMOJIS.CRYSTAL_BALL],
+  ["reading", "Insights", EMOJIS.SPARKLES],
+  ["palm", "Palm", EMOJIS.HAND_OPEN],
+  ["chat", "Chat", EMOJIS.CHAT],
+  ["profile", "Profile", EMOJIS.USER],
 ];
 
 export default function BottomNav({ activeKey, onLocalTab }) {

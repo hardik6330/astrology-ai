@@ -26,6 +26,11 @@ const schema = z.object({
   // must present in the `x-cron-secret` header to trigger scheduled pushes.
   // Optional so dev boots without it, but the cron routes 503 until it's set.
   CRON_SECRET:     z.string().min(16).optional(),
+  // Default back-office admin, seeded once on boot if no admin exists yet.
+  // Change the password after first login; never reuse this value elsewhere.
+  ADMIN_NAME:      z.string().default('Administrator'),
+  ADMIN_USERNAME:  z.string().default('admin'),
+  ADMIN_PASSWORD:  z.string().min(8, 'ADMIN_PASSWORD must be at least 8 chars').default('changeme123'),
 });
 
 const parsed = schema.safeParse(process.env);

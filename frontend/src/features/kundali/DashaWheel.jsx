@@ -1,4 +1,5 @@
 import { fmtDate } from "@/shared/astrology";
+import Card from "@/common/Card";
 
 const SIZE = 240,
   CX = SIZE / 2,
@@ -30,12 +31,10 @@ export default function DashaWheel({ chart }) {
   const aPct = a ? Math.max(0, Math.min(100, ((now - +a.start) / (+a.end - +a.start)) * 100)) : 0;
 
   return (
-    <div className="cosmic-card">
-      <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: "#fff" }}>Dasha Timeline Wheel</p>
-      <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 12px" }}>
-        Outer ring = Mahadasha. Inner ring = Antardasha.
-      </p>
-      <div style={{ display: "flex", justifyContent: "center" }}>
+    <Card>
+      <p className="m-0 mb-1 text-sm font-semibold text-ink">Dasha Timeline Wheel</p>
+      <p className="m-0 mb-3 text-[11px] text-muted">Outer ring = Mahadasha. Inner ring = Antardasha.</p>
+      <div className="flex justify-center">
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
           <circle
             cx={CX}
@@ -68,46 +67,28 @@ export default function DashaWheel({ chart }) {
           )}
         </svg>
       </div>
-      <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 12 }}>
-        <span
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 11.5,
-            color: "#cbd5e1",
-            fontWeight: 600,
-          }}
-        >
-          <span style={{ width: 12, height: 12, borderRadius: 9999, background: "#a855f7" }} /> Mahadasha ·{" "}
-          {Math.round(mPct)}%
+      <div className="mt-3 flex justify-center gap-5">
+        <span className={legend}>
+          <span className="h-3 w-3 rounded-full bg-[#a855f7]" /> Mahadasha · {Math.round(mPct)}%
         </span>
         {a && (
-          <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 11.5,
-              color: "#cbd5e1",
-              fontWeight: 600,
-            }}
-          >
-            <span style={{ width: 12, height: 12, borderRadius: 9999, background: "#6366f1" }} /> Antardasha ·{" "}
-            {Math.round(aPct)}%
+          <span className={legend}>
+            <span className="h-3 w-3 rounded-full bg-accent" /> Antardasha · {Math.round(aPct)}%
           </span>
         )}
       </div>
-      <div style={{ textAlign: "center", marginTop: 10 }}>
-        <p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>
+      <div className="mt-2.5 text-center">
+        <p className="m-0 text-[11px] text-muted">
           {fmtDate(m.start)} – {fmtDate(m.end)}
         </p>
         {a && (
-          <p style={{ fontSize: 11, color: "#64748b", margin: 0 }}>
+          <p className="m-0 text-[11px] text-muted">
             Antar: {fmtDate(a.start)} – {fmtDate(a.end)}
           </p>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
+
+const legend = "flex items-center gap-1.5 text-[11.5px] font-semibold text-subtle";

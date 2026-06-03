@@ -27,3 +27,30 @@ export function signAppToken({ accountId, firebaseUid, phone }) {
     { expiresIn: env.JWT_EXPIRES_IN },
   );
 }
+
+// Admin session token. `role: 'admin'` distinguishes it from a user token so
+// requireAdmin can reject ordinary user JWTs even though both are signed with
+// the same secret.
+export function signAdminToken({ adminId, username }) {
+  return jwt.sign(
+    { adminId, username, role: 'admin' },
+    env.JWT_SECRET,
+    { expiresIn: env.JWT_EXPIRES_IN },
+  );
+}
+
+// Guards back-office routes: valid JWT AND role === 'admin'.
+// On success: req.admin = { adminId, username, role }.
+export function requireAdmin(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'unauthorized' });
+  try {
+    const payload = jwt.verify(token, env.JWT_SECRET);
+    if (payload.role !== 'admin') return res.status(403).json({ error: 'forbidden' });
+    req.admin = payload;
+    next();
+  } catch {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+}

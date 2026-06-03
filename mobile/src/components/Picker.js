@@ -5,14 +5,14 @@ import {
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
 
-export default function Picker({ value, onChange, options, placeholder }) {
+export default function Picker({ value, onChange, options, placeholder, error }) {
   const styles = useStyles(makeStyles);
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
 
   return (
     <View style={{ zIndex: 50 }}>
-      <Pressable style={styles.field} onPress={() => setOpen(!open)}>
+      <Pressable style={[styles.field, error && styles.fieldError]} onPress={() => setOpen(!open)}>
         <Text style={selected ? styles.value : styles.placeholder}>
           {selected ? selected.label : placeholder || "— Select —"}
         </Text>
@@ -60,6 +60,10 @@ const makeStyles = (c) =>
       alignItems: "center",
       justifyContent: "space-between",
       minHeight: 48,
+    },
+    fieldError: {
+      borderColor: c.danger,
+      backgroundColor: "rgba(248,113,113,0.05)",
     },
     value: { color: c.text, fontSize: fontSize.md },
     placeholder: { color: c.textMuted, fontSize: fontSize.md },

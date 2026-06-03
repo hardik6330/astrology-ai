@@ -1,5 +1,9 @@
 import { User } from '../models/index.js';
 import { httpError } from '../middleware/errorHandler.js';
+import { notifyWelcome } from './pushService.js';
+import { logger } from '../config/logger.js';
+
+const log = logger.child({ mod: 'user' });
 
 // Resolve a user by their birth-detail join key — scoped by phone when the
 // caller is authenticated. Two accounts on different phone numbers sharing
@@ -37,9 +41,16 @@ export async function findOrCreateUser(form) {
     gender: form.gender || null,
   };
   if (form.phone) where.phone = form.phone;
-  const [user] = await User.findOrCreate({
+  const [user, created] = await User.findOrCreate({
     where,
     defaults: { phone: form.phone || null },
   });
+  // First time this user adds birth data → one-time welcome/onboarding push.
+  // Fire-and-forget: a push failure must never affect user creation. Centralized
+  // here so it fires exactly once regardless of which feature created the row.
+  if (created) {
+    notifyWelcome(user.phone || form.phone)
+      .catch((err) => log.warn({ err: err.message }, 'welcome push failed'));
+  }
   return user;
 }

@@ -5,6 +5,8 @@ import ProtectedRoute from "@/features/auth/ProtectedRoute";
 import RouteErrorBoundary from "@/components/RouteErrorBoundary";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/features/auth/LoginPage";
+import { AdminAuthProvider } from "@/admin/context/AdminAuthContext";
+import AdminRoute from "@/admin/components/AdminRoute";
 
 // Heavy authenticated screens are lazy-loaded so the initial login bundle
 // stays small. Add new routes to the array below — they pick up the same
@@ -15,6 +17,15 @@ const PalmPage = lazy(() => import("@/pages/PalmPage"));
 const PalmStepPage = lazy(() => import("@/pages/PalmStepPage"));
 const PalmComparePage = lazy(() => import("@/pages/PalmComparePage"));
 const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
+
+// Back-office admin section — its own username/password auth, fully separate
+// from the phone-OTP user gate. Lazy-loaded so it never weighs down the app.
+const AdminLoginPage = lazy(() => import("@/admin/pages/AdminLoginPage"));
+const AdminLayout = lazy(() => import("@/admin/layout/AdminLayout"));
+const AdminDashboard = lazy(() => import("@/admin/pages/AdminDashboard"));
+const AdminUsers = lazy(() => import("@/admin/pages/AdminUsers"));
+const AdminPush = lazy(() => import("@/admin/pages/AdminPush"));
+const AdminProfile = lazy(() => import("@/admin/pages/AdminProfile"));
 
 // `requiresChart: true` adds the ProtectedRoute (needs a generated kundali).
 // `public: true` skips AuthGate (login screen).
@@ -36,12 +47,49 @@ function wrap(route) {
   return node;
 }
 
+// Admin section lives outside the phone AuthGate. `/admin/login` is standalone;
+// the rest share AdminLayout (header + sidebar + footer) via nested routes,
+// all behind AdminRoute and an AdminAuthProvider.
+function adminRoutes() {
+  return [
+    {
+      path: "/admin/login",
+      element: (
+        <AdminAuthProvider>
+          <RouteErrorBoundary>
+            <AdminLoginPage />
+          </RouteErrorBoundary>
+        </AdminAuthProvider>
+      ),
+    },
+    {
+      path: "/admin",
+      element: (
+        <AdminAuthProvider>
+          <AdminRoute>
+            <RouteErrorBoundary>
+              <AdminLayout />
+            </RouteErrorBoundary>
+          </AdminRoute>
+        </AdminAuthProvider>
+      ),
+      children: [
+        { index: true, element: <AdminDashboard /> },
+        { path: "users", element: <AdminUsers /> },
+        { path: "push", element: <AdminPush /> },
+        { path: "profile", element: <AdminProfile /> },
+      ],
+    },
+  ];
+}
+
 // Returns the list of route descriptors React Router will render. Kept as
 // a function (not a constant) so the lazy chunks aren't evaluated at module
 // load time of routes.jsx.
 export function appRoutes() {
   return [
     ...ROUTES.map((r) => ({ path: r.path, element: wrap(r) })),
+    ...adminRoutes(),
     { path: "*", element: <Navigate to="/" replace /> },
   ];
 }

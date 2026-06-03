@@ -1,3 +1,4 @@
+import Card from "@/common/Card";
 const SIZE = 280,
   CX = SIZE / 2,
   CY = SIZE / 2;
@@ -31,12 +32,12 @@ export default function AshtakvargaWheel({ ashtakvarga }) {
   const lucky = ashtakvarga.perSign.filter((s) => s.lucky).length;
 
   return (
-    <div className="cosmic-card">
-      <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: "#fff" }}>Ashtakvarga (Sarva)</p>
-      <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 12px" }}>
+    <Card>
+      <p className="m-0 mb-1 text-sm font-semibold text-ink">Ashtakvarga (Sarva)</p>
+      <p className="m-0 mb-3 text-[11px] text-muted">
         Total Bindus per sign · max 56 · 28+ counts as fortunate ({lucky}/12 lucky · sum {total})
       </p>
-      <div style={{ display: "flex", justifyContent: "center" }}>
+      <div className="flex justify-center">
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
           {ashtakvarga.perSign.map((s, i) => {
             const a0 = i * slice,
@@ -79,22 +80,20 @@ export default function AshtakvargaWheel({ ashtakvarga }) {
           </text>
         </svg>
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 12 }}>
+      <div className="mt-3 flex flex-wrap justify-center gap-2.5">
         {[
           ["32+ Excellent", "#4ade80"],
           ["28–31 Lucky", "#c084fc"],
           ["22–27 Mixed", "#fbbf24"],
           ["≤21 Weak", "#f87171"],
         ].map(([label, color]) => (
-          <span
-            key={label}
-            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: "#cbd5e1" }}
-          >
-            <span style={{ width: 10, height: 10, borderRadius: 9999, background: color }} />
+          <span key={label} className="flex items-center gap-1.25 text-[10.5px] text-subtle">
+            {/* Swatch color is data-driven → inline. */}
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
             {label}
           </span>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

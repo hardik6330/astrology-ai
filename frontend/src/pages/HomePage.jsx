@@ -6,8 +6,12 @@ import CitySearch from "../components/CitySearch";
 import CustomDatePicker from "@/components/picker/CustomDatePicker";
 import CustomTimePicker from "@/components/picker/CustomTimePicker";
 import CustomSelect from "../components/CustomSelect";
+import Card from "@/common/Card";
+import Button from "@/common/Button";
 
-const lbl = { fontSize: 13, color: "#888", display: "block", marginBottom: 4 };
+import { EMOJIS } from "@/utils/emojis";
+
+const lbl = "mb-1 block text-[13px] text-[#888]";
 
 // Landing page — the birth-detail form. On submit it computes the chart
 // and routes to the protected /reading page.
@@ -97,34 +101,26 @@ export default function HomePage() {
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "2rem 1rem", position: "relative" }}>
+    <div className="relative mx-auto max-w-180 px-4 py-8">
       <div className="cosmos"></div>
       <div className="stars"></div>
       <div className="shooting-star"></div>
 
-      <div className="cosmic-card" style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-        <h2
-          style={{
-            fontSize: 28,
-            fontWeight: 700,
-            margin: "0 0 8px",
-            background: "linear-gradient(to right, #fff, #a855f7)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          ✨ AI Kundali Insights ✨
+      {/* cosmic-card's bottom margin (unlayered) is overridden inline. */}
+      <Card className="text-center" style={{ marginBottom: "2.5rem" }}>
+        <h2 className="m-0 mb-2 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-[28px] font-bold text-transparent">
+          {EMOJIS.SPARKLES} AI Kundali Insights {EMOJIS.SPARKLES}
         </h2>
-        <p style={{ fontSize: 14, color: "#aaa", margin: 0, letterSpacing: "0.5px" }}>
+        <p className="m-0 text-sm tracking-[0.5px] text-[#aaa]">
           Precision Astronomy + Celestial Intelligence
         </p>
-      </div>
+      </Card>
 
-      <div className="cosmic-card">
-        <div style={{ display: "grid", gap: 16 }}>
+      <Card>
+        <div className="grid gap-4">
           <div className="grid-name-gender">
             <div>
-              <label style={lbl}>Full Name</label>
+              <label className={lbl}>Full Name</label>
               <input
                 className="premium-input"
                 placeholder="Enter name..."
@@ -133,7 +129,7 @@ export default function HomePage() {
               />
             </div>
             <div>
-              <label style={lbl}>Gender</label>
+              <label className={lbl}>Gender</label>
               <CustomSelect
                 value={form.gender}
                 onChange={(e) => set("gender", e.target.value)}
@@ -148,28 +144,56 @@ export default function HomePage() {
           </div>
           <div className="grid-2">
             <div>
-              <label style={lbl}>Birth Date</label>
+              <label className={lbl}>Birth Date</label>
               <CustomDatePicker value={form.date} max={today} onChange={(val) => set("date", val)} />
             </div>
             <div>
-              <label style={lbl}>Birth Time</label>
-              <CustomTimePicker value={form.time} onChange={(val) => set("time", val)} />
+              <label className={lbl}>Birth Time</label>
+              <CustomTimePicker
+                value={form.time}
+                onChange={(val) => set("time", val)}
+                disabled={form.unknownTime}
+              />
             </div>
           </div>
+
+          <div className="my-1 flex items-center gap-2.5">
+            <input
+              type="checkbox"
+              id="unknownTime"
+              checked={form.unknownTime || false}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                set("unknownTime", checked);
+                if (checked) {
+                  set("time", "12:00");
+                  setError("");
+                }
+              }}
+              className="h-4.5 w-4.5 cursor-pointer accent-[#a855f7]"
+            />
+            <label htmlFor="unknownTime" className="cursor-pointer text-sm text-[#aaa] select-none">
+              I don't know my exact birth time
+            </label>
+          </div>
+
           <div>
-            <label style={lbl}>Birth City</label>
+            <label className={lbl}>Birth City</label>
             <CitySearch value={form.city} birthTimestamp={birthTimestamp} onSelect={onCitySelected} />
           </div>
-          <button onClick={generate} className="magic-btn" style={{ marginTop: 8, width: "100%" }}>
-            Reveal My Destiny ↗
-          </button>
+          <Button variant="magic" onClick={generate} fullWidth className="mt-2">
+            Reveal My Destiny {EMOJIS.ARROW_UP_RIGHT}
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {error && (
-        <div className="cosmic-card" style={{ borderColor: "#ef4444", background: "rgba(239, 68, 68, 0.1)" }}>
-          <p style={{ color: "#f87171", fontSize: 14, margin: 0 }}>⚠️ {error}</p>
-        </div>
+        // cosmic-card border/bg overridden inline (it's unlayered).
+        <Card style={{ borderColor: "#ef4444", background: "rgba(239, 68, 68, 0.1)" }}>
+          <p className="m-0 text-sm text-danger">
+            {EMOJIS.WARNING} {error}
+          </p>
+        </Card>
       )}
     </div>
   );

@@ -5,14 +5,11 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ChartProvider } from "@/context/ChartContext";
 import { AuthProvider } from "@/features/auth/AuthContext";
 import { queryClient } from "@/lib/queryClient";
+import Loading from "@/common/Loading";
 import { appRoutes } from "@/routes";
 
 function PageLoader() {
-  return (
-    <div style={{ display: "grid", placeItems: "center", minHeight: "60vh", color: "#94a3b8" }}>
-      <div style={{ fontSize: 32, animation: "pulse-gold 2s infinite ease-in-out" }}>✨</div>
-    </div>
-  );
+  return <Loading />;
 }
 
 // Phone-OTP auth gates the whole app. /reading|/chat|/palm additionally
@@ -26,7 +23,11 @@ export default function App() {
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 {appRoutes().map((r) => (
-                  <Route key={r.path} path={r.path} element={r.element} />
+                  <Route key={r.path} path={r.path} element={r.element}>
+                    {r.children?.map((c) => (
+                      <Route key={c.path ?? "index"} index={c.index} path={c.path} element={c.element} />
+                    ))}
+                  </Route>
                 ))}
               </Routes>
             </Suspense>

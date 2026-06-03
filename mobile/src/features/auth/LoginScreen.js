@@ -10,6 +10,7 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import Animated, {
   useSharedValue, useAnimatedStyle,
   withRepeat, withTiming, withDelay, withSequence, Easing,
+  FadeIn, FadeOut,
 } from "react-native-reanimated";
 import { useAuth } from "./AuthContext";
 import { useChart } from "@/context/ChartContext";
@@ -143,7 +144,7 @@ function CenterSun() {
   );
 }
 
-function CosmicBackdrop({ color }) {
+function CosmicBackdrop({ color, theme }) {
   // ~30 stars instead of 70, opacity-only animation. Plenty for a starry
   // feel without the GPU cost of dozens of overlapping animated SVG nodes.
   const stars = Array.from({ length: 30 }, (_, i) => ({
@@ -154,14 +155,19 @@ function CosmicBackdrop({ color }) {
     dur: 1800 + (i % 5) * 700,
     delay: (i * 137) % 2400,
   }));
+
+  const isLight = theme === "light";
+  const stop1 = isLight ? "#e0e7ff" : (color.primarySoft || "#1e1b4b");
+  const stop2 = color.bg;
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {/* Solid radial gradient — drawn once, never animated. */}
       <Svg width={SCREEN_W} height={SCREEN_H} style={StyleSheet.absoluteFill}>
         <Defs>
           <RadialGradient id="bgGrad" cx="20%" cy="20%" r="80%">
-            <Stop offset="0%"   stopColor={color.primarySoft || "#1e1b4b"} stopOpacity="1" />
-            <Stop offset="100%" stopColor={color.bg} stopOpacity="1" />
+            <Stop offset="0%"   stopColor={stop1} stopOpacity="1" />
+            <Stop offset="100%" stopColor={stop2} stopOpacity="1" />
           </RadialGradient>
         </Defs>
         <Rect x="0" y="0" width={SCREEN_W} height={SCREEN_H} fill="url(#bgGrad)" />
@@ -169,12 +175,12 @@ function CosmicBackdrop({ color }) {
 
       {stars.map((s, i) => (
         <TwinkleStar key={i} x={s.x} y={s.y} size={s.size}
-                     baseOpacity={s.o} dur={s.dur} delay={s.delay} />
+                     baseOpacity={isLight ? s.o * 0.4 : s.o} dur={s.dur} delay={s.delay} />
       ))}
 
-      <Orbit size={SCREEN_W * 1.0} dur={80000} planetColor="#fbbf24" planetSize={9} />
-      <Orbit size={SCREEN_W * 0.7} dur={50000} reverse planetColor="#a78bfa" planetSize={8} />
-      <Orbit size={SCREEN_W * 0.42} dur={30000} planetColor="#34d399" planetSize={6} />
+      <Orbit size={SCREEN_W * 1.0} dur={80000} planetColor={isLight ? "#f59e0b" : "#fbbf24"} planetSize={9} />
+      <Orbit size={SCREEN_W * 0.7} dur={50000} reverse planetColor={isLight ? "#8b5cf6" : "#a78bfa"} planetSize={8} />
+      <Orbit size={SCREEN_W * 0.42} dur={30000} planetColor={isLight ? "#10b981" : "#34d399"} planetSize={6} />
       <CenterSun />
 
       <ShootingStar />
@@ -206,12 +212,30 @@ export default function LoginScreen() {
   const { theme, colors: color } = useTheme();
   const s = useStyles(makeStyles);
 
+  const floatAnim = useSharedValue(0);
+
+  useEffect(() => {
+    floatAnim.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.sin) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedLogoStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: floatAnim.value * -15 }],
+  }));
+
   const [phone, setPhone] = useState("");
   const [otp,   setOtp]   = useState("");
   const [step,  setStep]  = useState("phone");
   const [busy,  setBusy]  = useState(false);
   const [error, setError] = useState("");
   const [resendIn, setResendIn] = useState(0);
+  const [agreed, setAgreed] = useState(false);
   const phoneRef = useRef("");
 
   useEffect(() => {
@@ -224,6 +248,7 @@ export default function LoginScreen() {
     setError("");
     const cleaned = phone.replace(/\D/g, "");
     if (cleaned.length < 10) return setError("Enter a valid 10-digit phone number");
+    if (!agreed) return setError("Please agree to the Terms & Conditions");
 
     setBusy(true);
     await new Promise((r) => setTimeout(r, 700));
@@ -252,15 +277,17 @@ export default function LoginScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <CosmicBackdrop color={color} />
+      <CosmicBackdrop color={color} theme={theme} />
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-        <View style={s.wrap}>
-          <BlurView intensity={60} tint={theme === "light" ? "light" : "dark"} style={s.card}>
-            <Text style={s.emoji}>🪐</Text>
+        <View style={s.container}>
+          <View style={s.content}>
+            <Animated.View style={[s.logoContainer, animatedLogoStyle]}>
+              <Text style={s.logoEmoji}>🔮</Text>
+            </Animated.View>
             <Text style={s.title}>Sign in to Astrology AI</Text>
             <Text style={s.subtitle}>
               {step === "phone"
@@ -271,17 +298,33 @@ export default function LoginScreen() {
             {step === "phone" && (
               <>
                 <Text style={s.label}>Phone number</Text>
-                <TextInput
-                  value={phone}
-                  onChangeText={(v) => setPhone(v.replace(/\D/g, ""))}
-                  keyboardType="phone-pad"
-                  autoComplete="tel"
-                  placeholder="10-digit mobile number"
-                  placeholderTextColor={color.textMuted}
-                  style={s.input}
-                  editable={!busy}
-                  maxLength={10}
-                />
+                <View style={s.inputContainer}>
+                  <Text style={s.prefix}>+91</Text>
+                  <TextInput
+                    value={phone}
+                    onChangeText={(v) => setPhone(v.replace(/\D/g, ""))}
+                    keyboardType="phone-pad"
+                    autoComplete="tel"
+                    placeholder="10-digit mobile number"
+                    placeholderTextColor={color.textMuted}
+                    style={s.input}
+                    editable={!busy}
+                    maxLength={10}
+                  />
+                </View>
+
+                <Pressable 
+                  onPress={() => setAgreed(!agreed)} 
+                  style={s.termsRow}
+                >
+                  <View style={[s.checkbox, agreed && s.checkboxChecked]}>
+                    {agreed && <Text style={s.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={s.termsText}>
+                    I agree to the <Text style={s.termsLink}>Terms & Conditions</Text> and <Text style={s.termsLink}>Privacy Policy</Text>
+                  </Text>
+                </Pressable>
+
                 <Pressable onPress={sendOtp} disabled={busy} style={[s.primaryBtn, busy && { opacity: 0.6 }]}>
                   <Text style={s.primaryBtnText}>{busy ? "Sending…" : "Send OTP"}</Text>
                 </Pressable>
@@ -291,18 +334,24 @@ export default function LoginScreen() {
             {step === "otp" && (
               <>
                 <Text style={s.label}>6-digit code</Text>
-                <TextInput
-                  value={otp}
-                  onChangeText={(v) => setOtp(v.replace(/\D/g, ""))}
-                  keyboardType="number-pad"
-                  autoComplete="sms-otp"
-                  textContentType="oneTimeCode"
-                  placeholder="••••••"
-                  placeholderTextColor={color.textMuted}
-                  style={[s.input, s.otpInput]}
-                  editable={!busy}
-                  maxLength={6}
-                />
+                <View style={s.otpWrap}>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <View key={i} style={[s.otpBox, otp.length === i && s.otpBoxActive]}>
+                      <Text style={s.otpText}>{otp[i] || ""}</Text>
+                    </View>
+                  ))}
+                  <TextInput
+                    value={otp}
+                    onChangeText={(v) => setOtp(v.replace(/\D/g, ""))}
+                    keyboardType="number-pad"
+                    autoComplete="sms-otp"
+                    textContentType="oneTimeCode"
+                    style={s.hiddenInput}
+                    editable={!busy}
+                    maxLength={6}
+                    autoFocus
+                  />
+                </View>
                 <Pressable onPress={verifyOtp} disabled={busy} style={[s.primaryBtn, busy && { opacity: 0.6 }]}>
                   <Text style={s.primaryBtnText}>{busy ? "Verifying…" : "Verify & continue"}</Text>
                 </Pressable>
@@ -320,50 +369,161 @@ export default function LoginScreen() {
             )}
 
             {error ? <Text style={s.error}>{error}</Text> : null}
-          </BlurView>
+          </View>
         </View>
-        </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
 }
 
 const makeStyles = (c) => StyleSheet.create({
-  wrap: { flex: 1, justifyContent: "center", padding: spacing.lg },
-  card: {
-    borderWidth: 1.5, borderColor: "rgba(167,139,250,0.45)",
-    borderRadius: radius.xl + 4,
-    paddingHorizontal: spacing.xl, paddingVertical: spacing.xl + 8,
-    // overflow:hidden is required so BlurView is clipped to the rounded
-    // corners — otherwise the blur leaks past the border radius on Android.
-    overflow: "hidden",
+  container: { flex: 1, paddingHorizontal: spacing.xl, justifyContent: "center" },
+  content: { width: "100%", marginBottom: 45 },
+
+  logoContainer: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: c.theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.05)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 30,
+    marginTop: 20, // Space for floating animation
+    borderWidth: 1.5,
+    borderColor: c.cardBorder,
+    alignSelf: "center",
+    // Ensure emoji isn't cut
+    overflow: "visible",
   },
-  emoji: { fontSize: 52, textAlign: "center", marginBottom: 14, lineHeight: 60 },
-  title: { color: c.text, fontSize: 22, fontWeight: "800", textAlign: "center", letterSpacing: 0.3 },
-  subtitle: { color: c.textBody, fontSize: 13, textAlign: "center", marginTop: 8, marginBottom: 26, lineHeight: 19, paddingHorizontal: 8 },
-  label: { color: c.textDim, fontSize: 11, letterSpacing: 1.5, marginBottom: 8, fontWeight: "600", textTransform: "uppercase" },
+  logoEmoji: { 
+    fontSize: 48,
+    textAlign: "center",
+    includeFontPadding: false, // Android fix for emoji cutting
+  },
+
+  title: { color: c.text, fontSize: 28, fontWeight: "800", textAlign: "center", letterSpacing: 0.5 },
+  subtitle: { color: c.textDim, fontSize: 14, textAlign: "center", marginTop: 10, marginBottom: 40, lineHeight: 22 },
+  label: { 
+     color: c.text === "#ffffff" ? "#ffffff" : c.primary, 
+     fontSize: 12, 
+     letterSpacing: 1, 
+     marginBottom: 10, 
+     fontWeight: "700", 
+     textTransform: "uppercase" 
+   },
+  
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: c.theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.06)",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: c.cardBorder,
+    paddingHorizontal: 16,
+  },
+  prefix: {
+    color: c.text,
+    fontSize: 16,
+    fontWeight: "600",
+    marginRight: 10,
+    borderRightWidth: 1,
+    borderRightColor: c.cardBorder,
+    paddingRight: 10,
+  },
   input: {
-    width: "100%", paddingHorizontal: 14, paddingVertical: 13, borderRadius: 12,
-    backgroundColor: c.inputBg,
-    borderWidth: 1, borderColor: c.cardBorder,
-    color: c.text, fontSize: 15,
+    flex: 1,
+    paddingVertical: 18,
+    color: c.text,
+    fontSize: 17,
+    fontWeight: "700",
   },
-  // Standalone OTP input — drop the row's flex:1 (was eating vertical
-  // space + breaking centered text on Android), use real width + tracking.
-  otpInput: {
-    flex: 0, width: "100%",
-    fontSize: 22, fontWeight: "700",
-    textAlign: "center", letterSpacing: 8,
-    paddingVertical: 14,
+  
+  otpWrap: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 5,
   },
+  otpBox: {
+    width: (SCREEN_W - spacing.xl * 2 - 50) / 6,
+    height: 60,
+    backgroundColor: c.theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.05)",
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: c.cardBorder,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  otpBoxActive: {
+    borderColor: c.primary,
+    backgroundColor: c.theme === "dark" ? "rgba(168,85,247,0.1)" : "rgba(124,58,237,0.05)",
+  },
+  otpText: {
+    color: c.text,
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  hiddenInput: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    opacity: 0,
+  },
+  
   primaryBtn: {
-    marginTop: 22, paddingVertical: 15, borderRadius: 14,
-    backgroundColor: "#8b5cf6", alignItems: "center",
-    shadowColor: "#8b5cf6", shadowOpacity: 0.5, shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 }, elevation: 6,
+    marginTop: 30,
+    paddingVertical: 18,
+    borderRadius: 18,
+    backgroundColor: c.primary,
+    alignItems: "center",
+    shadowColor: c.primary,
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
-  primaryBtnText: { color: "#fff", fontWeight: "800", fontSize: 15, letterSpacing: 0.4 },
-  rowBetween: { flexDirection: "row", justifyContent: "space-between", marginTop: 16 },
-  link: { color: c.primaryLight, fontSize: 12.5, fontWeight: "600" },
-  error: { color: c.danger, fontSize: 12.5, marginTop: 14, textAlign: "center" },
+  primaryBtnText: { color: "#fff", fontWeight: "800", fontSize: 16, letterSpacing: 0.5 },
+  
+  rowBetween: { flexDirection: "row", justifyContent: "space-between", marginTop: 20 },
+  link: { color: c.primaryLight, fontSize: 13, fontWeight: "600" },
+  error: { color: c.danger, fontSize: 13, marginTop: 20, textAlign: "center", fontWeight: "500" },
+
+  termsRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 20,
+    paddingHorizontal: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: c.primaryLight + "60",
+    backgroundColor: c.inputBg,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    marginTop: 2,
+  },
+  checkboxChecked: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  checkmark: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "bold",
+  },
+  termsText: {
+    flex: 1,
+    color: c.textDim,
+    fontSize: 12,
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: c.primaryLight,
+    fontWeight: "700",
+  },
 });

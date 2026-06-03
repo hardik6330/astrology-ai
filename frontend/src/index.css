@@ -1,3 +1,52 @@
+@import "tailwindcss";
+
+/* ── Design palette ──────────────────────────────────────────────────────────
+   @theme is Tailwind v4's source of truth: each --color-* both generates a
+   utility (bg-primary, text-danger, text-ink…) AND is emitted as a :root CSS
+   var, so inline styles and className utilities share ONE palette. */
+@theme {
+  --color-primary: #8b5cf6;
+  --color-accent: #6366f1;
+  --color-danger: #f87171;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+
+  --color-ink: #ffffff; /* headings / strong text */
+  --color-body: #e2e8f0;
+  --color-subtle: #cbd5e1;
+  --color-dim: #94a3b8;
+  --color-muted: #64748b;
+  --color-panel: #0f0f18;
+}
+
+:root {
+  /* base channels (for rgba alpha variants used by inline styles) */
+  --slate-rgb: 148, 163, 184;
+  --violet-rgb: 139, 92, 246;
+  --danger-rgb: 248, 113, 113;
+  --panel-rgb: 15, 15, 24;
+
+  /* Aliases: keep existing var(--c-*) inline styles working, sourced from the
+     @theme palette above so there's still a single place to change a color. */
+  --c-text: var(--color-ink);
+  --c-text-body: var(--color-subtle);
+  --c-text-dim: var(--color-dim);
+  --c-text-muted: var(--color-muted);
+  --c-body: var(--color-body);
+  --c-primary: var(--color-primary);
+  --c-accent: var(--color-accent);
+  --c-danger: var(--color-danger);
+  --c-success: var(--color-success);
+
+  /* surfaces */
+  --c-border: rgba(var(--slate-rgb), 0.2);
+  --c-border-soft: rgba(var(--slate-rgb), 0.15);
+  --c-input-bg: rgba(var(--slate-rgb), 0.06);
+
+  /* gradients */
+  --grad-primary: linear-gradient(135deg, #8b5cf6, #6366f1);
+}
+
 *,
 *::before,
 *::after {

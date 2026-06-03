@@ -1,6 +1,8 @@
 // Live readings for Mangal, Kaal Sarp, Pitra and Sade Sati — drawn from
 // the chart's computed `doshas` object (no AI, deterministic).
 
+import Card from "@/common/Card";
+
 function tone(state) {
   switch (state) {
     case "good":
@@ -17,28 +19,18 @@ function tone(state) {
 function Row({ title, badge, state, detail }) {
   const t = tone(state);
   return (
-    <div style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 600 }}>{title}</span>
+    <div className="border-b border-white/6 py-2.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-semibold text-subtle">{title}</span>
+        {/* Tone colors are data-driven → inline; shape/typography → utilities. */}
         <span
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: 0.5,
-            textTransform: "uppercase",
-            padding: "3px 10px",
-            borderRadius: 9999,
-            background: t.bg,
-            border: `1px solid ${t.border}`,
-            color: t.fg,
-          }}
+          className="rounded-full border px-2.5 py-0.75 text-[10px] font-bold tracking-[0.5px] uppercase"
+          style={{ background: t.bg, borderColor: t.border, color: t.fg }}
         >
           {badge}
         </span>
       </div>
-      {detail && (
-        <p style={{ color: "#94a3b8", fontSize: 11.5, lineHeight: 1.5, margin: "4px 0 0" }}>{detail}</p>
-      )}
+      {detail && <p className="mt-1 mb-0 text-[11.5px] leading-normal text-dim">{detail}</p>}
     </div>
   );
 }
@@ -56,11 +48,9 @@ export default function DoshaCard({ doshas }) {
   const sadeState = doshas.sadeSati.active ? "warn" : "good";
 
   return (
-    <div className="cosmic-card">
-      <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: "#fff" }}>Dosha & Yoga Status</p>
-      <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 12px" }}>
-        Live readings of major astrological conditions.
-      </p>
+    <Card>
+      <p className="m-0 mb-1 text-sm font-semibold text-ink">Dosha & Yoga Status</p>
+      <p className="m-0 mb-3 text-[11px] text-muted">Live readings of major astrological conditions.</p>
       <Row
         title="Mangal Dosha"
         badge={doshas.mangal.level}
@@ -85,6 +75,6 @@ export default function DoshaCard({ doshas }) {
         state={sadeState}
         detail={doshas.sadeSati.detail}
       />
-    </div>
+    </Card>
   );
 }

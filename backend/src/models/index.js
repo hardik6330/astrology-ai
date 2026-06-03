@@ -6,6 +6,7 @@ import ChatMessage from './ChatMessage.js';
 import PalmReading from './PalmReading.js';
 import PushToken from './PushToken.js';
 import Location from './Location.js';
+import Admin from './Admin.js';
 
 // Relationships
 User.hasOne(Kundali, { foreignKey: 'userId', onDelete: 'CASCADE' });
@@ -25,4 +26,6 @@ PalmReading.belongsTo(User, { foreignKey: 'userId' });
 AuthAccount.hasMany(PushToken, { foreignKey: 'accountId', onDelete: 'CASCADE' });
 PushToken.belongsTo(AuthAccount, { foreignKey: 'accountId' });
 
-export { User, AuthAccount, Kundali, DailyData, ChatMessage, PalmReading, PushToken, Location };
+// Admin has no association — it's a standalone back-office login.
+
+export { User, AuthAccount, Kundali, DailyData, ChatMessage, PalmReading, PushToken, Location, Admin };

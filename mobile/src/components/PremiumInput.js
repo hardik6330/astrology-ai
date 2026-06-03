@@ -11,7 +11,7 @@ export function Label({ children }) {
   return <Text style={styles.label}>{children}</Text>;
 }
 
-export function PremiumInput({ value, onChangeText, placeholder, ...rest }) {
+export function PremiumInput({ value, onChangeText, placeholder, error, ...rest }) {
   const c = useColors();
   const styles = useStyles(makeStyles);
   return (
@@ -20,13 +20,13 @@ export function PremiumInput({ value, onChangeText, placeholder, ...rest }) {
       onChangeText={onChangeText}
       placeholder={placeholder}
       placeholderTextColor={c.textMuted}
-      style={styles.input}
+      style={[styles.input, error && styles.inputError]}
       {...rest}
     />
   );
 }
 
-export function DateField({ value, onChange, mode = "date" }) {
+export function DateField({ value, onChange, mode = "date", error, disabled }) {
   const styles = useStyles(makeStyles);
   const c = useColors();
   const [show, setShow] = useState(false);
@@ -72,11 +72,15 @@ export function DateField({ value, onChange, mode = "date" }) {
 
   return (
     <>
-      <Pressable style={styles.input} onPress={() => setShow(true)}>
-        <Text style={value ? styles.inputText : styles.placeholderText} numberOfLines={1}>
+      <Pressable 
+        style={[styles.input, error && styles.inputError, disabled && styles.inputDisabled]} 
+        onPress={() => !disabled && setShow(true)}
+        disabled={disabled}
+      >
+        <Text style={[value ? styles.inputText : styles.placeholderText, disabled && { color: c.textMuted }]} numberOfLines={1}>
           {displayValue()}
         </Text>
-        <Text style={styles.fieldIcon} allowFontScaling={false}>
+        <Text style={[styles.fieldIcon, disabled && { opacity: 0.3 }]} allowFontScaling={false}>
           {mode === "date" ? "📅" : "🕒"}
         </Text>
       </Pressable>
@@ -113,6 +117,15 @@ const makeStyles = (c) =>
       alignItems: "center",
       justifyContent: "space-between",
       minHeight: 48,
+    },
+    inputError: {
+      borderColor: c.danger,
+      backgroundColor: "rgba(248,113,113,0.05)",
+    },
+    inputDisabled: {
+      backgroundColor: "rgba(255,255,255,0.03)",
+      borderColor: "rgba(255,255,255,0.05)",
+      opacity: 0.6,
     },
     // flexShrink lets a long value truncate instead of shoving the trailing
     // icon out of the field; the icon keeps a fixed slot beside it.
