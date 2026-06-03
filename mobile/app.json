@@ -27,6 +27,7 @@
       "package": "com.astrologyai.app",
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo-removebg-preview.png",
         "backgroundColor": "#0b0a1f"
