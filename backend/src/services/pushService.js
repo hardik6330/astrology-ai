@@ -129,6 +129,15 @@ export async function notifyWelcome(phone) {
   });
 }
 
+// Admin-composed push to a single user's devices (resolved by phone, same
+// account-bridge as the campaigns). Returns the FCM fan-out summary so the
+// back-office can show delivery results.
+export async function sendCustomToPhone(phone, { title, body }) {
+  const rows = await tokensForPhone(phone);
+  if (!rows.length) return { sent: 0, failed: 0, disabled: 0 };
+  return sendToTokens(rows, { title, body, data: { type: 'admin' } });
+}
+
 // "Your Kundali insight is ready." Fired after a fresh interpretation is
 // generated + persisted. Best-effort: the caller must not await or let a push
 // failure affect the HTTP response.

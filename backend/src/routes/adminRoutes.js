@@ -17,5 +17,6 @@ router.get ('/admin/me',    requireAdmin, admin.me);
 router.get ('/admin/stats', requireAdmin, admin.stats);
 router.get ('/admin/users', requireAdmin, admin.users);
 router.post('/admin/push/broadcast', requireAdmin, validate(adminBroadcastBody, 'body'), admin.broadcast);
+router.post('/admin/users/:id/push', requireAdmin, validate(adminBroadcastBody, 'body'), admin.pushUser);
 
 export default router;

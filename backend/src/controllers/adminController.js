@@ -25,3 +25,8 @@ export const users = asyncHandler(async (req, res) => {
 export const broadcast = asyncHandler(async (req, res) => {
   res.json(await adminSvc.broadcastPush(req.body));
 });
+
+export const pushUser = asyncHandler(async (req, res) => {
+  const { title, body } = req.body;
+  res.json(await adminSvc.pushToUser({ userId: req.params.id, title, body }));
+});

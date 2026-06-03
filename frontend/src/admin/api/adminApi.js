@@ -39,3 +39,8 @@ export function adminUsers({ limit = 25, offset = 0, search = "" } = {}) {
 export function adminBroadcast(title, body) {
   return adminFetch("/admin/push/broadcast", { method: "POST", body: { title, body } });
 }
+
+// POST /admin/users/:id/push → send a custom notification to one user's devices.
+export function adminPushUser(userId, title, body) {
+  return adminFetch(`/admin/users/${userId}/push`, { method: "POST", body: { title, body } });
+}

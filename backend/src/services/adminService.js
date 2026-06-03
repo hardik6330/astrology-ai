@@ -8,6 +8,7 @@ import {
 import { verifyPassword } from '../utils/password.js';
 import { signAdminToken } from '../middleware/auth.js';
 import { sendToTokens } from './notificationService.js';
+import { sendCustomToPhone } from './pushService.js';
 import { httpError } from '../middleware/errorHandler.js';
 
 export async function loginAdmin(username, password) {
@@ -64,4 +65,14 @@ export async function listUsers({ limit = 25, offset = 0, search = '' } = {}) {
 export async function broadcastPush({ title, body }) {
   const rows = await PushToken.findAll({ where: { enabled: true }, attributes: ['id', 'token'] });
   return sendToTokens(rows, { title, body, data: { type: 'broadcast' } });
+}
+
+// Push a custom notification to one user's devices. The user is matched to
+// their push tokens by phone (User↔AuthAccount bridge). 404s if the user is
+// gone; a user with no phone / no enabled device just yields a 0-sent summary.
+export async function pushToUser({ userId, title, body }) {
+  const user = await User.findByPk(userId, { attributes: ['id', 'name', 'phone'] });
+  if (!user) throw httpError(404, 'User not found', 'NOT_FOUND');
+  if (!user.phone) throw httpError(409, 'User has no phone on record', 'NO_PHONE');
+  return sendCustomToPhone(user.phone, { title, body });
 }
