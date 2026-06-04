@@ -16,6 +16,33 @@ import { adminSaveSettings } from "@/admin/api/adminApi";
 // "initial_credits" → "Initial Credits"
 const labelFor = (key) => key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+const FIELD_INFO = {
+  initial_credits:
+    "The amount of free credits a brand-new user gets on signup. Example: Set to 200 so users can try 10 daily readings for free.",
+  insights_cost:
+    "Cost in credits for a full Kundali/Birth Chart interpretation. Example: 20 credits per generation.",
+  chat_cost: "Cost per AI chat message. Example: 5 credits per reply to prevent API abuse.",
+  daily_cost: "Cost for daily personalized guidance. Example: 15 credits per day.",
+  palm_cost: "Cost for a palm reading analysis. Example: 30 credits due to higher AI processing needs.",
+  notif_enabled: "Master switch to turn all automatic engagement notifications ON or OFF.",
+  notif_audience:
+    "Who receives the notification. 'All' sends to everyone, 'Sample' sends to a random % of users to spread server load.",
+  notif_sample_pct:
+    "Percentage of users to target when audience is 'Random Sample'. Example: 25% means 1 in 4 users gets the message.",
+  notif_source:
+    "Where the message text comes from. 'AI' uses Gemini to write fresh, unique messages every time.",
+  notif_max_gap_hours:
+    "Maximum time allowed between two notifications. Example: 12 means users won't go more than 12 hours without a nudge.",
+  notif_min_gap_hours:
+    "Minimum waiting time before sending another notification. Example: 5 prevents spamming users too frequently.",
+  notif_window_start: "The earliest hour (IST, 0-23) the system can send notifications. Example: 9 for 9 AM.",
+  notif_window_end: "The latest hour (IST, 0-23) the system can send notifications. Example: 15 for 3 PM.",
+  notif_max_tokens:
+    "Maximum number of devices to notify in one batch. Prevents server timeouts on large user bases.",
+  notif_next_at:
+    "The exact timestamp (Unix Epoch) when the next notification is scheduled. Managed automatically by the system.",
+};
+
 // Settings whose value is an enum/boolean string, not a number. Rendered as a
 // <select> so admins pick a valid value instead of typing into a number input
 // (which silently blanks text values like 'pool'/'all'/'true' on save).
@@ -62,6 +89,7 @@ export default function AdminSettings() {
         <Field
           as="select"
           label={labelFor(s.key)}
+          info={FIELD_INFO[s.key]}
           value={valueOf(s)}
           onChange={(e) => onEdit(s.key, e.target.value)}
           disabled={busy}
@@ -77,6 +105,7 @@ export default function AdminSettings() {
           type="number"
           min={0}
           label={labelFor(s.key)}
+          info={FIELD_INFO[s.key]}
           value={valueOf(s)}
           onChange={(e) => onEdit(s.key, e.target.value)}
           disabled={busy}
