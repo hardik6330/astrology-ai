@@ -13,7 +13,7 @@ import Animated, {
   FadeIn, FadeOut,
 } from "react-native-reanimated";
 import { useAuth } from "./AuthContext";
-import { sendOtp as fbSendOtp, confirmOtp } from "./otp";
+import { verifyPhone, confirmCode } from "./otp";
 import { useChart } from "@/context/ChartContext";
 import { useTheme } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
@@ -248,8 +248,10 @@ export default function LoginScreen() {
   const [resendIn, setResendIn] = useState(0);
   const [agreed, setAgreed] = useState(false);
   const phoneRef = useRef("");
-  // Holds the Firebase confirmation between "send" and "verify".
-  const confirmationRef = useRef(null);
+  // verificationId (from onCodeSent) for the manual confirm path.
+  const verificationIdRef = useRef(null);
+  // Active verifyPhone listener — torn down on unmount / before a resend.
+  const unsubRef = useRef(null);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -257,41 +259,65 @@ export default function LoginScreen() {
     return () => clearInterval(t);
   }, [resendIn]);
 
-  async function sendOtp() {
+  // Stop the auto-retrieval listener when leaving the screen.
+  useEffect(() => () => unsubRef.current?.(), []);
+
+  // Shared: trade the Firebase ID token for our session + route the user.
+  async function doLogin(idToken) {
+    const { savedForm, commitSession } = await completeOtpLogin(idToken);
+    // Hydrate ChartContext FIRST so the redirect flag + chart are in place
+    // before the navigator switches (avoids a flash of the empty form).
+    if (savedForm) await applySavedForm(savedForm);
+    commitSession(); // switches the navigator → this screen unmounts
+  }
+
+  function sendOtp() {
     setError("");
     const cleaned = phone.replace(/\D/g, "").slice(-10);
     if (cleaned.length !== 10) return setError("Enter a valid 10-digit phone number");
     if (!agreed) return setError("Please agree to the Terms & Conditions");
 
     setBusy(true);
-    try {
-      phoneRef.current = cleaned;
-      // India-only (+91). Firebase needs full E.164 format.
-      confirmationRef.current = await fbSendOtp(`+91${cleaned}`);
-      setOtp("");
-      setStep("otp");
-      setResendIn(RESEND_SECS);
-    } catch (err) {
-      setError(otpError(err));
-    } finally {
-      setBusy(false);
-    }
+    phoneRef.current = cleaned;
+    // Tear down any previous listener before starting a new send / resend.
+    unsubRef.current?.();
+    // India-only (+91). Firebase needs full E.164 format.
+    unsubRef.current = verifyPhone(`+91${cleaned}`, {
+      onCodeSent: (verificationId) => {
+        verificationIdRef.current = verificationId;
+        setOtp("");
+        setStep("otp");
+        setResendIn(RESEND_SECS);
+        setBusy(false);
+      },
+      // Android auto-read the SMS → fill the boxes + sign in with no typing.
+      onAutoComplete: async (idToken, code) => {
+        if (code) setOtp(code);
+        setStep("otp");
+        setBusy(true);
+        try {
+          await doLogin(idToken);
+        } catch (err) {
+          setError(otpError(err));
+          setBusy(false);
+        }
+      },
+      onError: (err) => {
+        setError(otpError(err));
+        setBusy(false);
+      },
+    });
   }
 
   async function verifyOtp() {
     setError("");
     if (otp.length !== 6) return setError("Enter the 6-digit code");
-    if (!confirmationRef.current) return setError("Please request a code first");
+    if (!verificationIdRef.current) return setError("Please request a code first");
 
     setBusy(true);
     try {
-      const idToken = await confirmOtp(confirmationRef.current, otp);
-      const { savedForm, commitSession } = await completeOtpLogin(idToken);
-      // If the backend recognised this number, hydrate ChartContext FIRST so
-      // the redirect flag + chart are in place before the navigator switches.
-      // Otherwise HomeScreen briefly flashes the empty form on returning login.
-      if (savedForm) await applySavedForm(savedForm);
-      commitSession(); // switches the navigator → this screen unmounts
+      const idToken = await confirmCode(verificationIdRef.current, otp);
+      await doLogin(idToken);
     } catch (err) {
       setError(otpError(err));
       setBusy(false);

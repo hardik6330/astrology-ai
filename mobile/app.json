@@ -36,6 +36,10 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS"
       ]
     },
@@ -54,21 +58,24 @@
       [
         "expo-build-properties",
         {
-          "ios": { "useFrameworks": "static" }
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
       ]
     ],
     "extra": {
       "apiUrl": {},
       "eas": {
-        "projectId": "a51d2fa1-d8fb-4099-a3d8-17de250150a0"
+        "projectId": "a64b1d82-9d50-4971-938c-f10e61235a7a"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/a51d2fa1-d8fb-4099-a3d8-17de250150a0"
-    }
+      "url": "https://u.expo.dev/a64b1d82-9d50-4971-938c-f10e61235a7a"
+    },
+    "owner": "hugging00132"
   }
 }

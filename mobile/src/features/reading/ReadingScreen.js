@@ -6,6 +6,7 @@ import Animated, { FadeIn, FadeInRight } from "react-native-reanimated";
 import * as Location from "expo-location";
 import BottomNav from "../../components/BottomNav";
 import MenuButton from "../../components/MenuButton";
+import CosmicBackdrop from "../../components/CosmicBackdrop";
 import CosmicCard from "../../components/CosmicCard";
 import { SkeletonReading } from "../../components/Skeleton";
 import { useChart } from "../../context/ChartContext";
@@ -211,6 +212,7 @@ Running period: ${d.dasha}`;
   if (!chart) {
     return (
       <View style={{ flex: 1, backgroundColor: color.bg }}>
+        <CosmicBackdrop />
         <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
           <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 95 }} showsVerticalScrollIndicator={false}>
             <SkeletonReading />
@@ -222,6 +224,7 @@ Running period: ${d.dasha}`;
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
+      <CosmicBackdrop />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
         <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 95 }} showsVerticalScrollIndicator={false}>
           <View style={s.headerRow}>
