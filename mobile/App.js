@@ -10,7 +10,7 @@ import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import SplashScreen from "./src/components/SplashScreen";
 import { warmupBackend, getCredits } from "./src/services/api";
-import { setupForegroundNotifications, requestDisplayPermission } from "./src/features/notifications/push";
+import { setupForegroundNotifications, setupNotificationNavigation, requestDisplayPermission } from "./src/features/notifications/push";
 
 function ThemedStatusBar() {
   const { theme } = useTheme();
@@ -52,6 +52,7 @@ function AppShell() {
   // Expo Go; only fires real notifications in a native build.
   useEffect(() => {
     setupForegroundNotifications();
+    setupNotificationNavigation();
     requestDisplayPermission();
   }, []);
 

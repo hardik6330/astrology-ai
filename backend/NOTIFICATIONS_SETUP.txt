@@ -1,0 +1,167 @@
+================================================================================
+ AUTOMATIC ENGAGEMENT NOTIFICATIONS — SETUP GUIDE
+ (Astrology AI Pro backend)
+================================================================================
+
+WHAT THIS IS
+------------
+"Engagement" notifications are the randomised push messages ("vibe" / shayari
+hooks) sent to users at unpredictable times during waking hours. They are driven
+by:
+  • Admin settings stored in the `Settings` DB table (the knobs)
+  • A scheduler that pings  GET/POST /api/cron/run?job=engage  on a cadence
+  • The engage handler in  src/services/engageService.js  (decides when to send)
+
+KEY IDEA — HOW "RANDOM TIME" WORKS
+----------------------------------
+Randomness comes from the SETTINGS, not the scheduler:
+  • Random GAP  (min_gap < max_gap)  -> each send picks a random number of hours
+                                        until the next one  -> random spacing.
+  • WINDOW       (window_start..end)  -> keeps sends inside waking hours (IST).
+
+The scheduler's only job is to CHECK OFTEN so the randomly-chosen time actually
+fires near its moment. Checking more often does NOT create more notifications —
+the engage handler throttles via `notif_next_at` (the next due timestamp) + the
+gap, so you never get spammed. More frequent checks = more PRECISE timing.
+
+Each cron tick, the handler:
+  1. bails if notif_enabled != 'true'                  -> {skipped:'disabled'}
+  2. bails if current IST hour is outside the window   -> {skipped:'outside_window'}
+  3. bails if now < notif_next_at (not due yet)        -> {skipped:'not_due'}
+  4. else: picks content, sends, and schedules the next random time.
+(Use ?job=engage_now to FORCE a send, bypassing 1-3 — for testing.)
+
+================================================================================
+ ADMIN SETTINGS — for random times
+================================================================================
+Set these in the Admin panel (System Settings -> Notifications), or directly in
+the `Settings` table. All times are IST.
+
+  notif_enabled        true            Master ON/OFF switch
+  notif_source         pool  (or ai)   'pool' = curated templates (fast, no AI
+                                        cost). 'ai' = fresh Gemini Flash line.
+  notif_audience       all             all | random_one | random_sample
+  notif_sample_pct     25              % of users (only when audience=random_sample)
+  notif_window_start   9               earliest send hour (0-23)
+  notif_window_end     22              latest send hour (0-23, EXCLUSIVE)
+  notif_min_gap_hours  3               MIN random gap  (MUST be < max)
+  notif_max_gap_hours  8               MAX random gap  (random 3-8h spacing)
+  notif_max_tokens     500             max devices per send (fan-out cap)
+  notif_next_at        (auto)          internal next-send timestamp — leave alone
+
+RESULT with the above: ~2-4 notifications/day at random times like 10:18,
+14:47, 20:33 — different every day, never on a fixed hour.
+
+TUNING:
+  • Fewer / day      -> wider gap, e.g. min 6 / max 14   (~1-2/day)
+  • More / day       -> narrower gap, e.g. min 2 / max 5 (~3-5/day)
+  • Tight around noon-> window 11..15, min 1 / max 1, hourly poll (~3-4 @ noon)
+
+IMPORTANT GOTCHAS (learned the hard way):
+  • min_gap MUST be < max_gap. If min > max, the code clamps the random range to
+    0 and the gap becomes FIXED (no randomness).
+  • notif_enabled must be the exact string 'true'. Anything else = disabled.
+  • The `key` column is a MySQL RESERVED WORD. Some DB consoles (e.g. Railway's
+    web query box) pipe SQL through bash and choke on backticks. To edit without
+    touching `key`, match on the description column instead:
+        UPDATE Settings SET value = 'true'
+        WHERE description LIKE 'Master switch%';
+    (Settings, value, description are NOT reserved -> no backticks needed.)
+    Or just use the DB UI's row editor.
+
+================================================================================
+ SCHEDULER — when running on YOUR OWN server (always-on)
+================================================================================
+On an always-on host (VPS / Render / Railway service / Fly), you have two
+options. Pick ONE.
+
+PREREQUISITES (both options):
+  • Keep the process alive with PM2 or systemd:
+        pm2 start npm --name astro-backend -- start
+        pm2 save && pm2 startup
+  • Set env vars (same names as Vercel):
+        CRON_SECRET=<long-random-string>      (>=16 chars)
+        FIREBASE_SERVICE_ACCOUNT_B64=<base64 of service-account JSON>
+        GEMINI_API_KEY=...   DB_HOST/DB_PORT/DB_USER/DB_PASS/DB_NAME=...
+
+--------------------------------------------------------------------------------
+OPTION A — System crontab (simplest, no code change)
+--------------------------------------------------------------------------------
+Check every 5 minutes; the app decides whether to actually send.
+
+  crontab -e
+  # every 5 min — engage (randomised)
+  */5 * * * * curl -s -H "x-cron-secret: YOUR_SECRET" "http://localhost:5000/api/cron/run?job=engage" >/dev/null
+
+Optional fixed campaigns (set server TZ or use IST-aware times):
+  0 8  * * * curl -s -H "x-cron-secret: YOUR_SECRET" "http://localhost:5000/api/cron/run?job=morning"  >/dev/null
+  0 19 * * * curl -s -H "x-cron-secret: YOUR_SECRET" "http://localhost:5000/api/cron/run?job=evening"  >/dev/null
+  0 12 * * * curl -s -H "x-cron-secret: YOUR_SECRET" "http://localhost:5000/api/cron/run?job=reengage" >/dev/null
+
+--------------------------------------------------------------------------------
+OPTION B — In-process scheduler (recommended for own server)
+--------------------------------------------------------------------------------
+Run the check INSIDE the app with node-cron. No external curl / cron-job.org, no
+secret needed (it's internal), and it can fire at the precise random minute.
+
+  1. npm install node-cron
+  2. Add src/scheduler.js that runs every minute and calls the engage service
+     directly (sendEngagement({force:false})). Guard it so it only runs on the
+     always-on server, NOT on Vercel serverless (e.g. behind an env flag like
+     ENABLE_INPROCESS_CRON=true), so it never double-fires.
+  3. Import/start it from src/server.js after the DB is ready.
+
+(Ask the dev / AI assistant to scaffold scheduler.js — the engage logic already
+exists; only the periodic trigger needs adding.)
+
+================================================================================
+ SCHEDULER — current setup on VERCEL (Hobby plan) — for reference
+================================================================================
+Vercel serverless can't run an in-process loop, and Hobby caps native cron at
+once/day + max 2 jobs. So we use an EXTERNAL scheduler (cron-job.org):
+
+  • URL    : https://<your-backend>/api/cron/run?job=engage
+  • Method : GET (Vercel-friendly) or POST
+  • Header : x-cron-secret: <CRON_SECRET>     (or Authorization: Bearer <CRON_SECRET>)
+  • Cadence: every 5 minutes  (*/5 * * * *)   for random timing
+  • Timezone of the cron is irrelevant (engage gates by IST server-side).
+
+NOTE: the cron endpoint accepts BOTH:
+  - x-cron-secret header        (external schedulers)
+  - Authorization: Bearer ...   (Vercel native cron)
+and BOTH GET and POST. See src/routes/cronRoutes.js + src/middleware/cronAuth.js.
+
+================================================================================
+ TESTING & VERIFYING
+================================================================================
+FORCE a send right now (bypasses enabled/window/schedule):
+  GET https://<your-backend>/api/cron/run?job=engage_now
+      header: x-cron-secret: <CRON_SECRET>
+
+Response meanings:
+  {"sent":N,...}                 -> it sent to N devices (success)
+  {"skipped":"disabled"}         -> notif_enabled != 'true'
+  {"skipped":"outside_window"}   -> current IST hour outside window (normal)
+  {"skipped":"not_due"}          -> waiting for the next random slot (normal)
+  {"skipped":"no_audience"}      -> NO device has registered a push token yet
+                                    (open the app + allow notifications)
+  {"skipped":"no_templates"}     -> source=pool but the template pool is empty
+  401 unauthorized               -> wrong/missing CRON_SECRET
+  503 cron_not_configured        -> CRON_SECRET env var not set
+
+LOGS: every send is logged at dispatch in src/services/notificationService.js
+  ("sending notification" with title/body/recipients/type), followed by
+  "push fan-out done" with sent/failed counts.
+
+================================================================================
+ RELEVANT FILES
+================================================================================
+  src/services/engageService.js        randomised engage logic + scheduling
+  src/services/notificationService.js   low-level FCM fan-out + send logging
+  src/services/pushService.js           daily/reengage/welcome campaigns + tokens
+  src/controllers/cronController.js      job map (engage / engage_now / morning / ...)
+  src/routes/cronRoutes.js              GET+POST /cron/run
+  src/middleware/cronAuth.js            x-cron-secret OR Authorization: Bearer
+  src/services/settingsSeed.js          default values for all notif_* settings
+  src/config/firebase.js                FCM credentials (FIREBASE_SERVICE_ACCOUNT_B64)
+================================================================================

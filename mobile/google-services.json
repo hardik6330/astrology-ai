@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "160095118157",
-    "project_id": "astrology-ai-abc38",
-    "storage_bucket": "astrology-ai-abc38.firebasestorage.app"
+    "project_number": "897985872810",
+    "project_id": "future-ai-b05ad",
+    "storage_bucket": "future-ai-b05ad.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:160095118157:android:1de33814de412a42facd04",
+        "mobilesdk_app_id": "1:897985872810:android:f958490d734b466e9aa1d3",
         "android_client_info": {
           "package_name": "com.astrologyai.app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyD5jjnhEVinfUlCvJnDEf8lK6kqjxv5Xkg"
+          "current_key": "AIzaSyBXG7rCFcWUlinbXBKyFATpq4Gy1yK6ZsM"
         }
       ],
       "services": {

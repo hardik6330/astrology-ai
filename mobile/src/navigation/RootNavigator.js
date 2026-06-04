@@ -3,6 +3,7 @@ import { View, Text } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { logScreenView } from "../features/notifications/analytics";
+import { navigationRef, flushPendingNavigation } from "./navigationRef";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import HomeScreen        from "../features/home/HomeScreen";
 import ReadingScreen     from "../features/reading/ReadingScreen";
@@ -75,7 +76,7 @@ function MainDrawer() {
 
 export default function RootNavigator() {
   const { token, hydrating } = useAuth();
-  const navigationRef = useRef();
+  // navigationRef is the shared container ref (also used by push-tap handlers).
   const routeNameRef = useRef();
 
   // While AsyncStorage is being read, show a neutral placeholder so we
@@ -94,6 +95,8 @@ export default function RootNavigator() {
       ref={navigationRef}
       onReady={() => {
         routeNameRef.current = navigationRef.current.getCurrentRoute().name;
+        // Apply any deep-link queued by a cold-start notification tap.
+        flushPendingNavigation();
       }}
       onStateChange={async () => {
         const previousRouteName = routeNameRef.current;

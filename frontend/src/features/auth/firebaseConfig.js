@@ -11,14 +11,24 @@ import { getMessaging, isSupported as messagingSupported } from "firebase/messag
 
 // Keep this config in sync with frontend/public/firebase-messaging-sw.js — the
 // background service worker can't import this module, so it hardcodes its own copy.
-export const firebaseConfig = {
-  apiKey: "AIzaSyDeP9lVD48v__XAi3w5PS-gR9Hl9Ou2_lg",
-  authDomain: "astrology-ai-abc38.firebaseapp.com",
-  projectId: "astrology-ai-abc38",
-  storageBucket: "astrology-ai-abc38.firebasestorage.app",
-  messagingSenderId: "160095118157",
-  appId: "1:160095118157:web:1ddb20119df02911facd04",
-  measurementId: "G-3QWLMK4B4S",
+// export const firebaseConfig = {
+//   apiKey: "AIzaSyDeP9lVD48v__XAi3w5PS-gR9Hl9Ou2_lg",
+//   authDomain: "astrology-ai-abc38.firebaseapp.com",
+//   projectId: "astrology-ai-abc38",
+//   storageBucket: "astrology-ai-abc38.firebasestorage.app",
+//   messagingSenderId: "160095118157",
+//   appId: "1:160095118157:web:1ddb20119df02911facd04",
+//   measurementId: "G-3QWLMK4B4S",
+// };
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDphpDaRfEPouJYcvHF8sh5QLh-Gt21P3A",
+  authDomain: "future-ai-b05ad.firebaseapp.com",
+  projectId: "future-ai-b05ad",
+  storageBucket: "future-ai-b05ad.firebasestorage.app",
+  messagingSenderId: "897985872810",
+  appId: "1:897985872810:web:4855f2853a4636fe9aa1d3",
+  measurementId: "G-RXYJL7N99L",
 };
 
 export const firebaseApp = initializeApp(firebaseConfig);

@@ -8,9 +8,12 @@
 
 import { Platform } from "react-native";
 import { registerPushToken, unregisterPushToken } from "@/services/api";
+import { navigateFromNotification } from "@/navigation/navigationRef";
 
 let unsubscribeRefresh = null;
 let unsubscribeForeground = null;
+let unsubscribeForegroundEvent = null;
+let unsubscribeOpened = null;
 let androidChannelId = null;
 
 // Lazy require: a static import of the Firebase module throws at load time when
@@ -23,7 +26,7 @@ function getMessaging() {
 // Same lazy-require guard for notifee (also a native module, absent in Expo Go).
 function getNotifee() {
   const mod = require("@notifee/react-native");
-  return { notifee: mod.default, AndroidImportance: mod.AndroidImportance };
+  return { notifee: mod.default, AndroidImportance: mod.AndroidImportance, EventType: mod.EventType };
 }
 
 // Ask the OS for permission to DISPLAY notifications. On Android this is only
@@ -90,7 +93,7 @@ export async function unregisterForPush() {
 // Idempotent + guarded: safe to call on every app launch; a no-op in Expo Go.
 export async function setupForegroundNotifications() {
   try {
-    const { notifee, AndroidImportance } = getNotifee();
+    const { notifee, AndroidImportance, EventType } = getNotifee();
     const messaging = getMessaging();
 
     // Android requires a channel before any notification can be shown (8.0+).
@@ -98,6 +101,15 @@ export async function setupForegroundNotifications() {
       id: "default",
       name: "General",
       importance: AndroidImportance.HIGH,
+    });
+
+    // Tap on a notifee-rendered notification (foreground case) → deep-link to
+    // the screen the backend set in data.screen. Re-arm cleanly if called twice.
+    unsubscribeForegroundEvent?.();
+    unsubscribeForegroundEvent = notifee.onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.PRESS) {
+        navigateFromNotification(detail.notification?.data?.screen);
+      }
     });
 
     // Re-arm cleanly if called twice (e.g. fast refresh / re-login).
@@ -130,5 +142,29 @@ export async function setupForegroundNotifications() {
     });
   } catch (err) {
     if (__DEV__) console.warn("[push] setupForegroundNotifications skipped:", err?.message);
+  }
+}
+
+// ── Tap-to-navigate for BACKGROUND / QUIT notifications ──────────────────────
+//
+// FCM draws the banner itself when the app is backgrounded or killed, so the
+// tap surfaces through messaging() (not notifee). Two cases:
+//   • app in background → onNotificationOpenedApp fires on tap
+//   • app was quit      → getInitialNotification returns the tap that launched it
+// Both deep-link via data.screen. Call once on app launch; no-op in Expo Go.
+export async function setupNotificationNavigation() {
+  try {
+    const messaging = getMessaging();
+
+    unsubscribeOpened?.();
+    unsubscribeOpened = messaging().onNotificationOpenedApp((remoteMessage) => {
+      navigateFromNotification(remoteMessage?.data?.screen);
+    });
+
+    // Cold start: the notification that launched the app (null if launched normally).
+    const initial = await messaging().getInitialNotification();
+    if (initial) navigateFromNotification(initial?.data?.screen);
+  } catch (err) {
+    if (__DEV__) console.warn("[push] setupNotificationNavigation skipped:", err?.message);
   }
 }

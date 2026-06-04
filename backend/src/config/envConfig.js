@@ -26,6 +26,11 @@ const schema = z.object({
   // must present in the `x-cron-secret` header to trigger scheduled pushes.
   // Optional so dev boots without it, but the cron routes 503 until it's set.
   CRON_SECRET:     z.string().min(16).optional(),
+  // Auth mode switch. 'true' = require real Firebase Phone Auth (clients send a
+  // Firebase ID token to /auth/verify-otp; /auth/dummy-login is disabled).
+  // 'false'/unset = dummy phone-only login (dev / pre-OTP). Parsed explicitly so
+  // the literal string "false" is NOT coerced to true.
+  FIREBASE_OTP_SERVICE: z.string().optional().transform((v) => v === 'true'),
   // Default back-office admin, seeded once on boot if no admin exists yet.
   // Change the password after first login; never reuse this value elsewhere.
   ADMIN_NAME:      z.string().default('Administrator'),

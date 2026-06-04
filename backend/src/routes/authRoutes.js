@@ -11,6 +11,7 @@ import { verifyBody, dummyBody } from '../validators/schemas.js';
 
 const router = Router();
 
+router.get ('/auth/config',      auth.config);   // public: which auth mode is active
 router.post('/auth/verify-otp',  writeLimiter, validate(verifyBody, 'body'), auth.verifyOtp);
 router.post('/auth/dummy-login', writeLimiter, validate(dummyBody, 'body'), auth.dummyLogin);
 router.get ('/auth/me',          requireAuth,  auth.me);

@@ -9,14 +9,24 @@
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
 
+// firebase.initializeApp({
+//   apiKey: "AIzaSyDeP9lVD48v__XAi3w5PS-gR9Hl9Ou2_lg",
+//   authDomain: "astrology-ai-abc38.firebaseapp.com",
+//   projectId: "astrology-ai-abc38",
+//   storageBucket: "astrology-ai-abc38.firebasestorage.app",
+//   messagingSenderId: "160095118157",
+//   appId: "1:160095118157:web:1ddb20119df02911facd04",
+//   measurementId: "G-3QWLMK4B4S",
+// });
+
 firebase.initializeApp({
-  apiKey: "AIzaSyDeP9lVD48v__XAi3w5PS-gR9Hl9Ou2_lg",
-  authDomain: "astrology-ai-abc38.firebaseapp.com",
-  projectId: "astrology-ai-abc38",
-  storageBucket: "astrology-ai-abc38.firebasestorage.app",
-  messagingSenderId: "160095118157",
-  appId: "1:160095118157:web:1ddb20119df02911facd04",
-  measurementId: "G-3QWLMK4B4S",
+  apiKey: "AIzaSyDphpDaRfEPouJYcvHF8sh5QLh-Gt21P3A",
+  authDomain: "future-ai-b05ad.firebaseapp.com",
+  projectId: "future-ai-b05ad",
+  storageBucket: "future-ai-b05ad.firebasestorage.app",
+  messagingSenderId: "897985872810",
+  appId: "1:897985872810:web:4855f2853a4636fe9aa1d3",
+  measurementId: "G-RXYJL7N99L",
 });
 
 const messaging = firebase.messaging();
