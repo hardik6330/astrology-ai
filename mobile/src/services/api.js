@@ -325,3 +325,16 @@ export async function fetchChatHistory(form) {
     return [];
   }
 }
+
+// Persist birth details onto the logged-in user's row the moment they're
+// entered — before any reading is generated, no credits charged. Best-effort:
+// a failure must never block the user from proceeding to their reading.
+export async function saveProfile(form) {
+  if (!form?.name || !form?.date || !form?.time || !form?.city) return false;
+  try {
+    await postJSON("/profile", { form: attachPhone(form) });
+    return true;
+  } catch {
+    return false;
+  }
+}

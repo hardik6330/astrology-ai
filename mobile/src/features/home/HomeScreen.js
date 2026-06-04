@@ -14,6 +14,7 @@ import CitySearch from "@/features/location/CitySearch";
 import { useChart } from "@/context/ChartContext";
 import { useTheme } from "@/theme/ThemeContext";
 import { computeChart } from "@/shared/astrology";
+import { saveProfile } from "@/services/api";
 import { haptics } from "@/utils/haptics";
 import { logEvent } from "@/features/notifications/analytics";
 import { useStyles } from "@/theme/useStyles";
@@ -125,6 +126,10 @@ export default function HomeScreen({ navigation }) {
       });
       setChart(ch);
       resetReading();
+      // Persist birth details onto the user row now, the moment they're
+      // entered — don't wait for a reading to be generated. Fire-and-forget:
+      // a failure here must never block the user's flow.
+      saveProfile(form);
       // Funnel through the optional palm-reading step before kundali.
       navigation.navigate("PalmStep");
     } catch (e) {
