@@ -8,6 +8,7 @@
 import { Op } from 'sequelize';
 import { verifyIdToken } from '../config/firebase.js';
 import { AuthAccount, User, Location } from '../models/index.js';
+import { ensureUserForPhone } from './userService.js';
 import { signAppToken } from '../middleware/auth.js';
 import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
@@ -84,6 +85,10 @@ export async function verifyOtp(idToken) {
   if (!phone) throw new AppError('no_phone_in_token', 400, 'NO_PHONE_IN_TOKEN');
 
   const account = await upsertAccount(decoded.uid, phone);
+  // Register a placeholder User + signup credits on first login, so every
+  // signup is tracked even before birth details are entered. Best-effort.
+  await ensureUserForPhone(account.phone)
+    .catch((err) => log.warn({ err: err.message }, 'ensureUserForPhone failed'));
   const token = signAppToken({
     accountId:   account.id,
     firebaseUid: account.firebaseUid,
@@ -108,6 +113,9 @@ export async function dummyLogin(rawPhone) {
   // can't collide. Real Firebase UIDs are 28 alphanumerics; ours are prefixed
   // `dummy_` and clearly distinguishable.
   const account = await upsertAccount(`dummy_${digits}`, digits);
+  // Register a placeholder User + signup credits on first login (see verifyOtp).
+  await ensureUserForPhone(digits)
+    .catch((err) => log.warn({ err: err.message }, 'ensureUserForPhone failed'));
   const token = signAppToken({
     accountId:   account.id,
     firebaseUid: account.firebaseUid,

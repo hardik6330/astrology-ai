@@ -279,6 +279,22 @@ export function getCityDetails(placeId, token, birthTimestamp) {
   return request(`/locations/details?${params}`);
 }
 
+// Persist birth details onto the logged-in user's row the moment they're
+// entered — before any reading is generated, no credits charged. Best-effort:
+// a failure must never block the user from proceeding to their reading.
+export async function saveProfile(form) {
+  if (!form?.name || !form?.date || !form?.time || !form?.city) return false;
+  try {
+    const res = await authFetch(`${API_URL}/profile`, {
+      method: "POST",
+      body: JSON.stringify({ form: attachPhone(form) }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchChatHistory(form) {
   if (!form?.name || !form?.date || !form?.time || !form?.city) return [];
   const params = formParams(form);

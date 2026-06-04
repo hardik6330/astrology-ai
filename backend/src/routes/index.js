@@ -9,6 +9,7 @@ import pushRoutes     from './pushRoutes.js';
 import cronRoutes     from './cronRoutes.js';
 import adminRoutes    from './adminRoutes.js';
 import creditRoutes   from './creditRoutes.js';
+import userRoutes     from './userRoutes.js';
 import { requireAuth } from '../middleware/auth.js';
 
 // Single mounting point for every feature router.
@@ -26,6 +27,7 @@ router.use(pushRoutes);      // self-guards each route with requireAuth
 // the right account. requireAuth puts req.auth = { accountId, firebaseUid, phone }.
 router.use(requireAuth);
 router.use(creditRoutes);
+router.use(userRoutes);      // POST /profile — save birth details on entry
 router.use(kundaliRoutes);
 router.use(dailyRoutes);
 router.use(chatRoutes);

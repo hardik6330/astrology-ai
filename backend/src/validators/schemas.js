@@ -16,6 +16,11 @@ const formSchema = z.object({
 // legitimate charts.
 const factSheetSchema = z.string().max(20_000);
 
+// Persist birth details onto the logged-in user's row, no reading generated.
+export const profileBody = z.object({
+  form: formSchema,
+});
+
 export const interpretBody = z.object({
   form: formSchema,
   factSheet: factSheetSchema,

@@ -66,13 +66,20 @@ export async function findOrCreateUser(form) {
       where: birth,
       defaults: { phone: null, credits: 0 },
     });
-    if (created) await grantSignupBonus(user, null);
+    if (created) await grantSignupCredits(user);
     return user;
   }
 
   // ── Authenticated path: phone is the identity ──
+  // Usually a placeholder row already exists from login (ensureUserForPhone),
+  // so this branch fills it in; the create below is the fallback for phones
+  // that somehow reached a generate endpoint without a login placeholder.
   const existing = await findUserByPhoneAny(form.phone);
   if (existing) {
+    // An empty name means this is still the login placeholder — submitting
+    // birth details is the user's first real engagement, so fire the welcome
+    // nudge now (a device token exists by this point, unlike at login).
+    const wasPlaceholder = !existing.name;
     // Re-point this row at the (possibly edited) birth details. If the chart
     // actually changed, drop the cached AI readings so they regenerate for
     // the new chart instead of showing the previous chart's interpretation.
@@ -88,12 +95,33 @@ export async function findOrCreateUser(form) {
         DailyData.destroy({ where: { userId: existing.id } }),
       ]).catch((err) => log.warn({ err: err.message }, 'stale reading cleanup failed'));
     }
+    if (wasPlaceholder && birth.name) sendWelcome(form.phone);
     return existing;
   }
 
-  // First profile for this phone → create + welcome bonus.
+  // No placeholder (legacy phone) → create with birth data + credits + welcome.
   const user = await User.create({ ...birth, phone: form.phone, credits: 0 });
-  await grantSignupBonus(user, form.phone);
+  await grantSignupCredits(user);
+  sendWelcome(form.phone);
+  return user;
+}
+
+// Ensure a User row exists for a freshly-logged-in phone. Creates a birth-less
+// PLACEHOLDER (empty name/date/time/city) and grants the signup credits on the
+// FIRST login, so every signup is tracked + funded before birth details are
+// entered. Idempotent: an existing row (placeholder or full) is returned
+// untouched — no second row, no double bonus. Called from authService.
+export async function ensureUserForPhone(phone) {
+  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
+  if (digits.length !== 10) return null;
+  const existing = await findUserByPhoneAny(phone);
+  if (existing) return existing;
+  const user = await User.create({
+    name: '', birthDate: '', birthTime: '', birthCity: '', gender: null,
+    phone, credits: 0,
+  });
+  await grantSignupCredits(user);
+  log.info({ userId: user.id }, 'placeholder user created at login');
   return user;
 }
 
@@ -109,12 +137,18 @@ async function findUserByPhoneAny(phone) {
   });
 }
 
-// Welcome bonus + onboarding push, both granted ONCE when a User is first
-// created. Fire-and-forget so neither can break user creation.
-async function grantSignupBonus(user, phone) {
+// Signup credit bonus — granted ONCE, when the User row is first created
+// (placeholder at login, or birth-data create on the anonymous path).
+// Fire-and-forget so a grant failure can't break user creation.
+async function grantSignupCredits(user) {
   const bonus = await settings.getNumber('initial_credits', 200);
   await grant({ userId: user.id, amount: bonus, reason: 'signup_bonus' })
     .catch((err) => log.warn({ err: err.message }, 'signup bonus grant failed'));
-  notifyWelcome(phone || user.phone)
+}
+
+// Onboarding "first chat is free" push — fired once, when the user first has
+// real birth details (a device token exists by then, so the nudge lands).
+function sendWelcome(phone) {
+  notifyWelcome(phone)
     .catch((err) => log.warn({ err: err.message }, 'welcome push failed'));
 }

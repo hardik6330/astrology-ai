@@ -9,6 +9,7 @@ import CustomSelect from "../components/CustomSelect";
 import Card from "@/common/Card";
 import Button from "@/common/Button";
 
+import { saveProfile } from "@/services/api";
 import { EMOJIS } from "@/utils/emojis";
 
 const lbl = "mb-1 block text-[13px] text-[#888]";
@@ -106,6 +107,10 @@ export default function HomePage() {
       setInterp(null);
       setDaily(null);
       setChatMsgs([]);
+      // Persist birth details onto the user row now, the moment they're
+      // entered — don't wait for a reading to be generated. Fire-and-forget:
+      // a failure here must never block the user's flow.
+      saveProfile(form);
       // Funnel through the optional palm-reading step before kundali.
       navigate("/palm-step");
     } catch (e) {
