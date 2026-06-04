@@ -16,6 +16,25 @@ import { adminSaveSettings } from "@/admin/api/adminApi";
 // "initial_credits" → "Initial Credits"
 const labelFor = (key) => key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+// Settings whose value is an enum/boolean string, not a number. Rendered as a
+// <select> so admins pick a valid value instead of typing into a number input
+// (which silently blanks text values like 'pool'/'all'/'true' on save).
+const SELECT_OPTIONS = {
+  notif_enabled: [
+    ["true", "Enabled"],
+    ["false", "Disabled"],
+  ],
+  notif_source: [
+    ["pool", "Curated pool"],
+    ["ai", "AI (Flash-generated)"],
+  ],
+  notif_audience: [
+    ["all", "All devices"],
+    ["random_one", "One random user"],
+    ["random_sample", "Random sample"],
+  ],
+};
+
 export default function AdminSettings() {
   const qc = useQueryClient();
   const { data: settings = [], isPending, error } = useAdminSettings();
@@ -79,14 +98,30 @@ export default function AdminSettings() {
         ) : (
           settings.map((s) => (
             <div key={s.key}>
-              <Field
-                type="number"
-                min={0}
-                label={labelFor(s.key)}
-                value={valueOf(s)}
-                onChange={(e) => onEdit(s.key, e.target.value)}
-                disabled={busy}
-              />
+              {SELECT_OPTIONS[s.key] ? (
+                <Field
+                  as="select"
+                  label={labelFor(s.key)}
+                  value={valueOf(s)}
+                  onChange={(e) => onEdit(s.key, e.target.value)}
+                  disabled={busy}
+                >
+                  {SELECT_OPTIONS[s.key].map(([val, text]) => (
+                    <option key={val} value={val}>
+                      {text}
+                    </option>
+                  ))}
+                </Field>
+              ) : (
+                <Field
+                  type="number"
+                  min={0}
+                  label={labelFor(s.key)}
+                  value={valueOf(s)}
+                  onChange={(e) => onEdit(s.key, e.target.value)}
+                  disabled={busy}
+                />
+              )}
               {s.description && <p className="mx-0 mt-1.5 mb-0 text-[12px] text-muted">{s.description}</p>}
             </div>
           ))

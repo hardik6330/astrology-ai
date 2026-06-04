@@ -8,7 +8,10 @@
 // `inputStyle` tweaks the control; `style` tweaks the wrapper. All other props
 // (value, onChange, placeholder, maxLength, disabled, type…) pass to the input.
 
-export default function Field({ as: Tag = "input", label, style, inputStyle, ...rest }) {
+export default function Field({ as: Tag = "input", label, style, inputStyle, children, ...rest }) {
+  // <input> is a void element — passing children errors. Only forward children
+  // to container controls (select/textarea), where the <option>s live.
+  const tagProps = Tag === "input" ? rest : { ...rest, children };
   return (
     <div style={style}>
       {label && <label style={labelStyle}>{label}</label>}
@@ -18,7 +21,7 @@ export default function Field({ as: Tag = "input", label, style, inputStyle, ...
           ...(Tag === "textarea" ? { resize: "vertical", fontFamily: "inherit" } : null),
           ...inputStyle,
         }}
-        {...rest}
+        {...tagProps}
       />
     </div>
   );
