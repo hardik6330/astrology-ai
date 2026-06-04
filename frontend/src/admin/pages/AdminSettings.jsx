@@ -124,24 +124,28 @@ export default function AdminSettings() {
       ) : settings.length === 0 ? (
         <p className="mt-2 text-[13px] text-dim">No settings found.</p>
       ) : (
-        <form onSubmit={save} className="mt-2 flex max-w-130 flex-col gap-5">
-          {/* Section 1 — Credits & costs. Card's .cosmic-card is unlayered →
-              padding/margin-bottom stay inline; flex/gap use utilities. */}
-          <Card className="flex flex-col gap-5" style={{ padding: 24, marginBottom: 0 }}>
-            <h2 className="m-0 text-[15px] font-semibold text-ink">Credits & Costs</h2>
-            {creditSettings.map(renderField)}
-          </Card>
+        <form onSubmit={save} className="mt-2 flex max-w-280 flex-col gap-5">
+          {/* Two columns on wide screens (lg+), stacked on narrow. items-start
+              so the shorter Credits card doesn't stretch to match Notifications. */}
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+            {/* Section 1 — Credits & costs. Card's .cosmic-card is unlayered →
+                padding/margin-bottom stay inline; flex/gap use utilities. */}
+            <Card className="flex flex-col gap-5" style={{ padding: 24, marginBottom: 0 }}>
+              <h2 className="m-0 text-[15px] font-semibold text-ink">Credits & Costs</h2>
+              {creditSettings.map(renderField)}
+            </Card>
 
-          {/* Section 2 — Engagement notifications. */}
-          <Card className="flex flex-col gap-5" style={{ padding: 24, marginBottom: 0 }}>
-            <h2 className="m-0 text-[15px] font-semibold text-ink">Notifications</h2>
-            <p className="m-0 -mt-3 text-[12px] text-muted">
-              Randomised engagement pushes — timing, audience, and content source.
-            </p>
-            {notifSettings.map(renderField)}
-          </Card>
+            {/* Section 2 — Engagement notifications. */}
+            <Card className="flex flex-col gap-5" style={{ padding: 24, marginBottom: 0 }}>
+              <h2 className="m-0 text-[15px] font-semibold text-ink">Notifications</h2>
+              <p className="m-0 -mt-3 text-[12px] text-muted">
+                Randomised engagement pushes — timing, audience, and content source.
+              </p>
+              {notifSettings.map(renderField)}
+            </Card>
+          </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex max-w-130 flex-col gap-2">
             <Button
               type="submit"
               busy={busy}
