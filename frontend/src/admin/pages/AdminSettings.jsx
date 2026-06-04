@@ -141,7 +141,8 @@ export default function AdminSettings() {
               <p className="m-0 -mt-3 text-[12px] text-muted">
                 Randomised engagement pushes — timing, audience, and content source.
               </p>
-              {notifSettings.map(renderField)}
+              {/* Fields 2-per-row (1 row × 2 cols), stacking to 1 col on narrow. */}
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">{notifSettings.map(renderField)}</div>
             </Card>
           </div>
 
