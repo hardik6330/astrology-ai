@@ -157,6 +157,29 @@ export default function LoginPage() {
         <ErrorText style={{ fontSize: 12.5, margin: "14px 0 0" }}>{error}</ErrorText>
         {/* Invisible reCAPTCHA mount point — required by signInWithPhoneNumber. */}
         <div id="recaptcha-container" />
+        {/* Required attribution — lets us hide the floating reCAPTCHA badge
+            (.grecaptcha-badge) per Google's terms. */}
+        <p className="mt-3.5 mb-0 text-center text-[10.5px] leading-snug text-dim">
+          This site is protected by reCAPTCHA and the Google{" "}
+          <a
+            href="https://policies.google.com/privacy"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#a78bfa] underline"
+          >
+            Privacy Policy
+          </a>{" "}
+          and{" "}
+          <a
+            href="https://policies.google.com/terms"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#a78bfa] underline"
+          >
+            Terms of Service
+          </a>{" "}
+          apply.
+        </p>
       </div>
     </div>
   );

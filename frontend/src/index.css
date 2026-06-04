@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Hide the floating reCAPTCHA badge (Firebase Phone Auth's invisible reCAPTCHA).
+   Google's terms allow hiding it ONLY if the required attribution text is shown
+   instead — see the disclaimer rendered on LoginPage. */
+.grecaptcha-badge {
+  visibility: hidden;
+}
+
 /* ── Design palette ──────────────────────────────────────────────────────────
    @theme is Tailwind v4's source of truth: each --color-* both generates a
    utility (bg-primary, text-danger, text-ink…) AND is emitted as a :root CSS
