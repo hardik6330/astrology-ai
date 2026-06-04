@@ -96,7 +96,10 @@ export async function verifyOtp(idToken) {
     userId:      await userIdForPhone(account.phone),
   });
 
-  return { token, account: { id: account.id, phone: account.phone } };
+  // Same as dummyLogin: hand back any saved birth details so a returning user
+  // skips the form and lands on their reading.
+  const savedForm = await findSavedFormByPhone(account.phone);
+  return { token, account: { id: account.id, phone: account.phone }, savedForm };
 }
 
 // Dummy login — trades a raw phone number for a real session JWT. Used while

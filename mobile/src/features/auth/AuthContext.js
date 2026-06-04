@@ -1,11 +1,10 @@
-// Dummy auth gate — talks to backend's /api/auth/dummy-login so that
-// every phone number becomes a real AuthAccount row in MySQL with a
-// proper server-issued JWT. Swap to /api/auth/verify-otp (real Firebase)
-// later by changing only the `login()` body below.
+// Real Firebase Phone Auth gate. The SMS send + code verification happen on the
+// client (see otp.js); this exchanges the resulting Firebase ID token for our
+// server-issued JWT via /api/auth/verify-otp.
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { dummyLogin, primeAuthPhone } from "@/services/api";
+import { verifyOtp, primeAuthPhone } from "@/services/api";
 import { registerForPush, unregisterForPush } from "@/features/notifications/push";
 import { logEvent } from "@/features/notifications/analytics";
 
@@ -39,20 +38,12 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  async function login({ phone }) {
-    // Backend findOrCreates the AuthAccount keyed on phone and returns a
-    // real server-issued JWT plus (when present) the user's saved birth
-    // details — so a returning user can land directly on Reading.
-    let token, acc, savedForm = null;
-    try {
-      const data = await dummyLogin(phone);
-      token = data.token;
-      acc = data.account;
-      savedForm = data.savedForm || null;
-    } catch {
-      token = `dummy.${Date.now()}`;
-      acc = { phone };
-    }
+  // Exchange a verified Firebase ID token for our session JWT. Backend upserts
+  // the AuthAccount and returns the JWT + (when present) the user's saved birth
+  // details. Throws on verification/network failure (caller shows the message).
+  async function completeOtpLogin(idToken) {
+    const data = await verifyOtp(idToken); // { token, account, savedForm? }
+    const { token, account: acc, savedForm = null } = data;
     await AsyncStorage.setItem(KEY, token);
     await AsyncStorage.setItem(ACC_KEY, JSON.stringify(acc));
     primeAuthPhone(acc.phone);
@@ -83,7 +74,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, account, hydrating, login, logout }}>
+    <AuthContext.Provider value={{ token, account, hydrating, completeOtpLogin, logout }}>
       {children}
     </AuthContext.Provider>
   );

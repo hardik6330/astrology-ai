@@ -1,6 +1,6 @@
-// Dummy phone-OTP login. UI mirrors the real flow we'll wire up later —
-// for now, "Send OTP" advances to the OTP step (no SMS) and the OTP field
-// is pre-filled with 123456. Any 6-digit code is accepted.
+// Real Firebase Phone Auth login. "Send OTP" fires an actual SMS via
+// signInWithPhoneNumber, and "Verify" confirms the code to get a Firebase ID
+// token, which AuthContext trades for our session JWT.
 
 import React, { useRef, useState, useEffect } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Dimensions } from "react-native";
@@ -13,6 +13,7 @@ import Animated, {
   FadeIn, FadeOut,
 } from "react-native-reanimated";
 import { useAuth } from "./AuthContext";
+import { sendOtp as fbSendOtp, confirmOtp } from "./otp";
 import { useChart } from "@/context/ChartContext";
 import { useTheme } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
@@ -203,11 +204,21 @@ const shootingStarStyle = {
   elevation: 6,
 };
 
-const DEFAULT_OTP = "123456";
 const RESEND_SECS = 30;
 
+// Map Firebase Auth error codes to friendly messages.
+function otpError(err) {
+  const code = err?.code || "";
+  if (code.includes("invalid-verification-code")) return "Incorrect code. Please try again.";
+  if (code.includes("session-expired") || code.includes("code-expired"))
+    return "Code expired. Tap Resend to get a new one.";
+  if (code.includes("invalid-phone-number")) return "That phone number looks invalid.";
+  if (code.includes("too-many-requests")) return "Too many attempts. Please wait and try again.";
+  return err?.message || "Something went wrong. Please try again.";
+}
+
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { completeOtpLogin } = useAuth();
   const { applySavedForm } = useChart();
   const { theme, colors: color } = useTheme();
   const s = useStyles(makeStyles);
@@ -237,6 +248,8 @@ export default function LoginScreen() {
   const [resendIn, setResendIn] = useState(0);
   const [agreed, setAgreed] = useState(false);
   const phoneRef = useRef("");
+  // Holds the Firebase confirmation between "send" and "verify".
+  const confirmationRef = useRef(null);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -246,33 +259,43 @@ export default function LoginScreen() {
 
   async function sendOtp() {
     setError("");
-    const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length < 10) return setError("Enter a valid 10-digit phone number");
+    const cleaned = phone.replace(/\D/g, "").slice(-10);
+    if (cleaned.length !== 10) return setError("Enter a valid 10-digit phone number");
     if (!agreed) return setError("Please agree to the Terms & Conditions");
 
     setBusy(true);
-    await new Promise((r) => setTimeout(r, 700));
-    // Persist only the 10-digit number — the +91 prefix is a display
-    // detail in the UI, not part of the canonical identifier we store.
-    phoneRef.current = cleaned.slice(-10);
-    setOtp(DEFAULT_OTP);
-    setStep("otp");
-    setResendIn(RESEND_SECS);
-    setBusy(false);
+    try {
+      phoneRef.current = cleaned;
+      // India-only (+91). Firebase needs full E.164 format.
+      confirmationRef.current = await fbSendOtp(`+91${cleaned}`);
+      setOtp("");
+      setStep("otp");
+      setResendIn(RESEND_SECS);
+    } catch (err) {
+      setError(otpError(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function verifyOtp() {
     setError("");
     if (otp.length !== 6) return setError("Enter the 6-digit code");
+    if (!confirmationRef.current) return setError("Please request a code first");
 
     setBusy(true);
-    await new Promise((r) => setTimeout(r, 500));
-    const { savedForm, commitSession } = await login({ phone: phoneRef.current });
-    // If the backend recognised this number, hydrate ChartContext FIRST so
-    // the redirect flag + chart are in place before the navigator switches.
-    // Otherwise HomeScreen briefly flashes the empty form on returning login.
-    if (savedForm) await applySavedForm(savedForm);
-    commitSession();
+    try {
+      const idToken = await confirmOtp(confirmationRef.current, otp);
+      const { savedForm, commitSession } = await completeOtpLogin(idToken);
+      // If the backend recognised this number, hydrate ChartContext FIRST so
+      // the redirect flag + chart are in place before the navigator switches.
+      // Otherwise HomeScreen briefly flashes the empty form on returning login.
+      if (savedForm) await applySavedForm(savedForm);
+      commitSession(); // switches the navigator → this screen unmounts
+    } catch (err) {
+      setError(otpError(err));
+      setBusy(false);
+    }
   }
 
   return (

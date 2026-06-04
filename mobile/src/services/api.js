@@ -141,20 +141,20 @@ function parseContent(content) {
   return parsed;
 }
 
-// Dummy login: send the phone, get back a real JWT + AuthAccount row.
-// Used by mobile until real Firebase Phone Auth is wired in.
-export async function dummyLogin(phone) {
-  const url = `${API_URL}/auth/dummy-login`;
+// Real OTP login: send the verified Firebase ID token (from otp.confirmOtp),
+// get back our JWT + AuthAccount row + any saved birth details.
+export async function verifyOtp(idToken) {
+  const url = `${API_URL}/auth/verify-otp`;
   const res = await fetchWithRetry(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone }),
+    body: JSON.stringify({ idToken }),
   }, { timeoutMs: 20000, retries: 1 });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Login failed (HTTP ${res.status})`);
   }
-  return unwrap(await res.json()); // { token, account: { id, phone } }
+  return unwrap(await res.json()); // { token, account: { id, phone }, savedForm? }
 }
 
 // ── Push tokens ──

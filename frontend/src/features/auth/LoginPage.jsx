@@ -1,20 +1,20 @@
-// Dummy phone-OTP login. UI mirrors the real flow we'll wire up later —
-// for now, "Send OTP" just advances to the OTP step (no SMS) and the
-// OTP field is pre-filled with 123456. Any 6-digit code is accepted.
+// Real Firebase Phone Auth login. "Send OTP" fires an actual SMS via
+// signInWithPhoneNumber (invisible reCAPTCHA), and "Verify" confirms the code
+// to get a Firebase ID token, which AuthContext trades for our session JWT.
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ErrorText from "@/common/ErrorText";
 import { useAuth } from "./AuthContext";
 import { useChart } from "@/context/ChartContext";
+import { sendOtp as fbSendOtp, confirmOtp, clearRecaptcha } from "./webOtp";
 import { EMOJIS } from "@/utils/emojis";
 
-const DEFAULT_OTP = "123456";
 const RESEND_SECS = 30;
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, token } = useAuth();
+  const { completeOtpLogin, token } = useAuth();
   const { applySavedForm } = useChart();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -22,11 +22,15 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [resendIn, setResendIn] = useState(0);
-  const phoneRef = useRef("");
+  // Holds the Firebase confirmationResult between "send" and "verify".
+  const confirmationRef = useRef(null);
 
   useEffect(() => {
     if (token) navigate("/", { replace: true });
   }, [token, navigate]);
+
+  // Drop the reCAPTCHA widget when leaving the screen.
+  useEffect(() => () => clearRecaptcha(), []);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -37,34 +41,42 @@ export default function LoginPage() {
   async function sendOtp(e) {
     e?.preventDefault();
     setError("");
-    const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length < 10) return setError("Enter a valid 10-digit phone number");
+    const cleaned = phone.replace(/\D/g, "").slice(-10);
+    if (cleaned.length !== 10) return setError("Enter a valid 10-digit phone number");
 
     setBusy(true);
-    // Simulate the SMS round-trip so the UX feels real.
-    await new Promise((r) => setTimeout(r, 700));
-    // Store just the 10-digit number — UI no longer shows a +91 chip.
-    phoneRef.current = cleaned.slice(-10);
-    setOtp(DEFAULT_OTP);
-    setStep("otp");
-    setResendIn(RESEND_SECS);
-    setBusy(false);
+    try {
+      // India-only (+91). Firebase needs full E.164 format.
+      confirmationRef.current = await fbSendOtp(`+91${cleaned}`);
+      setStep("otp");
+      setResendIn(RESEND_SECS);
+    } catch (err) {
+      setError(otpError(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function verifyOtp(e) {
     e?.preventDefault();
     setError("");
     if (otp.length !== 6) return setError("Enter the 6-digit code");
+    if (!confirmationRef.current) return setError("Please request a code first");
 
     setBusy(true);
-    await new Promise((r) => setTimeout(r, 500));
-    const { savedForm } = await login({ phone: phoneRef.current });
-    // Returning user → hydrate context + land on Reading directly.
-    if (savedForm) {
-      applySavedForm(savedForm);
-      navigate("/reading", { replace: true });
-    } else {
-      navigate("/", { replace: true });
+    try {
+      const idToken = await confirmOtp(confirmationRef.current, otp);
+      const { savedForm } = await completeOtpLogin(idToken);
+      // Returning user → hydrate context + land on Reading directly.
+      if (savedForm) {
+        applySavedForm(savedForm);
+        navigate("/reading", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    } catch (err) {
+      setError(otpError(err));
+      setBusy(false);
     }
   }
 
@@ -143,9 +155,22 @@ export default function LoginPage() {
         )}
 
         <ErrorText style={{ fontSize: 12.5, margin: "14px 0 0" }}>{error}</ErrorText>
+        {/* Invisible reCAPTCHA mount point — required by signInWithPhoneNumber. */}
+        <div id="recaptcha-container" />
       </div>
     </div>
   );
+}
+
+// Map Firebase Auth error codes to friendly messages.
+function otpError(err) {
+  const code = err?.code || "";
+  if (code.includes("invalid-verification-code")) return "Incorrect code. Please try again.";
+  if (code.includes("code-expired")) return "Code expired. Tap Resend to get a new one.";
+  if (code.includes("invalid-phone-number")) return "That phone number looks invalid.";
+  if (code.includes("too-many-requests")) return "Too many attempts. Please wait and try again.";
+  if (code.includes("quota-exceeded")) return "SMS limit reached. Please try again later.";
+  return err?.message || "Something went wrong. Please try again.";
 }
 
 // Shared Tailwind class strings for the form controls.

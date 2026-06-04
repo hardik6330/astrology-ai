@@ -15,12 +15,11 @@ export const API_BASE = API_URL;
 const appToken = tokenStore("app_token");
 const appAccount = tokenStore("app_account");
 
-// Dummy login — POSTs the phone to /auth/dummy-login. Backend findOrCreates
-// the AuthAccount and, when it recognises an existing user, returns their
-// saved birth details so we can skip the home form.
-export function dummyLogin(phone) {
-  // → { token, account: { id, phone }, savedForm? }
-  return request("/auth/dummy-login", { method: "POST", body: { phone } });
+// Real OTP login — POSTs the Firebase ID token (from webOtp.confirmOtp) to
+// /auth/verify-otp. Backend verifies it, upserts the AuthAccount, and returns
+// our JWT + any saved birth details. → { token, account: { id, phone }, savedForm? }
+export function verifyOtp(idToken) {
+  return request("/auth/verify-otp", { method: "POST", body: { idToken } });
 }
 
 // Pulls the logged-in phone from the dummy AuthContext store and attaches

@@ -1,11 +1,10 @@
-// Dummy auth gate — no Firebase, no backend verification. We only store a
-// placeholder token in localStorage so the router can decide between
-// LoginPage and the rest of the app. Swap in real verification later by
-// changing `login()` to call /api/auth/verify-otp.
+// Real Firebase Phone Auth gate. The SMS send + code verification happen on the
+// client (see webOtp.js); here we take the resulting Firebase ID token, hand it
+// to /api/auth/verify-otp, and store the backend-issued JWT.
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { tokenStore } from "@/common/tokenStore";
-import { dummyLogin } from "@/services/api";
+import { verifyOtp } from "@/services/api";
 import { registerForWebPush, teardownWebPush } from "@/features/notifications/webPush";
 
 // appToken (the bearer) is shared with services/api.js; appAccount holds the
@@ -31,29 +30,19 @@ export function AuthProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Calls backend /auth/dummy-login. On success returns any savedForm so
-  // the caller can hydrate ChartContext and route the user straight to
-  // their kundali. Falls back to a local-only session on network failure.
-  async function login({ phone }) {
-    let tok,
-      acc,
-      savedForm = null;
-    try {
-      const data = await dummyLogin(phone);
-      tok = data.token;
-      acc = data.account;
-      savedForm = data.savedForm || null;
-    } catch {
-      tok = `dummy.${Date.now()}`;
-      acc = { phone };
-    }
-    appToken.set(tok);
-    appAccount.set(JSON.stringify(acc));
-    setToken(tok);
-    setAccount(acc);
+  // Exchange a verified Firebase ID token for our session JWT via
+  // /api/auth/verify-otp. Returns any savedForm so the caller can hydrate
+  // ChartContext and route a returning user straight to their kundali.
+  // Throws on a backend/verification failure (caller surfaces the message).
+  async function completeOtpLogin(idToken) {
+    const data = await verifyOtp(idToken); // { token, account, savedForm? }
+    appToken.set(data.token);
+    appAccount.set(JSON.stringify(data.account));
+    setToken(data.token);
+    setAccount(data.account);
     // Register this browser for push now that we have a real account + JWT.
     registerForWebPush();
-    return { savedForm };
+    return { savedForm: data.savedForm || null };
   }
 
   function logout() {
@@ -65,7 +54,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, account, hydrating: false, login, logout }}>
+    <AuthContext.Provider value={{ token, account, hydrating: false, completeOtpLogin, logout }}>
       {children}
     </AuthContext.Provider>
   );
