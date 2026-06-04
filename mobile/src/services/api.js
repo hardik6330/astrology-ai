@@ -141,6 +141,17 @@ function parseContent(content) {
   return parsed;
 }
 
+// Which auth mode the backend is in. → { otpService: true|false }
+// true = real Firebase OTP; false = dummy phone-only login.
+export async function getAuthConfig() {
+  try {
+    const data = await getJSON("/auth/config");
+    return data || { otpService: true };
+  } catch {
+    return { otpService: true }; // fall back to real OTP on failure
+  }
+}
+
 // Real OTP login: send the verified Firebase ID token (from otp.confirmOtp),
 // get back our JWT + AuthAccount row + any saved birth details.
 export async function verifyOtp(idToken) {
@@ -155,6 +166,22 @@ export async function verifyOtp(idToken) {
     throw new Error(body.error || `Login failed (HTTP ${res.status})`);
   }
   return unwrap(await res.json()); // { token, account: { id, phone }, savedForm? }
+}
+
+// Dummy login (used only when otpService is OFF) — trades a bare phone for our
+// JWT, no SMS. → { token, account: { id, phone }, savedForm? }
+export async function dummyLogin(phone) {
+  const url = `${API_URL}/auth/dummy-login`;
+  const res = await fetchWithRetry(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  }, { timeoutMs: 20000, retries: 1 });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Login failed (HTTP ${res.status})`);
+  }
+  return unwrap(await res.json());
 }
 
 // ── Push tokens ──

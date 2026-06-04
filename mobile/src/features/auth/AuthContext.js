@@ -4,7 +4,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { verifyOtp, primeAuthPhone } from "@/services/api";
+import { verifyOtp, dummyLogin, primeAuthPhone } from "@/services/api";
 import { registerForPush, unregisterForPush } from "@/features/notifications/push";
 import { logEvent } from "@/features/notifications/analytics";
 
@@ -38,19 +38,26 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  // Exchange a verified Firebase ID token for our session JWT. Backend upserts
-  // the AuthAccount and returns the JWT + (when present) the user's saved birth
-  // details. Throws on verification/network failure (caller shows the message).
+  // Exchange a verified Firebase ID token for our session JWT (real OTP mode).
   async function completeOtpLogin(idToken) {
-    const data = await verifyOtp(idToken); // { token, account, savedForm? }
+    return finishLogin(await verifyOtp(idToken));
+  }
+
+  // Dummy login — used only when the backend's otpService flag is OFF. Trades a
+  // bare phone for our JWT, no SMS.
+  async function loginDummy(phone) {
+    return finishLogin(await dummyLogin(phone));
+  }
+
+  // Persist the session (without committing) + return commitSession(). The
+  // caller hydrates ChartContext first, then calls commitSession() so HomeScreen
+  // mounts already knowing whether to redirect a returning user.
+  async function finishLogin(data) {
     const { token, account: acc, savedForm = null } = data;
     await AsyncStorage.setItem(KEY, token);
     await AsyncStorage.setItem(ACC_KEY, JSON.stringify(acc));
     primeAuthPhone(acc.phone);
     logEvent("login", { phone: acc.phone });
-    // Return the credentials without committing them — the caller hydrates
-    // ChartContext first, then calls commitSession() so HomeScreen mounts
-    // already knowing whether to redirect a returning user.
     return {
       savedForm,
       commitSession: () => {
@@ -74,7 +81,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, account, hydrating, completeOtpLogin, logout }}>
+    <AuthContext.Provider value={{ token, account, hydrating, completeOtpLogin, loginDummy, logout }}>
       {children}
     </AuthContext.Provider>
   );

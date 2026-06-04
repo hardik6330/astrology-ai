@@ -4,7 +4,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { tokenStore } from "@/common/tokenStore";
-import { verifyOtp } from "@/services/api";
+import { verifyOtp, dummyLogin } from "@/services/api";
 import { registerForWebPush, teardownWebPush } from "@/features/notifications/webPush";
 
 // appToken (the bearer) is shared with services/api.js; appAccount holds the
@@ -36,11 +36,22 @@ export function AuthProvider({ children }) {
   // Throws on a backend/verification failure (caller surfaces the message).
   async function completeOtpLogin(idToken) {
     const data = await verifyOtp(idToken); // { token, account, savedForm? }
+    return finishLogin(data);
+  }
+
+  // Dummy login — used only when the backend's otpService flag is OFF. Trades a
+  // bare phone for our JWT, no SMS.
+  async function loginDummy(phone) {
+    const data = await dummyLogin(phone); // { token, account, savedForm? }
+    return finishLogin(data);
+  }
+
+  // Persist the session + register push. Shared by both login paths.
+  function finishLogin(data) {
     appToken.set(data.token);
     appAccount.set(JSON.stringify(data.account));
     setToken(data.token);
     setAccount(data.account);
-    // Register this browser for push now that we have a real account + JWT.
     registerForWebPush();
     return { savedForm: data.savedForm || null };
   }
@@ -54,7 +65,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, account, hydrating: false, completeOtpLogin, logout }}>
+    <AuthContext.Provider value={{ token, account, hydrating: false, completeOtpLogin, loginDummy, logout }}>
       {children}
     </AuthContext.Provider>
   );

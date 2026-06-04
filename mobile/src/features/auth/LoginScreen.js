@@ -14,6 +14,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useAuth } from "./AuthContext";
 import { verifyPhone, confirmCode } from "./otp";
+import { getAuthConfig } from "@/services/api";
 import { useChart } from "@/context/ChartContext";
 import { useTheme } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
@@ -218,7 +219,7 @@ function otpError(err) {
 }
 
 export default function LoginScreen() {
-  const { completeOtpLogin } = useAuth();
+  const { completeOtpLogin, loginDummy } = useAuth();
   const { applySavedForm } = useChart();
   const { theme, colors: color } = useTheme();
   const s = useStyles(makeStyles);
@@ -247,11 +248,19 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [resendIn, setResendIn] = useState(0);
   const [agreed, setAgreed] = useState(false);
+  // Auth mode from the backend: true = real Firebase OTP, false = dummy login.
+  // Default true (real OTP) until /auth/config resolves.
+  const [otpEnabled, setOtpEnabled] = useState(true);
   const phoneRef = useRef("");
   // verificationId (from onCodeSent) for the manual confirm path.
   const verificationIdRef = useRef(null);
   // Active verifyPhone listener — torn down on unmount / before a resend.
   const unsubRef = useRef(null);
+
+  // Discover the auth mode once on mount.
+  useEffect(() => {
+    getAuthConfig().then((c) => setOtpEnabled(!!c.otpService));
+  }, []);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -279,7 +288,22 @@ export default function LoginScreen() {
 
     setBusy(true);
     phoneRef.current = cleaned;
-    // Tear down any previous listener before starting a new send / resend.
+
+    // OTP disabled → dummy login, straight in (no SMS, no code screen).
+    if (!otpEnabled) {
+      loginDummy(cleaned)
+        .then(async ({ savedForm, commitSession }) => {
+          if (savedForm) await applySavedForm(savedForm);
+          commitSession(); // switches the navigator → this screen unmounts
+        })
+        .catch((err) => {
+          setError(otpError(err));
+          setBusy(false);
+        });
+      return;
+    }
+
+    // Real OTP — tear down any previous listener before a new send / resend.
     unsubRef.current?.();
     // India-only (+91). Firebase needs full E.164 format.
     unsubRef.current = verifyPhone(`+91${cleaned}`, {

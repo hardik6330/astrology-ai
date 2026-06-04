@@ -8,13 +8,14 @@ import ErrorText from "@/common/ErrorText";
 import { useAuth } from "./AuthContext";
 import { useChart } from "@/context/ChartContext";
 import { sendOtp as fbSendOtp, confirmOtp, clearRecaptcha } from "./webOtp";
+import { getAuthConfig } from "@/services/api";
 import { EMOJIS } from "@/utils/emojis";
 
 const RESEND_SECS = 30;
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { completeOtpLogin, token } = useAuth();
+  const { completeOtpLogin, loginDummy, token } = useAuth();
   const { applySavedForm } = useChart();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -22,12 +23,32 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [resendIn, setResendIn] = useState(0);
+  // Auth mode from the backend: true = real Firebase OTP, false = dummy login.
+  // Default to true (real OTP) until /auth/config resolves.
+  const [otpEnabled, setOtpEnabled] = useState(true);
   // Holds the Firebase confirmationResult between "send" and "verify".
   const confirmationRef = useRef(null);
 
   useEffect(() => {
     if (token) navigate("/", { replace: true });
   }, [token, navigate]);
+
+  // Discover the auth mode once on mount.
+  useEffect(() => {
+    getAuthConfig()
+      .then((c) => setOtpEnabled(!!c.otpService))
+      .catch(() => setOtpEnabled(true)); // fall back to real OTP on failure
+  }, []);
+
+  // Route the user after a successful login (either path).
+  function routeAfterLogin(savedForm) {
+    if (savedForm) {
+      applySavedForm(savedForm);
+      navigate("/reading", { replace: true });
+    } else {
+      navigate("/", { replace: true });
+    }
+  }
 
   // Drop the reCAPTCHA widget when leaving the screen.
   useEffect(() => () => clearRecaptcha(), []);
@@ -46,10 +67,17 @@ export default function LoginPage() {
 
     setBusy(true);
     try {
-      // India-only (+91). Firebase needs full E.164 format.
-      confirmationRef.current = await fbSendOtp(`+91${cleaned}`);
-      setStep("otp");
-      setResendIn(RESEND_SECS);
+      if (otpEnabled) {
+        // Real OTP: send the SMS, then go to the code screen.
+        // India-only (+91). Firebase needs full E.164 format.
+        confirmationRef.current = await fbSendOtp(`+91${cleaned}`);
+        setStep("otp");
+        setResendIn(RESEND_SECS);
+      } else {
+        // OTP disabled → dummy login, straight in (no SMS, no code screen).
+        const { savedForm } = await loginDummy(cleaned);
+        routeAfterLogin(savedForm);
+      }
     } catch (err) {
       setError(otpError(err));
     } finally {
@@ -67,13 +95,7 @@ export default function LoginPage() {
     try {
       const idToken = await confirmOtp(confirmationRef.current, otp);
       const { savedForm } = await completeOtpLogin(idToken);
-      // Returning user → hydrate context + land on Reading directly.
-      if (savedForm) {
-        applySavedForm(savedForm);
-        navigate("/reading", { replace: true });
-      } else {
-        navigate("/", { replace: true });
-      }
+      routeAfterLogin(savedForm);
     } catch (err) {
       setError(otpError(err));
       setBusy(false);

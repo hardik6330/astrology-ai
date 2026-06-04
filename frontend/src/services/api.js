@@ -15,11 +15,23 @@ export const API_BASE = API_URL;
 const appToken = tokenStore("app_token");
 const appAccount = tokenStore("app_account");
 
+// Which auth mode the backend is in. → { otpService: true|false }
+// true = real Firebase OTP; false = dummy phone-only login.
+export function getAuthConfig() {
+  return request("/auth/config");
+}
+
 // Real OTP login — POSTs the Firebase ID token (from webOtp.confirmOtp) to
 // /auth/verify-otp. Backend verifies it, upserts the AuthAccount, and returns
 // our JWT + any saved birth details. → { token, account: { id, phone }, savedForm? }
 export function verifyOtp(idToken) {
   return request("/auth/verify-otp", { method: "POST", body: { idToken } });
+}
+
+// Dummy login (used only when otpService is OFF) — trades a bare phone for our
+// JWT, no SMS. → { token, account: { id, phone }, savedForm? }
+export function dummyLogin(phone) {
+  return request("/auth/dummy-login", { method: "POST", body: { phone } });
 }
 
 // Pulls the logged-in phone from the dummy AuthContext store and attaches
