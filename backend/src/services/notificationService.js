@@ -34,6 +34,11 @@ function chunk(arr, size) {
 export async function sendToTokens(rows, { title, body, data = {} }) {
   if (!rows.length) return { sent: 0, failed: 0, disabled: 0 };
 
+  // Log every outgoing notification at the single chokepoint all senders share
+  // (engagement, daily, welcome, admin broadcast, insight) — title/body + the
+  // recipient count + the campaign type, so deliveries are traceable in logs.
+  log.info({ title, body, recipients: rows.length, type: data.type || 'unknown' }, 'sending notification');
+
   const messaging = getMessaging();
   // FCM data values must be strings.
   const stringData = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]));
