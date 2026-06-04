@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useChart } from "@/context/ChartContext";
 import { useCredits } from "./useCredits";
 import { getCredits } from "@/services/api";
@@ -12,6 +13,7 @@ const LOW = 20;
 // changes, and re-renders live as AI actions update the shared store.
 // Renders nothing until a balance is known (logged-out / no profile).
 export default function CreditBadge() {
+  const navigate = useNavigate();
   const { form } = useChart();
   const credits = useCredits();
 
@@ -25,17 +27,19 @@ export default function CreditBadge() {
   const low = credits < LOW;
 
   return (
-    <div
-      className={`fixed top-3 right-3 z-50 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-bold shadow-[0_4px_16px_rgba(0,0,0,0.35)] backdrop-blur-sm ${
+    <button
+      type="button"
+      onClick={() => navigate("/credits")}
+      className={`fixed top-3 right-3 z-50 inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-bold shadow-[0_4px_16px_rgba(0,0,0,0.35)] backdrop-blur-sm ${
         low
           ? "border-[rgba(248,113,113,0.5)] bg-[rgba(248,113,113,0.15)] text-danger"
           : "border-[rgba(168,85,247,0.45)] bg-[rgba(168,85,247,0.15)] text-[#c084fc]"
       }`}
-      title={low ? "Low balance — top up to keep using AI features" : "Cosmic Credits"}
+      title={low ? "Low balance — tap to buy credits" : "Cosmic Credits — tap to buy more"}
     >
       <span>✨</span>
       <span>{credits}</span>
       {low && <span className="text-[10px] font-semibold tracking-wide uppercase opacity-90">Low</span>}
-    </div>
+    </button>
   );
 }

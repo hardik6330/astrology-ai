@@ -10,6 +10,7 @@ import { signAdminToken } from '../middleware/auth.js';
 import { sendToTokens } from './notificationService.js';
 import { sendCustomToPhone } from './pushService.js';
 import * as settings from './settingsService.js';
+import * as purchase from './purchaseService.js';
 import { httpError } from '../middleware/errorHandler.js';
 
 export async function loginAdmin(username, password) {
@@ -86,4 +87,18 @@ export function listSettings() {
 
 export function saveSettings(updates) {
   return settings.updateMany(updates);
+}
+
+// ── Credit plans ─────────────────────────────────────────────────────────────
+
+export function listPlans() {
+  return purchase.listAllPlans();
+}
+
+export function createPlan(data) {
+  return purchase.createPlan(data);
+}
+
+export function updatePlan(id, data) {
+  return purchase.updatePlan(id, data);
 }

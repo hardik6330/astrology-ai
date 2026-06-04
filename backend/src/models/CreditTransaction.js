@@ -16,7 +16,7 @@ const CreditTransaction = sequelize.define('CreditTransaction', {
   userId:  { type: DataTypes.STRING(24), allowNull: false },
   amount:  { type: DataTypes.INTEGER, allowNull: false },  // + grant / − spend
   balance: { type: DataTypes.INTEGER, allowNull: false },  // balance after this txn
-  // signup_bonus | chat | insights | daily | palm | admin
+  // signup_bonus | chat | insights | daily | palm | admin | purchase
   reason:  { type: DataTypes.STRING(40), allowNull: false },
   meta:    { type: DataTypes.JSON, allowNull: true },       // optional context
 }, { timestamps: true });

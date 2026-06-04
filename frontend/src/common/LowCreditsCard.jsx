@@ -20,8 +20,8 @@ export default function LowCreditsCard({ cost, action = "This reading" }) {
         {action} costs {cost} credits
         {credits != null ? ` — you have ${credits}` : ""}. Top up to continue.
       </p>
-      <Button variant="magic" onClick={() => navigate("/profile")} fullWidth>
-        View Credits
+      <Button variant="magic" onClick={() => navigate("/credits")} fullWidth>
+        Buy Credits
       </Button>
     </Card>
   );

@@ -41,6 +41,7 @@ const PalmPage = lazyWithReload(() => import("@/pages/PalmPage"));
 const PalmStepPage = lazyWithReload(() => import("@/pages/PalmStepPage"));
 const PalmComparePage = lazyWithReload(() => import("@/pages/PalmComparePage"));
 const ProfilePage = lazyWithReload(() => import("@/pages/ProfilePage"));
+const CreditsPage = lazyWithReload(() => import("@/pages/CreditsPage"));
 
 // Back-office admin section — its own username/password auth, fully separate
 // from the phone-OTP user gate. Lazy-loaded so it never weighs down the app.
@@ -51,6 +52,7 @@ const AdminUsers = lazyWithReload(() => import("@/admin/pages/AdminUsers"));
 const AdminPush = lazyWithReload(() => import("@/admin/pages/AdminPush"));
 const AdminProfile = lazyWithReload(() => import("@/admin/pages/AdminProfile"));
 const AdminSettings = lazyWithReload(() => import("@/admin/pages/AdminSettings"));
+const AdminPlans = lazyWithReload(() => import("@/admin/pages/AdminPlans"));
 
 // `requiresChart: true` adds the ProtectedRoute (needs a generated kundali).
 // `public: true` skips AuthGate (login screen).
@@ -63,6 +65,7 @@ const ROUTES = [
   { path: "/palm-step", element: <PalmStepPage />, requiresChart: true },
   { path: "/palm-compare", element: <PalmComparePage />, requiresChart: true },
   { path: "/profile", element: <ProfilePage /> },
+  { path: "/credits", element: <CreditsPage /> },
 ];
 
 function wrap(route) {
@@ -103,6 +106,7 @@ function adminRoutes() {
         { path: "users", element: <AdminUsers /> },
         { path: "push", element: <AdminPush /> },
         { path: "settings", element: <AdminSettings /> },
+        { path: "plans", element: <AdminPlans /> },
         { path: "profile", element: <AdminProfile /> },
       ],
     },

@@ -110,6 +110,13 @@ export default function ProfileScreen({ navigation }) {
             ))}
           </View>
         )}
+        <MagicButton
+          style={{ marginTop: spacing.md }}
+          variant={low ? "primary" : "ghost"}
+          onPress={() => navigation.navigate("Credits")}
+        >
+          Buy Credits
+        </MagicButton>
       </CosmicCard>
 
       {chart && (

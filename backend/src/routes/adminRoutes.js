@@ -6,7 +6,10 @@ import * as admin from '../controllers/adminController.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { writeLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
-import { adminLoginBody, adminBroadcastBody, adminSettingsBody } from '../validators/schemas.js';
+import {
+  adminLoginBody, adminBroadcastBody, adminSettingsBody,
+  adminPlanCreateBody, adminPlanUpdateBody,
+} from '../validators/schemas.js';
 
 const router = Router();
 
@@ -21,5 +24,10 @@ router.post('/admin/users/:id/push', requireAdmin, validate(adminBroadcastBody, 
 
 router.get ('/admin/settings', requireAdmin, admin.settings);
 router.post('/admin/settings', requireAdmin, validate(adminSettingsBody, 'body'), admin.saveSettings);
+
+// Credit-plan CRUD (no delete — plans are soft-disabled via `active`).
+router.get ('/admin/plans',     requireAdmin, admin.plans);
+router.post('/admin/plans',     requireAdmin, validate(adminPlanCreateBody, 'body'), admin.createPlan);
+router.put ('/admin/plans/:id', requireAdmin, validate(adminPlanUpdateBody, 'body'), admin.updatePlan);
 
 export default router;

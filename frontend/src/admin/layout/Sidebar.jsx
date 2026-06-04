@@ -3,13 +3,23 @@
 // user back to /admin/login on sign-out.
 
 import { NavLink, useNavigate } from "react-router-dom";
-import { LuLayoutDashboard, LuUsers, LuBell, LuSettings, LuUser, LuLogOut, LuShield } from "react-icons/lu";
+import {
+  LuLayoutDashboard,
+  LuUsers,
+  LuBell,
+  LuSettings,
+  LuUser,
+  LuLogOut,
+  LuShield,
+  LuCreditCard,
+} from "react-icons/lu";
 import { useAdminAuth } from "@/admin/context/AdminAuthContext";
 
 const NAV = [
   { to: "/admin", label: "Dashboard", Icon: LuLayoutDashboard, end: true },
   { to: "/admin/users", label: "Users", Icon: LuUsers },
   { to: "/admin/push", label: "Push Notification", Icon: LuBell },
+  { to: "/admin/plans", label: "Credit Plans", Icon: LuCreditCard },
   { to: "/admin/settings", label: "System Settings", Icon: LuSettings },
 ];
 
@@ -35,7 +45,7 @@ export default function Sidebar() {
         <span className="text-[15px] font-bold text-ink">Admin Panel</span>
       </div>
 
-      <nav className="flex-1 py-2">
+      <nav className="min-h-0 flex-1 overflow-y-auto py-2">
         {NAV.map(({ to, label, Icon, end }) => (
           <NavLink key={to} to={to} end={end} className={linkClass}>
             <Icon size={18} />

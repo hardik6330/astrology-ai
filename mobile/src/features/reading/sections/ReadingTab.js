@@ -29,7 +29,7 @@ export default function ReadingTab({
         <LowCreditsCard
           cost={cost}
           action="The detailed AI analysis"
-          onTopUp={() => navigation.navigate("Profile")}
+          onTopUp={() => navigation.navigate("Credits")}
         />
       )}
 

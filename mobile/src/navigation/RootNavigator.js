@@ -12,6 +12,7 @@ import PalmScreen        from "../features/palm/PalmScreen";
 import PalmStepScreen    from "../features/palm/PalmStepScreen";
 import PalmCompareScreen from "../features/palm/PalmCompareScreen";
 import ProfileScreen     from "../features/profile/ProfileScreen";
+import CreditsScreen     from "../features/credits/CreditsScreen";
 import HelpSupportScreen from "../features/profile/HelpSupportScreen";
 import LoginScreen       from "../features/auth/LoginScreen";
 import DrawerContent     from "../components/DrawerContent";
@@ -69,6 +70,11 @@ function MainDrawer() {
       <Drawer.Screen name="Palm"     component={PalmScreen} />
       <Drawer.Screen name="Chat"    component={ChatScreen} />
       <Drawer.Screen name="Profile" component={ProfileScreen} />
+      <Drawer.Screen
+        name="Credits"
+        component={CreditsScreen}
+        options={{ swipeEnabled: false, drawerItemStyle: { display: "none" } }}
+      />
       <Drawer.Screen name="Help"    component={HelpSupportScreen} />
     </Drawer.Navigator>
   );

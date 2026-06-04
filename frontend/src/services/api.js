@@ -265,6 +265,39 @@ export async function getCredits() {
   }
 }
 
+// List the purchasable credit packages. → [{ id, name, credits, priceInr, bonusLabel }]
+// priceInr is in paise. Returns [] without a token / on error.
+export async function fetchCreditPlans() {
+  if (!appToken.get()) return [];
+  try {
+    const res = await authFetch(`${API_URL}/credits/plans`);
+    if (!res.ok) return [];
+    const data = unwrap(await res.json());
+    return data.plans || [];
+  } catch {
+    return [];
+  }
+}
+
+// Buy a credit plan (mock checkout — no real payment yet). On success the
+// backend grants the credits; we refresh the badge from the returned balance.
+// → { granted, balance, credits, orderId }. Throws on failure.
+export async function purchasePlan(planId) {
+  const res = await authFetch(`${API_URL}/credits/purchase`, {
+    method: "POST",
+    body: JSON.stringify({ planId }),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    const e = new Error(errBody.error || "Purchase failed");
+    if (errBody.code) e.code = errBody.code;
+    throw e;
+  }
+  const data = unwrap(await res.json());
+  noteBalance(data.balance);
+  return data;
+}
+
 // Fetch the saved chat history for a person. Returns an array of
 // { role, content } messages, or an empty array if none / on error.
 // Google Places autocomplete via our backend proxy. `token` is the Places

@@ -103,6 +103,25 @@ export const adminSettingsBody = z.object({
   })).min(1, 'at least one setting is required'),
 });
 
+// Buy a credit plan — the client sends only the plan id; credits + price are
+// read server-side from the plan (never trusted from the client).
+export const purchaseBody = z.object({
+  planId: z.string().trim().min(1, 'planId is required').max(24),
+});
+
+// Admin: create a credit plan. priceInr is in paise (integer). credits > 0.
+export const adminPlanCreateBody = z.object({
+  name:       z.string().trim().min(1, 'name is required').max(80),
+  credits:    z.number().int().positive('credits must be > 0'),
+  priceInr:   z.number().int().nonnegative('priceInr must be >= 0'),
+  bonusLabel: z.string().trim().max(60).optional().nullable(),
+  active:     z.boolean().optional(),
+  sortOrder:  z.number().int().optional(),
+});
+
+// Admin: update a plan — every field optional (partial patch).
+export const adminPlanUpdateBody = adminPlanCreateBody.partial();
+
 // Device push-token registration. Token length cap matches PushToken's column.
 export const pushRegisterBody = z.object({
   token:    z.string().min(20).max(512),

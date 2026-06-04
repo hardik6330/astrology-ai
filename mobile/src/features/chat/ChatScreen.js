@@ -226,7 +226,7 @@ export default function ChatScreen({ navigation }) {
                 <LowCreditsCard
                   cost={chatCost}
                   action="Each chat message"
-                  onTopUp={() => navigation.navigate("Profile")}
+                  onTopUp={() => navigation.navigate("Credits")}
                 />
               </View>
             )}

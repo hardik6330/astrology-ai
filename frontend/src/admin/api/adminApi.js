@@ -54,3 +54,19 @@ export function adminGetSettings() {
 export function adminSaveSettings(settings) {
   return adminFetch("/admin/settings", { method: "POST", body: { settings } });
 }
+
+// ── Credit plans ──
+// GET /admin/plans → { plans: [...] } (incl. disabled). priceInr is in paise.
+export function adminGetPlans() {
+  return adminFetch("/admin/plans");
+}
+
+// POST /admin/plans → creates a plan, returns { plan }.
+export function adminCreatePlan(plan) {
+  return adminFetch("/admin/plans", { method: "POST", body: plan });
+}
+
+// PUT /admin/plans/:id → patches a plan (partial), returns { plan }.
+export function adminUpdatePlan(id, patch) {
+  return adminFetch(`/admin/plans/${id}`, { method: "PUT", body: patch });
+}

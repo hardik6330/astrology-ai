@@ -9,6 +9,8 @@ import Location from './Location.js';
 import Admin from './Admin.js';
 import Setting from './Setting.js';
 import CreditTransaction from './CreditTransaction.js';
+import CreditPlan from './CreditPlan.js';
+import Purchase from './Purchase.js';
 import NotificationTemplate from './NotificationTemplate.js';
 
 // Relationships
@@ -32,10 +34,14 @@ PushToken.belongsTo(AuthAccount, { foreignKey: 'accountId' });
 User.hasMany(CreditTransaction, { foreignKey: 'userId', onDelete: 'CASCADE' });
 CreditTransaction.belongsTo(User, { foreignKey: 'userId' });
 
+User.hasMany(Purchase, { foreignKey: 'userId', onDelete: 'CASCADE' });
+Purchase.belongsTo(User, { foreignKey: 'userId' });
+
 // Admin has no association — it's a standalone back-office login.
-// Setting + NotificationTemplate are standalone — no associations.
+// Setting + NotificationTemplate + CreditPlan are standalone — no associations.
 
 export {
   User, AuthAccount, Kundali, DailyData, ChatMessage, PalmReading,
-  PushToken, Location, Admin, Setting, CreditTransaction, NotificationTemplate,
+  PushToken, Location, Admin, Setting, CreditTransaction, CreditPlan,
+  Purchase, NotificationTemplate,
 };

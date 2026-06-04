@@ -20,6 +20,7 @@ import { SEED_CITIES } from './services/locationSeed.js';
 import { seedAdmin } from './services/adminSeed.js';
 import { seedSettings } from './services/settingsSeed.js';
 import { seedNotificationTemplates } from './services/notificationSeed.js';
+import { seedCreditPlans } from './services/creditPlanSeed.js';
 import { startScheduler } from './config/scheduler.js';
 
 const app = express();
@@ -74,6 +75,9 @@ async function start() {
     // One-time notification-pool seed: curated English engagement hooks, only
     // inserted when the table is empty (admin curation is preserved).
     seedNotificationTemplates().catch((err) => logger.warn({ err }, 'Notification seed skipped'));
+    // One-time credit-plan seed: default purchasable packages, only when the
+    // table is empty (admin curation is preserved). Best-effort — never blocks boot.
+    seedCreditPlans().catch((err) => logger.warn({ err }, 'Credit plan seed skipped'));
   } catch (err) {
     logger.fatal({ err }, 'Database init failed');
     if (env.NODE_ENV === 'production') process.exit(1);

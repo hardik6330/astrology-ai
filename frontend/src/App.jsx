@@ -20,8 +20,8 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ChartProvider>
-          <CreditBadge />
           <BrowserRouter>
+            <CreditBadge />
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 {appRoutes().map((r) => (

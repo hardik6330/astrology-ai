@@ -259,6 +259,28 @@ export async function getCredits() {
   }
 }
 
+// List the purchasable credit packages. → [{ id, name, credits, priceInr, bonusLabel }]
+// priceInr is in paise. Returns [] without a token / on error.
+export async function fetchCreditPlans() {
+  const token = await AsyncStorage.getItem("app_token");
+  if (!token) return [];
+  try {
+    const data = await getJSON("/credits/plans");
+    return data?.plans || [];
+  } catch {
+    return [];
+  }
+}
+
+// Buy a credit plan (mock checkout — no real payment yet). On success the
+// backend grants the credits; noteBalance refreshes the badge from the returned
+// balance. → { granted, balance, credits, orderId }. Throws on failure.
+export async function purchasePlan(planId) {
+  const data = await postJSON("/credits/purchase", { planId });
+  noteBalance(data.balance);
+  return data;
+}
+
 export async function chatCompletionJSON(messages, type, extra) {
   const txt = await chatCompletion(messages, type, extra);
   return JSON.parse(txt.replace(/```json|```/g, "").trim());

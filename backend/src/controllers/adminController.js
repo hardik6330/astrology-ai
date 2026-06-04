@@ -38,3 +38,16 @@ export const settings = asyncHandler(async (_req, res) => {
 export const saveSettings = asyncHandler(async (req, res) => {
   res.json({ settings: await adminSvc.saveSettings(req.body.settings) });
 });
+
+// ── Credit plans (back-office CRUD) ──
+export const plans = asyncHandler(async (_req, res) => {
+  res.json({ plans: await adminSvc.listPlans() });
+});
+
+export const createPlan = asyncHandler(async (req, res) => {
+  res.json({ plan: await adminSvc.createPlan(req.body) });
+});
+
+export const updatePlan = asyncHandler(async (req, res) => {
+  res.json({ plan: await adminSvc.updatePlan(req.params.id, req.body) });
+});
