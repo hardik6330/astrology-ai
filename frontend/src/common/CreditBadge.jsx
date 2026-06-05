@@ -1,6 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useChart } from "@/context/ChartContext";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCredits } from "./useCredits";
 import { getCredits } from "@/services/api";
 
@@ -8,22 +7,27 @@ import { getCredits } from "@/services/api";
 // below which the user can't afford every feature.
 const LOW = 20;
 
-// Floating "✨ credits" badge. Self-contained: pulls the active profile from
-// ChartContext, refreshes the balance from the server when that profile
-// changes, and re-renders live as AI actions update the shared store.
-// Renders nothing until a balance is known (logged-out / no profile).
+// Routes that don't show the badge. The home page is the pre-profile birth
+// form — keying the fetch off the form there fired a /credits call on every
+// keystroke, and there's no balance worth showing before the chart exists.
+// Login is pre-auth; admin has its own chrome.
+const isHidden = (path) => path === "/" || path.startsWith("/login") || path.startsWith("/admin");
+
+// Floating "✨ credits" badge. Hidden on the home/form + auth screens; on the
+// reading/chat/palm/credits pages it fetches the balance once on entry and then
+// re-renders live as AI actions update the shared store.
 export default function CreditBadge() {
   const navigate = useNavigate();
-  const { form } = useChart();
+  const { pathname } = useLocation();
+  const hidden = isHidden(pathname);
   const credits = useCredits();
 
   useEffect(() => {
-    getCredits(); // resolves the user from the token; no-ops when logged out
-    // Re-fetch when the profile changes — covers login populating the saved
-    // form, and switching/editing birth details.
-  }, [form?.name, form?.date, form?.time, form?.city]);
+    if (hidden) return; // no fetch on the form/login/admin pages
+    getCredits(); // fetch once when landing on a page that shows the badge
+  }, [hidden, pathname]);
 
-  if (credits == null) return null;
+  if (hidden || credits == null) return null;
   const low = credits < LOW;
 
   return (

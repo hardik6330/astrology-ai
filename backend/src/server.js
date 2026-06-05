@@ -15,8 +15,6 @@ import './models/index.js';                       // register associations
 import routes from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { responseWrapper } from './middleware/responseWrapper.js';
-import { seedFromStaticCities } from './services/locationService.js';
-import { SEED_CITIES } from './services/locationSeed.js';
 import { seedAdmin } from './services/adminSeed.js';
 import { seedSettings } from './services/settingsSeed.js';
 import { seedNotificationTemplates } from './services/notificationSeed.js';
@@ -61,11 +59,10 @@ async function start() {
     // never alters or drops existing columns. Safe to run on every boot.
     await sequelize.sync();
     logger.info('Database synced (missing tables created)');
-    // One-time seed: copy the legacy hard-coded cities into the Location
-    // cache so existing top picks don't cost a Google call on first lookup.
-    // No-op once they're in. Best-effort — failure must not block startup.
-    seedFromStaticCities(SEED_CITIES).catch((err) =>
-      logger.warn({ err }, 'Location seed skipped'));
+    // The Location cache self-populates from real Nominatim searches (full
+    // labels + real IANA tzId). No static city seed — it stored weaker rows
+    // (numeric offset, tzId: null, country-less names) that caused duplicate
+    // dropdown entries against the live results.
     // One-time admin seed: creates the default back-office admin from env only
     // if no admin exists yet. No-op thereafter. Best-effort — never blocks boot.
     seedAdmin().catch((err) => logger.warn({ err }, 'Admin seed skipped'));

@@ -247,6 +247,10 @@ export default function LoginScreen() {
   const [busy,  setBusy]  = useState(false);
   const [error, setError] = useState("");
   const [resendIn, setResendIn] = useState(0);
+  // True only while a resend SMS is in flight, so the primary button reads
+  // "Sending…" instead of the misleading "Verifying…" (both share `busy`).
+  const [resending, setResending] = useState(false);
+  const [notice, setNotice] = useState("");
   const [agreed, setAgreed] = useState(false);
   // Auth mode from the backend: true = real Firebase OTP, false = dummy login.
   // Default true (real OTP) until /auth/config resolves.
@@ -282,11 +286,15 @@ export default function LoginScreen() {
 
   function sendOtp() {
     setError("");
+    setNotice("");
     const cleaned = phone.replace(/\D/g, "").slice(-10);
     if (cleaned.length !== 10) return setError("Enter a valid 10-digit phone number");
     if (!agreed) return setError("Please agree to the Terms & Conditions");
 
+    // Already on the code screen → this tap is a resend, not the first send.
+    const isResend = step === "otp";
     setBusy(true);
+    setResending(isResend);
     phoneRef.current = cleaned;
 
     // OTP disabled → dummy login, straight in (no SMS, no code screen).
@@ -312,6 +320,8 @@ export default function LoginScreen() {
         setOtp("");
         setStep("otp");
         setResendIn(RESEND_SECS);
+        if (isResend) setNotice("New code sent.");
+        setResending(false);
         setBusy(false);
       },
       // Android auto-read the SMS → fill the boxes + sign in with no typing.
@@ -328,6 +338,7 @@ export default function LoginScreen() {
       },
       onError: (err) => {
         setError(otpError(err));
+        setResending(false);
         setBusy(false);
       },
     });
@@ -426,10 +437,12 @@ export default function LoginScreen() {
                   />
                 </View>
                 <Pressable onPress={verifyOtp} disabled={busy} style={[s.primaryBtn, busy && { opacity: 0.6 }]}>
-                  <Text style={s.primaryBtnText}>{busy ? "Verifying…" : "Verify & continue"}</Text>
+                  <Text style={s.primaryBtnText}>
+                    {resending ? "Sending…" : busy ? "Verifying…" : "Verify & continue"}
+                  </Text>
                 </Pressable>
                 <View style={s.rowBetween}>
-                  <Pressable onPress={() => { setStep("phone"); setOtp(""); }}>
+                  <Pressable onPress={() => { setStep("phone"); setOtp(""); setNotice(""); }}>
                     <Text style={s.link}>← Change number</Text>
                   </Pressable>
                   <Pressable onPress={sendOtp} disabled={resendIn > 0 || busy}>
@@ -438,6 +451,7 @@ export default function LoginScreen() {
                     </Text>
                   </Pressable>
                 </View>
+                {notice ? <Text style={s.notice}>{notice}</Text> : null}
               </>
             )}
 
@@ -561,6 +575,7 @@ const makeStyles = (c) => StyleSheet.create({
   rowBetween: { flexDirection: "row", justifyContent: "space-between", marginTop: 20 },
   link: { color: c.primaryLight, fontSize: 13, fontWeight: "600" },
   error: { color: c.danger, fontSize: 13, marginTop: 20, textAlign: "center", fontWeight: "500" },
+  notice: { color: c.success, fontSize: 13, marginTop: 12, textAlign: "center", fontWeight: "500" },
 
   termsRow: {
     flexDirection: "row",

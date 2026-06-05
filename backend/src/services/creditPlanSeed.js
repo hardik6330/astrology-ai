@@ -1,6 +1,6 @@
 // One-time seed of default credit plans. Only inserted when the table is empty,
 // so admin curation (edits / new plans / disabled plans) is always preserved.
-// Mirrors settingsSeed / locationSeed. Prices are in paise (₹1 = 100).
+// Mirrors settingsSeed. Prices are in paise (₹1 = 100).
 
 import { CreditPlan } from '../models/index.js';
 import { logger } from '../config/logger.js';

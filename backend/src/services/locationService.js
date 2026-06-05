@@ -64,6 +64,30 @@ function shortName(item) {
   return parts.join(', ') || item.display_name;
 }
 
+// Collapse predictions that point at the same place. One city resolves to
+// several rows the user shouldn't see twice: multiple OSM place_ids (a city node
+// + an admin boundary), and a seeded row whose label omits the country
+// ("Surat, Gujarat") next to Nominatim's fuller "Surat, Gujarat, India". Names
+// alone don't catch that, so we key on COORDINATES — the ground truth for "same
+// place" — rounded to ~0.1° (≈11 km), with the city label to avoid merging two
+// distinct nearby towns. Falls back to the normalized description when a row has
+// no coordinates. Keeps the FIRST occurrence (cache entries passed first → the
+// already-persisted row wins, so its placeId resolves instantly in /details).
+function dedupePredictions(predictions) {
+  const seen = new Set();
+  const out = [];
+  for (const p of predictions) {
+    const hasCoords = Number.isFinite(p.lat) && Number.isFinite(p.lng);
+    const key = hasCoords
+      ? `${(p.mainText || '').trim().toLowerCase()}@${p.lat.toFixed(1)},${p.lng.toFixed(1)}`
+      : (p.description || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
+  return out;
+}
+
 // Phase A — Autocomplete with DB-first lookup.
 // 1. Local Location cache (seeded + previously resolved). 3+ hits → return,
 //    no network call.
@@ -85,11 +109,13 @@ export async function searchCities(query, _sessionToken /* kept for API compat *
       description: r.searchName,
       mainText: main.trim(),
       secondaryText: rest.join(',').trim(),
+      lat: r.lat,
+      lng: r.lng,
       source: r.source,
     };
   });
 
-  if (cachePredictions.length >= 3) return cachePredictions;
+  if (cachePredictions.length >= 3) return dedupePredictions(cachePredictions);
 
   // Cache too thin — ask Nominatim. Best-effort; if it fails (network,
   // rate-limit, 5xx) we still return whatever the cache had.
@@ -126,6 +152,8 @@ export async function searchCities(query, _sessionToken /* kept for API compat *
         description: searchName,
         mainText: main.trim(),
         secondaryText: rest.join(',').trim(),
+        lat,
+        lng,
         source: 'nominatim',
       };
     }));
@@ -137,7 +165,9 @@ export async function searchCities(query, _sessionToken /* kept for API compat *
   for (const n of nominatimPredictions) {
     if (!seen.has(n.placeId)) cachePredictions.push(n);
   }
-  return cachePredictions;
+  // Final pass: drop same-named duplicates across cache + live (different
+  // placeId, same city) so each place shows once.
+  return dedupePredictions(cachePredictions);
 }
 
 // Phase B + C — resolve placeId to {coordinates, timezone, ...}.
@@ -159,28 +189,6 @@ export async function getCityDetails(placeId /*, _sessionToken, _birthTimestamp 
     };
   }
   throw httpError(404, 'Unknown placeId — re-run search first');
-}
-
-// Seed the Locations table from a list of {n, lat, lon, tz} rows on first
-// boot, so the existing top-picked cities are free instant lookups before
-// any user has triggered a network call.
-export async function seedFromStaticCities(cities) {
-  let inserted = 0;
-  for (const c of cities) {
-    const placeId = `seed:${c.n.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-    const [, created] = await Location.findOrCreate({
-      where: { placeId },
-      defaults: {
-        placeId, searchName: c.n,
-        lat: c.lat, lng: c.lon,
-        tzOffset: c.tz, tzId: null,
-        source: 'seed',
-      },
-    });
-    if (created) inserted++;
-  }
-  if (inserted) log.info(`Seeded ${inserted} cities into Location cache`);
-  return inserted;
 }
 
 /* ============================================================================
