@@ -3,7 +3,7 @@
  (Astrology AI Pro backend)
 ================================================================================
 
-WHAT THIS IS
+WHAT THIS IS the
 ------------
 "Engagement" notifications are the randomised push messages ("vibe" / shayari
 hooks) sent to users at unpredictable times during waking hours. They are driven
