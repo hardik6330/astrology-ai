@@ -109,6 +109,15 @@ export const purchaseBody = z.object({
   planId: z.string().trim().min(1, 'planId is required').max(24),
 });
 
+// Verify a Razorpay payment. The browser returns these three Checkout fields;
+// orderId is our own Purchase id (max 24) from /credits/order.
+export const verifyPaymentBody = z.object({
+  orderId:           z.string().trim().min(1, 'orderId is required').max(24),
+  razorpayOrderId:   z.string().trim().min(1).max(64),
+  razorpayPaymentId: z.string().trim().min(1).max(64),
+  razorpaySignature: z.string().trim().min(1).max(256),
+});
+
 // Admin: create a credit plan. priceInr is in paise (integer). credits > 0.
 export const adminPlanCreateBody = z.object({
   name:       z.string().trim().min(1, 'name is required').max(80),

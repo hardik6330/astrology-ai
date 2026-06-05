@@ -25,8 +25,13 @@ const Purchase = sequelize.define('Purchase', {
   status:   { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'created' },
   // 'mock' now; 'razorpay' / 'stripe' when real payment lands.
   provider: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'mock' },
-  // Future gateway ids/signature (razorpay_order_id, payment_id, signature…).
+  // Gateway ids/signature blob (razorpay_order_id, payment_id, signature…).
   providerRef: { type: DataTypes.JSON, allowNull: true },
+  // Single stable, gateway-side transaction id used for idempotency: the
+  // razorpay_payment_id for web, or a hash of the Play purchaseToken for IAP.
+  // UNIQUE so a replayed verify (double-submit, retry) can never grant twice —
+  // the second settle collides instead of creating a duplicate paid order.
+  providerTxnId: { type: DataTypes.STRING(255), allowNull: true, unique: true },
 }, { timestamps: true });
 
 export default Purchase;

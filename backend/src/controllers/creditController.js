@@ -2,6 +2,7 @@ import { findUserByPhone } from '../services/userService.js';
 import { getBalance } from '../services/creditService.js';
 import * as purchase from '../services/purchaseService.js';
 import * as settings from '../services/settingsService.js';
+import { isRazorpayEnabled } from '../config/razorpay.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../middleware/errorHandler.js';
 
@@ -54,13 +55,59 @@ export const getPlans = asyncHandler(async (_req, res) => {
   res.json({ plans: await purchase.listActivePlans() });
 });
 
-// POST /credits/purchase { planId } → buys a plan via the mock checkout: opens
-// an order and immediately settles it (no real payment yet), granting credits.
-// → { granted, balance, credits, orderId }.
-//
-// When Razorpay lands this splits into create-order (returns the gateway order)
-// and a separate verify endpoint; purchaseService already models both halves.
+// POST /credits/order { planId } → opens an order.
+//   • Razorpay on  → { provider:'razorpay', orderId, razorpay:{ keyId, orderId,
+//                      amount, currency }, credits, name }. The browser opens
+//                      Checkout, then calls /credits/verify.
+//   • Razorpay off → settles the mock checkout immediately and returns
+//                      { provider:'mock', paid:true, granted, balance, credits, orderId }.
+export const createPurchaseOrder = asyncHandler(async (req, res) => {
+  const userId = await resolveUserId(req);
+  const { purchase: order, plan, razorpay } = await purchase.createOrder({
+    userId,
+    planId: req.body.planId,
+  });
+
+  if (!razorpay) {
+    // Mock mode (dev / no keys) — settle right away, just like the old flow.
+    const result = await purchase.confirmOrder({ userId, orderId: order.id, mockSuccess: true });
+    res.locals.message = 'Purchase complete';
+    return res.json({ provider: 'mock', paid: true, ...result, orderId: order.id });
+  }
+
+  res.locals.message = 'Order created';
+  res.json({
+    provider: 'razorpay',
+    orderId: order.id,
+    credits: plan.credits,
+    name: plan.name,
+    razorpay,
+  });
+});
+
+// POST /credits/verify { orderId, razorpayOrderId, razorpayPaymentId,
+// razorpaySignature } → verifies the Razorpay signature and grants credits.
+// → { granted, balance, credits, status }.
+export const verifyPurchase = asyncHandler(async (req, res) => {
+  const userId = await resolveUserId(req);
+  const result = await purchase.verifyRazorpayPayment({
+    userId,
+    orderId: req.body.orderId,
+    razorpayOrderId: req.body.razorpayOrderId,
+    razorpayPaymentId: req.body.razorpayPaymentId,
+    razorpaySignature: req.body.razorpaySignature,
+  });
+  res.locals.message = 'Payment verified';
+  res.json(result);
+});
+
+// POST /credits/purchase { planId } — legacy mock checkout. Kept for backward
+// compatibility with clients not yet on the order/verify flow. Disabled when
+// Razorpay is live so it can't be used to grant free credits in production.
 export const buyPlan = asyncHandler(async (req, res) => {
+  if (isRazorpayEnabled()) {
+    throw httpError(400, 'Use /credits/order then /credits/verify', 'USE_ORDER_FLOW');
+  }
   const userId = await resolveUserId(req);
   const { purchase: order } = await purchase.createOrder({ userId, planId: req.body.planId });
   const result = await purchase.confirmOrder({ userId, orderId: order.id, mockSuccess: true });

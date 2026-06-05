@@ -1,7 +1,7 @@
-// Buy Cosmic Credits. Lists the admin-defined plans and runs a MOCK checkout
-// (no real payment yet) — the "Pay (test)" modal simulates success and the
-// backend grants the credits. The modal is isolated so a real Razorpay widget
-// can drop straight in later without touching the plan grid.
+// Buy Cosmic Credits. Lists the admin-defined plans and runs the Razorpay
+// checkout: open an order on the backend, pay via the Razorpay widget, then the
+// backend verifies the signature and grants the credits. When the backend has
+// no Razorpay keys (dev), the order settles instantly in mock mode instead.
 
 import { useEffect, useState } from "react";
 import Card from "@/common/Card";
@@ -9,7 +9,8 @@ import Button from "@/common/Button";
 import ErrorText from "@/common/ErrorText";
 import BottomNav from "@/components/BottomNav";
 import { useCredits } from "@/common/useCredits";
-import { fetchCreditPlans, purchasePlan, getCredits } from "@/services/api";
+import { fetchCreditPlans, createCreditOrder, verifyCreditPayment, getCredits } from "@/services/api";
+import { loadRazorpay } from "@/common/razorpay";
 
 // paise → "₹49" (drops the .00 when whole rupees).
 const formatInr = (paise) => {
@@ -103,23 +104,77 @@ export default function CreditsPage() {
   );
 }
 
-// Mock checkout. Clearly labelled test-only. Swap the body for a Razorpay
-// handler later — the success path just needs to call purchasePlan(plan.id).
+// Razorpay checkout. Opens an order on the backend, launches the Razorpay
+// widget, then verifies the payment server-side. Falls back to mock settlement
+// when the backend has no keys (provider:'mock').
 function CheckoutModal({ plan, onClose, onPaid, onError, formatInr }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
+  function settled() {
+    setDone(true);
+    setTimeout(onPaid, 1100); // brief success flash, then close
+  }
+
   async function pay() {
     setBusy(true);
     try {
-      await purchasePlan(plan.id);
-      setDone(true);
-      setTimeout(onPaid, 1100); // brief success flash, then close
+      const order = await createCreditOrder(plan.id);
+
+      // Dev / no keys — backend already granted the credits.
+      if (order.provider === "mock") return settled();
+
+      // Real payment — load the Razorpay SDK and open Checkout.
+      await loadRazorpay();
+      const { keyId, orderId: rzpOrderId, amount, currency } = order.razorpay;
+
+      const rzp = new window.Razorpay({
+        key: keyId,
+        order_id: rzpOrderId,
+        amount,
+        currency,
+        name: "Astrology AI",
+        description: `${order.credits} Cosmic Credits`,
+        theme: { color: "#a855f7" },
+        // Surface UPI as the first payment block, then the rest. Requires UPI to
+        // be enabled on the Razorpay account (Dashboard → Settings → Payment
+        // Methods); this only controls ordering/visibility within Checkout.
+        config: {
+          display: {
+            blocks: {
+              upi: { name: "Pay using UPI", instruments: [{ method: "upi" }] },
+            },
+            sequence: ["block.upi"],
+            preferences: { show_default_blocks: true },
+          },
+        },
+        // Called after a successful payment — verify it server-side before we
+        // celebrate, since the client result alone isn't trustworthy.
+        handler: async (resp) => {
+          try {
+            await verifyCreditPayment({
+              orderId: order.orderId,
+              razorpayOrderId: resp.razorpay_order_id,
+              razorpayPaymentId: resp.razorpay_payment_id,
+              razorpaySignature: resp.razorpay_signature,
+            });
+            settled();
+          } catch (err) {
+            onError(err.message || "Payment verification failed");
+            onClose();
+          }
+        },
+        // User dismissed Checkout without paying — re-enable the Pay button.
+        modal: { ondismiss: () => setBusy(false) },
+      });
+      rzp.on("payment.failed", (resp) => {
+        onError(resp?.error?.description || "Payment failed");
+        setBusy(false);
+      });
+      rzp.open();
     } catch (err) {
       onError(err.message || "Purchase failed");
       onClose();
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -146,10 +201,10 @@ function CheckoutModal({ plan, onClose, onPaid, onError, formatInr }) {
               {plan.credits} credits for {formatInr(plan.priceInr)}
             </p>
             <Button variant="magic" fullWidth busy={busy} busyLabel="Processing…" onClick={pay}>
-              Pay (test)
+              Pay {formatInr(plan.priceInr)}
             </Button>
             <p className="mx-0 mb-0 mt-2.5 text-[10.5px] leading-snug text-dim">
-              Test payment — no real charge. Credits are granted instantly.
+              Secured by Razorpay. Credits are added once your payment is verified.
             </p>
           </>
         )}

@@ -36,6 +36,12 @@ const schema = z.object({
   ADMIN_NAME:      z.string().default('Administrator'),
   ADMIN_USERNAME:  z.string().default('admin'),
   ADMIN_PASSWORD:  z.string().min(8, 'ADMIN_PASSWORD must be at least 8 chars').default('changeme123'),
+  // Razorpay (WEB payments) — OPTIONAL so dev/dummy boots without it. When both
+  // are set, the buy flow creates real Razorpay orders and verifies the payment
+  // signature; when unset, purchaseService falls back to the mock checkout.
+  // KEY_ID is also returned to the web client to open Checkout (safe to expose).
+  RAZORPAY_KEY_ID:     z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
