@@ -31,6 +31,20 @@ const MAX_PALM_LIGHTING_VAR = 2800; // above → uneven_light
 const PALM_NORM_W = 200; // palm crop width for the in-region metrics
 // (resolution-independent: web 256 ≈ mobile 512).
 
+// ── Anti-screen-photo heuristics (partial, NOT bulletproof) ──────────────────
+// Two weak signals, combined so neither alone over-rejects:
+//   • moiréScore — normalized autocorrelation peak (0..1) of the palm crop's
+//     high-pass row/column projections. A real palm gives a low, broad value;
+//     a re-photographed SCREEN gives a sharp periodic peak (pixel-grid banding).
+//   • camera EXIF — a genuine capture carries Make/Model/exposure tags; a
+//     downloaded web image or screenshot has them stripped. "No EXIF" alone is
+//     a weak signal (messaging apps strip it too), so it only rejects when it
+//     coincides with moiré. Both files MUST mirror these thresholds.
+// Calibrate from GATE_DEBUG output on real screen-photos vs real palms — these
+// defaults are deliberately conservative to avoid blocking genuine users.
+const MOIRE_STRONG = 0.5; // moiré alone ≥ this → screen_photo
+const MOIRE_WEAK = 0.32; // moiré ≥ this AND no camera EXIF → screen_photo
+
 // Memoized model — loaded once per page session, kept warm in module scope.
 let _detector = null;
 let _detectorPromise = null;
@@ -123,6 +137,102 @@ function laplacianVariance(canvas) {
   return sumSq / n - mean * mean;
 }
 
+// Strongest normalized autocorrelation peak of a 1-D signal over a lag range.
+// ~0 for noise/smooth gradients, →1 for a strongly periodic signal. Lag starts
+// at 2 (lag-1 always carries some high-pass structure) up to half the length.
+function peakAutocorr(sig) {
+  const n = sig.length;
+  if (n < 8) return 0;
+  let mean = 0;
+  for (let i = 0; i < n; i++) mean += sig[i];
+  mean /= n;
+  let var0 = 0;
+  for (let i = 0; i < n; i++) {
+    const d = sig[i] - mean;
+    var0 += d * d;
+  }
+  if (var0 < 1e-6) return 0;
+  let best = 0;
+  const maxLag = Math.floor(n / 2);
+  for (let lag = 2; lag <= maxLag; lag++) {
+    let c = 0;
+    for (let i = 0; i + lag < n; i++) c += (sig[i] - mean) * (sig[i + lag] - mean);
+    const norm = c / var0;
+    if (norm > best) best = norm;
+  }
+  return best;
+}
+
+// Screen-banding score for a grayscale crop. Projects a horizontal high-pass to
+// a column profile (vertical stripes) and a vertical high-pass to a row profile
+// (horizontal stripes); the larger autocorrelation peak wins. A re-photographed
+// display moirés into regular banding → high score; a real palm → low.
+function bandingScore(gray, w, h) {
+  const col = new Float32Array(w);
+  for (let x = 1; x < w - 1; x++) {
+    let s = 0;
+    for (let y = 0; y < h; y++) {
+      const i = y * w + x;
+      s += Math.abs(2 * gray[i] - gray[i - 1] - gray[i + 1]);
+    }
+    col[x] = s / h;
+  }
+  const row = new Float32Array(h);
+  for (let y = 1; y < h - 1; y++) {
+    let s = 0;
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      s += Math.abs(2 * gray[i] - gray[i - w] - gray[i + w]);
+    }
+    row[y] = s / w;
+  }
+  return Math.max(peakAutocorr(col), peakAutocorr(row));
+}
+
+// True if the JPEG carries genuine camera EXIF (Make/Model/exposure/Exif-IFD).
+// Downloaded web images and screenshots have these stripped. Reads only the
+// first 128KB (EXIF lives in the leading APP1 segment). Any parse failure or a
+// non-JPEG (PNG/WebP) → false (treated as "no camera EXIF", a weak signal only).
+async function fileHasCameraExif(file) {
+  try {
+    const view = new DataView(await file.slice(0, 131072).arrayBuffer());
+    if (view.getUint16(0) !== 0xffd8) return false; // not a JPEG
+    let off = 2;
+    while (off + 4 < view.byteLength) {
+      const marker = view.getUint16(off);
+      if ((marker & 0xff00) !== 0xff00) break;
+      if (marker === 0xffda) break; // start-of-scan → no headers left
+      const size = view.getUint16(off + 2);
+      if (marker === 0xffe1 && view.getUint32(off + 4) === 0x45786966 /* "Exif" */) {
+        return exifHasCameraTags(view, off + 10); // skip "Exif\0\0" → TIFF header
+      }
+      off += 2 + size;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// Scan IFD0 of an EXIF TIFF block for any camera-origin tag.
+function exifHasCameraTags(view, tiff) {
+  try {
+    const le = view.getUint16(tiff) === 0x4949; // "II" little-endian, "MM" big
+    const u16 = (o) => view.getUint16(tiff + o, le);
+    const u32 = (o) => view.getUint32(tiff + o, le);
+    const ifd0 = u32(4);
+    const count = u16(ifd0);
+    // Make, Model, Exif-IFD ptr, ExposureTime, FNumber, ISO, DateTimeOriginal.
+    const CAMERA = new Set([0x010f, 0x0110, 0x8769, 0x829a, 0x829d, 0x8827, 0x9003]);
+    for (let i = 0; i < count; i++) {
+      if (CAMERA.has(u16(ifd0 + 2 + i * 12))) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // Quality metrics measured INSIDE the palm bounding box only (so background
 // contrast never skews them). `bounds` are in full-image (img) coordinates.
 //   - edgeScore — Laplacian variance of a width-normalized palm crop. High =
@@ -136,7 +246,7 @@ function laplacianVariance(canvas) {
 function palmRegionStats(img, bounds) {
   const bw = bounds.maxX - bounds.minX;
   const bh = bounds.maxY - bounds.minY;
-  if (bw < 8 || bh < 8) return { edgeScore: Infinity, lightingVar: 0 };
+  if (bw < 8 || bh < 8) return { edgeScore: Infinity, lightingVar: 0, moireScore: 0 };
 
   // Width-normalized palm crop.
   const scale = PALM_NORM_W / bw;
@@ -168,7 +278,15 @@ function palmRegionStats(img, bounds) {
   const gm = gs / (G * G);
   const lightingVar = Math.max(0, gsq / (G * G) - gm * gm);
 
-  return { edgeScore, lightingVar };
+  // Screen-banding score from the same width-normalized crop.
+  const cd = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+  const gray = new Float32Array(w * h);
+  for (let i = 0, j = 0; i < cd.length; i += 4, j++) {
+    gray[j] = 0.2126 * cd[i] + 0.7152 * cd[i + 1] + 0.0722 * cd[i + 2];
+  }
+  const moireScore = bandingScore(gray, w, h);
+
+  return { edgeScore, lightingVar, moireScore };
 }
 
 // Bounding box of a set of MediaPipe landmarks (image-space x/y).
@@ -250,6 +368,10 @@ export async function gatePalmImage(file, claimedHand) {
   const lum = meanLuminance(small);
   const lapVar = laplacianVariance(small);
 
+  // Camera-origin signal: a genuine capture carries EXIF; web images/screenshots
+  // don't. Weak on its own — only contributes to screen_photo alongside moiré.
+  const noCameraExif = !(await fileHasCameraExif(file));
+
   // MediaPipe hand detection.
   let hands;
   try {
@@ -274,6 +396,11 @@ export async function gatePalmImage(file, claimedHand) {
       bounds.maxX > img.width - pad ||
       bounds.maxY > img.height - pad
     : false;
+
+  // Screen/web-image guard: strong moiré alone, or moderate moiré with no camera
+  // EXIF. Only when a palm was found (we need the crop to score banding).
+  const moireScore = region ? region.moireScore : 0;
+  const screenPhoto = hasHand && (moireScore >= MOIRE_STRONG || (noCameraExif && moireScore >= MOIRE_WEAK));
 
   // Hand-side: MediaPipe reports handedness from a mirrored (selfie) POV, so on
   // a non-mirrored file the model's "Right" maps to a real LEFT hand. Invert.
@@ -318,6 +445,11 @@ export async function gatePalmImage(file, claimedHand) {
         key: "lighting_even",
         ok: region.lightingVar <= MAX_PALM_LIGHTING_VAR,
         label: `Even lighting (variance ${Math.round(region.lightingVar)})`,
+      },
+      {
+        key: "authentic",
+        ok: !screenPhoto,
+        label: screenPhoto ? "Looks like a photo of a screen" : "Real-photo check OK",
       }
     );
   }
@@ -330,6 +462,9 @@ export async function gatePalmImage(file, claimedHand) {
       coverage: bounds ? +bounds.coverage.toFixed(3) : null,
       edgeScore: region ? +region.edgeScore.toFixed(1) : null,
       lightingVar: region ? +region.lightingVar.toFixed(1) : null,
+      moireScore: +moireScore.toFixed(3),
+      noCameraExif,
+      screenPhoto,
       cropped,
       wrongHand,
     });
@@ -345,6 +480,7 @@ export async function gatePalmImage(file, claimedHand) {
   else if (cropped) rejectReason = "cropped";
   else if (region.edgeScore < MIN_PALM_EDGE_SCORE) rejectReason = "lines_faint";
   else if (region.lightingVar > MAX_PALM_LIGHTING_VAR) rejectReason = "uneven_light";
+  else if (screenPhoto) rejectReason = "screen_photo";
   else if (wrongHand) rejectReason = "wrong_hand";
 
   const base = {

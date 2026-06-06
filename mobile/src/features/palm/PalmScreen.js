@@ -188,6 +188,7 @@ export default function PalmScreen({ navigation }) {
       quality: 0.75,
       // Skip the system crop step — palm should be analyzed in full.
       allowsEditing: false,
+      exif: true, // camera-origin signal for the gate's anti-screen-photo check
     };
     const res = source === "camera"
       ? await ImagePicker.launchCameraAsync(opts)

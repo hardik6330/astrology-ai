@@ -17,7 +17,7 @@ const log = logger.child({ mod: 'auth' });
 
 // Look up the most recently saved User row for this phone so a returning
 // user can skip the birth-details form and land straight on their kundali.
-async function findSavedFormByPhone(phone) {
+export async function findSavedFormByPhone(phone) {
   if (!phone) return null;
   // Skip placeholder rows missing a name — those were created by older flows
   // and would hydrate the client form with an empty name, breaking lookups.

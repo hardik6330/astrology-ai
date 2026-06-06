@@ -1,8 +1,14 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { computeChart } from "@/shared/astrology";
 import { creditsStore } from "@/common/creditsStore";
+import { tokenStore } from "@/common/tokenStore";
+import { getMe } from "@/services/api";
 
 const ChartContext = createContext(null);
+
+// Shared with the auth context — lets us tell "logged in" from "logged out"
+// without importing AuthContext (avoids a provider-ordering coupling).
+const appToken = tokenStore("app_token");
 
 // Birth form is persisted here so a page refresh on /reading or /chat keeps
 // working instead of bouncing to the home form. The form now carries the
@@ -83,10 +89,36 @@ export function ChartProvider({ children }) {
   const [palmLeftPhoto, setPalmLeftPhoto] = useState(null);
   const [palmRightPhoto, setPalmRightPhoto] = useState(null);
 
+  // True while we re-fetch the saved form on startup. The token (login) lives
+  // in localStorage and survives a browser close, but the form lives in
+  // sessionStorage and doesn't — so a returning user has a token but no chart.
+  // When that's the case, pull the saved form from the server before routing,
+  // so they land on their reading instead of the empty form. Guards (route
+  // gates) wait on this flag to avoid a flash of the form mid-fetch.
+  const [hydrating, setHydrating] = useState(() => !loadForm().date && !!appToken.get());
+
   // Keep the saved form in sync so it survives a refresh.
   useEffect(() => {
     if (form.date) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(form));
   }, [form]);
+
+  // One-shot startup hydration (see `hydrating` above).
+  useEffect(() => {
+    if (!hydrating) return;
+    let cancelled = false;
+    getMe()
+      .then((data) => {
+        if (!cancelled && data?.savedForm) applySavedForm(data.savedForm);
+      })
+      .catch(() => {}) // no saved form / offline → user just sees the form
+      .finally(() => {
+        if (!cancelled) setHydrating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Hydrate form + chart from server payload (returning user). Persists
   // to sessionStorage so a page refresh on /reading still works.
@@ -145,6 +177,7 @@ export function ChartProvider({ children }) {
   }
 
   const value = {
+    hydrating,
     form,
     setForm,
     chart,

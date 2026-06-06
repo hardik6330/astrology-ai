@@ -8,6 +8,17 @@ import { auth } from "./firebaseConfig";
 
 let verifier = null;
 
+const CONTAINER_ID = "recaptcha-container";
+
+// verifier.clear() detaches Firebase's wrapper but leaves grecaptcha's rendered
+// widget inside the DOM node — so creating a new verifier on the same node
+// throws "reCAPTCHA has already been rendered in this element" (seen on Resend).
+// Emptying the node removes the stale widget before we re-render.
+function resetContainer() {
+  const el = typeof document !== "undefined" ? document.getElementById(CONTAINER_ID) : null;
+  if (el) el.innerHTML = "";
+}
+
 // The invisible reCAPTCHA binds to a DOM node (#recaptcha-container, rendered by
 // LoginPage). Recreated per send so a consumed/expired challenge can't block a
 // resend ("reCAPTCHA already rendered" errors).
@@ -17,7 +28,8 @@ function freshVerifier() {
   } catch {
     /* ignore */
   }
-  verifier = new RecaptchaVerifier(auth, "recaptcha-container", { size: "invisible" });
+  resetContainer();
+  verifier = new RecaptchaVerifier(auth, CONTAINER_ID, { size: "invisible" });
   return verifier;
 }
 
@@ -41,5 +53,6 @@ export function clearRecaptcha() {
   } catch {
     /* ignore */
   }
+  resetContainer();
   verifier = null;
 }

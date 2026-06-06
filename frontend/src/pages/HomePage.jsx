@@ -8,6 +8,7 @@ import CustomTimePicker from "@/components/picker/CustomTimePicker";
 import CustomSelect from "../components/CustomSelect";
 import Card from "@/common/Card";
 import Button from "@/common/Button";
+import Loading from "@/common/Loading";
 
 import { saveProfile } from "@/services/api";
 import { EMOJIS } from "@/utils/emojis";
@@ -20,7 +21,7 @@ const errLbl = "mt-1 mb-0 text-[12px] text-danger";
 export default function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { form, setForm, chart, setChart, setInterp, setDaily, setChatMsgs } = useChart();
+  const { form, setForm, chart, setChart, setInterp, setDaily, setChatMsgs, hydrating } = useChart();
   const [error, setError] = useState("");
   // Per-field errors keyed by field name (name/date/time/city). Cleared as
   // soon as the user fixes that field.
@@ -117,6 +118,10 @@ export default function HomePage() {
       setError(e.message);
     }
   }
+
+  // Returning user whose saved form is still loading — show a splash instead
+  // of the empty form, so we don't flash it before redirecting to /reading.
+  if (hydrating) return <Loading minHeight="100vh" />;
 
   return (
     <div className="relative mx-auto max-w-180 px-4 py-8">

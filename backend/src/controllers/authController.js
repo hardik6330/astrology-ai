@@ -26,6 +26,10 @@ export const dummyLogin = asyncHandler(async (req, res) => {
 });
 
 // req.auth is set by the requireAuth middleware after verifying our JWT.
-export const me = (req, res) => {
-  res.json({ account: req.auth });
-};
+// Returns the saved birth form too so a returning user who reopened the app
+// (token persisted, but the client-side form was wiped) re-hydrates their
+// chart and lands back on their reading instead of the empty form.
+export const me = asyncHandler(async (req, res) => {
+  const savedForm = await auth.findSavedFormByPhone(req.auth.phone);
+  res.json({ account: req.auth, savedForm });
+});

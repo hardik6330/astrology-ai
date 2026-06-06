@@ -21,6 +21,14 @@ const MIN_PALM_EDGE_SCORE   = 90;    // palm-region Laplacian variance below →
 const MAX_PALM_LIGHTING_VAR = 2800;  // palm-region 9x9 grid variance above → uneven_light
 const PALM_NORM_W           = 200;   // palm crop width for the in-region metrics (web 256 ≈ mobile 512)
 
+// Anti-screen-photo heuristics (partial, NOT bulletproof) — MUST mirror the web
+// gate. moiréScore = normalized autocorrelation peak of the palm crop's high-pass
+// projections (real palm → low; re-photographed screen → sharp periodic peak).
+// camera EXIF (from the picker's `exif:true`) is a weak signal that only rejects
+// alongside moiré. Calibrate from the per-photo console logs on real samples.
+const MOIRE_STRONG          = 0.5;   // moiré alone ≥ this → screen_photo
+const MOIRE_WEAK            = 0.32;  // moiré ≥ this AND no camera EXIF → screen_photo
+
 // Memoized model.
 let _detector = null;
 let _detectorPromise = null;
@@ -69,6 +77,71 @@ function landmarkBounds(landmarks, imgW, imgH) {
     coverage: ((maxX - minX) * (maxY - minY)) / (imgW * imgH),
     minX, minY, maxX, maxY,
   };
+}
+
+// Strongest normalized autocorrelation peak of a 1-D signal (lag 2 … n/2).
+// ~0 for noise/smooth gradients, →1 for strong periodicity. Mirrors the web gate.
+function peakAutocorr(sig) {
+  const n = sig.length;
+  if (n < 8) return 0;
+  let mean = 0;
+  for (let i = 0; i < n; i++) mean += sig[i];
+  mean /= n;
+  let var0 = 0;
+  for (let i = 0; i < n; i++) {
+    const d = sig[i] - mean;
+    var0 += d * d;
+  }
+  if (var0 < 1e-6) return 0;
+  let best = 0;
+  const maxLag = Math.floor(n / 2);
+  for (let lag = 2; lag <= maxLag; lag++) {
+    let c = 0;
+    for (let i = 0; i + lag < n; i++) c += (sig[i] - mean) * (sig[i + lag] - mean);
+    const norm = c / var0;
+    if (norm > best) best = norm;
+  }
+  return best;
+}
+
+// Screen-banding score for a grayscale crop (column profile = vertical stripes,
+// row profile = horizontal stripes; larger autocorr peak wins). Mirrors web.
+function bandingScore(gray, w, h) {
+  const col = new Float32Array(w);
+  for (let x = 1; x < w - 1; x++) {
+    let s = 0;
+    for (let y = 0; y < h; y++) {
+      const i = y * w + x;
+      s += Math.abs(2 * gray[i] - gray[i - 1] - gray[i + 1]);
+    }
+    col[x] = s / h;
+  }
+  const row = new Float32Array(h);
+  for (let y = 1; y < h - 1; y++) {
+    let s = 0;
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      s += Math.abs(2 * gray[i] - gray[i - w] - gray[i + w]);
+    }
+    row[y] = s / w;
+  }
+  return Math.max(peakAutocorr(col), peakAutocorr(row));
+}
+
+// True if the picker asset carries genuine camera EXIF. Requires `exif:true` on
+// the ImagePicker call. Downloaded/screenshot images have these stripped → false
+// (a weak signal that only rejects alongside moiré).
+function hasCameraExif(exif) {
+  if (!exif || typeof exif !== "object") return false;
+  return !!(
+    exif.Make ||
+    exif.Model ||
+    exif.LensModel ||
+    exif.FNumber ||
+    exif.ExposureTime ||
+    exif.ISOSpeedRatings ||
+    exif.DateTimeOriginal
+  );
 }
 
 const TIPS = {
@@ -149,7 +222,7 @@ function palmRegionStats(tensor, bounds) {
     const y0 = Math.max(0, Math.floor(bounds.minY));
     const bw = Math.min(W - x0, Math.ceil(bounds.maxX - bounds.minX));
     const bh = Math.min(H - y0, Math.ceil(bounds.maxY - bounds.minY));
-    if (bw < 8 || bh < 8) return { edgeScore: Infinity, lightingVar: 0 };
+    if (bw < 8 || bh < 8) return { edgeScore: Infinity, lightingVar: 0, moireScore: 0 };
 
     const region = tensor.slice([y0, x0, 0], [bh, bw, 3]);
     const weights = tf.tensor1d([0.2126, 0.7152, 0.0722]);
@@ -158,17 +231,21 @@ function palmRegionStats(tensor, bounds) {
     const scale = PALM_NORM_W / bw;
     const nh = Math.max(3, Math.round(bh * scale));
     const nw = Math.max(3, Math.round(bw * scale));
-    const normGray = tf.sum(
+    const gray2d = tf.sum(
       tf.mul(tf.image.resizeBilinear(region.expandDims(0), [nh, nw]).squeeze(0), weights), -1,
-    ).expandDims(0).expandDims(-1);
+    ); // [nh, nw]
+    const normGray = gray2d.expandDims(0).expandDims(-1);
     const laplacianKernel = tf.tensor2d([0, 1, 0, 1, -4, 1, 0, 1, 0], [3, 3]).reshape([3, 3, 1, 1]);
     const edgeScore = tf.moments(tf.conv2d(normGray, laplacianKernel, 1, "valid")).variance.dataSync()[0];
+
+    // Screen-banding score from the same width-normalized crop (plain-JS autocorr).
+    const moireScore = bandingScore(gray2d.dataSync(), nw, nh);
 
     // Tiny 9x9 grid → low-frequency lighting variance only.
     const gridGray = tf.sum(tf.mul(tf.image.resizeBilinear(region.expandDims(0), [9, 9]).squeeze(0), weights), -1);
     const lightingVar = tf.moments(gridGray).variance.dataSync()[0];
 
-    return { edgeScore, lightingVar };
+    return { edgeScore, lightingVar, moireScore };
   });
 }
 
@@ -246,13 +323,22 @@ export async function gatePalmImage(asset, claimedHand) {
 
     // 5. Palm-region quality — lighting evenness + line detail, measured INSIDE
     // the palm only (background never skews these).
-    const { edgeScore, lightingVar } = palmRegionStats(tensor, bounds);
+    const { edgeScore, lightingVar, moireScore } = palmRegionStats(tensor, bounds);
     console.log(`Gate: Palm edgeScore = ${edgeScore.toFixed(1)} (Min: ${MIN_PALM_EDGE_SCORE}), lightingVar = ${lightingVar.toFixed(1)} (Max: ${MAX_PALM_LIGHTING_VAR})`);
     if (lightingVar > MAX_PALM_LIGHTING_VAR) {
       return reject("uneven_light", `variance ${lightingVar.toFixed(0)}`, Date.now() - startTime);
     }
     if (edgeScore < MIN_PALM_EDGE_SCORE) {
       return reject("lines_faint", `edge score ${edgeScore.toFixed(0)}`, Date.now() - startTime);
+    }
+
+    // 5b. Screen/web-image guard — strong moiré alone, or moderate moiré with no
+    // camera EXIF (requires `exif:true` on the picker; absent → weak signal only).
+    const noCameraExif = !hasCameraExif(asset?.exif);
+    const screenPhoto = moireScore >= MOIRE_STRONG || (noCameraExif && moireScore >= MOIRE_WEAK);
+    console.log(`Gate: moireScore = ${moireScore.toFixed(3)} (Strong: ${MOIRE_STRONG}, Weak: ${MOIRE_WEAK}), cameraExif = ${!noCameraExif}`);
+    if (screenPhoto) {
+      return reject("screen_photo", `moire ${moireScore.toFixed(2)}, exif ${!noCameraExif}`, Date.now() - startTime);
     }
 
     // 6. Hand-side check

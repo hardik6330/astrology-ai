@@ -72,6 +72,7 @@ export default function PalmStepScreen({ navigation }) {
         base64: true,
         quality: 0.75,
         allowsEditing: false,
+        exif: true, // camera-origin signal for the gate's anti-screen-photo check
       };
       const res = source === "camera"
         ? await ImagePicker.launchCameraAsync(opts)
