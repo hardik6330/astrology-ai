@@ -18,11 +18,15 @@ const log = logger.child({ mod: 'auth' });
 // Look up the most recently saved User row for this phone so a returning
 // user can skip the birth-details form and land straight on their kundali.
 export async function findSavedFormByPhone(phone) {
-  if (!phone) return null;
+  // Match on the last 10 digits (same as userIdForPhone) so a real-OTP account
+  // (E.164 "+917487998866") still finds a User row saved as "7487998866". An
+  // exact match here misses those and wrongly returns null for existing users.
+  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
+  if (digits.length !== 10) return null;
   // Skip placeholder rows missing a name — those were created by older flows
   // and would hydrate the client form with an empty name, breaking lookups.
   const user = await User.findOne({
-    where: { phone, name: { [Op.ne]: '' } },
+    where: { phone: { [Op.like]: `%${digits}` }, name: { [Op.ne]: '' } },
     order: [['updatedAt', 'DESC']],
   });
   if (!user) return null;
