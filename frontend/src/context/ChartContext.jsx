@@ -10,10 +10,10 @@ const ChartContext = createContext(null);
 // without importing AuthContext (avoids a provider-ordering coupling).
 const appToken = tokenStore("app_token");
 
-// Birth form is persisted here so a page refresh on /reading or /chat keeps
-// working instead of bouncing to the home form. The form now carries the
-// resolved lat/lon/tz alongside the city name (no more static-list lookup),
-// so the chart can be rebuilt from the form alone.
+// Birth form is persisted in localStorage (like the auth token) so a page
+// refresh OR a full browser close+reopen keeps working instead of bouncing to
+// the home form. The form carries the resolved lat/lon/tz alongside the city
+// name, so the chart rebuilds from the form alone — no server round-trip.
 const STORAGE_KEY = "astro_form";
 const EMPTY_FORM = {
   name: "",
@@ -30,7 +30,7 @@ const EMPTY_FORM = {
 
 function loadForm() {
   try {
-    return { ...EMPTY_FORM, ...JSON.parse(sessionStorage.getItem(STORAGE_KEY)) };
+    return { ...EMPTY_FORM, ...JSON.parse(localStorage.getItem(STORAGE_KEY)) };
   } catch {
     return EMPTY_FORM;
   }
@@ -89,17 +89,16 @@ export function ChartProvider({ children }) {
   const [palmLeftPhoto, setPalmLeftPhoto] = useState(null);
   const [palmRightPhoto, setPalmRightPhoto] = useState(null);
 
-  // True while we re-fetch the saved form on startup. The token (login) lives
-  // in localStorage and survives a browser close, but the form lives in
-  // sessionStorage and doesn't — so a returning user has a token but no chart.
-  // When that's the case, pull the saved form from the server before routing,
-  // so they land on their reading instead of the empty form. Guards (route
-  // gates) wait on this flag to avoid a flash of the form mid-fetch.
+  // Cross-device fallback: the form now persists locally (localStorage), so a
+  // reopen on the SAME browser rebuilds the chart with no server call. But on a
+  // NEW browser/device the user is logged in (token) yet has no local form — in
+  // that case pull the saved form from the server before routing, so they still
+  // land on their reading. Guards wait on this flag to avoid a form flash.
   const [hydrating, setHydrating] = useState(() => !loadForm().date && !!appToken.get());
 
   // Keep the saved form in sync so it survives a refresh.
   useEffect(() => {
-    if (form.date) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(form));
+    if (form.date) localStorage.setItem(STORAGE_KEY, JSON.stringify(form));
   }, [form]);
 
   // One-shot startup hydration (see `hydrating` above).
@@ -151,7 +150,7 @@ export function ChartProvider({ children }) {
     setPalmLowCredits(false);
     setPalmLeftPhoto(null);
     setPalmRightPhoto(null);
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
   // Wipe everything — used on logout so a different phone number doesn't
@@ -173,7 +172,7 @@ export function ChartProvider({ children }) {
     setPalmLeftPhoto(null);
     setPalmRightPhoto(null);
     creditsStore.clear(); // don't let a new login inherit the previous balance
-    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
   }
 
   const value = {
