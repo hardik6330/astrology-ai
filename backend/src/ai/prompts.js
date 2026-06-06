@@ -123,8 +123,9 @@ OUTPUT — match this exact JSON shape:
   }
 }
 
-If EITHER image cannot be analyzed (blurry, not a palm, back of hand, multiple hands, etc.), instead return:
-{ "handType": "Both", "imageQuality": "unusable", "retakeReason": "<one short sentence on what to fix>" }`;
+If EITHER image cannot be analyzed, instead return:
+{ "handType": "Both", "imageQuality": "unusable", "retakeReason": "<one short sentence on what to fix>" }
+Reject when an image is: blurry, too dark, not a human palm, the BACK of the hand (knuckles/nails/veins visible, palm creases hidden), a photo of a screen/monitor/printout/another photo (screen bezel, pixel/moiré, glare bands, flat rectangular border), multiple hands, or main lines obstructed. When unsure whether you see a palm or the back of a hand, REJECT.`;
 
 // Legacy two-step prompt — kept for reference but no longer used. The
 // new PALM_BOTH_HANDS_SYSTEM (above) collapses everything into one call.
@@ -244,8 +245,9 @@ If ANY condition below applies, return EXACTLY:
 { "imageQuality":"unusable", "rejectReason":"<key>", "retakeReason":"<one sentence>" }
 
 Reject keys:
-- not_a_palm     → not a human hand (object, animal, screenshot, face, scenery, drawing, AI image, body part that isn't a palm).
-- back_of_hand   → hand visible but BACK is to camera, lines hidden.
+- not_a_palm     → not a human hand at all (object, animal, face, scenery, drawing, AI/generated image, or any body part that isn't a hand).
+- screen_photo   → a hand shown ON a screen/monitor/phone/TV/laptop/printout, or a photo of another photo (NOT a real hand in front of the camera). Tells: a screen bezel or device edges, a pixel/scanline/moiré pattern, reflection or backlight glare bands, a flat rectangular border framing the hand, or a visibly re-photographed/low-detail look. When in doubt that it is re-photographed off a screen or print, REJECT as screen_photo.
+- back_of_hand   → the DORSAL side faces the camera: you see knuckles, fingernails, tendons/veins, or hair, and the main palm creases (life/head/heart lines) are NOT visible. A real palm shows soft skin with deep branching creases and fleshy mounts — if you instead see nails or knuckle ridges, it is back_of_hand. When unsure whether it's palm or back, REJECT as back_of_hand.
 - blurry         → out of focus; major lines smeared.
 - too_dark       → too dim to see line depth.
 - too_far        → palm occupies < 40% of frame.
@@ -272,8 +274,9 @@ If ANY condition below applies, return EXACTLY these 4 fields and NOTHING ELSE �
 { "handType":"Unclear", "imageQuality":"unusable", "rejectReason":"<key>", "retakeReason":"<one sentence>" }
 
 Reject keys:
-- not_a_palm     → not a human hand (object, animal, screenshot, face, scenery, drawing, AI image, body part that isn't a palm).
-- back_of_hand   → hand visible but BACK is to camera, lines hidden.
+- not_a_palm     → not a human hand at all (object, animal, face, scenery, drawing, AI/generated image, or any body part that isn't a hand).
+- screen_photo   → a hand shown ON a screen/monitor/phone/TV/laptop/printout, or a photo of another photo (NOT a real hand in front of the camera). Tells: a screen bezel or device edges, a pixel/scanline/moiré pattern, reflection or backlight glare bands, a flat rectangular border framing the hand, or a visibly re-photographed/low-detail look. When in doubt that it is re-photographed off a screen or print, REJECT as screen_photo.
+- back_of_hand   → the DORSAL side faces the camera: you see knuckles, fingernails, tendons/veins, or hair, and the main palm creases (life/head/heart lines) are NOT visible. A real palm shows soft skin with deep branching creases and fleshy mounts — if you instead see nails or knuckle ridges, it is back_of_hand. When unsure whether it's palm or back, REJECT as back_of_hand.
 - blurry         → out of focus; major lines smeared.
 - too_dark       → too dim to see line depth.
 - too_far        → palm occupies < 40% of frame.

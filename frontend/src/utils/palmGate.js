@@ -12,6 +12,25 @@ import * as tf from "@tensorflow/tfjs-core";
 import "@tensorflow/tfjs-backend-webgl";
 import * as handPoseDetection from "@tensorflow-models/hand-pose-detection";
 
+// ── Gate thresholds ──────────────────────────────────────────────────────────
+// Luminance + blur run on the 256px downsample. The two palm-quality checks
+// (lighting evenness, line detail) run ONLY on the detected palm region — never
+// the whole frame — so palm-vs-background contrast can't skew them. Set
+// GATE_DEBUG=true to log the live values for a photo; calibrate from those.
+// Mobile (mobile/src/features/palm/palmGate.js) MUST mirror these.
+const GATE_DEBUG = false; // true → console.debug every metric per photo
+const MIN_LUMINANCE = 55; // mean luma below → too_dark
+const MIN_LAPLACIAN_VAR = 160; // global focus; below → blurry
+const MIN_PALM_COVERAGE = 0.22; // palm bbox area ÷ frame; below → too_far
+// Palm-region checks (measured INSIDE the bounding box, so background contrast
+// never skews them). edgeScore = Laplacian variance of the palm crop (line
+// detail); lightingVar = luminance variance of a 9x9 low-frequency grid (broad
+// shadow/glare). Both display their raw value in the gate checklist.
+const MIN_PALM_EDGE_SCORE = 90; // below → lines_faint
+const MAX_PALM_LIGHTING_VAR = 2800; // above → uneven_light
+const PALM_NORM_W = 200; // palm crop width for the in-region metrics
+// (resolution-independent: web 256 ≈ mobile 512).
+
 // Memoized model — loaded once per page session, kept warm in module scope.
 let _detector = null;
 let _detectorPromise = null;
@@ -22,14 +41,11 @@ async function getDetector() {
   _detectorPromise = (async () => {
     await tf.setBackend("webgl");
     await tf.ready();
-    _detector = await handPoseDetection.createDetector(
-      handPoseDetection.SupportedModels.MediaPipeHands,
-      {
-        runtime: "tfjs",
-        modelType: "lite",      // smaller (~6MB) and faster — accuracy plenty for a gate
-        maxHands: 2,            // we need to detect multi-hand for rejection
-      },
-    );
+    _detector = await handPoseDetection.createDetector(handPoseDetection.SupportedModels.MediaPipeHands, {
+      runtime: "tfjs",
+      modelType: "lite", // smaller (~6MB) and faster — accuracy plenty for a gate
+      maxHands: 2, // we need to detect multi-hand for rejection
+    });
     return _detector;
   })();
   return _detectorPromise;
@@ -40,8 +56,14 @@ function fileToImage(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode_failed")); };
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("decode_failed"));
+    };
     img.src = url;
   });
 }
@@ -53,12 +75,14 @@ function toSmallCanvas(img, maxDim = 256) {
   const w = Math.max(1, Math.round(img.width * scale));
   const h = Math.max(1, Math.round(img.height * scale));
   const canvas = document.createElement("canvas");
-  canvas.width = w; canvas.height = h;
+  canvas.width = w;
+  canvas.height = h;
   canvas.getContext("2d").drawImage(img, 0, 0, w, h);
   return canvas;
 }
 
-// Mean luminance (0-255). < ~45 indicates the photo is too dim to read lines.
+// Mean luminance (0-255). < MIN_LUMINANCE indicates the photo is too dim to
+// read lines. (Lighting *evenness* is judged separately, inside the palm.)
 function meanLuminance(canvas) {
   const { width, height } = canvas;
   const { data } = canvas.getContext("2d").getImageData(0, 0, width, height);
@@ -83,7 +107,9 @@ function laplacianVariance(canvas) {
   }
 
   // Apply 3x3 Laplacian [0,1,0; 1,-4,1; 0,1,0].
-  let sum = 0, sumSq = 0, n = 0;
+  let sum = 0,
+    sumSq = 0,
+    n = 0;
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       const i = y * w + x;
@@ -94,12 +120,63 @@ function laplacianVariance(canvas) {
     }
   }
   const mean = sum / n;
-  return (sumSq / n) - (mean * mean);
+  return sumSq / n - mean * mean;
+}
+
+// Quality metrics measured INSIDE the palm bounding box only (so background
+// contrast never skews them). `bounds` are in full-image (img) coordinates.
+//   - edgeScore — Laplacian variance of a width-normalized palm crop. High =
+//     crisp lines; low = washed-out/faint (a global blur check can pass when
+//     only the background is sharp). Resolution-independent via PALM_NORM_W.
+//   - lightingVar — luminance variance of a 9x9 low-frequency grid of the crop
+//     (line detail averaged out). High only when part of the palm is in harsh
+//     shadow or glare relative to the rest.
+// Returns { edgeScore: Infinity, lightingVar: 0 } when the box is too small to
+// judge, so a tiny detection never trips a false reject.
+function palmRegionStats(img, bounds) {
+  const bw = bounds.maxX - bounds.minX;
+  const bh = bounds.maxY - bounds.minY;
+  if (bw < 8 || bh < 8) return { edgeScore: Infinity, lightingVar: 0 };
+
+  // Width-normalized palm crop.
+  const scale = PALM_NORM_W / bw;
+  const w = Math.max(3, Math.round(bw * scale));
+  const h = Math.max(3, Math.round(bh * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext("2d").drawImage(img, bounds.minX, bounds.minY, bw, bh, 0, 0, w, h);
+
+  // Line detail = Laplacian variance of the palm crop.
+  const edgeScore = laplacianVariance(canvas);
+
+  // Lighting evenness = luminance variance of a tiny 9x9 grid (only broad
+  // brightness gradients survive the downsample; line texture averages out).
+  const G = 9;
+  const grid = document.createElement("canvas");
+  grid.width = G;
+  grid.height = G;
+  grid.getContext("2d").drawImage(canvas, 0, 0, G, G);
+  const gd = grid.getContext("2d").getImageData(0, 0, G, G).data;
+  let gs = 0,
+    gsq = 0;
+  for (let i = 0; i < gd.length; i += 4) {
+    const l = 0.2126 * gd[i] + 0.7152 * gd[i + 1] + 0.0722 * gd[i + 2];
+    gs += l;
+    gsq += l * l;
+  }
+  const gm = gs / (G * G);
+  const lightingVar = Math.max(0, gsq / (G * G) - gm * gm);
+
+  return { edgeScore, lightingVar };
 }
 
 // Bounding box of a set of MediaPipe landmarks (image-space x/y).
 function landmarkBounds(landmarks, imgW, imgH) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const p of landmarks) {
     if (p.x < minX) minX = p.x;
     if (p.y < minY) minY = p.y;
@@ -107,23 +184,30 @@ function landmarkBounds(landmarks, imgW, imgH) {
     if (p.y > maxY) maxY = p.y;
   }
   return {
-    width:  maxX - minX,
+    width: maxX - minX,
     height: maxY - minY,
     coverage: ((maxX - minX) * (maxY - minY)) / (imgW * imgH),
-    minX, minY, maxX, maxY,
+    minX,
+    minY,
+    maxX,
+    maxY,
   };
 }
 
 // Friendly retake copy keyed to the reject reason — matches the existing
 // REJECT_INFO copy on the UI so the wording stays consistent.
 const TIPS = {
-  too_dark:       "Move into bright, even light so the lines on your palm are clearly visible.",
-  blurry:         "Hold steady and take a sharp, focused photo of your palm.",
-  not_a_palm:     "Please upload a clear photo of your open hand, palm facing the camera.",
+  too_dark: "Move into bright, even light so the lines on your palm are clearly visible.",
+  blurry: "Hold steady and take a sharp, focused photo of your palm.",
+  not_a_palm: "Please upload a clear photo of your open hand, palm facing the camera.",
   multiple_hands: "Show just one open palm in the photo.",
-  too_far:        "Bring the camera closer — your palm should fill most of the frame.",
-  cropped:        "Include your full palm — from wrist to fingertips — in the photo.",
-  wrong_hand:     "The photo looks like your other hand — please retake with the hand you selected.",
+  too_far: "Bring the camera closer — your palm should fill most of the frame.",
+  cropped: "Include your full palm — from wrist to fingertips — in the photo.",
+  wrong_hand: "The photo looks like your other hand — please retake with the hand you selected.",
+  screen_photo: "Take a photo of your real hand — a picture of a screen or another photo can't be read.",
+  lines_faint:
+    "Take a sharp photo of your real hand in bright light — a photo of a screen won't have enough line detail.",
+  uneven_light: "Even out the lighting — avoid harsh shadow or glare falling across your palm.",
 };
 
 // MediaPipe handedness is reported from the OPPOSITE side because the model
@@ -134,21 +218,23 @@ const TIPS = {
 // cases make low-confidence calls unreliable).
 const HAND_REJECT_MIN_CONFIDENCE = 0.95;
 
-function reject(rejectReason) {
-  return { ok: false, rejectReason, retakeReason: TIPS[rejectReason] || "Please retake with a clearer palm photo." };
+function retakeFor(reason) {
+  return TIPS[reason] || "Please retake with a clearer palm photo.";
 }
 
 /**
- * Run the full gate on a File. Returns { ok: true } or { ok: false,
- * rejectReason, retakeReason }. NEVER throws — internal failures resolve
- * as { ok: true } so we always fall through to upload rather than block
- * the user on a model error.
+ * Run the full gate on a File. Computes EVERY metric (never short-circuits) so
+ * the UI can render a per-check diagnostic list. Returns:
+ *   { ok, checks, landmarks?, imgW, imgH, rejectReason?, retakeReason? }
+ * where `checks` is an ordered [{ key, ok, label }] for the checklist UI and
+ * `landmarks` (image-pixel coords) drives the skeleton overlay. NEVER throws —
+ * decode/model failures resolve as { ok: true, checks: [] } so we always fall
+ * through to upload rather than block the user on an internal error.
  *
  * @param {File}   file        The user-picked image file.
- * @param {string} claimedHand Optional "Left" | "Right" — if set, the
- *   gate will reject when MediaPipe is highly confident the photo shows
- *   the opposite hand. Skipped under the confidence threshold to avoid
- *   false positives from mirror-camera selfies.
+ * @param {string} claimedHand Optional "Left" | "Right" — if set, the gate
+ *   rejects when MediaPipe is highly confident the photo shows the opposite
+ *   hand. Skipped under the confidence threshold (mirror-camera false positives).
  */
 export async function gatePalmImage(file, claimedHand) {
   let img;
@@ -156,62 +242,127 @@ export async function gatePalmImage(file, claimedHand) {
     img = await fileToImage(file);
   } catch {
     // Can't decode → let backend handle it (validateImage will throw 400).
-    return { ok: true };
+    return { ok: true, checks: [] };
   }
 
-  // 1. Cheap pixel heuristics first.
+  // Global pixel metrics (whole 256px downsample).
   const small = toSmallCanvas(img, 256);
   const lum = meanLuminance(small);
-  if (lum < 45) return reject("too_dark");
-
   const lapVar = laplacianVariance(small);
-  if (lapVar < 100) return reject("blurry");
 
-  // 2. MediaPipe hand detection.
-  let hands = [];
+  // MediaPipe hand detection.
+  let hands;
   try {
     const detector = await getDetector();
     hands = await detector.estimateHands(img, { flipHorizontal: false });
   } catch {
     // Model load/inference failed — fall through (let Pro see the image).
-    return { ok: true };
+    return { ok: true, checks: [] };
   }
 
-  if (hands.length === 0)   return reject("not_a_palm");
-  if (hands.length > 1)     return reject("multiple_hands");
-
+  const handCount = hands.length;
   const hand = hands[0];
-  if (!hand?.keypoints || hand.keypoints.length < 21) return reject("not_a_palm");
-  const bounds = landmarkBounds(hand.keypoints, img.width, img.height);
+  const hasHand = handCount === 1 && hand?.keypoints?.length >= 21;
 
-  // 3. Palm too small in frame.
-  if (bounds.coverage < 0.18) return reject("too_far");
+  const bounds = hasHand ? landmarkBounds(hand.keypoints, img.width, img.height) : null;
+  const region = hasHand ? palmRegionStats(img, bounds) : null;
 
-  // 4. Palm runs off-edge — wrist or fingertips outside.
-  const pad = 4;   // px tolerance
-  if (bounds.minX < pad || bounds.minY < pad ||
-      bounds.maxX > img.width - pad || bounds.maxY > img.height - pad) {
-    return reject("cropped");
+  const pad = 4; // px tolerance for the off-edge (cropped) test
+  const cropped = bounds
+    ? bounds.minX < pad ||
+      bounds.minY < pad ||
+      bounds.maxX > img.width - pad ||
+      bounds.maxY > img.height - pad
+    : false;
+
+  // Hand-side: MediaPipe reports handedness from a mirrored (selfie) POV, so on
+  // a non-mirrored file the model's "Right" maps to a real LEFT hand. Invert.
+  let wrongHand = false;
+  if (hasHand && claimedHand && hand.handedness && hand.score >= HAND_REJECT_MIN_CONFIDENCE) {
+    const actual = hand.handedness === "Left" ? "Right" : "Left";
+    wrongHand = actual !== claimedHand;
   }
 
-  // 5. Hand-side check — only when the caller passed claimedHand AND
-  // MediaPipe is highly confident. MediaPipe reports handedness from a
-  // mirrored-image POV (since most webcams self-mirror), so when we feed
-  // a non-mirrored file the model's "Right" maps to a real LEFT hand
-  // (and vice versa). Invert before comparing.
-  if (claimedHand && hand.handedness && hand.score >= HAND_REJECT_MIN_CONFIDENCE) {
-    const modelLabel  = hand.handedness;                       // "Left" or "Right" per the model
-    const actualLabel = modelLabel === "Left" ? "Right" : "Left"; // invert for non-mirrored image
-    if (actualLabel !== claimedHand) {
-      return reject("wrong_hand");
-    }
+  // User-facing checklist (astro-2 order). `cropped` + `wrong_hand` are enforced
+  // below but kept off the list to match the reference UI.
+  const checks = [
+    handCount > 1
+      ? { key: "multiple_hands", ok: false, label: "More than one hand detected" }
+      : hasHand
+        ? { key: "landmarks", ok: true, label: `${hand.keypoints.length} hand landmarks detected` }
+        : { key: "not_a_palm", ok: false, label: "No clear hand detected" },
+    {
+      key: "lighting",
+      ok: lum >= MIN_LUMINANCE,
+      label: `Lighting ${lum >= MIN_LUMINANCE ? "OK" : "too dark"} (${Math.round(lum)} / 255)`,
+    },
+    {
+      key: "sharpness",
+      ok: lapVar >= MIN_LAPLACIAN_VAR,
+      label: `Sharpness ${lapVar >= MIN_LAPLACIAN_VAR ? "OK" : "low"} (variance ${Math.round(lapVar)})`,
+    },
+  ];
+  if (hasHand) {
+    checks.push(
+      {
+        key: "coverage",
+        ok: bounds.coverage >= MIN_PALM_COVERAGE,
+        label: `Palm fills frame (${Math.round(bounds.coverage * 100)}%)`,
+      },
+      {
+        key: "edge",
+        ok: region.edgeScore >= MIN_PALM_EDGE_SCORE,
+        label: `Palm lines visible (edge score ${Math.round(region.edgeScore)})`,
+      },
+      {
+        key: "lighting_even",
+        ok: region.lightingVar <= MAX_PALM_LIGHTING_VAR,
+        label: `Even lighting (variance ${Math.round(region.lightingVar)})`,
+      }
+    );
   }
 
-  return { ok: true };
+  if (GATE_DEBUG) {
+    console.debug("[palmGate]", {
+      handCount,
+      lum: +lum.toFixed(1),
+      lapVar: +lapVar.toFixed(0),
+      coverage: bounds ? +bounds.coverage.toFixed(3) : null,
+      edgeScore: region ? +region.edgeScore.toFixed(1) : null,
+      lightingVar: region ? +region.lightingVar.toFixed(1) : null,
+      cropped,
+      wrongHand,
+    });
+  }
+
+  // First failing gate, in severity order → the reason surfaced to the user.
+  let rejectReason = null;
+  if (handCount > 1) rejectReason = "multiple_hands";
+  else if (!hasHand) rejectReason = "not_a_palm";
+  else if (lum < MIN_LUMINANCE) rejectReason = "too_dark";
+  else if (lapVar < MIN_LAPLACIAN_VAR) rejectReason = "blurry";
+  else if (bounds.coverage < MIN_PALM_COVERAGE) rejectReason = "too_far";
+  else if (cropped) rejectReason = "cropped";
+  else if (region.edgeScore < MIN_PALM_EDGE_SCORE) rejectReason = "lines_faint";
+  else if (region.lightingVar > MAX_PALM_LIGHTING_VAR) rejectReason = "uneven_light";
+  else if (wrongHand) rejectReason = "wrong_hand";
+
+  const base = {
+    checks,
+    landmarks: hasHand ? hand.keypoints : undefined,
+    imgW: img.width,
+    imgH: img.height,
+  };
+  if (rejectReason) {
+    return { ok: false, rejectReason, retakeReason: retakeFor(rejectReason), ...base };
+  }
+  return { ok: true, ...base };
 }
 
 // Eager-load the model in the background (e.g. when the Palm page mounts)
 // so the first user upload doesn't pay the load cost.
 export function warmUpGate() {
-  getDetector().catch(() => { /* swallow — gate will retry on first use */ });
+  getDetector().catch(() => {
+    /* swallow — gate will retry on first use */
+  });
 }

@@ -4,6 +4,7 @@ import { useChart } from "../context/ChartContext";
 import { analyzePalm, comparePalms, fetchSaved, fetchPalmHistory, fetchPalmById } from "../services/api";
 import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 import BottomNav from "../components/BottomNav";
+import PalmSkeletonOverlay from "../components/PalmSkeletonOverlay";
 import Card from "@/common/Card";
 import Button from "@/common/Button";
 import { useCosts } from "@/common/useCosts";
@@ -44,6 +45,11 @@ const REJECT_INFO = {
     title: "That's not a palm",
     tip: "Please upload a clear photo of your open hand, palm facing the camera.",
   },
+  screen_photo: {
+    icon: EMOJIS.PROHIBITED,
+    title: "Don't photograph a screen",
+    tip: "Take a photo of your real hand with the camera — pictures of a screen, monitor, or another photo can't be read.",
+  },
   back_of_hand: {
     icon: EMOJIS.REFRESH,
     title: "Wrong side of the hand",
@@ -83,6 +89,16 @@ const REJECT_INFO = {
     icon: EMOJIS.PROHIBITED,
     title: "Palm is blocked",
     tip: "Open your hand flat — remove rings, mehndi, or anything covering the main lines.",
+  },
+  lines_faint: {
+    icon: EMOJIS.MAGNIFIER,
+    title: "Palm lines too faint",
+    tip: "Take a sharp photo of your real hand in bright light so the fine lines stand out — a photo of a screen or another picture won't have enough detail.",
+  },
+  uneven_light: {
+    icon: EMOJIS.LIGHT_BULB,
+    title: "Lighting is uneven",
+    tip: "Even out the lighting — avoid harsh shadow or glare falling across your palm.",
   },
   default: {
     icon: EMOJIS.CAMERA,
@@ -157,6 +173,8 @@ export default function PalmPage() {
     setPalmAnalyzing,
     palmClaimedHand,
     setPalmClaimedHand,
+    palmLandmarks,
+    setPalmLandmarks,
     palmComparison,
     setPalmComparison,
     palmOverloaded,
@@ -329,6 +347,12 @@ export default function PalmPage() {
         setError(gateResult.retakeReason);
         return;
       }
+      // Stash the detected landmarks so the scan animation can draw the skeleton.
+      setPalmLandmarks(
+        gateResult.landmarks
+          ? { keypoints: gateResult.landmarks, imgW: gateResult.imgW, imgH: gateResult.imgH }
+          : null
+      );
       const dataUrl = await resizeToBase64(file);
       await runAnalyze(dataUrl, claimedHand);
     } catch (err) {
@@ -359,6 +383,7 @@ export default function PalmPage() {
     setPalmAnalyzing(false);
     setClaimedHand(null);
     setPalmClaimedHand(null);
+    setPalmLandmarks(null);
     setError("");
     setLowCredits(false);
     setPalmLowCredits(false);
@@ -854,6 +879,8 @@ export default function PalmPage() {
               )}
               <div className="relative mx-auto mb-4.5 w-full max-w-80 overflow-hidden rounded-2xl border border-[rgba(168,85,247,0.4)] shadow-[0_0_30px_rgba(168,85,247,0.25)]">
                 <img src={preview} alt="palm" className="block w-full" />
+                {/* detected hand skeleton (landmarks + bones), pinned on the photo */}
+                <PalmSkeletonOverlay landmarks={palmLandmarks} />
                 {/* sweeping scan line */}
                 <div
                   className="absolute top-0 right-0 left-0 h-[3px] bg-[linear-gradient(90deg,transparent,#c084fc,transparent)] shadow-[0_0_18px_4px_rgba(192,132,252,0.6)]"

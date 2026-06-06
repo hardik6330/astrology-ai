@@ -175,7 +175,8 @@ export default function PalmStepScreen({ navigation }) {
         Tip: bright, even lighting and a clear view of the palm work best.
       </Text>
 
-      {/* Source picker modal — mirrors the camera/gallery buttons on PalmScreen */}
+      {/* Source picker modal — camera only (no gallery) so users can't submit a
+          photo of a screen/another picture. Mirrors PalmScreen. */}
       <Modal
         visible={activeHand !== null}
         transparent
@@ -191,7 +192,7 @@ export default function PalmStepScreen({ navigation }) {
             style={s.modalSheet}
           >
             <Text style={s.modalTitle}>
-              {activeHand} Hand · How would you like to add the photo?
+              {activeHand} Hand · Take a live photo of your palm
             </Text>
 
             <Pressable
@@ -202,19 +203,7 @@ export default function PalmStepScreen({ navigation }) {
               <Text style={s.sourceIcon}>📷</Text>
               <View style={{ flex: 1 }}>
                 <Text style={s.sourceLabel}>Take a Photo</Text>
-                <Text style={s.sourceSub}>Use your camera</Text>
-              </View>
-            </Pressable>
-
-            <Pressable
-              onPress={() => pick("library")}
-              disabled={busy}
-              style={({ pressed }) => [s.sourceBtn, pressed && { opacity: 0.85 }, busy && { opacity: 0.6 }]}
-            >
-              <Text style={s.sourceIcon}>🖼️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={s.sourceLabel}>Upload from Device</Text>
-                <Text style={s.sourceSub}>Pick a photo from your gallery</Text>
+                <Text style={s.sourceSub}>For an accurate reading we use a live camera shot, not gallery uploads</Text>
               </View>
             </Pressable>
 

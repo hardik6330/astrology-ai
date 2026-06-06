@@ -65,6 +65,10 @@ export function ChartProvider({ children }) {
   // "RIGHT HAND" badge on the scan screen regardless of which page
   // kicked the analysis off.
   const [palmClaimedHand, setPalmClaimedHand] = useState(null);
+  // MediaPipe hand landmarks from the upload-time gate — { keypoints, imgW,
+  // imgH }. Held in memory only, used to draw the hand-skeleton overlay on the
+  // scan animation. Null when the gate didn't surface them (model/decode fail).
+  const [palmLandmarks, setPalmLandmarks] = useState(null);
   // Result of the Both-Hands "Full Life Comparison" — { left, right,
   // comparison }. Separate from `palm` so the single-hand reading isn't
   // overwritten by a comparison, and vice versa.
@@ -109,6 +113,7 @@ export function ChartProvider({ children }) {
     setPalmPhoto(null);
     setPalmAnalyzing(false);
     setPalmClaimedHand(null);
+    setPalmLandmarks(null);
     setPalmComparison(null);
     setPalmOverloaded(false);
     setPalmLowCredits(false);
@@ -129,6 +134,7 @@ export function ChartProvider({ children }) {
     setPalmPhoto(null);
     setPalmAnalyzing(false);
     setPalmClaimedHand(null);
+    setPalmLandmarks(null);
     setPalmComparison(null);
     setPalmOverloaded(false);
     setPalmLowCredits(false);
@@ -157,6 +163,8 @@ export function ChartProvider({ children }) {
     setPalmAnalyzing,
     palmClaimedHand,
     setPalmClaimedHand,
+    palmLandmarks,
+    setPalmLandmarks,
     palmComparison,
     setPalmComparison,
     palmOverloaded,

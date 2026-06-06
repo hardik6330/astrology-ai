@@ -213,7 +213,7 @@ export default function PalmCompareScreen({ navigation }) {
         >
           <Pressable onPress={(e) => e.stopPropagation()} style={s.modalSheet}>
             <Text style={s.modalTitle}>
-              {pickingHand === "left" ? "Left" : "Right"} Hand · How would you like to add the photo?
+              {pickingHand === "left" ? "Left" : "Right"} Hand · Take a live photo of your palm
             </Text>
 
             <Pressable
@@ -224,19 +224,7 @@ export default function PalmCompareScreen({ navigation }) {
               <Text style={s.sourceIcon}>📷</Text>
               <View style={{ flex: 1 }}>
                 <Text style={s.sourceLabel}>Take a Photo</Text>
-                <Text style={s.sourceSub}>Use your camera</Text>
-              </View>
-            </Pressable>
-
-            <Pressable
-              onPress={() => pickFromSource("library")}
-              disabled={busy}
-              style={({ pressed }) => [s.sourceBtn, pressed && { opacity: 0.85 }, busy && { opacity: 0.6 }]}
-            >
-              <Text style={s.sourceIcon}>🖼️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={s.sourceLabel}>Upload from Device</Text>
-                <Text style={s.sourceSub}>Pick a photo from your gallery</Text>
+                <Text style={s.sourceSub}>For an accurate reading we use a live camera shot, not gallery uploads</Text>
               </View>
             </Pressable>
 

@@ -16,6 +16,25 @@ import { adminSaveSettings } from "@/admin/api/adminApi";
 // "initial_credits" → "Initial Credits"
 const labelFor = (key) => key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+// notif_next_at is stored as epoch ms — meaningless to read raw. Turn it into a
+// "in 2h 15m · 5 Jun, 7:55 AM IST" hint relative to now.
+function formatNextAt(value) {
+  const ms = Number(value);
+  if (!ms || Number.isNaN(ms)) return "Not scheduled — sends on the next cron tick.";
+  const diff = ms - Date.now();
+  const when = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(ms);
+  if (diff <= 0) return `Due now (next cron tick) · was ${when} IST`;
+  const mins = Math.round(diff / 60000);
+  const rel = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
+  return `Next send in ${rel} · ${when} IST`;
+}
+
 const FIELD_INFO = {
   initial_credits:
     "The amount of free credits a brand-new user gets on signup. Example: Set to 200 so users can try 10 daily readings for free.",
@@ -110,6 +129,9 @@ export default function AdminSettings() {
           onChange={(e) => onEdit(s.key, e.target.value)}
           disabled={busy}
         />
+      )}
+      {s.key === "notif_next_at" && (
+        <p className="mx-0 mt-1.5 mb-0 text-[12px] text-accent">{formatNextAt(valueOf(s))}</p>
       )}
       {s.description && <p className="mx-0 mt-1.5 mb-0 text-[12px] text-muted">{s.description}</p>}
     </div>
