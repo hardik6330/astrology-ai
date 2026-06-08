@@ -57,12 +57,12 @@ function buildTopicHistoryBlock(history, topic, currentUserMsg, maxPairs = 3) {
 async function buildPalmBlock(userId) {
   if (!userId) return '';
   const palm = await PalmReading.findOne({
-    where: { userId },
+    where: { userId, imageQuality: 'clear' },
     order: [['createdAt', 'DESC']],
   }).catch(() => null);
   if (!palm) return '';
   const r = typeof palm.reading === 'string' ? JSON.parse(palm.reading) : palm.reading;
-  if (!r || r.imageQuality === 'unusable') return '';
+  if (!r) return '';
 
   // Both-hands reading: prefer the comparison synthesis. Single-hand falls
   // back to overallVibe + the four major lines.

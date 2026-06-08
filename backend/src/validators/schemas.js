@@ -118,6 +118,14 @@ export const verifyPaymentBody = z.object({
   razorpaySignature: z.string().trim().min(1).max(256),
 });
 
+// Verify a Mobile In-App Purchase (Apple/Google).
+export const verifyIapBody = z.object({
+  planId:        z.string().trim().min(1, 'planId is required').max(24),
+  platform:      z.enum(['ios', 'android']),
+  receipt:       z.string().optional(), // Apple
+  purchaseToken: z.string().optional(), // Google
+});
+
 // Admin: create a credit plan. priceInr is in paise (integer). credits > 0.
 export const adminPlanCreateBody = z.object({
   name:       z.string().trim().min(1, 'name is required').max(80),

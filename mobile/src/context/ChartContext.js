@@ -65,16 +65,15 @@ export function ChartProvider({ children }) {
   // { n: "Surat", lat: 21.17, lon: 72.83, tz: 5.5, isGps: true }
   const [currentLoc, setCurrentLoc] = useState(null);
 
-  // One-time hydration from disk. If the saved form already yields a chart,
-  // arm the one-shot redirect so HomeScreen bounces the user straight into
-  // the Kundali tab on cold launch instead of showing the empty form.
+  // One-time hydration from disk. On cold launch the navigator waits for this
+  // to settle (see RootNavigator) before mounting the drawer, so a saved chart
+  // makes the drawer open straight on Reading — no Home-form flash, no redirect
+  // bounce, and no stale Home left at the bottom of the back history.
   useEffect(() => {
     (async () => {
       const saved = await getItem(STORAGE_KEY, EMPTY_FORM);
       setForm(saved);
-      const hydratedChart = chartFromForm(saved);
-      setChart(hydratedChart);
-      if (hydratedChart) setRedirectToReading(true);
+      setChart(chartFromForm(saved));
       setHydrated(true);
     })();
   }, []);

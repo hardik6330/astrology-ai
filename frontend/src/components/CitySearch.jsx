@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useCitySearch, lookupCityDetails } from "@/features/location/hooks";
-import { color, gradient, radius, shadow } from "../theme/tokens.js";
+import { color, radius, shadow } from "../theme/tokens.js";
+import { Spinner } from "@/common/Loading";
 
 // Generate a UUID for the Places sessiontoken. Browser-native crypto when
 // available; tiny fallback for old browsers / non-secure contexts (LAN dev).
-function makeSessionToken() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
-  return "xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
+// Generate a UUID for the Places sessiontoken.
+const genUUID = () => {
+  try {
+    return self.crypto.randomUUID();
+  } catch (_) {
+    return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
+};
 
 // Debounced city autocomplete. `value` is the display string; `onSelect`
 // fires with the full resolved record (name + lat/lng + tz) once the user
@@ -24,7 +26,7 @@ export default function CitySearch({
 }) {
   const [input, setInput] = useState(value || "");
   const [open, setOpen] = useState(false);
-  const sessionTokenRef = useRef(makeSessionToken());
+  const sessionToken = useMemo(() => genUUID(), []);
   const wrapRef = useRef(null);
 
   // Suppress search when the input still equals the most-recently picked
@@ -32,7 +34,7 @@ export default function CitySearch({
   const querySuppressed = input.trim() === (value || "").trim();
   const { data: predictions = [], isFetching: loading } = useCitySearch(
     querySuppressed ? "" : input,
-    sessionTokenRef.current
+    sessionToken
   );
 
   // Keep input in sync if the parent resets `value` (e.g. on form clear).
@@ -58,9 +60,8 @@ export default function CitySearch({
     setOpen(false);
     setInput(prediction.description);
     try {
-      const details = await lookupCityDetails(prediction.placeId, sessionTokenRef.current, birthTimestamp);
-      // Rotate sessiontoken — sessions end after Place Details is called.
-      sessionTokenRef.current = makeSessionToken();
+      const details = await lookupCityDetails(prediction.placeId, sessionToken, birthTimestamp);
+      // Note: sessiontoken is fixed for this component lifecycle in this version.
       onSelect({
         city: details.searchName,
         lat: details.coordinates.lat,
@@ -77,14 +78,32 @@ export default function CitySearch({
 
   return (
     <div ref={wrapRef} style={{ position: "relative" }}>
-      <input
-        className="premium-input"
-        placeholder={placeholder}
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onFocus={() => predictions.length && setOpen(true)}
-        autoComplete="off"
-      />
+      <div style={{ position: "relative" }}>
+        <input
+          className="premium-input"
+          style={{ paddingRight: 40 }}
+          placeholder={placeholder}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onFocus={() => predictions.length && setOpen(true)}
+          autoComplete="off"
+        />
+        {loading && (
+          <div
+            style={{
+              position: "absolute",
+              right: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <Spinner size={20} />
+          </div>
+        )}
+      </div>
       {open && (predictions.length > 0 || loading) && (
         <ul
           style={{
@@ -113,7 +132,19 @@ export default function CitySearch({
             }
           `}</style>
           {loading && (
-            <li style={{ padding: "12px 16px", fontSize: 13, color: color.textDim }}>Searching…</li>
+            <li
+              style={{
+                padding: "12px 16px",
+                fontSize: 13,
+                color: color.textDim,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Spinner size={16} />
+              Searching for "{input}"…
+            </li>
           )}
           {predictions.map((p) => (
             <li

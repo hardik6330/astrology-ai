@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { Kundali, User, Location } from '../models/index.js';
+import { Kundali, User, Location, PalmReading } from '../models/index.js';
 import { callGemini } from '../ai/gemini.js';
 import { INTERP_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
@@ -98,11 +98,36 @@ export async function generateInterpretation({ form, factSheet }) {
         }
       }
 
-      // 3. Call Gemini with the compact fact sheet (token-light).
-      const userPrompt = `${factSheet}\n\nInterpret this birth chart.`;
+      // 3. Fetch the latest palm reading for this user to synthesize with the chart.
+      const latestPalm = await PalmReading.findOne({
+        where: { userId: user.id, imageQuality: 'clear' },
+        order: [['createdAt', 'DESC']],
+      });
+
+      let palmSnippet = '';
+      if (latestPalm) {
+        const p = latestPalm.reading;
+        if (latestPalm.handType === 'Both') {
+          palmSnippet =
+            '\n\n=== AUTHORITATIVE PALM READING (Lived Reality) ===\n' +
+            `EVOLUTION STORY: ${p.comparison?.evolution}\n` +
+            `LEFT (Inborn): ${p.left?.overallVibe} | Life: ${p.left?.lifeLine} | Head: ${p.left?.headLine}\n` +
+            `RIGHT (Current): ${p.right?.overallVibe} | Life: ${p.right?.lifeLine} | Head: ${p.right?.headLine}\n` +
+            `ADVICE: ${p.comparison?.lifeAdvice}`;
+        } else {
+          palmSnippet =
+            '\n\n=== AUTHORITATIVE PALM READING (Current Imprint) ===\n' +
+            `HAND: ${latestPalm.handType}\n` +
+            `VIBE: ${p.overallVibe}\n` +
+            `LINES: Life: ${p.lifeLine} | Head: ${p.headLine} | Heart: ${p.heartLine} | Fate: ${p.fateLine}`;
+        }
+      }
+
+      // 4. Call Gemini with the compact fact sheet + palm data (token-light).
+      const userPrompt = `${factSheet}${palmSnippet}\n\nInterpret this birth chart and palm data into a single master reading.`;
       const generated = await callGemini(INTERP_SYSTEM, userPrompt, true, KUNDLI_MODELS, THINK_BUDGET.KUNDLI);
 
-      // 4. Sanitize + parse + persist (best-effort — log but don't block the response).
+      // 5. Sanitize + parse + persist (best-effort — log but don't block the response).
       const cleaned = cleanJson(generated);
       try {
         const parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;

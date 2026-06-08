@@ -225,6 +225,7 @@ export default function LoginScreen() {
   const s = useStyles(makeStyles);
 
   const floatAnim = useSharedValue(0);
+  const shakeAnim = useSharedValue(0);
 
   useEffect(() => {
     floatAnim.value = withRepeat(
@@ -240,6 +241,20 @@ export default function LoginScreen() {
   const animatedLogoStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: floatAnim.value * -15 }],
   }));
+
+  const animatedCheckboxStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeAnim.value }],
+  }));
+
+  function triggerShake() {
+    shakeAnim.value = withSequence(
+      withTiming(-10, { duration: 50 }),
+      withTiming(10,  { duration: 50 }),
+      withTiming(-10, { duration: 50 }),
+      withTiming(10,  { duration: 50 }),
+      withTiming(0,   { duration: 50 })
+    );
+  }
 
   const [phone, setPhone] = useState("");
   const [otp,   setOtp]   = useState("");
@@ -289,7 +304,10 @@ export default function LoginScreen() {
     setNotice("");
     const cleaned = phone.replace(/\D/g, "").slice(-10);
     if (cleaned.length !== 10) return setError("Enter a valid 10-digit phone number");
-    if (!agreed) return setError("Please agree to the Terms & Conditions");
+    if (!agreed) {
+      triggerShake();
+      return setError("Please agree to the Terms & Conditions");
+    }
 
     // Already on the code screen → this tap is a resend, not the first send.
     const isResend = step === "otp";
@@ -401,9 +419,9 @@ export default function LoginScreen() {
                   onPress={() => setAgreed(!agreed)} 
                   style={s.termsRow}
                 >
-                  <View style={[s.checkbox, agreed && s.checkboxChecked]}>
+                  <Animated.View style={[s.checkbox, agreed && s.checkboxChecked, animatedCheckboxStyle]}>
                     {agreed && <Text style={s.checkmark}>✓</Text>}
-                  </View>
+                  </Animated.View>
                   <Text style={s.termsText}>
                     I agree to the <Text style={s.termsLink}>Terms & Conditions</Text> and <Text style={s.termsLink}>Privacy Policy</Text>
                   </Text>

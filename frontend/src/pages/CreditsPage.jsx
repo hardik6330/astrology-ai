@@ -39,53 +39,83 @@ export default function CreditsPage() {
       <div className="cosmos"></div>
       <div className="stars"></div>
 
-      <h2 className="mb-1.5 text-center text-[22px] font-extrabold text-ink">Cosmic Credits</h2>
-      <p className="mx-auto mb-6 max-w-90 text-center text-[13px] leading-[1.6] text-dim">
-        Top up to keep unlocking readings, daily guidance, palm & chat.
-      </p>
+      <div className="text-center mb-8">
+        <h2 className="mb-2 text-[28px] font-black tracking-tight text-ink bg-gradient-to-b from-white to-[#c084fc] bg-clip-text text-transparent">
+          Cosmic Credits
+        </h2>
+        <p className="mx-auto max-w-80 text-[14px] leading-relaxed text-dim">
+          Unlock the secrets of the stars with credits for readings, guidance, and AI chat.
+        </p>
+      </div>
 
       {/* Current balance */}
-      <Card className="flex items-center justify-between" style={{ padding: 18, marginBottom: 20 }}>
-        <span className="text-[13px] text-subtle">Your balance</span>
-        <span className="inline-flex items-center gap-1.5 text-lg font-bold text-[#c084fc]">
-          ✨ {credits ?? "—"}
-        </span>
+      <Card
+        className="flex items-center justify-between overflow-hidden relative"
+        style={{ padding: "20px 24px", marginBottom: 24, border: "1px solid rgba(192,132,252,0.3)" }}
+      >
+        <div className="absolute top-0 left-0 w-1 h-full bg-[#c084fc]"></div>
+        <div className="flex flex-col">
+          <span className="text-[11px] font-bold uppercase tracking-[2px] text-dim mb-1">Your Balance</span>
+          <span className="text-2xl font-black text-ink">✨ {credits ?? "—"}</span>
+        </div>
+        <div className="text-[12px] font-medium text-[#c084fc] bg-[#c084fc]/10 px-3 py-1 rounded-full border border-[#c084fc]/20">
+          Ready to use
+        </div>
       </Card>
 
       <ErrorText>{error}</ErrorText>
 
       {loading ? (
-        <p className="mt-2 text-center text-[13px] text-dim">Loading plans…</p>
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#c084fc] border-t-transparent"></div>
+          <p className="mt-4 text-[13px] text-dim">Loading plans…</p>
+        </div>
       ) : plans.length === 0 ? (
         <p className="mt-2 text-center text-[13px] text-dim">No plans available right now.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {plans.map((p) => (
-            <Card
-              key={p.id}
-              className="relative flex flex-col items-center text-center"
-              style={{ padding: 22, marginBottom: 0 }}
-            >
-              {p.bonusLabel && (
-                <span className="absolute -top-2.5 rounded-full border border-[rgba(168,85,247,0.5)] bg-[rgba(168,85,247,0.18)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#c084fc]">
-                  {p.bonusLabel}
-                </span>
-              )}
-              <div className="mt-1 text-2xl font-bold text-ink">✨ {p.credits}</div>
-              <div className="mt-0.5 text-[12px] text-subtle">credits</div>
-              <div className="my-3 text-xl font-bold text-[#c084fc]">{formatInr(p.priceInr)}</div>
-              <Button
-                variant="magic"
-                fullWidth
-                onClick={() => {
-                  setError("");
-                  setSelected(p);
-                }}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+          {plans.map((p) => {
+            const isPopular = p.bonusLabel?.toLowerCase().includes("popular");
+            const isBestValue = p.bonusLabel?.toLowerCase().includes("value");
+
+            return (
+              <Card
+                key={p.id}
+                className={`relative flex flex-col items-center text-center transition-all duration-300 hover:scale-[1.02] ${
+                  isPopular ? "ring-2 ring-[#c084fc]/50 ring-offset-2 ring-offset-[#050508]" : ""
+                } ${isBestValue ? "border-[#fbbf24]/30" : ""}`}
+                style={{ padding: 24, marginBottom: 0 }}
               >
-                Buy
-              </Button>
-            </Card>
-          ))}
+                {p.bonusLabel && (
+                  <span
+                    className={`absolute -top-3 rounded-full px-3 py-0.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg ${
+                      isPopular
+                        ? "bg-gradient-to-r from-[#6366f1] to-[#a855f7]"
+                        : isBestValue
+                          ? "bg-gradient-to-r from-[#fbbf24] to-[#f59e0b]"
+                          : "bg-zinc-800 border border-white/10"
+                    }`}
+                  >
+                    {p.bonusLabel}
+                  </span>
+                )}
+                <div className="mt-2 text-3xl font-black text-ink">✨ {p.credits}</div>
+                <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-dim">Credits</div>
+                <div className="my-5 text-2xl font-black text-[#c084fc]">{formatInr(p.priceInr)}</div>
+                <Button
+                  variant={isPopular ? "magic" : "outline"}
+                  fullWidth
+                  className="font-black tracking-widest"
+                  onClick={() => {
+                    setError("");
+                    setSelected(p);
+                  }}
+                >
+                  BUY NOW
+                </Button>
+              </Card>
+            );
+          })}
         </div>
       )}
 

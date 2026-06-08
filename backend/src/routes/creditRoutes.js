@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as credit from '../controllers/creditController.js';
 import { readLimiter, writeLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
-import { purchaseBody, verifyPaymentBody } from '../validators/schemas.js';
+import { purchaseBody, verifyPaymentBody, verifyIapBody } from '../validators/schemas.js';
 
 const router = Router();
 
@@ -17,6 +17,7 @@ router.get('/credits/plans', readLimiter, credit.getPlans);
 // Razorpay (web) buy flow: open an order, then verify the payment signature.
 router.post('/credits/order', writeLimiter, validate(purchaseBody, 'body'), credit.createPurchaseOrder);
 router.post('/credits/verify', writeLimiter, validate(verifyPaymentBody, 'body'), credit.verifyPurchase);
+router.post('/credits/verify-iap', writeLimiter, validate(verifyIapBody, 'body'), credit.verifyIap);
 
 // Legacy mock checkout — backward compat; 400s when Razorpay is live.
 router.post('/credits/purchase', writeLimiter, validate(purchaseBody, 'body'), credit.buyPlan);

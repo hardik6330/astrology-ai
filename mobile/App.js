@@ -11,6 +11,10 @@ import ErrorBoundary from "./src/components/ErrorBoundary";
 import SplashScreen from "./src/components/SplashScreen";
 import { warmupBackend, getCredits } from "./src/services/api";
 import { setupForegroundNotifications, setupNotificationNavigation, requestDisplayPermission } from "./src/features/notifications/push";
+import { withIAPContext } from "react-native-iap";
+import Constants, { ExecutionEnvironment } from "expo-constants";
+
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 function ThemedStatusBar() {
   const { theme } = useTheme();
@@ -71,7 +75,7 @@ function AppShell() {
   );
 }
 
-export default function App() {
+function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
@@ -88,3 +92,7 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
+
+// In Expo Go, withIAPContext might crash because native modules are absent.
+// We wrap it only when NOT in Expo Go, or providing a safe fallback.
+export default isExpoGo ? App : withIAPContext(App);

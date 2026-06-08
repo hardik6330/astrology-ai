@@ -101,6 +101,21 @@ export const verifyPurchase = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
+// POST /credits/verify-iap { planId, platform, receipt, purchaseToken }
+// Verifies a Mobile IAP (Apple/Google) and grants credits.
+export const verifyIap = asyncHandler(async (req, res) => {
+  const userId = await resolveUserId(req);
+  const result = await purchase.verifyIapPayment({
+    userId,
+    planId: req.body.planId,
+    platform: req.body.platform,
+    receipt: req.body.receipt,
+    purchaseToken: req.body.purchaseToken,
+  });
+  res.locals.message = 'IAP verified';
+  res.json(result);
+});
+
 // POST /credits/purchase { planId } — legacy mock checkout. Kept for backward
 // compatibility with clients not yet on the order/verify flow. Disabled when
 // Razorpay is live so it can't be used to grant free credits in production.

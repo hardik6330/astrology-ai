@@ -7,8 +7,15 @@
 // best-effort enhancement, never a blocker for the core app).
 
 import { Platform } from "react-native";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { registerPushToken, unregisterPushToken } from "@/services/api";
 import { navigateFromNotification } from "@/navigation/navigationRef";
+
+// Firebase messaging + notifee are native modules that don't exist in Expo Go.
+// Short-circuit every entry point so the dev console isn't flooded with
+// "native module not found" warnings on each launch / screen change. In a real
+// EAS build this is false and push works normally.
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 let unsubscribeRefresh = null;
 let unsubscribeForeground = null;
@@ -33,6 +40,7 @@ function getNotifee() {
 // needed to show the banner (API 33+); the token works without it. Fire-and-
 // forget — we never block token storage on the answer.
 export async function requestDisplayPermission() {
+  if (isExpoGo) return;
   try {
     await getMessaging()().requestPermission();
   } catch (err) {
@@ -47,6 +55,7 @@ export async function requestDisplayPermission() {
 // even when notifications are denied, so we store it immediately. Permission
 // only decides whether the banner is shown, which we request separately.
 export async function registerForPush() {
+  if (isExpoGo) return;
   try {
     const messaging = getMessaging();
 
@@ -71,6 +80,7 @@ export async function registerForPush() {
 
 // Call on logout: disable the token server-side and stop listening for refresh.
 export async function unregisterForPush() {
+  if (isExpoGo) return;
   try {
     unsubscribeRefresh?.();
     unsubscribeRefresh = null;
@@ -92,6 +102,7 @@ export async function unregisterForPush() {
 //
 // Idempotent + guarded: safe to call on every app launch; a no-op in Expo Go.
 export async function setupForegroundNotifications() {
+  if (isExpoGo) return;
   try {
     const { notifee, AndroidImportance, EventType } = getNotifee();
     const messaging = getMessaging();
@@ -153,6 +164,7 @@ export async function setupForegroundNotifications() {
 //   • app was quit      → getInitialNotification returns the tap that launched it
 // Both deep-link via data.screen. Call once on app launch; no-op in Expo Go.
 export async function setupNotificationNavigation() {
+  if (isExpoGo) return;
   try {
     const messaging = getMessaging();
 

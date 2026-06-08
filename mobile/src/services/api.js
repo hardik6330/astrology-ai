@@ -294,6 +294,16 @@ export async function purchasePlan(planId) {
   return data;
 }
 
+// Verify a Mobile In-App Purchase (Apple/Google).
+// receipt is for iOS, purchaseToken is for Android.
+export async function verifyIapPayment({ planId, platform, receipt, purchaseToken }) {
+  const data = await postJSON("/credits/verify-iap", {
+    planId, platform, receipt, purchaseToken,
+  });
+  noteBalance(data.balance);
+  return data;
+}
+
 export async function chatCompletionJSON(messages, type, extra) {
   const txt = await chatCompletion(messages, type, extra);
   return JSON.parse(txt.replace(/```json|```/g, "").trim());

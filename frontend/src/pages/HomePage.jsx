@@ -23,6 +23,7 @@ export default function HomePage() {
   const location = useLocation();
   const { form, setForm, chart, setChart, setInterp, setDaily, setChatMsgs, hydrating } = useChart();
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   // Per-field errors keyed by field name (name/date/time/city). Cleared as
   // soon as the user fixes that field.
   const [fieldErrors, setFieldErrors] = useState({});
@@ -32,8 +33,8 @@ export default function HomePage() {
   // (e.g. "New Reading" / "Update Birth Details" pass `state.edit = true`).
   const editMode = !!location.state?.edit;
   useEffect(() => {
-    if (chart && !editMode) navigate("/reading", { replace: true });
-  }, [chart, editMode, navigate]);
+    if (chart && !editMode && !submitting) navigate("/reading", { replace: true });
+  }, [chart, editMode, navigate, submitting]);
 
   const set = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -97,6 +98,7 @@ export default function HomePage() {
     }
     setFieldErrors({});
     setError("");
+    setSubmitting(true);
     try {
       const ch = computeChart(form.date, form.time, {
         n: form.city,
@@ -116,6 +118,7 @@ export default function HomePage() {
       navigate("/palm-step");
     } catch (e) {
       setError(e.message);
+      setSubmitting(false);
     }
   }
 

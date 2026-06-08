@@ -81,42 +81,28 @@ export default function ProfileScreen({ navigation }) {
 
       {/* Cosmic Credits — the only place the balance is shown. */}
       <CosmicCard style={[s.creditsCard, low && s.creditsCardLow]}>
+        <View style={s.balanceIndicator} />
         <View style={s.creditsTopRow}>
-          <View style={s.creditsLabelWrap}>
-            <Text style={s.creditsSpark}>✨</Text>
-            <Text style={s.creditsLabel}>Cosmic Credits</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.creditsLabel}>COSMIC CREDITS</Text>
+            <Text style={[s.creditsValue, { color: low ? color.danger : color.primaryLight }]}>
+              ✨ {credits == null ? "—" : credits}
+            </Text>
           </View>
-          <Text style={[s.creditsValue, { color: low ? color.danger : color.primaryLight }]}>
-            {credits == null ? "—" : credits}
-          </Text>
+          <MagicButton
+            size="sm"
+            variant={low ? "primary" : "ghost"}
+            onPress={() => navigation.navigate("Credits")}
+            style={s.buyBtn}
+          >
+            Buy Credits
+          </MagicButton>
         </View>
         <Text style={s.creditsSub}>
           {low
             ? "Low balance — top up to keep using AI features."
-            : "Spent on AI readings, daily guidance, chat and palm."}
+            : "Use credits for AI readings, daily guidance, chat and palm readings."}
         </Text>
-        {costs && (
-          <View style={s.costsRow}>
-            {[
-              ["Insights", costs.insights],
-              ["Daily", costs.daily],
-              ["Chat", costs.chat],
-              ["Palm", costs.palm],
-            ].map(([l, v]) => (
-              <View key={l} style={s.costChip}>
-                <Text style={s.costChipLabel}>{l}</Text>
-                <Text style={s.costChipValue}>{v}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-        <MagicButton
-          style={{ marginTop: spacing.md }}
-          variant={low ? "primary" : "ghost"}
-          onPress={() => navigation.navigate("Credits")}
-        >
-          Buy Credits
-        </MagicButton>
       </CosmicCard>
 
       {chart && (
@@ -214,22 +200,33 @@ const makeStyles = (c) =>
     miniLabel: { color: c.textMuted, fontSize: 10, marginTop: 6, textTransform: "uppercase" },
     miniValue: { color: c.text, fontSize: 12, lineHeight: 20, fontWeight: "700", marginTop: 4 },
 
-    creditsCard: { borderColor: c.primaryBorder },
-    creditsCardLow: { borderColor: "rgba(248,113,113,0.45)", backgroundColor: "rgba(248,113,113,0.06)" },
-    creditsTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    creditsLabelWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
-    creditsSpark: { fontSize: 16 },
-    creditsLabel: { color: c.text, fontSize: fontSize.md, fontWeight: "700" },
-    creditsValue: { fontSize: 26, fontWeight: "800" },
-    creditsSub: { color: c.textMuted, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
-    costsRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
-    costChip: {
-      flex: 1, alignItems: "center",
-      backgroundColor: c.inputBg,
-      borderRadius: radius.md, paddingVertical: 8,
+    creditsCard: {
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      borderColor: c.bg === "#050508" ? "rgba(168,85,247,0.3)" : "rgba(168,85,247,0.15)",
+      overflow: "hidden",
+      borderWidth: 1,
+      backgroundColor: c.cardBgSolid,
+      // Softer shadow for light mode
+      shadowOpacity: c.bg === "#050508" ? 0.2 : 0.05,
+      shadowRadius: 10,
     },
-    costChipLabel: { color: c.textMuted, fontSize: 9.5, textTransform: "uppercase", letterSpacing: 0.5 },
-    costChipValue: { color: c.primaryLight, fontSize: 14, fontWeight: "700", marginTop: 2 },
+    creditsCardLow: { 
+      borderColor: "rgba(248,113,113,0.3)", 
+      backgroundColor: c.bg === "#050508" ? "rgba(248,113,113,0.04)" : "#fffafb" 
+    },
+    balanceIndicator: {
+      position: "absolute",
+      top: 0, left: 0, bottom: 0,
+      width: 4,
+      backgroundColor: c.primaryLight,
+      opacity: 0.9,
+    },
+    creditsTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    creditsLabel: { color: c.textMuted, fontSize: 10, fontWeight: "800", letterSpacing: 1.5, marginBottom: 2 },
+    creditsValue: { fontSize: 24, fontWeight: "900" },
+    creditsSub: { color: c.textMuted, fontSize: 11, lineHeight: 16, marginTop: 8 },
+    buyBtn: { minWidth: 110, paddingVertical: 8 },
 
     cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 22, fontWeight: "700", marginBottom: spacing.md },
     detailRow: {

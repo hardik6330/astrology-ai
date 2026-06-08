@@ -1,5 +1,5 @@
-import React, { useRef } from "react";
-import { View, Text } from "react-native";
+import React, { useRef, useEffect } from "react";
+import { View, Text, BackHandler, ToastAndroid, Platform } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { logScreenView } from "../features/notifications/analytics";
@@ -39,9 +39,38 @@ function MainDrawer() {
   // set synchronously by applySavedForm before login flips the token, so it's
   // already present when this drawer first mounts.
   const { chart } = useChart();
+  const initialRoute = chart ? "Reading" : "Home";
+
+  useEffect(() => {
+    let backPressCount = 0;
+    const onBackPress = () => {
+      // If we can go back in the stack/drawer history, let React Navigation handle it.
+      if (navigationRef.current?.canGoBack()) {
+        return false;
+      }
+
+      // If we are on the initial screen and can't go back further, handle double-tap to exit on Android.
+      if (Platform.OS === "android") {
+        if (backPressCount === 0) {
+          backPressCount++;
+          ToastAndroid.show("Press back again to exit", ToastAndroid.SHORT);
+          setTimeout(() => { backPressCount = 0; }, 2000);
+          return true;
+        }
+        BackHandler.exitApp();
+        return true;
+      }
+      
+      return false;
+    };
+
+    BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+  }, []);
+
   return (
     <Drawer.Navigator
-      initialRouteName={chart ? "Reading" : "Home"}
+      initialRouteName={initialRoute}
       drawerContent={(props) => <DrawerContent {...props} />}
       screenOptions={{
         headerShown: false,
@@ -53,6 +82,9 @@ function MainDrawer() {
         overlayColor: "rgba(0,0,0,0.55)",
         sceneContainerStyle: { backgroundColor: color.bg },
         swipeEdgeWidth: 40,
+        // "history" means the back button will go back through the drawer
+        // items visited. This prevents jumping straight to Home/Reading.
+        backBehavior: "history",
       }}
     >
       <Drawer.Screen name="Home"     component={HomeScreen} />
@@ -82,12 +114,18 @@ function MainDrawer() {
 
 export default function RootNavigator() {
   const { token, hydrating } = useAuth();
+  // Chart hydration is async too. We must not mount the drawer until it's
+  // settled — otherwise MainDrawer's initialRoute is computed with chart=null,
+  // lands on Home ("step 1"), then bounces to Reading via redirectToReading,
+  // leaving a stale Home at the bottom of the back history. Waiting here makes
+  // initialRoute deterministic so back order is a clean Credits → Profile → Reading.
+  const { hydrated: chartHydrated } = useChart();
   // navigationRef is the shared container ref (also used by push-tap handlers).
   const routeNameRef = useRef();
 
   // While AsyncStorage is being read, show a neutral placeholder so we
   // don't flash the Login screen over a valid existing session.
-  if (hydrating) {
+  if (hydrating || (token && !chartHydrated)) {
     return (
       <View style={{ flex: 1, backgroundColor: color.bg, alignItems: "center", justifyContent: "center" }}>
         <Text style={{ color: color.textDim, fontSize: 28 }}>✨</Text>

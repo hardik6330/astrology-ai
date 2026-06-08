@@ -13,6 +13,7 @@ const CreditPlan = sequelize.define('CreditPlan', {
     defaultValue: () => genId(),
   },
   name:      { type: DataTypes.STRING(80), allowNull: false },
+  productId: { type: DataTypes.STRING(100), allowNull: true },     // IAP SKU (e.g. com.astro.100)
   credits:   { type: DataTypes.INTEGER, allowNull: false },        // granted on purchase
   priceInr:  { type: DataTypes.INTEGER, allowNull: false },        // price in paise (₹1 = 100)
   // Optional marketing badge, e.g. "Most Popular" / "Best Value".

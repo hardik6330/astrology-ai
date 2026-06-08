@@ -42,6 +42,9 @@ const schema = z.object({
   // KEY_ID is also returned to the web client to open Checkout (safe to expose).
   RAZORPAY_KEY_ID:     z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
+  // Apple App Store / Google Play Store IAP — OPTIONAL.
+  APPLE_IAP_SECRET:    z.string().optional(),
+  GOOGLE_IAP_SERVICE_ACCOUNT_JSON: z.string().optional(), // Path to JSON file
 });
 
 const parsed = schema.safeParse(process.env);
