@@ -17,6 +17,9 @@ import NotificationTemplate from './NotificationTemplate.js';
 User.hasOne(Kundali, { foreignKey: 'userId', onDelete: 'CASCADE' });
 Kundali.belongsTo(User, { foreignKey: 'userId' });
 
+Location.hasMany(Kundali, { foreignKey: 'locationId', onDelete: 'SET NULL' });
+Kundali.belongsTo(Location, { foreignKey: 'locationId' });
+
 User.hasMany(DailyData, { foreignKey: 'userId', onDelete: 'CASCADE' });
 DailyData.belongsTo(User, { foreignKey: 'userId' });
 

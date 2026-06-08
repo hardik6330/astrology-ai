@@ -3,7 +3,7 @@
 // boilerplate now lives in @/common/apiClient; this module keeps the
 // domain-specific bits (auth 401-redirect, phone scoping, content double-parse).
 
-import { API_BASE as API_URL, request, unwrap } from "@/common/apiClient";
+import { API_BASE as API_URL, request, unwrap, handleUnauthorized } from "@/common/apiClient";
 import { tokenStore } from "@/common/tokenStore";
 import { noteBalance } from "@/common/creditsStore";
 import { noteCosts } from "@/common/costsStore";
@@ -72,20 +72,14 @@ function formParams(form) {
 }
 
 // Every authenticated request goes through here so the Bearer token is
-// attached centrally. On 401 we clear the token and reload — the router
-// will then bounce the user to /login.
+// attached centrally. `request()` in apiClient handles the 401 -> /login redirect.
 export async function authFetch(url, init = {}) {
   const token = appToken.get();
   const headers = new Headers(init.headers || {});
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const res = await fetch(url, { ...init, headers });
-  if (res.status === 401) {
-    appToken.remove();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      window.location.assign("/login");
-    }
-  }
+  if (res.status === 401) handleUnauthorized();
   return res;
 }
 

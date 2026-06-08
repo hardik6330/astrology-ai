@@ -9,6 +9,7 @@ const Kundali = sequelize.define('Kundali', {
     defaultValue: () => genId(),
   },
   userId:         { type: DataTypes.STRING(24), allowNull: false },
+  locationId:     { type: DataTypes.STRING(24), allowNull: true },
   chartData:      { type: DataTypes.JSON, allowNull: false },
   interpretation: { type: DataTypes.JSON, allowNull: false },
 }, { timestamps: true });

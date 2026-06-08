@@ -4,6 +4,8 @@
 // failure. Both the user-facing services/api.js and the admin adminApi.js
 // build on this so the fetch/headers/error/JSON boilerplate lives in one place.
 
+import { tokenStore } from "./tokenStore";
+
 // API URL resolution:
 // 1. VITE_API_URL set to a non-localhost value (real ngrok/prod) → use as-is.
 // 2. Otherwise derive from the page hostname + port 5000, so opening the app on
@@ -21,6 +23,17 @@ export const API_BASE =
 // without the envelope (legacy / non-/api endpoints) pass through untouched.
 export function unwrap(body) {
   return body && body.success === true && "data" in body ? body.data : body;
+}
+
+/**
+ * Shared 401 handler — clears the token and bounces to /login.
+ */
+export function handleUnauthorized() {
+  tokenStore("app_token").remove();
+  tokenStore("app_account").remove();
+  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+    window.location.assign("/login");
+  }
 }
 
 /**
@@ -43,6 +56,12 @@ export async function request(path, { method = "GET", body, token, headers = {},
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    // On 401 Unauthorized (expired or invalid token) we clear the stored
+    // credentials and bounce to /login.
+    if (res.status === 401) {
+      handleUnauthorized();
+    }
+
     const err = new Error(data.error || `Request failed (HTTP ${res.status})`);
     err.status = res.status;
     if (data.code) err.code = data.code;

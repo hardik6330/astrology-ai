@@ -46,6 +46,13 @@ export const API_URL =
     ? ENV_URL
     : deriveDevUrl();
 
+// 401 Unauthorized observer. AuthContext registers a listener here so we can
+// trigger a global logout from deep inside the API layer.
+let unauthorizedHandler = null;
+export function onUnauthorized(handler) {
+  unauthorizedHandler = handler;
+}
+
 // Fetch wrapper: adds a per-request timeout, one automatic retry for
 // "Network request failed" (Vercel cold start, DNS hiccup, momentary
 // loss of Wi-Fi), and surfaces the actual URL + cause in the thrown error.
@@ -98,6 +105,9 @@ async function postJSON(endpoint, body) {
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify(body),
   });
+  if (res.status === 401 && unauthorizedHandler) {
+    unauthorizedHandler();
+  }
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
     const err = new Error(errBody.error || `AI service unavailable (HTTP ${res.status})`);
@@ -113,6 +123,9 @@ async function getJSON(endpoint, params) {
   const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
   const url = `${API_URL}${endpoint}${qs}`;
   const res = await fetchWithRetry(url, { headers: { ...(await authHeaders()) } });
+  if (res.status === 401 && unauthorizedHandler) {
+    unauthorizedHandler();
+  }
   if (res.status === 404) return null;
   if (!res.ok) {
     const err = new Error(`Failed to load (HTTP ${res.status}) → ${url}`);

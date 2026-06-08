@@ -7,7 +7,7 @@
 
 import { Op } from 'sequelize';
 import { verifyIdToken } from '../config/firebase.js';
-import { AuthAccount, User, Location } from '../models/index.js';
+import { AuthAccount, User, Location, Kundali } from '../models/index.js';
 import { ensureUserForPhone } from './userService.js';
 import { signAppToken } from '../middleware/auth.js';
 import { AppError } from '../errors/AppError.js';
@@ -31,10 +31,14 @@ export async function findSavedFormByPhone(phone) {
   });
   if (!user) return null;
   // The User table doesn't yet carry lat/lon/tz — look up the cached
-  // Location row by city name so the client can rebuild the chart without
-  // forcing the user back through the picker. Falls back to nulls when the
-  // city isn't in the cache (returning user will be sent to re-pick).
-  const loc = await Location.findOne({ where: { searchName: user.birthCity } });
+  // Location row by locationId from the user's kundali, falling back to
+  // city name lookup. This ensures the client can rebuild the chart without
+  // forcing the user back through the picker.
+  const kundali = await Kundali.findOne({ where: { userId: user.id } });
+  const loc = kundali?.locationId
+    ? await Location.findByPk(kundali.locationId)
+    : await Location.findOne({ where: { searchName: user.birthCity } });
+
   return {
     name:    user.name,
     gender:  user.gender || '',

@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { Kundali, User } from '../models/index.js';
+import { Kundali, User, Location } from '../models/index.js';
 import { callGemini } from '../ai/gemini.js';
 import { INTERP_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
@@ -51,6 +51,17 @@ export async function generateInterpretation({ form, factSheet }) {
       userId: user.id, costKey: 'insights_cost', reason: 'insights',
     });
 
+    // Resolve locationId from the form (placeId) or city name lookup.
+    let locationId = null;
+    if (form.placeId) {
+      const loc = await Location.findOne({ where: { placeId: form.placeId } });
+      locationId = loc?.id || null;
+    }
+    if (!locationId && form.city) {
+      const loc = await Location.findOne({ where: { searchName: form.city } });
+      locationId = loc?.id || null;
+    }
+
     try {
       // 2. Same birth data already interpreted for ANOTHER user (different
       //    phone)? Reuse the existing chart + interpretation — chart math is
@@ -74,6 +85,7 @@ export async function generateInterpretation({ form, factSheet }) {
           try {
             await Kundali.create({
               userId: user.id,
+              locationId: siblingKundali.locationId,
               chartData: siblingKundali.chartData,
               interpretation: siblingKundali.interpretation,
             });
@@ -96,6 +108,7 @@ export async function generateInterpretation({ form, factSheet }) {
         const parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
         await Kundali.create({
           userId: user.id,
+          locationId,
           chartData: { factSheet },
           interpretation: parsed,
         });

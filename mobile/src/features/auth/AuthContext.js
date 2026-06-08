@@ -4,7 +4,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { verifyOtp, dummyLogin, primeAuthPhone } from "@/services/api";
+import { verifyOtp, dummyLogin, primeAuthPhone, onUnauthorized } from "@/services/api";
 import { registerForPush, unregisterForPush } from "@/features/notifications/push";
 import { logEvent } from "@/features/notifications/analytics";
 
@@ -16,6 +16,14 @@ export function AuthProvider({ children }) {
   const [token, setToken]     = useState(null);
   const [account, setAccount] = useState(null);
   const [hydrating, setHydrating] = useState(true);
+
+  // Global 401 listener: if any API call returns Unauthorized (token expired),
+  // trigger a local logout to bounce the user back to Login.
+  useEffect(() => {
+    onUnauthorized(() => {
+      logout();
+    });
+  }, [token]);
 
   useEffect(() => {
     (async () => {
