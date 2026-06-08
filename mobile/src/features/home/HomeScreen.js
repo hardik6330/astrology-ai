@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Platform, Pressable, Switch } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import { View, Text, StyleSheet, Platform, Pressable, Switch, TextInput, BackHandler } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import Animated, { 
   useSharedValue, useAnimatedStyle, withRepeat, withTiming, 
-  withSequence, Easing, FadeIn, FadeOut 
+  withSequence, Easing, FadeIn, FadeOut, LinearTransition 
 } from "react-native-reanimated";
 import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
@@ -21,32 +23,61 @@ import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
 
 const GENDERS = [
-  { label: "Male",   value: "Male" },
-  { label: "Female", value: "Female" },
-  { label: "Other",  value: "Other" },
+  { label: "Male",   value: "Male",   sub: "He / Him",   icon: "male-outline" },
+  { label: "Female", value: "Female", sub: "She / Her",  icon: "female-outline" },
+  { label: "Non-binary / Other",  value: "Other", sub: "They / Them", icon: "transgender-outline" },
 ];
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
   const {
     form, setForm, chart, setChart, resetReading,
     redirectToReading, consumeRedirect,
   } = useChart();
-  const { colors: color } = useTheme();
-  const [step, setStep] = useState(1);
+  const { colors: color, mode } = useTheme();
+  const [step, setStep] = useState(route.params?.step || 1);
   const [error, setError] = useState("");
+
+  // Update step if route params change (e.g. coming back from PalmStep)
+  useEffect(() => {
+    if (route.params?.step) {
+      setStep(route.params.step);
+    }
+  }, [route.params?.step]);
+
+  // Android hardware back button logic
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (step === 2) {
+          setStep(1);
+          return true; // handled
+        }
+        // If step is 1 and no chart exists, let the app exit (default behavior or RootNavigator handles)
+        if (!chart) {
+          return false; // let it bubble up to exit
+        }
+        return false;
+      };
+
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => subscription.remove();
+    }, [step, chart])
+  );
   // Freeze the page scroll while the city dropdown is open so the list scrolls.
   const [suggestOpen, setSuggestOpen] = useState(false);
   const styles = useStyles(makeStyles);
 
-  const progress = useSharedValue(0.5); // 0.5 for step 1, 1.0 for step 2
+  // In the screenshots, there are 2 segments now as per user request.
+  const progress1 = useSharedValue(step >= 1 ? 1 : 0);
+  const progress2 = useSharedValue(step >= 2 ? 1 : 0);
 
   useEffect(() => {
-    progress.value = withTiming(step === 1 ? 0.5 : 1, { duration: 500 });
+    progress1.value = withTiming(step >= 1 ? 1 : 0, { duration: 400 });
+    progress2.value = withTiming(step >= 2 ? 1 : 0, { duration: 400 });
   }, [step]);
 
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
-  }));
+  const p1Style = useAnimatedStyle(() => ({ width: `${progress1.value * 100}%` }));
+  const p2Style = useAnimatedStyle(() => ({ width: `${progress2.value * 100}%` }));
 
   // Hide the side-menu trigger on first visit (before any chart exists)
   // so a freshly logged-in user is funnelled into filling the form.
@@ -139,125 +170,169 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <ScreenContainer showMenu={false} scrollEnabled={!suggestOpen}>
-      <View style={styles.headerRow}>
-        {showMenu ? <MenuButton /> : <View style={{ width: 40 }} />}
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle} numberOfLines={1}>Discover Your Stars</Text>
-          <Text style={styles.headerSub} numberOfLines={1}>
-            Step {step} of 2: {step === 1 ? "Basic Details" : "Birth Details"}
+      <View style={styles.headerArea}>
+        <View style={styles.progressRow}>
+          <View style={styles.progressSegment}>
+            <Animated.View style={[styles.progressFill, p1Style]} />
+          </View>
+          <View style={styles.progressSegment}>
+            <Animated.View style={[styles.progressFill, p2Style]} />
+          </View>
+        </View>
+
+        <View style={styles.titleRow}>
+          <Text style={styles.mainTitle}>
+            {step === 1 ? "Tell us about you" : "Your birth moment"}
+          </Text>
+          <Text style={styles.subTitle}>
+            {step === 1 
+              ? "So Nummi can personalize your experience." 
+              : `The moment the stars aligned for you, ${form.name.split(' ')[0]}.`}
           </Text>
         </View>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressBar, progressStyle]} />
       </View>
 
       {step === 1 ? (
-        <CosmicCard>
-          <Animated.View entering={FadeIn.duration(400)} exiting={FadeOut.duration(400)}>
-            <View style={styles.field}>
-              <Label>Full Name</Label>
-              <PremiumInput
-                value={form.name}
-                onChangeText={(v) => { set("name", v); setError(""); }}
-                placeholder="Enter your name..."
-                autoCapitalize="words"
-                error={error.includes("name")}
-              />
-              {error.includes("name") && <Text style={styles.fieldErrorText}>{error}</Text>}
-            </View>
-            <View style={styles.field}>
-              <Label>Gender</Label>
-              <Picker
-                value={form.gender}
-                onChange={(v) => { set("gender", v); setError(""); }}
-                options={GENDERS}
-                placeholder="Select gender"
-                error={error.includes("gender")}
-              />
-              {error.includes("gender") && <Text style={styles.fieldErrorText}>{error}</Text>}
-            </View>
+        <Animated.View entering={FadeIn.duration(400)} exiting={FadeOut.duration(400)}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>What should we call you?</Text>
+            <TextInput
+              value={form.name}
+              onChangeText={(v) => { set("name", v); setError(""); }}
+              placeholder="Enter your name"
+              placeholderTextColor={color.textMuted}
+              style={[styles.bigInput, error.includes("name") && styles.inputError]}
+              autoCapitalize="words"
+            />
+            {error.includes("name") && <Text style={styles.errorText}>{error}</Text>}
+          </View>
 
-            <MagicButton onPress={nextStep} style={{ marginTop: spacing.md }}>
-              Continue ➔
-            </MagicButton>
-          </Animated.View>
-        </CosmicCard>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>How do you identify?</Text>
+            <View style={styles.genderList}>
+              {GENDERS.map((g) => {
+                const isSelected = form.gender === g.value;
+                return (
+                  <Pressable
+                    key={g.value}
+                    onPress={() => { set("gender", g.value); setError(""); haptics.selection(); }}
+                    style={[
+                      styles.genderCard,
+                      isSelected && styles.genderCardActive,
+                      error.includes("gender") && styles.inputError,
+                    ]}
+                  >
+                    <View style={styles.genderIconContainer}>
+                      <Ionicons 
+                        name={g.icon} 
+                        size={24} 
+                        color={isSelected ? color.primary : color.textDim} 
+                      />
+                    </View>
+                    <View style={styles.genderTextContainer}>
+                      <Text style={[styles.genderLabel, isSelected && styles.genderLabelActive]}>{g.label}</Text>
+                      <Text style={styles.genderSub}>{g.sub}</Text>
+                    </View>
+                    <View style={[styles.radio, isSelected && styles.radioActive]}>
+                      {isSelected && <View style={styles.radioInner} />}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {error.includes("gender") && <Text style={styles.errorText}>{error}</Text>}
+          </View>
+
+          <MagicButton 
+            onPress={nextStep} 
+            style={styles.continueBtn}
+            disabled={!form.name || !form.gender}
+          >
+            Continue
+          </MagicButton>
+        </Animated.View>
       ) : (
         <Animated.View entering={FadeIn.duration(400)} exiting={FadeOut.duration(400)}>
-          <Text style={styles.personalizedMsg}>
-            {form.name.split(' ')[0]}, please enter your birth details so we can find your destiny.
-          </Text>
-          
-
-          <CosmicCard>
-            <View style={styles.row}>
-              <View style={styles.col}>
-                <Label>Birth Date</Label>
-                <DateField 
-                  value={form.date} 
-                  onChange={(v) => { set("date", v); setError(""); }} 
-                  mode="date" 
-                  error={error.includes("date")}
-                />
-                {error.includes("date") && <Text style={styles.fieldErrorText}>{error}</Text>}
-              </View>
-              <View style={styles.col}>
-                <Label>Birth Time</Label>
-                <DateField 
-                  value={form.time} 
-                  onChange={(v) => { set("time", v); setError(""); }} 
-                  mode="time" 
-                  error={error.includes("time")}
-                  disabled={form.unknownTime}
-                />
-                {error.includes("time") && <Text style={styles.fieldErrorText}>{error}</Text>}
-              </View>
-            </View>
-
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleText}>I don't know my exact birth time</Text>
-              <Switch
-                value={form.unknownTime || false}
-                onValueChange={(v) => {
-                  set("unknownTime", v);
-                  if (v) {
-                    set("time", "12:00");
-                    setError("");
-                  }
-                }}
-                trackColor={{ false: color.cardBorder, true: color.primary }}
-                thumbColor={Platform.OS === "ios" ? undefined : (form.unknownTime ? "#fff" : "#f4f3f4")}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>What's your birth date?</Text>
+            <Pressable 
+              style={[styles.selectionCard, error.includes("date") && styles.inputError]}
+              onPress={() => setStep(2)} // DateField will handle its own modal
+            >
+              <DateField 
+                value={form.date} 
+                onChange={(v) => { set("date", v); setError(""); }} 
+                mode="date" 
+                customStyle
               />
-            </View>
+            </Pressable>
+            {error.includes("date") && <Text style={styles.errorText}>{error}</Text>}
+          </View>
 
-            <View style={styles.field}>
-              <Label>Birth City</Label>
-              <CitySearch
-                value={form.city}
-                birthTimestamp={birthTimestamp}
-                onSelect={(picked, err) => { onCitySelected(picked, err); setError(""); }}
-                onOpenChange={setSuggestOpen}
-                error={error.includes("city")}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Birth time (if known)</Text>
+            <Pressable 
+              style={[
+                styles.selectionCard, 
+                error.includes("time") && styles.inputError,
+                form.unknownTime && { opacity: 0.5 }
+              ]}
+            >
+              <DateField 
+                value={form.time} 
+                onChange={(v) => { set("time", v); setError(""); }} 
+                mode="time" 
+                disabled={form.unknownTime}
+                customStyle
               />
-              {error.includes("city") && <Text style={styles.fieldErrorText}>{error}</Text>}
-            </View>
+            </Pressable>
+            {error.includes("time") && <Text style={styles.errorText}>{error}</Text>}
+          </View>
 
-            <View style={styles.btnRow}>
-              <MagicButton 
-                onPress={() => setStep(1)} 
-                variant="ghost" 
-                style={{ flex: 1, marginRight: spacing.sm }}
-              >
-                Back
-              </MagicButton>
-              <MagicButton onPress={generate} style={{ flex: 2 }}>
-                Reveal My Destiny ↗
-              </MagicButton>
-            </View>
-          </CosmicCard>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>I don't know my exact birth time</Text>
+            <Switch
+              value={form.unknownTime || false}
+              onValueChange={(v) => {
+                set("unknownTime", v);
+                if (v) {
+                  set("time", "12:00");
+                  setError("");
+                }
+              }}
+              trackColor={{ false: color.cardBorder, true: color.primary }}
+              thumbColor={Platform.OS === "ios" ? undefined : (form.unknownTime ? "#fff" : "#f4f3f4")}
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Where were you born?</Text>
+            <CitySearch
+              value={form.city}
+              birthTimestamp={birthTimestamp}
+              onSelect={(picked, err) => { onCitySelected(picked, err); setError(""); }}
+              onOpenChange={setSuggestOpen}
+              error={error.includes("city")}
+              customStyle
+            />
+            {error.includes("city") && <Text style={styles.errorText}>{error}</Text>}
+          </View>
+
+          <View style={styles.btnRow}>
+            <MagicButton 
+              onPress={() => setStep(1)} 
+              variant="ghost" 
+              style={styles.backBtn}
+            >
+              Back
+            </MagicButton>
+            <MagicButton 
+              onPress={generate} 
+              style={styles.flexBtn}
+            >
+              Continue
+            </MagicButton>
+          </View>
         </Animated.View>
       )}
     </ScreenContainer>
@@ -266,37 +341,165 @@ export default function HomeScreen({ navigation }) {
 
 const makeStyles = (c) =>
   StyleSheet.create({
-    headerRow: {
+    headerArea: {
+      marginTop: spacing.xl,
+      marginBottom: spacing.xl,
+    },
+    progressRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginBottom: spacing.xl,
+    },
+    progressSegment: {
+      flex: 1,
+      height: 4,
+      backgroundColor: c.cardBorder, // More visible track in both modes
+      borderRadius: 2,
+      overflow: "hidden",
+    },
+    progressFill: {
+      height: "100%",
+      backgroundColor: c.primary, // Using theme primary color instead of hardcoded hex
+    },
+
+    titleRow: {
+      marginBottom: spacing.lg,
+    },
+    mainTitle: {
+      fontSize: 32,
+      fontWeight: "900",
+      color: c.text,
+      marginBottom: spacing.xs,
+    },
+    subTitle: {
+      fontSize: 16,
+      color: c.textDim,
+      lineHeight: 24,
+    },
+
+    fieldGroup: {
+      marginBottom: spacing.xl,
+    },
+    fieldLabel: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: c.text,
+      marginBottom: spacing.md,
+    },
+    bigInput: {
+      backgroundColor: c.cardBgSolid,
+      borderWidth: 1,
+      borderColor: c.cardBorder,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.lg,
+      fontSize: 18,
+      color: c.text,
+    },
+    
+    genderList: {
+      gap: spacing.md,
+    },
+    genderCard: {
       flexDirection: "row",
       alignItems: "center",
-      gap: spacing.sm,
-      marginBottom: spacing.lg,
-      marginTop: spacing.xl * 1.5,
+      backgroundColor: c.cardBgSolid,
+      borderWidth: 1,
+      borderColor: c.cardBorder,
+      borderRadius: radius.lg,
+      padding: spacing.md,
     },
-    headerTitle: { color: c.primaryLight, fontSize: 24, lineHeight: 32, fontWeight: "800", textAlign: "center" },
-    headerSub:   { color: c.textMuted, fontSize: 14, marginTop: 4, textAlign: "center", paddingHorizontal: spacing.md },
-
-    personalizedMsg: {
-      color: c.primaryLight,
+    genderCardActive: {
+      borderColor: c.primary,
+      backgroundColor: c.primarySoft,
+    },
+    genderIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: c.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: spacing.md,
+    },
+    genderTextContainer: {
+      flex: 1,
+    },
+    genderLabel: {
       fontSize: 16,
-      fontWeight: "600",
-      textAlign: "center",
-      marginBottom: spacing.lg,
-      lineHeight: 24,
-      paddingHorizontal: spacing.md,
+      fontWeight: "700",
+      color: c.text,
+    },
+    genderLabelActive: {
+      color: c.primary,
+    },
+    genderSub: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: 2,
+    },
+    radio: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: c.cardBorder,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    radioActive: {
+      borderColor: c.primary,
+    },
+    radioInner: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: c.primary,
     },
 
-    row:     { flexDirection: "row", gap: spacing.md, marginBottom: spacing.md },
-    col:     { flex: 1, minWidth: 0 },
-    field:   { marginBottom: spacing.md },
-    btnRow:  { flexDirection: "row", marginTop: spacing.md },
+    selectionCard: {
+      backgroundColor: c.cardBgSolid,
+      borderWidth: 1,
+      borderColor: c.cardBorder,
+      borderRadius: radius.lg,
+      overflow: "hidden",
+    },
 
     toggleRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      marginBottom: spacing.md,
-      paddingHorizontal: 2,
+      marginBottom: spacing.xl,
+    },
+    toggleLabel: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: c.text,
+    },
+
+    btnRow: {
+      flexDirection: "row",
+      gap: spacing.md,
+      marginTop: spacing.md,
+    },
+    backBtn: {
+      flex: 1,
+    },
+    flexBtn: {
+      flex: 2,
+    },
+    continueBtn: {
+      marginTop: spacing.xl,
+    },
+
+    inputError: {
+      borderColor: c.danger,
+    },
+    errorText: {
+      color: c.danger,
+      fontSize: 12,
+      marginTop: 4,
+      marginLeft: spacing.sm,
     },
     toggleText: {
       color: c.textDim,

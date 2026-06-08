@@ -22,7 +22,7 @@ export const makeStyles = (c) => StyleSheet.create({
     marginBottom: spacing.lg,
   },
 
-  cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 22, fontWeight: "700", marginBottom: 4 },
+  cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 26, fontWeight: "700", marginBottom: 4, includeFontPadding: false },
   cardSub:   { color: c.textMuted, fontSize: 11, marginBottom: spacing.md },
 
   aiBusyCard: {
@@ -131,7 +131,7 @@ export const makeStyles = (c) => StyleSheet.create({
     backgroundColor: "rgba(168,85,247,0.12)",
     marginBottom: 12,
   },
-  handBadgeIcon: { fontSize: 14, lineHeight: 18 },
+  handBadgeIcon: { fontSize: 14, lineHeight: 20, includeFontPadding: false },
   handBadgeText: { color: c.primaryLight, fontSize: 12, fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase" },
 
   scanFrame: {
@@ -174,11 +174,14 @@ export const makeStyles = (c) => StyleSheet.create({
     color: c.text, fontSize: 17, fontStyle: "italic", textAlign: "center", lineHeight: 26,
   },
 
+  // Emoji needs a generous lineHeight + no extra font padding, else Android
+  // clips the glyph's top/bottom. Fixed width keeps the titles aligned.
+  lineIcon:  { fontSize: 22, lineHeight: 32, width: 34, marginRight: 8, textAlign: "center", includeFontPadding: false },
   lineTitle: { color: c.text, fontSize: 15, lineHeight: 22, fontWeight: "700", letterSpacing: 0.5 },
   lineBody:  { color: c.textDim, fontSize: 13, lineHeight: 22 },
 
   halfCard:  { padding: spacing.md },
-  halfTitle: { fontSize: 14, lineHeight: 20, fontWeight: "700", marginBottom: 12 },
+  halfTitle: { fontSize: 14, lineHeight: 22, fontWeight: "700", marginBottom: 12, includeFontPadding: false },
   bulletRow: { flexDirection: "row", marginBottom: 8 },
   bulletText:{ flex: 1, color: c.textDim, fontSize: 13.5, lineHeight: 19 },
 

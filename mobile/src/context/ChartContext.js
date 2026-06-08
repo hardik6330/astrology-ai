@@ -60,6 +60,11 @@ export function ChartProvider({ children }) {
   const [palmLowCredits, setPalmLowCredits] = useState(false);
   const [palmLeftPhoto, setPalmLeftPhoto]   = useState(null);
   const [palmRightPhoto, setPalmRightPhoto] = useState(null);
+  // MediaPipe landmarks for the current palmPhoto (for the skeleton overlay).
+  // { keypoints: [{x, y}...], imgW, imgH }
+  const [palmLandmarks, setPalmLandmarks]   = useState(null);
+  const [palmLeftLandmarks, setPalmLeftLandmarks] = useState(null);
+  const [palmRightLandmarks, setPalmRightLandmarks] = useState(null);
 
   // User's live GPS location for daily transits (Rahu Kaal, etc).
   // { n: "Surat", lat: 21.17, lon: 72.83, tz: 5.5, isGps: true }
@@ -98,6 +103,9 @@ export function ChartProvider({ children }) {
     setPalmLowCredits(false);
     setPalmLeftPhoto(null);
     setPalmRightPhoto(null);
+    setPalmLandmarks(null);
+    setPalmLeftLandmarks(null);
+    setPalmRightLandmarks(null);
   }, []);
 
   // One-shot flag set right after login when the backend reports the
@@ -135,6 +143,9 @@ export function ChartProvider({ children }) {
     setPalmLowCredits(false);
     setPalmLeftPhoto(null);
     setPalmRightPhoto(null);
+    setPalmLandmarks(null);
+    setPalmLeftLandmarks(null);
+    setPalmRightLandmarks(null);
     setRedirectToReading(true);
     await setItem(STORAGE_KEY, next);
   }, []);
@@ -158,6 +169,9 @@ export function ChartProvider({ children }) {
     setPalmLowCredits(false);
     setPalmLeftPhoto(null);
     setPalmRightPhoto(null);
+    setPalmLandmarks(null);
+    setPalmLeftLandmarks(null);
+    setPalmRightLandmarks(null);
     creditsStore.clear(); // don't let a new login inherit the previous balance
     await removeItem(STORAGE_KEY);
   }, []);
@@ -179,6 +193,9 @@ export function ChartProvider({ children }) {
       palmLowCredits, setPalmLowCredits,
       palmLeftPhoto, setPalmLeftPhoto,
       palmRightPhoto, setPalmRightPhoto,
+      palmLandmarks, setPalmLandmarks,
+      palmLeftLandmarks, setPalmLeftLandmarks,
+      palmRightLandmarks, setPalmRightLandmarks,
       currentLoc, setCurrentLoc,
       resetReading,
       clearAll,
@@ -186,7 +203,7 @@ export function ChartProvider({ children }) {
       redirectToReading,
       consumeRedirect,
     }),
-    [hydrated, form, chart, interp, daily, chatMsgs, palm, palmPhoto, palmAnalyzing, palmClaimedHand, palmComparison, palmOverloaded, palmLowCredits, palmLeftPhoto, palmRightPhoto, currentLoc, setCurrentLoc, resetReading, clearAll, applySavedForm, redirectToReading, consumeRedirect]
+    [hydrated, form, chart, interp, daily, chatMsgs, palm, palmPhoto, palmAnalyzing, palmClaimedHand, palmComparison, palmOverloaded, palmLowCredits, palmLeftPhoto, palmRightPhoto, palmLandmarks, palmLeftLandmarks, palmRightLandmarks, currentLoc, setCurrentLoc, resetReading, clearAll, applySavedForm, redirectToReading, consumeRedirect]
   );
 
   return <ChartContext.Provider value={value}>{children}</ChartContext.Provider>;

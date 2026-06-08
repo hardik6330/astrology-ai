@@ -17,13 +17,14 @@ function makeSessionToken() {
 
 // Mobile mirror of frontend/src/components/CitySearch.jsx. Debounced
 // autocomplete → backend proxy → select → onSelect({city, lat, lon, tz, ...}).
-export default function CitySearch({ value, onSelect, onOpenChange, birthTimestamp, error, placeholder = "Search your birth city..." }) {
+export default function CitySearch({ value, onSelect, onOpenChange, birthTimestamp, error, placeholder = "City, Country", customStyle }) {
   const [input, setInput] = useState(value || "");
   const [predictions, setPredictions] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const sessionTokenRef = useRef(makeSessionToken());
   const styles = useStyles(makeStyles);
+  const c = useColors();
 
   useEffect(() => {
     setInput(value || "");
@@ -76,6 +77,56 @@ export default function CitySearch({ value, onSelect, onOpenChange, birthTimesta
   useEffect(() => {
     onOpenChange?.(showDropdown);
   }, [showDropdown, onOpenChange]);
+
+  if (customStyle) {
+    return (
+      <View style={{ position: "relative" }}>
+        <View style={styles.customContainer}>
+          <View style={styles.customIconBox}>
+            <Text style={styles.customIconText}>📍</Text>
+          </View>
+          <PremiumInput
+            value={input}
+            onChangeText={setInput}
+            placeholder={placeholder}
+            autoCapitalize="words"
+            autoCorrect={false}
+            error={error}
+            style={styles.customInput}
+          />
+        </View>
+        {showDropdown && (
+          <View style={styles.dropdown}>
+            {loading && (
+              <View style={styles.hintRow}>
+                <ActivityIndicator size="small" />
+                <Text style={styles.hint}>Searching…</Text>
+              </View>
+            )}
+            <ScrollView
+                style={{ maxHeight: 240 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
+              {predictions.map((item) => (
+                <Pressable key={item.placeId} style={styles.item} onPress={() => pick(item)}>
+                  <Text style={styles.mainText} numberOfLines={1}>
+                    {item.mainText || item.description}
+                  </Text>
+                  {item.secondaryText ? (
+                    <Text style={styles.subText} numberOfLines={1}>
+                      {item.secondaryText}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+    );
+  }
 
   return (
     <View style={{ position: "relative" }}>
@@ -152,4 +203,37 @@ const makeStyles = (c) =>
     subText:  { color: c.textDim, fontSize: fontSize.xs, marginTop: 2 },
     hintRow:  { flexDirection: "row", alignItems: "center", padding: spacing.md, gap: spacing.sm },
     hint:     { color: c.textDim, fontSize: fontSize.sm },
+
+    customContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: c.cardBgSolid,
+      borderWidth: 1,
+      borderColor: c.cardBorder,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.md,
+      minHeight: 64,
+    },
+    customIconBox: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.md,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    customIconText: {
+      fontSize: 20,
+      includeFontPadding: false,
+      textAlign: "center",
+    },
+    customInput: {
+      flex: 1,
+      backgroundColor: "transparent",
+      borderWidth: 0,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.sm,
+      fontSize: 18,
+      color: c.text,
+      height: "100%",
+    },
   });

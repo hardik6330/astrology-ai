@@ -39,6 +39,7 @@ export default function PalmScreen({ navigation }) {
     palmLowCredits, setPalmLowCredits,
     palmLeftPhoto, setPalmLeftPhoto,
     palmRightPhoto, setPalmRightPhoto,
+    palmLandmarks, setPalmLandmarks,
   } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
@@ -68,6 +69,12 @@ export default function PalmScreen({ navigation }) {
   const [rescan, setRescan]     = useState(false);
   const [history, setHistory]   = useState([]);
   const [hydrating, setHydrating] = useState(true);
+  // Palm gate quality report (ordered list of checks)
+  const [gateReport, setGateReport] = useState(null);
+  // True between tapping "Take a Photo" and the native camera actually opening
+  // (permission check + cold camera launch can lag a second or two) — drives a
+  // spinner on the picker button so the tap doesn't feel dead.
+  const [launching, setLaunching] = useState(false);
 
   // Warm up the detector.
   useEffect(() => { warmUpGate(); }, []);
@@ -88,17 +95,18 @@ export default function PalmScreen({ navigation }) {
     else setPreview(null);
   }, [palmPhoto]);
 
-  // Hand the user just tapped on the upload screen. Drives the source-picker
-  // modal AND the scan-screen badge. Seeded from context so a scan kicked
-  // off on PalmStepScreen still shows the badge here.
-  const [activeHand, setActiveHand] = useState(palmClaimedHand);  // "Right" | "Left" | null
-  // Mirror local activeHand into context so the badge survives navigation.
-  useEffect(() => { setPalmClaimedHand(activeHand); }, [activeHand, setPalmClaimedHand]);
-  // Sync palmClaimedHand from context → local (photo picked on PalmStepScreen).
-  useEffect(() => { if (palmClaimedHand) setActiveHand(palmClaimedHand); }, [palmClaimedHand]);
+  // Drives ONLY the source-picker drawer: set when the user taps a hand card,
+  // cleared once a photo is picked / on reset. Deliberately NOT seeded from
+  // palmClaimedHand — reviving it on mount or return would auto-reopen the
+  // drawer over an existing reading (the bug this guards against). The
+  // scan-screen badge reads palmClaimedHand (context) instead, so a scan
+  // started on PalmStepScreen still shows its hand without touching the drawer.
+  const [activeHand, setActiveHand] = useState(null);  // "Right" | "Left" | null
 
   // Animated scan-line on the preview.
   const scanAnim = useRef(new Animated.Value(0)).current;
+
+  // Restore a saved reading once on mount.
 
   // Restore a saved reading once on mount. Skipped during rescan, and
   // while a background analysis is in flight (avoid flashing a stale prior
@@ -174,25 +182,33 @@ export default function PalmScreen({ navigation }) {
 
   async function pick(source) {
     setError("");
-    const perm =
-      source === "camera"
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      setError(source === "camera" ? "Camera permission denied." : "Photo permission denied.");
-      return;
+    // Spinner on the picker button until the camera UI is up (then reset,
+    // whether the user shot a photo or cancelled).
+    setLaunching(true);
+    let res;
+    try {
+      const perm =
+        source === "camera"
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setError(source === "camera" ? "Camera permission denied." : "Photo permission denied.");
+        return;
+      }
+      const opts = {
+        mediaTypes: ["images"],
+        base64: true,
+        quality: 0.75,
+        // Skip the system crop step — palm should be analyzed in full.
+        allowsEditing: false,
+        exif: true, // camera-origin signal for the gate's anti-screen-photo check
+      };
+      res = source === "camera"
+        ? await ImagePicker.launchCameraAsync(opts)
+        : await ImagePicker.launchImageLibraryAsync(opts);
+    } finally {
+      setLaunching(false);
     }
-    const opts = {
-      mediaTypes: ["images"],
-      base64: true,
-      quality: 0.75,
-      // Skip the system crop step — palm should be analyzed in full.
-      allowsEditing: false,
-      exif: true, // camera-origin signal for the gate's anti-screen-photo check
-    };
-    const res = source === "camera"
-      ? await ImagePicker.launchCameraAsync(opts)
-      : await ImagePicker.launchImageLibraryAsync(opts);
     if (res.canceled) return;
     const a = res.assets[0];
 
@@ -200,18 +216,27 @@ export default function PalmScreen({ navigation }) {
     // If the gate or analysis fails, the error will show on the main
     // screen, but the modal won't pop back up.
     const hand = activeHand;
-    setActiveHand(null);
+    setActiveHand(null);           // close the drawer
+    setPalmClaimedHand(hand);      // keep the hand for the scan-screen badge
 
     // Client-side gate check (1–3s on cold model load). Flip `gating`
     // so the picker modal closes and a loading row shows in its place.
     setGating(true);
+    setError(""); // Clear previous errors
+    setGateReport(null); // Clear previous report
     try {
       const gateResult = await gatePalmImage(a, hand);
+      setGateReport(gateResult.checks || null);
       if (!gateResult.ok) {
         setError(gateResult.retakeReason);
         haptics.warning();
         return;
       }
+      setPalmLandmarks({
+        keypoints: gateResult.landmarks,
+        imgW: gateResult.imgW,
+        imgH: gateResult.imgH,
+      });
       const img = await compressPhoto(a);
       runAnalyze(img, hand);
     } finally {
@@ -277,7 +302,10 @@ export default function PalmScreen({ navigation }) {
     setPreview(null);
     setPalmPhoto(null);
     setPalmAnalyzing(false);
+    setPalmLandmarks(null);
+    setGateReport(null);
     setActiveHand(null);
+    setPalmClaimedHand(null);
     setError("");
     setLowCredits(false);
     setPalmLowCredits(false);
@@ -382,10 +410,13 @@ export default function PalmScreen({ navigation }) {
                   preview={preview}
                   scanning={scanning}
                   activeHand={activeHand}
+                  claimedHand={palmClaimedHand}
                   scanAnim={scanAnim}
                   scanMsg={scanMsg}
                   palmCost={palmCost}
                   cannotAfford={cannotAfford}
+                  palmLandmarks={palmLandmarks}
+                  gateReport={gateReport}
                 />
               </AnimatedRE.View>
             )}
@@ -413,6 +444,7 @@ export default function PalmScreen({ navigation }) {
         activeHand={activeHand}
         onClose={() => setActiveHand(null)}
         pick={pick}
+        launching={launching}
       />
     </View>
   );

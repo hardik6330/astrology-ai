@@ -46,6 +46,8 @@ Never commit the JSON file. It was leaked once already (see git history for comm
 Every paid feature deducts **credits** from `User.credits`; an append-only `CreditTransaction` ledger records every grant/spend (never updated, only inserted — keep it that way for auditability). Feature costs (`chat_cost`, `insights_cost`, `daily_cost`, `palm_cost`) and the signup bonus (`initial_credits`) live in the `Setting` table, not in code, and are editable from the admin panel — read them live via `settingsService` (60s cache).
 - `creditService.charge()` does an atomic guarded decrement (`... WHERE credits >= cost`) and throws HTTP 402 `INSUFFICIENT_CREDITS` if the user can't cover it. Clients surface this as a low-credits prompt.
 - Purchases: `purchaseService` opens a `Purchase` (snapshotting plan credits + price so later plan edits don't rewrite past orders), then settles via Razorpay or a mock provider. **Razorpay verification recomputes the HMAC-SHA256 signature server-side**; `Purchase.providerTxnId` is UNIQUE so replays never double-credit (settlement is idempotent). Razorpay is active only when `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` are set; otherwise checkout falls back to mock.
+- **Mobile native IAP** (web stays Razorpay): the mobile client (`mobile/src/features/credits/CreditsScreen.js`) uses `react-native-iap`. A plan opts into the store flow when its `CreditPlan.productId` (the App Store / Play Store SKU) is set — otherwise it falls through to the mock `/credits/purchase` path. After the native purchase, the client POSTs to `/credits/verify-iap` and the backend verifies the receipt: iOS via Apple's `verifyReceipt` (`APPLE_IAP_SECRET`, with the 21007 sandbox-retry), Android via the Play Developer API (`GOOGLE_IAP_SERVICE_ACCOUNT_JSON`). Verified grants are idempotent on `providerTxnId` (the store transaction/order id), same as Razorpay.
+  - **Gaps as of this writing:** no plan has a `productId` yet (admin CRUD + `AdminPlans.jsx` don't expose the field), and the two store secrets aren't configured — so mobile currently runs the mock path end-to-end. **`react-native-iap` is a native module → no IAP in Expo Go; needs an EAS build.**
 
 ### Randomised engagement-push system
 "Vibe" notifications sent at unpredictable times within a configurable IST waking window. All knobs live in the `Setting` table and are edited from the admin Notifications panel: `notif_enabled`, `notif_source` (`pool` curated templates vs `ai` Gemini-Flash-generated), `notif_audience` (`all` / `random_one` / `random_sample`), `notif_sample_pct`, `notif_window_start`/`notif_window_end` (IST hours), `notif_min_gap_hours`/`notif_max_gap_hours`, `notif_max_tokens` (fan-out cap so Vercel doesn't time out), and the internal auto-managed `notif_next_at` (epoch ms).
@@ -56,7 +58,7 @@ Every paid feature deducts **credits** from `User.credits`; an append-only `Cred
 Separate from user auth: a username/password `Admin` account (scrypt-hashed), seeded from `ADMIN_NAME`/`ADMIN_USERNAME`/`ADMIN_PASSWORD`, logs in for a role=`admin` JWT. `requireAdmin` middleware gates `/api/admin/*` (stats, user list/search, broadcast + per-user push, settings CRUD, credit-plan CRUD). The web UI lives under `frontend/src/admin/` (own context, layout, and pages incl. `AdminSettings.jsx` which renders the costs + notifications forms). Credit plans soft-delete via an `active` flag so historical purchases keep valid FKs.
 
 ### Client-side palm gate
-Before any palm photo reaches the backend, both clients run a local quality gate (`frontend/src/utils/palmGate.js`, `mobile/src/features/palm/palmGate.js`) using MediaPipe Hands + pixel heuristics (luminance, Laplacian blur, palm coverage, edge score, lighting variance, claimed-hand check). It rejects bad photos locally — saving Gemini tokens — and returns an ordered `checks` array (rendered by `PalmGateChecklist.jsx`) plus 21 hand landmarks (drawn by `PalmSkeletonOverlay.jsx`). **The two gate files share thresholds and logic — keep them in sync like the astrology engine.** Mobile must pre-resize via `expo-image-manipulator` before decoding (full-res decode takes 40–50s).
+Before any palm photo reaches the backend, both clients run a local quality gate (`frontend/src/utils/palmGate.js`, `mobile/src/features/palm/palmGate.js`) using MediaPipe Hands + pixel heuristics (luminance, Laplacian blur, palm coverage, edge score, lighting variance, claimed-hand check). It rejects bad photos locally — saving Gemini tokens — and returns an ordered `checks` array plus 21 hand landmarks (drawn by `PalmSkeletonOverlay.jsx`). The scored `checks` are rendered as a pill checklist: web in `PalmGateChecklist.jsx`, mobile in `mobile/src/features/palm/sections/GateChecklist.js`. **Keep the check labels identical across both gate files** (they carry the measured scores, e.g. `Palm lines visible (edge score 411)`) and **keep thresholds + logic in sync like the astrology engine.** On mobile the checklist is shown **only on the scanning screen** (`UploadView.js`, scanning state) — the pre-scan picker shows just a plain "Reading photo…" spinner, no numbers. Mobile must pre-resize via `expo-image-manipulator` before decoding (full-res decode takes 40–50s).
 
 ## Build and deployment
 
@@ -74,7 +76,8 @@ Before any palm photo reaches the backend, both clients run a local quality gate
 - EAS env vars are separate from local `.env`. Set with `eas env:create --environment preview --name X --value Y --visibility plaintext`
 
 ### Mobile native modules in use
-`expo-blur` (login card), `expo-updates` (OTA), `expo-image-picker` (palm photos), `@react-native-community/datetimepicker`, `react-native-reanimated`, `react-native-svg`, `react-native-gesture-handler`. Adding more native modules requires `eas build`, not `eas update`.
+`expo-blur` (login card), `expo-updates` (OTA), `expo-image-picker` (palm photos), `expo-image-manipulator` (palm pre-resize), `expo-constants` (Expo-Go detection), `@react-native-community/datetimepicker`, `react-native-reanimated`, `react-native-svg`, `react-native-gesture-handler`, `react-native-iap` (credit IAP), `@react-native-firebase/{app,auth,messaging,analytics}` + `@notifee/react-native` (push + analytics). Adding more native modules requires `eas build`, not `eas update`.
+- **These native modules don't exist in Expo Go**, so push (`@react-native-firebase/messaging` + Notifee), analytics, and IAP no-op there. The code guards every call behind `const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient` (see `mobile/src/features/notifications/push.js`, `analytics.js`, `index.js`, `CreditsScreen.js`) so the app runs cleanly in Expo Go with those features silently disabled. To actually exercise them, do an EAS dev/preview build.
 
 ## Conventions
 
@@ -86,6 +89,7 @@ Before any palm photo reaches the backend, both clients run a local quality gate
 - **Credit ledger is append-only.** Charge/grant through `creditService` (atomic guarded updates); never mutate `User.credits` directly or update old `CreditTransaction` rows.
 - **API responses are enveloped** as `{ success, message, data }` by `responseWrapper`; clients unwrap `data` and read `.code` for error handling (e.g. `INSUFFICIENT_CREDITS`).
 - **Mobile theme:** all colors flow from `mobile/src/theme/ThemeContext.js` and `tokens.js`. Don't hardcode colors in components if a token exists.
+- **Mobile back navigation:** the app uses a single "home base" model — every top-level drawer screen sends Android hardware-back to the Reading/Kundali screen via the `useBackToKundali(navigation)` hook (Profile, Help, Palm, PalmStep, PalmCompare, Chat, Credits). Reading itself backs sub-tab → Kundali → exit-app. New screens of this kind should add the hook too. `RootNavigator` also waits for `ChartContext` to hydrate before mounting the drawer, so `initialRoute` is deterministic (returning users open straight on Reading, not the Home form).
 
 ## Things that have bitten in the past
 
@@ -97,6 +101,8 @@ Before any palm photo reaches the backend, both clients run a local quality gate
 - **Double-crediting on payment replay** — guarded by the UNIQUE `Purchase.providerTxnId` and an atomic settlement. Don't weaken either; a retried webhook/verify must never grant twice.
 - **Razorpay signature must be verified server-side** — never trust a client-reported "paid" status; `purchaseService` recomputes the HMAC and constant-time compares.
 - **Engagement-push double-sends** — the engage job relies on an atomic compare-and-set of `notif_next_at`. If you refactor scheduling, preserve that guard or overlapping cron hits will fan out twice.
+- **IAP mock-fallback grants free credits** — when `APPLE_IAP_SECRET` / `GOOGLE_IAP_SERVICE_ACCOUNT_JSON` are unset, `verifyAppleReceipt`/`verifyGooglePurchase` return a fake `mock_*_<timestamp>` txn id and credits are granted. Fine for dev, but in production this lets any authed client farm credits via `/credits/verify-iap` (the mock id is unique each call, so the `providerTxnId` guard doesn't stop it). Before shipping real IAP, make missing secrets fail closed in production. Also: the iOS path doesn't yet verify the receipt's product matches the requested `planId` (the Android path does) — bind it before relying on it.
+- **Android emoji clipping** — emoji in a `Text` get their top/bottom cut when `lineHeight` is tight and the default `includeFontPadding: true` applies. For any icon glyph, set a generous `lineHeight` (≈1.4× fontSize) **and** `includeFontPadding: false` (see the palm reading styles).
 
 ## Quick command reference
 
@@ -134,7 +140,10 @@ curl -H "x-cron-secret: <secret>" "http://localhost:5000/api/cron/run?job=engage
 - DB-backed settings: `backend/src/services/settingsService.js` (+ `settingsSeed.js`)
 - Admin (API): `backend/src/routes/adminRoutes.js`, `controllers/adminController.js`, `services/adminService.js`
 - Admin (web): `frontend/src/admin/` (settings UI: `admin/pages/AdminSettings.jsx`)
-- Palm gate (keep in sync): `frontend/src/utils/palmGate.js` + `mobile/src/features/palm/palmGate.js`
+- Palm gate (keep in sync): `frontend/src/utils/palmGate.js` + `mobile/src/features/palm/palmGate.js`; gate checklist UI: `frontend/src/components/PalmGateChecklist.jsx` + `mobile/src/features/palm/sections/GateChecklist.js`
+- Mobile palm flow: `mobile/src/features/palm/PalmScreen.js` (+ `sections/UploadView.js`, `ReadingResult.js`), `PalmStepScreen.js`, `PalmCompareScreen.js`
+- Mobile credits / IAP: `mobile/src/features/credits/CreditsScreen.js`; backend IAP verify: `backend/src/services/purchaseService.js` (`verifyIapPayment`)
+- Mobile back-nav hook: `mobile/src/utils/useBackToKundali.js`
 - Web entry / routes: `frontend/src/App.jsx` → `frontend/src/routes.jsx`; API client: `frontend/src/common/apiClient.js`
 - Shared client state: `frontend/src/context/ChartContext.jsx` (mobile: `mobile/src/context/ChartContext.js`)
 - Mobile root: `mobile/App.js` → `mobile/src/navigation/RootNavigator.js`

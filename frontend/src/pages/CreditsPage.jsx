@@ -103,7 +103,7 @@ export default function CreditsPage() {
                 <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-dim">Credits</div>
                 <div className="my-5 text-2xl font-black text-[#c084fc]">{formatInr(p.priceInr)}</div>
                 <Button
-                  variant={isPopular ? "magic" : "outline"}
+                  variant="magic"
                   fullWidth
                   className="font-black tracking-widest"
                   onClick={() => {

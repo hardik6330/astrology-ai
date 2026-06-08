@@ -5,25 +5,34 @@
 // Hand-side is a UI label only — not sent to AI.
 
 import React, { useState, useEffect } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Modal } from "react-native";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Modal, BackHandler } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import ScreenContainer from "../../components/ScreenContainer";
 import CosmicCard from "../../components/CosmicCard";
 import { useChart } from "../../context/ChartContext";
 import { analyzePalm } from "../../services/api";
 import { useColors } from "../../theme/ThemeContext";
 import { useStyles } from "../../theme/useStyles";
-import { radius, spacing } from "../../theme/tokens";
+import { radius, spacing, fontSize } from "../../theme/tokens";
 import { gatePalmImage, warmUpGate } from "./palmGate";
-import { useBackToKundali } from "../../utils/useBackToKundali";
+import MagicButton from "../../components/MagicButton";
 import { haptics } from "../../utils/haptics";
 import { compressPhoto } from "../../utils/compressImage";
 
 export default function PalmStepScreen({ navigation }) {
-  const { form, setPalm, setPalmComparison, setPalmPhoto, setPalmAnalyzing, setPalmClaimedHand } = useChart();
+  const { 
+    form, setPalm, setPalmComparison, setPalmPhoto, 
+    setPalmAnalyzing, setPalmClaimedHand, setPalmLandmarks 
+  } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
   const [busy, setBusy] = useState(false);
+  // True only while the native camera is opening (permission + cold launch),
+  // separate from `busy` which also spans the gate + analysis. Drives the
+  // "Opening camera…" spinner on the picker button, matching PalmScreen.
+  const [launching, setLaunching] = useState(false);
   const [error, setError] = useState("");
   // Which hand the user tapped — when set, the source-picker modal is open.
   const [activeHand, setActiveHand] = useState(null); // "Right" | "Left" | null
@@ -31,8 +40,18 @@ export default function PalmStepScreen({ navigation }) {
   // Warm up the detector.
   useEffect(() => { warmUpGate(); }, []);
 
-  // Android hardware back → Reading/Kundali instead of exiting the app.
-  useBackToKundali(navigation);
+  // Custom hardware back behavior for onboarding
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBack = () => {
+        // Go back to Step 2 of Home
+        navigation.navigate("Home", { step: 2 });
+        return true;
+      };
+      const sub = BackHandler.addEventListener("hardwareBackPress", onBack);
+      return () => sub.remove();
+    }, [navigation])
+  );
 
   // Both paths (upload + skip) land on the Reading "Insights" tab. When a
   // palm photo was provided we kick off the analysis in the background so the
@@ -57,11 +76,15 @@ export default function PalmStepScreen({ navigation }) {
 
   async function pick(source) {
     setError("");
+    // Immediate feedback: spinner on the button while we ask for permission
+    // and the native camera cold-launches. Cleared the moment it's up.
+    setLaunching(true);
     const perm =
       source === "camera"
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
+      setLaunching(false);
       setError(source === "camera" ? "Camera permission denied." : "Photo permission denied.");
       return;
     }
@@ -77,6 +100,7 @@ export default function PalmStepScreen({ navigation }) {
       const res = source === "camera"
         ? await ImagePicker.launchCameraAsync(opts)
         : await ImagePicker.launchImageLibraryAsync(opts);
+      setLaunching(false); // camera returned — gate/analysis takes over below
       // Cancel the camera/gallery → keep the source picker open so the
       // user can pick a different option without re-selecting hand.
       if (res.canceled) {
@@ -87,6 +111,14 @@ export default function PalmStepScreen({ navigation }) {
       
       // Client-side gate check
       const gateResult = await gatePalmImage(a, activeHand);
+      setPalmLandmarks({
+        keypoints: gateResult.landmarks,
+        imgW: gateResult.imgW,
+        imgH: gateResult.imgH,
+      });
+      // We don't have a direct way to pass gateReport to PalmScreen via context 
+      // without adding a new context state, but since the analysis is in background, 
+      // the user won't see the gate checklist on this screen.
       if (!gateResult.ok) {
         setError(gateResult.retakeReason);
         haptics.warning();
@@ -108,11 +140,19 @@ export default function PalmStepScreen({ navigation }) {
       setError("Couldn't open the picker.");
     } finally {
       setBusy(false);
+      setLaunching(false);
     }
   }
 
   return (
     <ScreenContainer showMenu={false}>
+      <Pressable 
+        onPress={() => navigation.navigate("Home", { step: 2 })}
+        style={({ pressed }) => [s.backIcon, pressed && { opacity: 0.6 }]}
+      >
+        <Ionicons name="chevron-back" size={28} color={color.text} />
+      </Pressable>
+
       <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
         <Text style={s.title}>Add a Palm Reading?</Text>
         <Text style={s.subtitle}>
@@ -199,13 +239,25 @@ export default function PalmStepScreen({ navigation }) {
             <Pressable
               onPress={() => pick("camera")}
               disabled={busy}
-              style={({ pressed }) => [s.sourceBtn, s.sourceBtnPrimary, pressed && { opacity: 0.85 }, busy && { opacity: 0.6 }]}
+              style={({ pressed }) => [s.sourceBtn, s.sourceBtnPrimary, (pressed || busy) && { opacity: 0.85 }]}
             >
-              <Text style={s.sourceIcon}>📷</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={s.sourceLabel}>Take a Photo</Text>
-                <Text style={s.sourceSub}>For an accurate reading we use a live camera shot, not gallery uploads</Text>
-              </View>
+              {launching ? (
+                <>
+                  <ActivityIndicator color={color.primaryLight} style={s.sourceIcon} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.sourceLabel}>Opening camera…</Text>
+                    <Text style={s.sourceSub}>Hold on a moment</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={s.sourceIcon}>📷</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.sourceLabel}>Take a Photo</Text>
+                    <Text style={s.sourceSub}>For an accurate reading we use a live camera shot, not gallery uploads</Text>
+                  </View>
+                </>
+              )}
             </Pressable>
 
             <Pressable
@@ -216,10 +268,10 @@ export default function PalmStepScreen({ navigation }) {
               <Text style={s.modalCancelText}>Cancel</Text>
             </Pressable>
 
-            {busy && (
+            {busy && !launching && (
               <View style={{ flexDirection: "row", justifyContent: "center", marginTop: spacing.sm, gap: 8 }}>
                 <ActivityIndicator color={color.primaryLight} />
-                <Text style={{ color: color.textDim, fontSize: 13 }}>Opening picker…</Text>
+                <Text style={{ color: color.textDim, fontSize: 13 }}>Checking photo…</Text>
               </View>
             )}
           </Pressable>
@@ -303,10 +355,27 @@ const makeStyles = (c) =>
       borderWidth: 1, borderColor: c.cardBorder,
       alignItems: "center",
     },
-    skipText: { color: c.textDim, fontSize: 14, fontWeight: "600" },
+    skipText: {
+      color: c.textMuted,
+      fontSize: 14,
+      fontWeight: "600",
+      textDecorationLine: "underline",
+    },
+    btnRow: {
+      flexDirection: "row",
+      marginTop: spacing.sm,
+    },
 
     error: { color: c.danger, fontSize: 13, marginTop: 12, textAlign: "center" },
     note:  { color: c.textFaint, fontSize: 11, marginTop: spacing.md, textAlign: "center", lineHeight: 16 },
+
+    backIcon: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      zIndex: 10,
+      padding: spacing.sm,
+    },
 
     // ── Source-picker modal ────────────────────────────────────────────
     modalBackdrop: {

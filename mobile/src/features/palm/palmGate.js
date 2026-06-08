@@ -117,8 +117,6 @@ function checkQuality(tensor) {
     const lum = tf.mean(gray).dataSync()[0];
     console.log(`Gate: Mean Luminance = ${lum.toFixed(2)} (Threshold: ${MIN_LUMINANCE})`);
 
-    if (lum < MIN_LUMINANCE) return { ok: false, reason: "too_dark", val: lum };
-
     // 2. Laplacian Variance (Blur)
     const laplacianKernel = tf.tensor2d([0, 1, 0, 1, -4, 1, 0, 1, 0], [3, 3]).reshape([3, 3, 1, 1]);
     const gray4d = gray.expandDims(0).expandDims(-1);
@@ -127,10 +125,11 @@ function checkQuality(tensor) {
     const lapVar = variance.dataSync()[0];
     console.log(`Gate: Laplacian Variance = ${lapVar.toFixed(2)} (Threshold: ${MIN_LAPLACIAN_VAR})`);
 
-    if (lapVar < MIN_LAPLACIAN_VAR) return { ok: false, reason: "blurry", val: lapVar };
+    if (lum < MIN_LUMINANCE) return { ok: false, reason: "too_dark", lum, lapVar };
+    if (lapVar < MIN_LAPLACIAN_VAR) return { ok: false, reason: "blurry", lum, lapVar };
 
     console.log("Gate: Quality checks PASSED.");
-    return { ok: true };
+    return { ok: true, lum, lapVar };
   });
 }
 
@@ -210,7 +209,23 @@ export async function gatePalmImage(asset, claimedHand) {
     // 1. Pixel heuristics first (darkness/blur)
     const quality = checkQuality(tensor);
     if (!quality.ok) {
-      return reject(quality.reason, `Value: ${Math.round(quality.val)}`, Date.now() - startTime);
+      // Return ordered checks even on failure so UI can show what failed
+      const checks = [
+        {
+          key: "lighting",
+          ok: quality.lum >= MIN_LUMINANCE,
+          label: `Lighting ${quality.lum >= MIN_LUMINANCE ? "OK" : "too dark"} (${Math.round(quality.lum)} / 255)`,
+        },
+        {
+          key: "sharpness",
+          ok: quality.lapVar >= MIN_LAPLACIAN_VAR,
+          label: `Sharpness ${quality.lapVar >= MIN_LAPLACIAN_VAR ? "OK" : "blurry"} (${Math.round(quality.lapVar)})`,
+        }
+      ];
+      return { 
+        ...reject(quality.reason, `Value: ${Math.round(quality.reason === "too_dark" ? quality.lum : quality.lapVar)}`, Date.now() - startTime),
+        checks
+      };
     }
 
     // 2. MediaPipe hand detection
@@ -268,7 +283,39 @@ export async function gatePalmImage(asset, claimedHand) {
     console.log(`Gate: Final Result -> PASSED (Total Time: ${Date.now() - startTime}ms)`);
     // Surface landmarks (in `tensor` pixel coords) + dims so a future scan-screen
     // skeleton overlay can pin them on the photo. Web mirrors this shape.
-    return { ok: true, landmarks: hand.keypoints, imgW: width, imgH: height };
+    // Also include ordered checks (metrics) for the UI report.
+    const checks = [
+      hands.length > 1
+        ? { key: "multiple_hands", ok: false, label: "More than one hand detected" }
+        : { key: "landmarks", ok: true, label: `${hand.keypoints.length} hand landmarks detected` },
+      {
+        key: "lighting",
+        ok: quality.ok || quality.lum >= MIN_LUMINANCE,
+        label: `Lighting ${quality.lum >= MIN_LUMINANCE ? "OK" : "too dark"} (${Math.round(quality.lum)} / 255)`,
+      },
+      {
+        key: "sharpness",
+        ok: quality.ok || quality.lapVar >= MIN_LAPLACIAN_VAR,
+        label: `Sharpness ${quality.lapVar >= MIN_LAPLACIAN_VAR ? "OK" : "low"} (variance ${Math.round(quality.lapVar)})`,
+      },
+      {
+        key: "coverage",
+        ok: bounds.coverage >= MIN_PALM_COVERAGE,
+        label: `Palm fills frame (${Math.round(bounds.coverage * 100)}%)`,
+      },
+      {
+        key: "evenness",
+        ok: lightingVar <= MAX_PALM_LIGHTING_VAR,
+        label: `Even lighting (variance ${Math.round(lightingVar)})`,
+      },
+      {
+        key: "detail",
+        ok: edgeScore >= MIN_PALM_EDGE_SCORE,
+        label: `Palm lines visible (edge score ${Math.round(edgeScore)})`,
+      }
+    ];
+
+    return { ok: true, landmarks: hand.keypoints, imgW: width, imgH: height, checks };
   } catch (err) {
     console.warn("Palm gate encountered an error, falling back to PASS:", err);
     return { ok: true }; 

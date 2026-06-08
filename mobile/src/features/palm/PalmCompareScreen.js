@@ -28,6 +28,7 @@ export default function PalmCompareScreen({ navigation }) {
     setPalmAnalyzing,
     setPalmOverloaded,
     setPalmLowCredits,
+    setPalmLeftLandmarks, setPalmRightLandmarks,
   } = useChart();
   const color = useColors();
   const s = useStyles(makeStyles);
@@ -85,9 +86,22 @@ export default function PalmCompareScreen({ navigation }) {
       }
 
       const img = await compressPhoto(a);
+      const landmarks = {
+        keypoints: gateResult.landmarks,
+        imgW: gateResult.imgW,
+        imgH: gateResult.imgH,
+      };
       setPickingHand(null);
-      if (hand === "left")  { setLeft({ uri: img.uri, base64: img.base64 });  setPalmLeftPhoto(img.uri); }
-      if (hand === "right") { setRight({ uri: img.uri, base64: img.base64 }); setPalmRightPhoto(img.uri); }
+      if (hand === "left")  { 
+        setLeft({ uri: img.uri, base64: img.base64 });  
+        setPalmLeftPhoto(img.uri); 
+        setPalmLeftLandmarks(landmarks);
+      }
+      if (hand === "right") { 
+        setRight({ uri: img.uri, base64: img.base64 }); 
+        setPalmRightPhoto(img.uri); 
+        setPalmRightLandmarks(landmarks);
+      }
     } catch {
       setError("Couldn't open the picker.");
     } finally {

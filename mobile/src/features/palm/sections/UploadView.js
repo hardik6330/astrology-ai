@@ -7,12 +7,14 @@ import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { spacing, fontSize } from "../../../theme/tokens";
 import { makeStyles } from "../styles";
+import PalmSkeletonOverlay from "../../../components/PalmSkeletonOverlay";
+import GateChecklist from "./GateChecklist";
 
 // Upload / scanning card. Shows the hand-selection picker before a photo is
 // chosen, then the animated scan frame while the analysis runs.
 export default function UploadView({
-  navigation, setActiveHand, setError, gating, error, preview, scanning, activeHand, scanAnim, scanMsg,
-  palmCost = 30, cannotAfford = false,
+  navigation, setActiveHand, setError, gating, error, preview, scanning, activeHand, claimedHand, scanAnim, scanMsg,
+  palmCost = 30, cannotAfford = false, palmLandmarks, gateReport,
 }) {
   const color = useColors();
   const s = useStyles(makeStyles);
@@ -77,6 +79,8 @@ export default function UploadView({
             <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
           </PressableScale>
 
+          {/* While the gate runs: a plain spinner only — the scored checklist
+              lives on the scanning screen, never here. */}
           {gating && (
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, marginTop: spacing.md }}>
               <ActivityIndicator size="small" color={color.primaryLight} />
@@ -84,22 +88,32 @@ export default function UploadView({
             </View>
           )}
 
-          {error ? (
-            <Text style={[s.error, { marginTop: spacing.md, textAlign: "center" }]}>{error}</Text>
-          ) : null}
+          {/* Rejection: just the retake reason, no numbers. */}
+          {error && !gating && (
+            <Text style={[s.error, { textAlign: "center", marginTop: spacing.md }]}>{error}</Text>
+          )}
         </>
       )}
 
       {preview && scanning && (
         <View style={{ alignItems: "center", width: "100%" }}>
-          {activeHand ? (
-            <View style={s.handBadge}>
-              <Text style={s.handBadgeIcon}>{activeHand === "Right" ? "✋" : "🤚"}</Text>
-              <Text style={s.handBadgeText}>{activeHand} Hand</Text>
-            </View>
-          ) : null}
-          <View style={s.scanFrame}>
-            <Image source={{ uri: preview.uri }} style={s.scanImage} contentFit="cover" transition={200} />
+          {(() => {
+            // Badge falls back to the context-held claimed hand so a scan
+            // kicked off on PalmStepScreen still shows its hand here, even
+            // though the local drawer state (activeHand) is cleared.
+            const badgeHand = activeHand || claimedHand;
+            return badgeHand ? (
+              <View style={s.handBadge}>
+                <Text style={s.handBadgeIcon}>{badgeHand === "Right" ? "✋" : "🤚"}</Text>
+                <Text style={s.handBadgeText}>{badgeHand} Hand</Text>
+              </View>
+            ) : null;
+          })()}
+          <View style={[s.scanFrame, palmLandmarks && { aspectRatio: palmLandmarks.imgW / palmLandmarks.imgH }]}>
+            <Image source={{ uri: preview.uri }} style={s.scanImage} contentFit="contain" transition={200} />
+            {scanning && palmLandmarks && (
+              <PalmSkeletonOverlay landmarks={palmLandmarks} />
+            )}
             <Animated.View
               pointerEvents="none"
               style={[
@@ -113,9 +127,12 @@ export default function UploadView({
               ]}
             />
           </View>
-          <Text style={s.scanMsg}>{scanMsg}</Text>
-          <Text style={s.scanSub}>This usually takes 10–30 seconds.</Text>
-          <ActivityIndicator color={color.primaryLight} style={{ marginTop: 8 }} />
+
+          {/* Web-style gate checklist + analyzing pill — shown ONLY here, on the
+              scanning screen. Each label carries its score; the final purple
+              pill is the live "Analyzing palm lines with AI…" row. */}
+          <GateChecklist checks={gateReport || []} analyzing analyzingLabel={scanMsg} />
+          <Text style={[s.scanSub, { marginTop: spacing.sm }]}>This usually takes 10–30 seconds.</Text>
         </View>
       )}
     </CosmicCard>

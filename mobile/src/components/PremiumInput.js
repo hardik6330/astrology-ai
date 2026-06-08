@@ -26,7 +26,7 @@ export function PremiumInput({ value, onChangeText, placeholder, error, ...rest 
   );
 }
 
-export function DateField({ value, onChange, mode = "date", error, disabled }) {
+export function DateField({ value, onChange, mode = "date", error, disabled, customStyle }) {
   const styles = useStyles(makeStyles);
   const c = useColors();
   const [show, setShow] = useState(false);
@@ -67,7 +67,49 @@ export function DateField({ value, onChange, mode = "date", error, disabled }) {
       const h12 = ((h24 + 11) % 12) + 1;
       return `${h12}:${m} ${ap}`;
     }
-    return value;
+    
+    // Format date as "January 1, 1995"
+    const [y, m, d] = value.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  }
+
+  if (customStyle) {
+    return (
+      <>
+        <Pressable 
+          style={[styles.customField, disabled && { opacity: 0.5 }]} 
+          onPress={() => !disabled && setShow(true)}
+          disabled={disabled}
+        >
+          <View style={styles.customIconBox}>
+            <Text style={styles.customIconText}>
+              {mode === "date" ? "📅" : "🕒"}
+            </Text>
+          </View>
+          <View style={styles.customValueBox}>
+            <Text style={styles.customValueText}>{displayValue()}</Text>
+          </View>
+          <Text style={styles.customChevron}>›</Text>
+        </Pressable>
+
+        {mode === "date" ? (
+          <CosmicDatePicker
+            visible={show}
+            value={value}
+            onClose={() => setShow(false)}
+            onSelect={onChange}
+          />
+        ) : (
+          <CosmicTimePicker
+            visible={show}
+            value={value}
+            onClose={() => setShow(false)}
+            onSelect={onChange}
+          />
+        )}
+      </>
+    );
   }
 
   return (
@@ -134,4 +176,37 @@ const makeStyles = (c) =>
     fieldIcon:       { marginLeft: spacing.sm, fontSize: 16, lineHeight: 20, color: c.textDim },
     doneBtn:         { alignSelf: "flex-end", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
     doneText:        { fontWeight: "600" },
+
+    customField: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: spacing.md,
+      minHeight: 64,
+    },
+    customIconBox: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.md,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: spacing.md,
+    },
+    customIconText: {
+      fontSize: 20,
+      includeFontPadding: false,
+      textAlign: "center",
+    },
+    customValueBox: {
+      flex: 1,
+    },
+    customValueText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: c.text,
+    },
+    customChevron: {
+      fontSize: 24,
+      color: c.textMuted,
+      marginLeft: spacing.sm,
+    },
   });

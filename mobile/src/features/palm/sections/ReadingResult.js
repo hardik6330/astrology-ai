@@ -47,7 +47,7 @@ export default function ReadingResult({ palm, preview, reset }) {
         content ? (
           <CosmicCard key={title}>
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-              <Text style={{ fontSize: 22, lineHeight: 30, marginRight: 10 }}>{icon}</Text>
+              <Text style={s.lineIcon}>{icon}</Text>
               <Text style={s.lineTitle}>{title}</Text>
             </View>
             <Text style={s.lineBody}>{content}</Text>

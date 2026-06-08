@@ -8,6 +8,8 @@ import { useStyles } from "../../../theme/useStyles";
 import { spacing } from "../../../theme/tokens";
 import { REJECT_INFO } from "../constants";
 import { makeStyles } from "../styles";
+import { useChart } from "../../../context/ChartContext";
+import PalmSkeletonOverlay from "../../../components/PalmSkeletonOverlay";
 
 // Both-Hands "Full Life Comparison" view. Four states: analyzing, Pro
 // overloaded, either hand unusable, or ready. Rendered inside ScreenContainer.
@@ -19,6 +21,7 @@ export default function CompareView({
 }) {
   const color = useColors();
   const s = useStyles(makeStyles);
+  const { palmLeftLandmarks, palmRightLandmarks } = useChart();
 
   const cmp     = palmComparison?.comparison;
   const leftBad  = palmComparison?.left?.imageQuality  === "unusable";
@@ -61,16 +64,25 @@ export default function CompareView({
             ].map(([label, uri, hand]) => (
               <View key={hand} style={s.compareTile}>
                 <View style={s.compareImageWrap}>
-                  {uri ? <Image source={{ uri }} style={{ width: "100%", height: "100%" }} contentFit="cover" transition={200} /> : null}
+                  {uri ? <Image source={{ uri }} style={{ width: "100%", height: "100%" }} contentFit="contain" transition={200} /> : null}
                   {palmAnalyzing && !palmComparison && uri ? (
-                    <Animated.View style={{
-                      position: "absolute", left: 0, right: 0, height: 2,
-                      backgroundColor: "#c084fc",
-                      top: scanAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ["0%", "97%"],
-                      }),
-                    }} />
+                    <>
+                      {hand === "Left" && palmLeftLandmarks && (
+                        <PalmSkeletonOverlay landmarks={palmLeftLandmarks} />
+                      )}
+                      {hand === "Right" && palmRightLandmarks && (
+                        <PalmSkeletonOverlay landmarks={palmRightLandmarks} />
+                      )}
+                      <Animated.View style={{
+                        position: "absolute", left: 0, right: 0, height: 2,
+                        backgroundColor: "#c084fc",
+                        zIndex: 20,
+                        top: scanAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ["0%", "97%"],
+                        }),
+                      }} />
+                    </>
                   ) : null}
                 </View>
                 <Text style={s.compareHand}>{hand}</Text>
