@@ -60,7 +60,16 @@ const FIELD_INFO = {
     "Maximum number of devices to notify in one batch. Prevents server timeouts on large user bases.",
   notif_next_at:
     "The exact timestamp (Unix Epoch) when the next notification is scheduled. Managed automatically by the system.",
+  app_latest_version:
+    "The latest app version you've published (e.g. 1.2.0). The mobile app compares its own version to this on startup.",
+  app_force_update:
+    "When ON, users on a version older than the one above are blocked by a non-dismissible 'Update Required' popup until they update.",
+  app_update_url: "The store link the Update button opens — your Play Store (or App Store) listing URL.",
 };
+
+// Free-text settings (version string, URL) — rendered as text inputs, NOT
+// number inputs (which would blank a value like "1.2.0" on save).
+const TEXT_FIELDS = new Set(["app_latest_version", "app_update_url"]);
 
 // Settings whose value is an enum/boolean string, not a number. Rendered as a
 // <select> so admins pick a valid value instead of typing into a number input
@@ -79,6 +88,10 @@ const SELECT_OPTIONS = {
     ["random_one", "One random user"],
     ["random_sample", "Random sample"],
   ],
+  app_force_update: [
+    ["false", "Off — optional update"],
+    ["true", "On — block old versions"],
+  ],
 };
 
 export default function AdminSettings() {
@@ -96,9 +109,11 @@ export default function AdminSettings() {
     .filter((s) => s.key in edits && edits[s.key] !== s.value)
     .map((s) => ({ key: s.key, value: String(edits[s.key]).trim() }));
 
-  // Split into two groups: credit/cost values vs engagement-notification config.
+  // Split into three groups: app/force-update, engagement-notifications, and
+  // everything else (credit/cost values).
   const notifSettings = settings.filter((s) => s.key.startsWith("notif_"));
-  const creditSettings = settings.filter((s) => !s.key.startsWith("notif_"));
+  const appSettings = settings.filter((s) => s.key.startsWith("app_"));
+  const creditSettings = settings.filter((s) => !s.key.startsWith("notif_") && !s.key.startsWith("app_"));
 
   // One setting's labelled control — a <select> for enum/boolean keys, else a
   // number input. Shared by both groups so they render identically.
@@ -119,6 +134,15 @@ export default function AdminSettings() {
             </option>
           ))}
         </Field>
+      ) : TEXT_FIELDS.has(s.key) ? (
+        <Field
+          type="text"
+          label={labelFor(s.key)}
+          info={FIELD_INFO[s.key]}
+          value={valueOf(s)}
+          onChange={(e) => onEdit(s.key, e.target.value)}
+          disabled={busy}
+        />
       ) : (
         <Field
           type="number"
@@ -196,6 +220,17 @@ export default function AdminSettings() {
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">{notifSettings.map(renderField)}</div>
             </Card>
           </div>
+
+          {/* Section 3 — App / force-update. Served to mobile via /auth/config. */}
+          {appSettings.length > 0 && (
+            <Card className="flex flex-col gap-5" style={{ padding: 24, marginBottom: 0 }}>
+              <h2 className="m-0 text-[15px] font-semibold text-ink">App / Force Update</h2>
+              <p className="m-0 -mt-3 text-[12px] text-muted">
+                Publish a new version number, then turn Force Update on to block users on older builds.
+              </p>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">{appSettings.map(renderField)}</div>
+            </Card>
+          )}
 
           <div className="flex max-w-130 flex-col gap-2">
             <Button

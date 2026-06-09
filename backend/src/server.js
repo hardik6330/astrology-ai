@@ -1,44 +1,18 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
+// Process entry point: connects the DB, runs idempotent seeds, binds the port,
+// starts the in-process scheduler, and handles graceful shutdown. The Express
+// app itself is built in app.js (so tests/serverless can import it port-free).
+
 import os from 'node:os';
 
+import app from './app.js';
 import { env } from './config/envConfig.js';
 import { logger } from './config/logger.js';
-import { corsOptions } from './config/cors.js';
 import sequelize from './config/dbConfig.js';
-// import { initFirebase } from './config/firebase.js';
-import './models/index.js';                       // register associations
-
-// initFirebase();
-
-import routes from './routes/index.js';
-import { errorHandler } from './middleware/errorHandler.js';
-import { responseWrapper } from './middleware/responseWrapper.js';
-import { seedAdmin } from './services/adminSeed.js';
-import { seedSettings } from './services/settingsSeed.js';
-import { seedNotificationTemplates } from './services/notificationSeed.js';
-import { seedCreditPlans } from './services/creditPlanSeed.js';
+import { seedAdmin } from './seeders/adminSeed.js';
+import { seedSettings } from './seeders/settingsSeed.js';
+import { seedNotificationTemplates } from './seeders/notificationSeed.js';
+import { seedCreditPlans } from './seeders/creditPlanSeed.js';
 import { startScheduler } from './config/scheduler.js';
-
-const app = express();
-
-// Trust the first reverse proxy (nginx / Cloudflare / Render / Fly) so that
-// rate-limiting + req.ip use the real client IP from X-Forwarded-For.
-app.set('trust proxy', 1);
-
-app.use(helmet());
-app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' }));
-
-app.get('/', (_req, res) => res.send('Server is running'));
-
-// Envelope all /api JSON responses as { success, message, data }.
-app.use('/api', responseWrapper, routes);
-
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
-
-app.use(errorHandler);
 
 // Print every non-internal IPv4 interface so the dev knows which LAN address
 // to hit from a phone / second device on the same Wi-Fi.
@@ -51,30 +25,25 @@ function logLanUrls(port) {
   });
 }
 
+// Verify the connection, create any missing tables, then seed defaults. sync()
+// with no options is non-destructive: it creates missing tables and never
+// alters or drops existing columns, so it's safe to run on every boot. Seeds
+// are idempotent + best-effort — they must never block startup.
+async function initDatabase() {
+  await sequelize.authenticate();
+  logger.info('Database connection verified');
+  await sequelize.sync();
+  logger.info('Database synced (missing tables created)');
+
+  seedAdmin().catch((err) => logger.warn({ err }, 'Admin seed skipped'));
+  seedSettings().catch((err) => logger.warn({ err }, 'Settings seed skipped'));
+  seedNotificationTemplates().catch((err) => logger.warn({ err }, 'Notification seed skipped'));
+  seedCreditPlans().catch((err) => logger.warn({ err }, 'Credit plan seed skipped'));
+}
+
 async function start() {
   try {
-    await sequelize.authenticate();
-    logger.info('Database connection verified');
-    // sync() with no options is non-destructive: creates missing tables,
-    // never alters or drops existing columns. Safe to run on every boot.
-    await sequelize.sync();
-    logger.info('Database synced (missing tables created)');
-    // The Location cache self-populates from real Nominatim searches (full
-    // labels + real IANA tzId). No static city seed — it stored weaker rows
-    // (numeric offset, tzId: null, country-less names) that caused duplicate
-    // dropdown entries against the live results.
-    // One-time admin seed: creates the default back-office admin from env only
-    // if no admin exists yet. No-op thereafter. Best-effort — never blocks boot.
-    seedAdmin().catch((err) => logger.warn({ err }, 'Admin seed skipped'));
-    // One-time settings seed: inserts default credit/cost keys if missing.
-    // Idempotent + best-effort — admin edits are preserved, never blocks boot.
-    seedSettings().catch((err) => logger.warn({ err }, 'Settings seed skipped'));
-    // One-time notification-pool seed: curated English engagement hooks, only
-    // inserted when the table is empty (admin curation is preserved).
-    seedNotificationTemplates().catch((err) => logger.warn({ err }, 'Notification seed skipped'));
-    // One-time credit-plan seed: default purchasable packages, only when the
-    // table is empty (admin curation is preserved). Best-effort — never blocks boot.
-    seedCreditPlans().catch((err) => logger.warn({ err }, 'Credit plan seed skipped'));
+    await initDatabase();
   } catch (err) {
     logger.fatal({ err }, 'Database init failed');
     if (env.NODE_ENV === 'production') process.exit(1);
@@ -105,7 +74,7 @@ async function start() {
     }, 10_000).unref();
   }
   process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT',  () => shutdown('SIGINT'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 start();

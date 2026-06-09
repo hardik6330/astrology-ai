@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, FlatList, Pressable,
   Keyboard, Platform, StyleSheet,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import MenuButton from "@/components/MenuButton";
 import { useChart } from "@/context/ChartContext";
@@ -49,6 +49,7 @@ export default function ChatScreen({ navigation }) {
   const [phIdx, setPhIdx]   = useState(0);
   const [phText, setPhText] = useState("");
   const [kbHeight, setKbHeight] = useState(0);
+  const insets = useSafeAreaInsets();
   const listRef = useRef(null);
 
   // SDK 54 enables Android edge-to-edge, so `adjustResize` no longer shrinks
@@ -169,7 +170,20 @@ export default function ChatScreen({ navigation }) {
           entering={FadeInDown.duration(400).springify()}
           style={{ flex: 1 }}
         >
-          <View style={{ flex: 1, paddingBottom: kbHeight }}>
+          {/* Keyboard handling differs per platform:
+              • Android uses adjustResize (softwareKeyboardLayoutMode: "resize"),
+                so the window ALREADY shrinks above the keyboard — adding kbHeight
+                here would double-compensate and leave a gap. Pad 0 when open.
+              • iOS doesn't resize, so we lift the input by the keyboard height.
+              When the keyboard is closed, pad by the bottom safe-area inset so the
+              input clears the gesture/nav bar (edge-to-edge). */}
+          <View
+            style={{
+              flex: 1,
+              paddingBottom:
+                kbHeight > 0 ? (Platform.OS === "ios" ? kbHeight : 0) : insets.bottom,
+            }}
+          >
           {/* Header */}
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
             <View style={s.headerRow}>
@@ -184,12 +198,16 @@ export default function ChatScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Messages */}
+          {/* Messages — flex:1 so the list fills all space between the header and
+              the input bar, pinning the input to the bottom (just above the
+              keyboard via the container's paddingBottom). Without this the list
+              only takes its content height, leaving a big gap above the input. */}
           {hydrating ? (
-            <SkeletonChat />
+            <View style={{ flex: 1 }}><SkeletonChat /></View>
           ) : (
           <FlatList
             ref={listRef}
+            style={{ flex: 1 }}
             data={data}
             keyExtractor={(_, i) => String(i)}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.md, gap: 10 }}

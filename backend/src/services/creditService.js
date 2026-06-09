@@ -9,7 +9,7 @@ import { Op, literal } from 'sequelize';
 import sequelize from '../config/dbConfig.js';
 import { User, CreditTransaction } from '../models/index.js';
 import * as settings from './settingsService.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { AppError } from '../errors/AppError.js';
 
 // Charge a user the price stored under `costKey` (e.g. 'chat_cost').
 //
@@ -26,7 +26,7 @@ export async function charge({ userId, costKey, reason, meta = null }) {
   // Free / disabled feature — nothing to deduct, no ledger noise.
   if (cost === 0) {
     const u = await User.findByPk(userId, { attributes: ['credits'] });
-    if (!u) throw httpError(404, 'User not found', 'NOT_FOUND');
+    if (!u) throw AppError.http(404, 'User not found', 'NOT_FOUND');
     return { charged: 0, balance: u.credits };
   }
 
@@ -40,8 +40,8 @@ export async function charge({ userId, costKey, reason, meta = null }) {
 
     if (affected === 0) {
       const exists = await User.findByPk(userId, { attributes: ['id'], transaction: t });
-      if (!exists) throw httpError(404, 'User not found', 'NOT_FOUND');
-      throw httpError(402, 'Not enough credits', 'INSUFFICIENT_CREDITS');
+      if (!exists) throw AppError.http(404, 'User not found', 'NOT_FOUND');
+      throw AppError.http(402, 'Not enough credits', 'INSUFFICIENT_CREDITS');
     }
 
     const user = await User.findByPk(userId, { attributes: ['credits'], transaction: t });
@@ -59,7 +59,7 @@ export async function grant({ userId, amount, reason, meta = null }) {
   const amt = Math.max(0, Math.round(Number(amount) || 0));
   if (amt === 0) {
     const u = await User.findByPk(userId, { attributes: ['credits'] });
-    if (!u) throw httpError(404, 'User not found', 'NOT_FOUND');
+    if (!u) throw AppError.http(404, 'User not found', 'NOT_FOUND');
     return { granted: 0, balance: u.credits };
   }
 
@@ -68,7 +68,7 @@ export async function grant({ userId, amount, reason, meta = null }) {
       { credits: literal(`credits + ${amt}`) },
       { where: { id: userId }, transaction: t },
     );
-    if (affected === 0) throw httpError(404, 'User not found', 'NOT_FOUND');
+    if (affected === 0) throw AppError.http(404, 'User not found', 'NOT_FOUND');
 
     const user = await User.findByPk(userId, { attributes: ['credits'], transaction: t });
     await CreditTransaction.create(

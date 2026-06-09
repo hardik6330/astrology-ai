@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import tzLookup from 'tz-lookup';
 import { Location } from '../models/index.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'location' });
@@ -26,7 +26,7 @@ async function nominatimSearch(query, limit = 8) {
   const res = await fetch(`${NOMINATIM_SEARCH}?${qs}`, {
     headers: { 'User-Agent': USER_AGENT },
   });
-  if (!res.ok) throw httpError(502, `Nominatim ${res.status}`);
+  if (!res.ok) throw AppError.http(502, `Nominatim ${res.status}`);
   return res.json();
 }
 
@@ -176,7 +176,7 @@ export async function searchCities(query, _sessionToken /* kept for API compat *
 // not used (the cached offset is "current"; for historical DST accuracy
 // in the user's birth year we'd need a different tz library — punt).
 export async function getCityDetails(placeId /*, _sessionToken, _birthTimestamp */) {
-  if (!placeId) throw httpError(400, 'placeId required');
+  if (!placeId) throw AppError.http(400, 'placeId required');
 
   const cached = await Location.findOne({ where: { placeId } });
   if (cached) {
@@ -188,7 +188,7 @@ export async function getCityDetails(placeId /*, _sessionToken, _birthTimestamp 
       placeId: cached.placeId,
     };
   }
-  throw httpError(404, 'Unknown placeId — re-run search first');
+  throw AppError.http(404, 'Unknown placeId — re-run search first');
 }
 
 /* ============================================================================
@@ -205,10 +205,10 @@ export async function getCityDetails(placeId /*, _sessionToken, _birthTimestamp 
  * async function googleJson(url, params) {
  *   const qs = new URLSearchParams({ ...params, key: env.GOOGLE_MAPS_API_KEY });
  *   const res = await fetch(`${url}?${qs}`);
- *   if (!res.ok) throw httpError(502, `Google API ${res.status}`);
+ *   if (!res.ok) throw AppError.http(502, `Google API ${res.status}`);
  *   const body = await res.json();
  *   if (body.status !== 'OK' && body.status !== 'ZERO_RESULTS') {
- *     throw httpError(502, `Google API: ${body.status}`);
+ *     throw AppError.http(502, `Google API: ${body.status}`);
  *   }
  *   return body;
  * }

@@ -154,14 +154,19 @@ function parseContent(content) {
   return parsed;
 }
 
-// Which auth mode the backend is in. → { otpService: true|false }
-// true = real Firebase OTP; false = dummy phone-only login.
+// Startup config from the backend.
+// → { otpService, latestVersion, forceUpdate, updateUrl }
+//   otpService: true = real Firebase OTP; false = dummy phone-only login.
+//   forceUpdate/latestVersion/updateUrl drive the force-update gate.
+// Fails OPEN: on any error we return safe defaults (real OTP, no force-update)
+// so a flaky network never locks the user out of the app.
 export async function getAuthConfig() {
+  const fallback = { otpService: true, latestVersion: null, forceUpdate: false, updateUrl: "" };
   try {
     const data = await getJSON("/auth/config");
-    return data || { otpService: true };
+    return { ...fallback, ...(data || {}) };
   } catch {
-    return { otpService: true }; // fall back to real OTP on failure
+    return fallback;
   }
 }
 

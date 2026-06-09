@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "scheme": "astrologyai",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "icon": "./assets/logo-removebg-preview.png",
     "splash": {
       "resizeMode": "contain",
@@ -55,6 +55,7 @@
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "@react-native-firebase/messaging",
+      "./plugins/withRemoveIapSupportLib",
       "react-native-iap",
       [
         "expo-build-properties",

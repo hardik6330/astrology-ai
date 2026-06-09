@@ -11,7 +11,7 @@ import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
 import { userKey } from '../utils/userKey.js';
 import { KUNDLI_MODELS, PALM_GATE_MODELS, THINK_BUDGET } from '../config/constants.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'palm' });
@@ -62,7 +62,7 @@ async function runGate({ image, claimedHand, skipGate = false }) {
   try {
     ({ mime: mimeType, base64 } = validateImage(image));
   } catch (e) {
-    throw httpError(400, e.message, 'INVALID_IMAGE');
+    throw AppError.http(400, e.message, 'INVALID_IMAGE');
   }
   const imageHash = crypto.createHash('sha256').update(base64).digest('hex');
 

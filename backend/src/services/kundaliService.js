@@ -11,7 +11,7 @@ import { cleanJson } from '../utils/cleanJson.js';
 import { userKey } from '../utils/userKey.js';
 import { KUNDLI_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { logger } from '../config/logger.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { AppError } from '../errors/AppError.js';
 
 const log = logger.child({ mod: 'kundali' });
 
@@ -25,7 +25,7 @@ export async function getSavedInterpretation(form) {
 
 // POST — generate (with cache + in-flight dedupe), persist, return.
 export async function generateInterpretation({ form, factSheet }) {
-  if (!factSheet) throw httpError(400, 'factSheet is required', 'BAD_REQUEST');
+  if (!factSheet) throw AppError.http(400, 'factSheet is required', 'BAD_REQUEST');
 
   return dedupe(`interpret|${userKey(form)}`, async () => {
     const user = await findOrCreateUser(form);

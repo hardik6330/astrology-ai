@@ -1,7 +1,7 @@
 import * as push from '../services/pushService.js';
 import { sendEngagement } from '../services/engageService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { AppError } from '../errors/AppError.js';
 
 // Single cron entrypoint. The external scheduler picks which campaign to run
 // via the ?job= query param — one URL, one cron line per job.
@@ -21,7 +21,7 @@ export const run = asyncHandler(async (req, res) => {
   const { job } = req.query;
   const handler = JOBS[job];
   if (!handler) {
-    throw httpError(400, `unknown job '${job ?? ''}' — use one of: ${Object.keys(JOBS).join(', ')}`, 'BAD_JOB');
+    throw AppError.http(400, `unknown job '${job ?? ''}' — use one of: ${Object.keys(JOBS).join(', ')}`, 'BAD_JOB');
   }
   const result = await handler();
   res.json({ job, ...result });

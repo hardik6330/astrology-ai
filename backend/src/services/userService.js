@@ -1,6 +1,6 @@
 import { Op } from 'sequelize';
 import { User, Kundali, DailyData } from '../models/index.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { AppError } from '../errors/AppError.js';
 import { notifyWelcome } from './pushService.js';
 import { grant } from './creditService.js';
 import * as settings from './settingsService.js';
@@ -15,7 +15,7 @@ const log = logger.child({ mod: 'user' });
 // not found.
 export async function findUserByForm({ name, date, time, city, gender, phone }) {
   if (!name || !date || !time || !city) {
-    throw httpError(400, 'name, date, time and city are required', 'BAD_REQUEST');
+    throw AppError.http(400, 'name, date, time and city are required', 'BAD_REQUEST');
   }
   const where = {
     name,

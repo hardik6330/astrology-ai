@@ -33,4 +33,11 @@ export class AppError extends Error {
   static internal(message = 'Internal error', code) {
     return new AppError(message, 500, code);
   }
+
+  // Status-first factory for arbitrary codes (402, 5xx, …) that don't have a
+  // named helper above. Mirrors the old httpError() signature so call sites read
+  // the same: AppError.http(404, 'Not found', 'NOT_FOUND').
+  static http(status, message, code) {
+    return new AppError(message, status, code);
+  }
 }

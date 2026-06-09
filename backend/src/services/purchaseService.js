@@ -17,7 +17,7 @@ import { CreditPlan, Purchase } from '../models/index.js';
 import { grant, getBalance } from './creditService.js';
 import { env } from '../config/envConfig.js';
 import { isRazorpayEnabled, razorpay, RAZORPAY_KEY_ID } from '../config/razorpay.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'purchase' });
@@ -65,7 +65,7 @@ export async function listActivePlans() {
 // Returns { purchase, plan, razorpay }. `razorpay` is null in mock mode.
 export async function createOrder({ userId, planId }) {
   const plan = await CreditPlan.findByPk(planId);
-  if (!plan || !plan.active) throw httpError(404, 'Plan not found', 'PLAN_NOT_FOUND');
+  if (!plan || !plan.active) throw AppError.http(404, 'Plan not found', 'PLAN_NOT_FOUND');
 
   const useRazorpay = isRazorpayEnabled();
   const purchase = await Purchase.create({
@@ -114,7 +114,7 @@ export async function verifyRazorpayPayment({
   userId, orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature,
 }) {
   const purchase = await Purchase.findOne({ where: { id: orderId, userId } });
-  if (!purchase) throw httpError(404, 'Order not found', 'ORDER_NOT_FOUND');
+  if (!purchase) throw AppError.http(404, 'Order not found', 'ORDER_NOT_FOUND');
 
   if (purchase.status === 'paid') {
     return { granted: 0, balance: await getBalance(userId), credits: purchase.credits, status: 'paid' };
@@ -122,7 +122,7 @@ export async function verifyRazorpayPayment({
 
   // The order id must match the one we created for this purchase.
   if (parseRef(purchase.providerRef).razorpayOrderId !== razorpayOrderId) {
-    throw httpError(400, 'Order mismatch', 'ORDER_MISMATCH');
+    throw AppError.http(400, 'Order mismatch', 'ORDER_MISMATCH');
   }
 
   // Recompute + constant-time compare the signature.
@@ -135,7 +135,7 @@ export async function verifyRazorpayPayment({
   const valid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
   if (!valid) {
     await purchase.update({ status: 'failed' });
-    throw httpError(400, 'Payment verification failed', 'SIGNATURE_INVALID');
+    throw AppError.http(400, 'Payment verification failed', 'SIGNATURE_INVALID');
   }
 
   return sequelize.transaction(async (t) => {
@@ -169,7 +169,7 @@ export async function verifyIapPayment({
   userId, planId, platform, receipt, purchaseToken,
 }) {
   const plan = await CreditPlan.findByPk(planId);
-  if (!plan) throw httpError(404, 'Plan not found', 'PLAN_NOT_FOUND');
+  if (!plan) throw AppError.http(404, 'Plan not found', 'PLAN_NOT_FOUND');
 
   // 1. Verify with the store (Apple or Google).
   let transactionId = null;
@@ -178,11 +178,11 @@ export async function verifyIapPayment({
   } else if (platform === 'android') {
     transactionId = await verifyGooglePurchase(plan.productId, purchaseToken);
   } else {
-    throw httpError(400, 'Invalid platform', 'INVALID_PLATFORM');
+    throw AppError.http(400, 'Invalid platform', 'INVALID_PLATFORM');
   }
 
   if (!transactionId) {
-    throw httpError(400, 'Payment verification failed', 'IAP_VERIFICATION_FAILED');
+    throw AppError.http(400, 'Payment verification failed', 'IAP_VERIFICATION_FAILED');
   }
 
   // 2. Settle the order. IAP verification is often called without a pre-existing
@@ -198,7 +198,7 @@ export async function verifyIapPayment({
       if (existing.status === 'paid') {
         return { granted: 0, balance: await getBalance(userId), credits: existing.credits, status: 'paid' };
       }
-      throw httpError(400, 'Transaction failed previously', 'TRANSACTION_FAILED');
+      throw AppError.http(400, 'Transaction failed previously', 'TRANSACTION_FAILED');
     }
 
     const { granted, balance } = await grant({
@@ -303,7 +303,7 @@ async function verifyGooglePurchase(productId, token) {
 // Returns { granted, balance, credits, status }.
 export async function confirmOrder({ userId, orderId, mockSuccess = true }) {
   const purchase = await Purchase.findOne({ where: { id: orderId, userId } });
-  if (!purchase) throw httpError(404, 'Order not found', 'ORDER_NOT_FOUND');
+  if (!purchase) throw AppError.http(404, 'Order not found', 'ORDER_NOT_FOUND');
 
   if (purchase.status === 'paid') {
     // Already settled — return without crediting again.
@@ -312,7 +312,7 @@ export async function confirmOrder({ userId, orderId, mockSuccess = true }) {
 
   if (!mockSuccess) {
     await purchase.update({ status: 'failed' });
-    throw httpError(402, 'Payment failed', 'PAYMENT_FAILED');
+    throw AppError.http(402, 'Payment failed', 'PAYMENT_FAILED');
   }
 
   return sequelize.transaction(async (t) => {
@@ -359,7 +359,7 @@ export async function createPlan(data) {
 // Patch an existing plan; only provided fields are touched.
 export async function updatePlan(id, data) {
   const plan = await CreditPlan.findByPk(id);
-  if (!plan) throw httpError(404, 'Plan not found', 'PLAN_NOT_FOUND');
+  if (!plan) throw AppError.http(404, 'Plan not found', 'PLAN_NOT_FOUND');
   const patch = {};
   for (const k of ['name', 'credits', 'priceInr', 'bonusLabel', 'active', 'sortOrder']) {
     if (data[k] !== undefined) patch[k] = data[k];

@@ -4,7 +4,7 @@ import * as purchase from '../services/purchaseService.js';
 import * as settings from '../services/settingsService.js';
 import { isRazorpayEnabled } from '../config/razorpay.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { AppError } from '../errors/AppError.js';
 
 // GET /credits → { credits, costs }. The user is resolved from the auth token
 // (req.auth.phone) — no form/query params needed. `credits` is that user's
@@ -45,7 +45,7 @@ async function resolveUserId(req) {
   if (req.auth?.userId) return req.auth.userId;
   const user = await findUserByPhone(req.auth?.phone);
   if (user) return user.id;
-  throw httpError(409, 'Create a profile before buying credits', 'NO_PROFILE');
+  throw AppError.http(409, 'Create a profile before buying credits', 'NO_PROFILE');
 }
 
 // GET /credits/plans → { plans: [{ id, name, credits, priceInr, bonusLabel }] }.
@@ -121,7 +121,7 @@ export const verifyIap = asyncHandler(async (req, res) => {
 // Razorpay is live so it can't be used to grant free credits in production.
 export const buyPlan = asyncHandler(async (req, res) => {
   if (isRazorpayEnabled()) {
-    throw httpError(400, 'Use /credits/order then /credits/verify', 'USE_ORDER_FLOW');
+    throw AppError.http(400, 'Use /credits/order then /credits/verify', 'USE_ORDER_FLOW');
   }
   const userId = await resolveUserId(req);
   const { purchase: order } = await purchase.createOrder({ userId, planId: req.body.planId });

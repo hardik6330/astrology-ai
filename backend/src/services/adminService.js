@@ -11,7 +11,7 @@ import { sendToTokens } from './notificationService.js';
 import { sendCustomToPhone } from './pushService.js';
 import * as settings from './settingsService.js';
 import * as purchase from './purchaseService.js';
-import { httpError } from '../middleware/errorHandler.js';
+import { AppError } from '../errors/AppError.js';
 
 export async function loginAdmin(username, password) {
   const admin = await Admin.findOne({ where: { username } });
@@ -19,7 +19,7 @@ export async function loginAdmin(username, password) {
   // so we don't leak which usernames exist. verifyPassword on a missing row
   // would throw, so guard first.
   if (!admin || !verifyPassword(password, admin.passwordHash)) {
-    throw httpError(401, 'Invalid username or password', 'INVALID_CREDENTIALS');
+    throw AppError.http(401, 'Invalid username or password', 'INVALID_CREDENTIALS');
   }
   const token = signAdminToken({ adminId: admin.id, username: admin.username });
   return { token, admin: { id: admin.id, name: admin.name, username: admin.username } };
@@ -29,7 +29,7 @@ export async function loginAdmin(username, password) {
 // username; this hydrates name too. Never returns the password hash.
 export async function getAdmin(adminId) {
   const admin = await Admin.findByPk(adminId, { attributes: ['id', 'name', 'username', 'createdAt'] });
-  if (!admin) throw httpError(404, 'Admin not found', 'NOT_FOUND');
+  if (!admin) throw AppError.http(404, 'Admin not found', 'NOT_FOUND');
   return admin;
 }
 
@@ -74,8 +74,8 @@ export async function broadcastPush({ title, body }) {
 // gone; a user with no phone / no enabled device just yields a 0-sent summary.
 export async function pushToUser({ userId, title, body }) {
   const user = await User.findByPk(userId, { attributes: ['id', 'name', 'phone'] });
-  if (!user) throw httpError(404, 'User not found', 'NOT_FOUND');
-  if (!user.phone) throw httpError(409, 'User has no phone on record', 'NO_PHONE');
+  if (!user) throw AppError.http(404, 'User not found', 'NOT_FOUND');
+  if (!user.phone) throw AppError.http(409, 'User has no phone on record', 'NO_PHONE');
   return sendCustomToPhone(user.phone, { title, body });
 }
 

@@ -3,8 +3,6 @@
 // Controllers/services throw AppError (or any Error with .status / .code)
 // and this middleware translates it into the right HTTP status + JSON body.
 
-import { AppError } from '../errors/AppError.js';
-
 const STATUS_BY_CODE = {
   AI_OVERLOADED:   503,
   INVALID_IMAGE:   400,
@@ -26,11 +24,3 @@ export function errorHandler(err, req, res, _next) {
     ...(err.code && { code: err.code }),
   });
 }
-
-// Back-compat shim for callers still using httpError(). Prefer AppError.
-// TODO: remove once all controllers/services migrate to AppError.
-export function httpError(status, message, code) {
-  return new AppError(message, status, code);
-}
-
-export { AppError };
