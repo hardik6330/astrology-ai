@@ -167,6 +167,7 @@ export const makeStyles = (c) => StyleSheet.create({
   numberBadgeText: { fontSize: 11, fontWeight: "800", letterSpacing: 1 },
   narrativeTitle:  { flex: 1, color: c.text, fontSize: 15, lineHeight: 22, fontWeight: "700" },
   narrativeBody:   { color: c.textBody, fontSize: 13.5, lineHeight: 23 },
+  showMore:        { fontSize: 13, fontWeight: "700", marginTop: 8 },
 
   // ── Strengths / Growth panel cards ───────────────────────────────
   panelCard: {

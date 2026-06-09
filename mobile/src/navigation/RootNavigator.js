@@ -19,7 +19,7 @@ import DrawerContent     from "../components/DrawerContent";
 import { withErrorBoundary } from "../components/ErrorBoundary";
 import { color } from "../theme/tokens";
 import { useAuth } from "../features/auth/AuthContext";
-import { useChart } from "../context/ChartContext";
+import { useForm } from "../context/ChartContext";
 
 const Drawer = createDrawerNavigator();
 const Stack  = createNativeStackNavigator();
@@ -51,7 +51,7 @@ function MainDrawer() {
   // chart yet) start on Home so they can enter their details. The chart is
   // set synchronously by applySavedForm before login flips the token, so it's
   // already present when this drawer first mounts.
-  const { chart } = useChart();
+  const { chart } = useForm();
   const initialRoute = chart ? "Reading" : "Home";
 
   useEffect(() => {
@@ -87,6 +87,11 @@ function MainDrawer() {
       drawerContent={(props) => <DrawerContent {...props} />}
       screenOptions={{
         headerShown: false,
+        // Freeze (not unmount) blurred screens: stops their re-renders while
+        // keeping them mounted, so local screen state survives navigation —
+        // the app relies on that (palm scan, chat input, etc.). Pairs with the
+        // split ChartContext to keep background screens fully idle.
+        freezeOnBlur: true,
         drawerType: "front",
         drawerStyle: {
           backgroundColor: color.bg, width: 280,
@@ -132,7 +137,7 @@ export default function RootNavigator() {
   // lands on Home ("step 1"), then bounces to Reading via redirectToReading,
   // leaving a stale Home at the bottom of the back history. Waiting here makes
   // initialRoute deterministic so back order is a clean Credits → Profile → Reading.
-  const { hydrated: chartHydrated } = useChart();
+  const { hydrated: chartHydrated } = useForm();
   // navigationRef is the shared container ref (also used by push-tap handlers).
   const routeNameRef = useRef();
 

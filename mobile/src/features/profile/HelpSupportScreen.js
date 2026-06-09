@@ -1,11 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, Pressable, Linking, StyleSheet } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
 import MenuButton from "@/components/MenuButton";
+import { SkeletonHelp } from "@/components/Skeleton";
+import { EMOJIS } from "@/utils/emojis";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
 import { useBackToKundali } from "@/utils/useBackToKundali";
+
+// Short settle-in shimmer before content fades in (no real data fetch).
+const BOOT_MS = 450;
 
 const FAQ = [
   {
@@ -24,8 +30,14 @@ const FAQ = [
 
 export default function HelpSupportScreen({ navigation }) {
   const [open, setOpen] = useState(-1);
+  const [booting, setBooting] = useState(true);
   const s = useStyles(makeStyles);
   useBackToKundali(navigation);
+
+  useEffect(() => {
+    const t = setTimeout(() => setBooting(false), BOOT_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <ScreenContainer showMenu={false}>
@@ -38,22 +50,24 @@ export default function HelpSupportScreen({ navigation }) {
         <View style={{ width: 40 }} />
       </View>
 
+      {booting ? <SkeletonHelp /> : (
+      <Animated.View entering={FadeIn.duration(300)}>
       <CosmicCard>
         <Text style={s.cardTitle}>Quick Contact</Text>
         <ContactRow
-          icon="✉️"
+          icon={EMOJIS.ENVELOPE}
           label="Email"
           value="support@astrologyai.app"
           onPress={() => Linking.openURL("mailto:support@astrologyai.app?subject=Astrology AI Support")}
         />
         <ContactRow
-          icon="💬"
+          icon={EMOJIS.CHAT}
           label="WhatsApp"
           value="+91 00000 00000"
           onPress={() => Linking.openURL("https://wa.me/910000000000")}
         />
         <ContactRow
-          icon="🌐"
+          icon={EMOJIS.GLOBE}
           label="Website"
           value="astrologyai.app"
           onPress={() => Linking.openURL("https://astrologyai.app")}
@@ -76,6 +90,8 @@ export default function HelpSupportScreen({ navigation }) {
       <Text style={s.disclaimer}>
         Astrology is a tool for self-reflection. Insights here are interpretive, not predictive — always trust your own judgment.
       </Text>
+      </Animated.View>
+      )}
     </ScreenContainer>
   );
 }

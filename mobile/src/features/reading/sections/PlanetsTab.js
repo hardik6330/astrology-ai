@@ -20,7 +20,7 @@ export default function PlanetsTab({ chart, now }) {
       <PlanetaryStrengthCard strengths={chart.strengths} />
 
       <CosmicCard>
-        <Text style={s.cardTitle}>🪐 Planetary Positions</Text>
+        <Text style={s.cardTitle}>Planetary Positions</Text>
         <Text style={s.cardSub}>
           Whole-sign house system — each sign is one full house.
         </Text>

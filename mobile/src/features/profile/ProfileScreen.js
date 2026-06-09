@@ -5,10 +5,12 @@ import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
 import MagicButton from "@/components/MagicButton";
 import MenuButton from "@/components/MenuButton";
+import Skeleton from "@/components/Skeleton";
 import { useColors } from "@/theme/ThemeContext";
-import { useChart } from "@/context/ChartContext";
+import { useForm } from "@/context/ChartContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import { signOf, ZE } from "@/shared/astrology";
+import { EMOJIS } from "@/utils/emojis";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
 import { useBackToKundali } from "@/utils/useBackToKundali";
@@ -19,8 +21,8 @@ import { getCredits } from "@/services/api";
 const LOW = 20;
 
 export default function ProfileScreen({ navigation }) {
-  const { form, chart } = useChart();
-  const { logout } = useAuth();
+  const { form, chart } = useForm();
+  const { logout, account } = useAuth();
   const color = useColors();
   const s = useStyles(makeStyles);
   useBackToKundali(navigation);
@@ -35,6 +37,14 @@ export default function ProfileScreen({ navigation }) {
   useFocusEffect(useCallback(() => { getCredits(); }, []));
   const low = credits != null && credits < LOW;
   const initial = (form.name || "?").trim().charAt(0).toUpperCase();
+
+  // Show the 10-digit number only (no country code), grouped XXXXX XXXXX.
+  function fmtPhone(p) {
+    if (!p) return "";
+    const ten = String(p).replace(/\D/g, "").slice(-10);
+    if (ten.length !== 10) return String(p);
+    return `${ten.slice(0, 5)} ${ten.slice(5)}`;
+  }
 
   function fmtTime(t) {
     if (!t) return "—";
@@ -77,6 +87,9 @@ export default function ProfileScreen({ navigation }) {
         </View>
         <Text style={s.name}>{form.name || "Seeker"}</Text>
         <Text style={s.tagline}>{form.city || "Birth place not set"}</Text>
+        {account?.phone ? (
+          <Text style={s.phone}>{fmtPhone(account.phone)}</Text>
+        ) : null}
       </View>
 
       {/* Cosmic Credits — the only place the balance is shown. */}
@@ -85,9 +98,16 @@ export default function ProfileScreen({ navigation }) {
         <View style={s.creditsTopRow}>
           <View style={{ flex: 1 }}>
             <Text style={s.creditsLabel}>COSMIC CREDITS</Text>
-            <Text style={[s.creditsValue, { color: low ? color.danger : color.primaryLight }]}>
-              ✨ {credits == null ? "—" : credits}
-            </Text>
+            {credits == null ? (
+              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+                <Text style={[s.creditsValue, { color: color.primaryLight }]}>{EMOJIS.SPARKLES} </Text>
+                <Skeleton width={56} height={26} r={8} />
+              </View>
+            ) : (
+              <Text style={[s.creditsValue, { color: low ? color.danger : color.primaryLight }]}>
+                {EMOJIS.SPARKLES} {credits}
+              </Text>
+            )}
           </View>
           <MagicButton
             size="sm"
@@ -108,9 +128,9 @@ export default function ProfileScreen({ navigation }) {
       {chart && (
         <View style={s.row3}>
           {[
-            ["Sun",   sunV,  "☀️", null],
-            ["Moon",  moonV, "🌙", null],
-            ["Lagna", ascV,  "⬆",  color.primaryLight],
+            ["Sun",   sunV,  EMOJIS.SUN_FACE, null],
+            ["Moon",  moonV, EMOJIS.MOON,     null],
+            ["Lagna", ascV,  EMOJIS.ARROW_UP, color.primaryLight],
           ].map(([l, v, ic, tint]) => (
             <View key={l} style={s.miniCard}>
               <Text style={{ fontSize: 22, lineHeight: 30, color: tint || undefined }}>{ic}</Text>
@@ -157,11 +177,11 @@ export default function ProfileScreen({ navigation }) {
       )}
 
       <MagicButton onPress={() => navigation.navigate("Home")}>
-        ✏️  Update Birth Details
+        {EMOJIS.EDIT}  Update Birth Details
       </MagicButton>
 
       <Pressable onPress={logout} style={s.logoutBtn}>
-        <Text style={s.logoutText}>🚪  Logout</Text>
+        <Text style={s.logoutText}>{EMOJIS.DOOR}  Logout</Text>
       </Pressable>
     </ScreenContainer>
   );
@@ -189,6 +209,7 @@ const makeStyles = (c) =>
     avatarText: { color: c.primaryLight, fontSize: 44, fontWeight: "800" },
     name:       { color: c.primaryLight, fontSize: 24, fontWeight: "700" },
     tagline:    { color: c.textMuted, fontSize: 14, marginTop: 4 },
+    phone:      { color: c.textDim, fontSize: 14, lineHeight: 20, includeFontPadding: false, fontWeight: "600", marginTop: 6 },
 
     row3:    { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
     miniCard: {

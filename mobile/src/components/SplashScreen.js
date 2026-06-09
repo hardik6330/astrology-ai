@@ -11,7 +11,7 @@ import { useColors } from "../theme/ThemeContext";
 import { spacing } from "../theme/tokens";
 
 import * as Location from "expo-location";
-import { useChart } from "../context/ChartContext";
+import { useForm } from "../context/ChartContext";
 
 const LINES = [
   "Aligning the stars…",
@@ -146,7 +146,7 @@ function AstroLogo({ size = 240, zodiacRotation, planetScale }) {
  * rotating zodiac wheel) over a twinkling starfield.
  */
 export default function SplashScreen({ onDone, duration = 2800 }) {
-  const { setCurrentLoc } = useChart();
+  const { setCurrentLoc } = useForm();
   const colors = useColors();
   const styles = useStyles(makeStyles);
   const [lineIdx, setLineIdx] = useState(0);

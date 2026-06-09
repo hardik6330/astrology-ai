@@ -4,12 +4,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStyles } from "../theme/useStyles";
 import { radius } from "../theme/tokens";
 import { haptics } from "../utils/haptics";
+import { EMOJIS } from "../utils/emojis";
 
 const TABS = [
-  { key: "kundali",  label: "Birth Chart", icon: "🔯", route: "Reading", params: { tab: "kundali" } },
-  { key: "planets",  label: "Planets",  icon: "🪐", route: "Reading", params: { tab: "planets" } },
-  { key: "timeline", label: "Timeline", icon: "🕒", route: "Reading", params: { tab: "timeline" } },
-  { key: "reading",  label: "Insights", icon: "✨", route: "Reading", params: { tab: "reading" } },
+  { key: "kundali",  label: "Birth Chart", icon: EMOJIS.KUNDLI,       route: "Reading", params: { tab: "kundali" } },
+  { key: "planets",  label: "Planets",     icon: EMOJIS.SATURN,       route: "Reading", params: { tab: "planets" } },
+  { key: "timeline", label: "Timeline",    icon: EMOJIS.CLOCK,        route: "Reading", params: { tab: "timeline" } },
+  { key: "reading",  label: "Insights",    icon: EMOJIS.SPARKLES,     route: "Reading", params: { tab: "reading" } },
 ];
 
 export default function BottomNav({ activeKey, navigation, onLocalTab }) {

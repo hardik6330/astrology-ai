@@ -11,21 +11,23 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import ScreenContainer from "../../components/ScreenContainer";
 import CosmicCard from "../../components/CosmicCard";
-import { useChart } from "../../context/ChartContext";
+import { useForm, usePalm } from "../../context/ChartContext";
 import { analyzePalm } from "../../services/api";
 import { useColors } from "../../theme/ThemeContext";
 import { useStyles } from "../../theme/useStyles";
 import { radius, spacing, fontSize } from "../../theme/tokens";
+import { EMOJIS } from "../../utils/emojis";
 import { gatePalmImage, warmUpGate } from "./palmGate";
 import MagicButton from "../../components/MagicButton";
 import { haptics } from "../../utils/haptics";
 import { compressPhoto } from "../../utils/compressImage";
 
 export default function PalmStepScreen({ navigation }) {
-  const { 
-    form, setPalm, setPalmComparison, setPalmPhoto, 
-    setPalmAnalyzing, setPalmClaimedHand, setPalmLandmarks 
-  } = useChart();
+  const { form } = useForm();
+  const {
+    setPalm, setPalmComparison, setPalmPhoto,
+    setPalmAnalyzing, setPalmClaimedHand, setPalmLandmarks,
+  } = usePalm();
   const color = useColors();
   const s = useStyles(makeStyles);
   const [busy, setBusy] = useState(false);
@@ -170,8 +172,8 @@ export default function PalmStepScreen({ navigation }) {
             {/* Split the two emojis into their own Text views — joined
                 "✋🤚" clips the second glyph on some Android emoji fonts. */}
             <View style={s.bothIconWrap}>
-              <Text style={s.bothIconGlyph}>✋</Text>
-              <Text style={s.bothIconGlyph}>🤚</Text>
+              <Text style={s.bothIconGlyph}>{EMOJIS.HAND}</Text>
+              <Text style={s.bothIconGlyph}>{EMOJIS.HAND_LEFT}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.handLabel}>Both Hands · Full Life Comparison</Text>
@@ -183,7 +185,7 @@ export default function PalmStepScreen({ navigation }) {
           </Pressable>
 
           <HandButton
-            icon="✋"
+            icon={EMOJIS.HAND}
             label="Right Hand"
             sublabel="Tap to add a photo of your right palm"
             onPress={() => setActiveHand("Right")}
@@ -192,7 +194,7 @@ export default function PalmStepScreen({ navigation }) {
             styles={s}
           />
           <HandButton
-            icon="🤚"
+            icon={EMOJIS.HAND_LEFT}
             label="Left Hand"
             sublabel="Tap to add a photo of your left palm"
             onPress={() => setActiveHand("Left")}
@@ -251,7 +253,7 @@ export default function PalmStepScreen({ navigation }) {
                 </>
               ) : (
                 <>
-                  <Text style={s.sourceIcon}>📷</Text>
+                  <Text style={s.sourceIcon}>{EMOJIS.CAMERA_LENS}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={s.sourceLabel}>Take a Photo</Text>
                     <Text style={s.sourceSub}>For an accurate reading we use a live camera shot, not gallery uploads</Text>

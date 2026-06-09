@@ -7,6 +7,7 @@ import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { fontSize } from "../../../theme/tokens";
 import { ZE, fmtDate } from "../../../shared/astrology";
+import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 
 // Timeline tab: dasha + ashtakvarga wheels, the dasha-window forecast,
@@ -66,7 +67,7 @@ export default function TimelineTab({ chart }) {
                 </View>
               </View>
               {c.supporting.slice(0, 3).map((sp, j) => (
-                <Text key={j} style={s.confSup}>✓ {sp}</Text>
+                <Text key={j} style={s.confSup}>{EMOJIS.CHECK} {sp}</Text>
               ))}
             </View>
           );
@@ -83,7 +84,7 @@ export default function TimelineTab({ chart }) {
           </View>
         ) : (
           <View style={s.sadeGood}>
-            <Text style={{ color: color.success, fontWeight: "600" }}>✓ Free from Sade Sati</Text>
+            <Text style={{ color: color.success, fontWeight: "600" }}>{EMOJIS.CHECK} Free from Sade Sati</Text>
           </View>
         )}
         {chart.transits.positions.map((p) => (

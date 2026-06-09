@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
-import { useChart } from "../../context/ChartContext";
+import { useForm, usePalm } from "../../context/ChartContext";
 import { useCosts } from "../../hooks/useCosts";
 import { useCredits } from "../../hooks/useCredits";
 import { analyzePalm, fetchSaved, fetchPalmHistory, fetchPalmById } from "../../services/api";
@@ -17,8 +17,9 @@ import { SCAN_MSGS } from "./constants";
 // parts (gate → analyze → result, plus background analyses started on other
 // screens that this screen has to mirror).
 export function usePalmReading() {
+  const { form } = useForm();
   const {
-    form, palm, setPalm,
+    palm, setPalm,
     palmPhoto, setPalmPhoto,
     palmAnalyzing, setPalmAnalyzing,
     palmClaimedHand, setPalmClaimedHand,
@@ -28,7 +29,7 @@ export function usePalmReading() {
     palmLeftPhoto, setPalmLeftPhoto,
     palmRightPhoto, setPalmRightPhoto,
     palmLandmarks, setPalmLandmarks,
-  } = useChart();
+  } = usePalm();
   const costs = useCosts();
   const palmCost = costs?.palm ?? 30;
   const credits = useCredits();

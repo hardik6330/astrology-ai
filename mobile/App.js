@@ -4,7 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import RootNavigator from "./src/navigation/RootNavigator";
-import { ChartProvider, useChart } from "./src/context/ChartContext";
+import { ChartProvider, useForm } from "./src/context/ChartContext";
 import { AuthProvider, useAuth } from "./src/features/auth/AuthContext";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import ErrorBoundary from "./src/components/ErrorBoundary";
@@ -33,7 +33,7 @@ function ThemedStatusBar() {
 // number to sign in inherits the previous user's data from disk.
 function AuthLifecycle() {
   const { token } = useAuth();
-  const { clearAll } = useChart();
+  const { clearAll } = useForm();
   const prevTokenRef = React.useRef(token);
   useEffect(() => {
     const prev = prevTokenRef.current;

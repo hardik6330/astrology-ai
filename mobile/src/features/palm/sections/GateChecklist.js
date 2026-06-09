@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, ActivityIndicator } from "react-native";
 import { useColors } from "../../../theme/ThemeContext";
 import { spacing } from "../../../theme/tokens";
+import { EMOJIS } from "../../../utils/emojis";
 
 // Live gate diagnostic panel shown under the palm photo while it's analyzed —
 // the mobile twin of the web's PalmGateChecklist. Each check is a pill carrying
@@ -23,7 +24,7 @@ function Pill({ ok, children, tone }) {
       {tone === "analyzing" ? (
         <ActivityIndicator size="small" color={fg} />
       ) : (
-        <Text style={{ color: fg, fontSize: 13, fontWeight: "700", includeFontPadding: false }}>{ok ? "✓" : "✗"}</Text>
+        <Text style={{ color: fg, fontSize: 13, fontWeight: "700", includeFontPadding: false }}>{ok ? EMOJIS.CHECK : EMOJIS.CROSS}</Text>
       )}
       <Text style={{ color: fg, fontSize: 13, fontWeight: "600", flex: 1 }}>{children}</Text>
     </View>

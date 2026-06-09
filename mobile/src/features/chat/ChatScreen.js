@@ -6,7 +6,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import MenuButton from "@/components/MenuButton";
-import { useChart } from "@/context/ChartContext";
+import { useForm, useReading } from "@/context/ChartContext";
 import { chatCompletion, fetchChatHistory } from "@/services/api";
 import { buildFactSheet } from "@/shared/astrology";
 import { SkeletonChat } from "@/components/Skeleton";
@@ -18,6 +18,7 @@ import { useBackToKundali } from "@/utils/useBackToKundali";
 import { useCosts } from "@/hooks/useCosts";
 import { useCredits } from "@/hooks/useCredits";
 import LowCreditsCard from "@/components/LowCreditsCard";
+import { EMOJIS } from "@/utils/emojis";
 
 const SUGGESTIONS = [
   "When will I marry?",
@@ -42,7 +43,7 @@ const ChatBubble = React.memo(function ChatBubble({ role, content }) {
   return (
     <View style={[s.bubbleRow, isUser ? { flexDirection: "row-reverse" } : { flexDirection: "row" }]}>
       <View style={[s.avatar, isUser ? s.avatarUser : s.avatarAi]}>
-        <Text style={{ fontSize: 18, lineHeight: 24 }}>{isUser ? "🧑" : "🔮"}</Text>
+        <Text style={{ fontSize: 18, lineHeight: 24 }}>{isUser ? EMOJIS.PERSON : EMOJIS.CRYSTAL_BALL}</Text>
       </View>
       <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAi]}>
         <Text style={s.bubbleText}>{content}</Text>
@@ -52,7 +53,8 @@ const ChatBubble = React.memo(function ChatBubble({ role, content }) {
 });
 
 export default function ChatScreen({ navigation }) {
-  const { form, chart, chatMsgs, setChatMsgs } = useChart();
+  const { form, chart } = useForm();
+  const { chatMsgs, setChatMsgs } = useReading();
   useBackToKundali(navigation);
   const [input, setInput]   = useState("");
   const [busy, setBusy]     = useState(false);
@@ -114,7 +116,7 @@ export default function ChatScreen({ navigation }) {
   const s = useStyles(makeStyles);
 
   const welcomeMsg =
-    `Namaste ${form.name || "there"} 🙏 I'm your personal Vedic astrologer. ` +
+    `Namaste ${form.name || "there"} ${EMOJIS.NAMASTE} I'm your personal Vedic astrologer. ` +
     `Ask me anything about your life — career, marriage, money, health, timing — and ` +
     `I'll answer from your kundali. What would you like to know?`;
 
@@ -253,7 +255,7 @@ export default function ChatScreen({ navigation }) {
                 />
               </View>
             )}
-            <Text style={s.costNote}>✨ {chatCost} credits per message</Text>
+            <Text style={s.costNote}>{EMOJIS.SPARKLES} {chatCost} credits per message</Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
               <TextInput
                 value={input}

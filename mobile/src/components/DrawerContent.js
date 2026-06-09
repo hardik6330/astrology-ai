@@ -2,21 +2,22 @@ import React from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Switch } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PressableScale from "./PressableScale";
-import { useChart } from "../context/ChartContext";
+import { useForm } from "../context/ChartContext";
 import { useAuth } from "../features/auth/AuthContext";
 import { useTheme } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize } from "../theme/tokens";
+import { EMOJIS } from "../utils/emojis";
 
 const ITEMS = [
   // Home goes straight into the Kundali tab; Reading lands on the Insights
   // (AI synthesis) tab. Both target the Reading screen with a tab param.
-  { key: "Home",    label: "Birth Chart",    icon: "🏠", route: "Reading", params: { tab: "kundali" }, desc: "Your kundali chart" },
-  { key: "Reading", label: "Insights",       icon: "✨", route: "Reading", params: { tab: "reading" }, desc: "Your AI cosmic reading" },
-  { key: "Palm",    label: "Palm Reading",   icon: "✋", route: "Palm",    desc: "Hand-line insights" },
-  { key: "Chat",    label: "AI Astrologer",  icon: "💬", route: "Chat",    desc: "Ask the stars anything" },
-  { key: "Profile", label: "Profile",        icon: "👤", route: "Profile", desc: "Birth details & identity" },
-  { key: "Help",    label: "Help & Support", icon: "💁", route: "Help",    desc: "FAQ, contact, about" },
+  { key: "Home",    label: "Birth Chart",    icon: EMOJIS.HOUSE,     route: "Reading", params: { tab: "kundali" }, desc: "Your kundali chart" },
+  { key: "Reading", label: "Insights",       icon: EMOJIS.SPARKLES,  route: "Reading", params: { tab: "reading" }, desc: "Your AI cosmic reading" },
+  { key: "Palm",    label: "Palm Reading",   icon: EMOJIS.HAND,      route: "Palm",    desc: "Hand-line insights" },
+  { key: "Chat",    label: "AI Astrologer",  icon: EMOJIS.CHAT,      route: "Chat",    desc: "Ask the stars anything" },
+  { key: "Profile", label: "Profile",        icon: EMOJIS.USER,      route: "Profile", desc: "Birth details & identity" },
+  { key: "Help",    label: "Help & Support", icon: EMOJIS.HELP_DESK, route: "Help",    desc: "FAQ, contact, about" },
 ];
 
 function fmtTime(t) {
@@ -30,7 +31,7 @@ function fmtTime(t) {
 }
 
 export default function DrawerContent({ navigation, state }) {
-  const { form } = useChart();
+  const { form } = useForm();
   const { account, logout } = useAuth();
   const { theme, toggleTheme, colors } = useTheme();
   const styles = useStyles(makeStyles);
@@ -58,7 +59,7 @@ export default function DrawerContent({ navigation, state }) {
             <Text style={styles.avatarText}>{initial}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.name} numberOfLines={1}>{form.name || "Welcome ✨"}</Text>
+            <Text style={styles.name} numberOfLines={1}>{form.name || `Welcome ${EMOJIS.SPARKLES}`}</Text>
             {birthLine ? (
               <Text style={styles.birthLine} numberOfLines={1}>{birthLine}</Text>
             ) : null}
@@ -109,7 +110,7 @@ export default function DrawerContent({ navigation, state }) {
 
         {/* Theme toggle */}
         <Pressable onPress={toggleTheme} style={styles.themeRow}>
-          <Text style={styles.icon}>{isDark ? "🌙" : "☀️"}</Text>
+          <Text style={styles.icon}>{isDark ? EMOJIS.MOON : EMOJIS.SUN_FACE}</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.themeLabel}>{isDark ? "Dark Mode" : "Light Mode"}</Text>
             <Text style={styles.themeSub}>Tap to switch</Text>

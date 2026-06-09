@@ -4,7 +4,7 @@
 // later without touching the plan list.
 
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, StyleSheet, Modal, ActivityIndicator, Platform, Pressable } from "react-native";
+import { View, Text, StyleSheet, Modal, Platform, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 // react-native-iap removed — incompatible with RN 0.81 (Kotlin 2.x).
@@ -19,6 +19,8 @@ import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
 import MagicButton from "@/components/MagicButton";
 import MenuButton from "@/components/MenuButton";
+import { SkeletonCredits } from "@/components/Skeleton";
+import { EMOJIS } from "@/utils/emojis";
 import { useColors } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
@@ -146,7 +148,7 @@ export default function CreditsScreen({ navigation }) {
         <View style={s.balanceIndicator} />
         <View>
           <Text style={s.balanceLabel}>YOUR BALANCE</Text>
-          <Text style={s.balanceValue}>✨ {credits ?? "—"}</Text>
+          <Text style={s.balanceValue}>{EMOJIS.SPARKLES} {credits ?? "—"}</Text>
         </View>
         <View style={s.balanceStatus}>
           <Text style={s.balanceStatusText}>Ready to use</Text>
@@ -156,10 +158,7 @@ export default function CreditsScreen({ navigation }) {
       {error ? <Text style={s.error}>{error}</Text> : null}
 
       {loading ? (
-        <View style={s.loaderContainer}>
-          <ActivityIndicator size="large" color={c.primaryLight} />
-          <Text style={s.loaderText}>Loading cosmic plans…</Text>
-        </View>
+        <SkeletonCredits />
       ) : plans.length === 0 ? (
         <Text style={s.empty}>No plans available right now.</Text>
       ) : (
@@ -200,7 +199,7 @@ export default function CreditsScreen({ navigation }) {
                   
                   <View style={s.planInfo}>
                     <Text style={s.planName}>{p.name}</Text>
-                    <Text style={s.planCredits}>✨ {p.credits} Credits</Text>
+                    <Text style={s.planCredits}>{EMOJIS.SPARKLES} {p.credits} Credits</Text>
                   </View>
 
                   <View style={s.planPriceContainer}>
@@ -279,12 +278,12 @@ function CheckoutModal({ plan, onClose, onError }) {
         <CosmicCard style={s.modalCard}>
           {done ? (
             <>
-              <Text style={s.modalIcon}>🎉</Text>
+              <Text style={s.modalIcon}>{EMOJIS.PARTY}</Text>
               <Text style={[s.modalTitle, { color: c.success }]}>{plan?.credits} credits added!</Text>
             </>
           ) : (
             <>
-              <Text style={s.modalIcon}>✨</Text>
+              <Text style={s.modalIcon}>{EMOJIS.SPARKLES}</Text>
               <Text style={s.modalTitle}>{plan?.name}</Text>
               <Text style={s.modalSub}>
                 {plan?.credits} credits for {plan ? formatInr(plan.priceInr) : ""}

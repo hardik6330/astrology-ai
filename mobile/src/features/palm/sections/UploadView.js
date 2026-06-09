@@ -6,6 +6,7 @@ import PressableScale from "../../../components/PressableScale";
 import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { spacing, fontSize } from "../../../theme/tokens";
+import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 import PalmSkeletonOverlay from "../../../components/PalmSkeletonOverlay";
 import GateChecklist from "./GateChecklist";
@@ -23,7 +24,7 @@ export default function UploadView({
     <CosmicCard style={{ alignItems: "center", padding: spacing.xl }}>
       {!preview && !scanning && (
         <>
-          <Text style={{ fontSize: 64, lineHeight: 84, marginBottom: 12, textAlign: "center" }}>✋</Text>
+          <Text style={{ fontSize: 64, lineHeight: 84, marginBottom: 12, textAlign: "center" }}>{EMOJIS.HAND}</Text>
           <Text style={s.uploadTitle}>Scan Your Palm</Text>
           <Text style={s.uploadHint}>
             Pick which hand you're uploading. We'll check the photo matches the hand you choose.
@@ -31,7 +32,7 @@ export default function UploadView({
 
           {/* Cost reminder — palm reading is a charged AI action. */}
           <View style={s.costPill}>
-            <Text style={[s.costPillText, { color: color.primaryLight }]}>✨ {palmCost} credits per reading</Text>
+            <Text style={[s.costPillText, { color: color.primaryLight }]}>{EMOJIS.SPARKLES} {palmCost} credits per reading</Text>
           </View>
 
           {/* Premium headline card — Both Hands · Full Life Comparison */}
@@ -42,8 +43,8 @@ export default function UploadView({
           >
             {/* Split glyphs to avoid Android clipping of joined "✋🤚". */}
             <View style={s.uploadBothIconWrap}>
-              <Text style={s.uploadBothIconGlyph}>✋</Text>
-              <Text style={s.uploadBothIconGlyph}>🤚</Text>
+              <Text style={s.uploadBothIconGlyph}>{EMOJIS.HAND}</Text>
+              <Text style={s.uploadBothIconGlyph}>{EMOJIS.HAND_LEFT}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.uploadHandLabel}>Both Hands · Full Life Comparison</Text>
@@ -59,7 +60,7 @@ export default function UploadView({
             disabled={cannotAfford}
             style={({ pressed }) => [s.uploadHandBtn, (pressed || cannotAfford) && { opacity: cannotAfford ? 0.5 : 0.7 }, { marginTop: spacing.sm }]}
           >
-            <Text style={s.uploadHandIcon}>✋</Text>
+            <Text style={s.uploadHandIcon}>{EMOJIS.HAND}</Text>
             <View style={{ flex: 1 }}>
               <Text style={s.uploadHandLabel}>Right Hand</Text>
               <Text style={s.uploadHandSub}>Tap to take or pick a photo</Text>
@@ -71,7 +72,7 @@ export default function UploadView({
             disabled={cannotAfford}
             style={({ pressed }) => [s.uploadHandBtn, (pressed || cannotAfford) && { opacity: cannotAfford ? 0.5 : 0.7 }, { marginTop: spacing.sm }]}
           >
-            <Text style={s.uploadHandIcon}>🤚</Text>
+            <Text style={s.uploadHandIcon}>{EMOJIS.HAND_LEFT}</Text>
             <View style={{ flex: 1 }}>
               <Text style={s.uploadHandLabel}>Left Hand</Text>
               <Text style={s.uploadHandSub}>Tap to take or pick a photo</Text>
@@ -104,7 +105,7 @@ export default function UploadView({
             const badgeHand = activeHand || claimedHand;
             return badgeHand ? (
               <View style={s.handBadge}>
-                <Text style={s.handBadgeIcon}>{badgeHand === "Right" ? "✋" : "🤚"}</Text>
+                <Text style={s.handBadgeIcon}>{badgeHand === "Right" ? EMOJIS.HAND : EMOJIS.HAND_LEFT}</Text>
                 <Text style={s.handBadgeText}>{badgeHand} Hand</Text>
               </View>
             ) : null;

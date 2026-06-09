@@ -12,10 +12,11 @@ import Animated, {
 import { useAuth } from "./AuthContext";
 import { verifyPhone, confirmCode } from "./otp";
 import { getAuthConfig } from "@/services/api";
-import { useChart } from "@/context/ChartContext";
+import { useForm } from "@/context/ChartContext";
 import { useTheme } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
 import { LoginBackdrop } from "@/components/cosmic";
+import { EMOJIS } from "@/utils/emojis";
 import { spacing } from "@/theme/tokens";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -35,7 +36,7 @@ function otpError(err) {
 
 export default function LoginScreen() {
   const { completeOtpLogin, loginDummy } = useAuth();
-  const { applySavedForm } = useChart();
+  const { applySavedForm } = useForm();
   const { theme, colors: color } = useTheme();
   const s = useStyles(makeStyles);
 
@@ -203,7 +204,7 @@ export default function LoginScreen() {
         <View style={s.container}>
           <View style={s.content}>
             <Animated.View style={[s.logoContainer, animatedLogoStyle]}>
-              <Text style={s.logoEmoji}>🔮</Text>
+              <Text style={s.logoEmoji}>{EMOJIS.CRYSTAL_BALL}</Text>
             </Animated.View>
             <Text style={s.title}>Sign in to Astrology AI</Text>
             <Text style={s.subtitle}>
@@ -235,7 +236,7 @@ export default function LoginScreen() {
                   style={s.termsRow}
                 >
                   <Animated.View style={[s.checkbox, agreed && s.checkboxChecked, animatedCheckboxStyle]}>
-                    {agreed && <Text style={s.checkmark}>✓</Text>}
+                    {agreed && <Text style={s.checkmark}>{EMOJIS.CHECK}</Text>}
                   </Animated.View>
                   <Text style={s.termsText}>
                     I agree to the <Text style={s.termsLink}>Terms & Conditions</Text> and <Text style={s.termsLink}>Privacy Policy</Text>

@@ -7,8 +7,9 @@ import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { spacing } from "../../../theme/tokens";
 import { REJECT_INFO } from "../constants";
+import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
-import { useChart } from "../../../context/ChartContext";
+import { usePalm } from "../../../context/ChartContext";
 import PalmSkeletonOverlay from "../../../components/PalmSkeletonOverlay";
 
 // Both-Hands "Full Life Comparison" view. Four states: analyzing, Pro
@@ -21,7 +22,7 @@ export default function CompareView({
 }) {
   const color = useColors();
   const s = useStyles(makeStyles);
-  const { palmLeftLandmarks, palmRightLandmarks } = useChart();
+  const { palmLeftLandmarks, palmRightLandmarks } = usePalm();
 
   const cmp     = palmComparison?.comparison;
   const leftBad  = palmComparison?.left?.imageQuality  === "unusable";
@@ -110,7 +111,7 @@ export default function CompareView({
             {cooldown > 0 ? " Please wait a moment before trying again." : " You can try again now."}
           </Text>
           <MagicButton style={{ width: "100%" }} disabled={cooldown > 0} onPress={retryCompare}>
-            {cooldown > 0 ? `🕒 Try Again in ${cooldown}s` : "🔄 Try Again"}
+            {cooldown > 0 ? `${EMOJIS.CLOCK} Try Again in ${cooldown}s` : `${EMOJIS.REFRESH} Try Again`}
           </MagicButton>
         </CosmicCard>
       )}
@@ -139,7 +140,7 @@ export default function CompareView({
               </View>
             ))}
             <MagicButton style={{ width: "100%", marginTop: spacing.md }} onPress={resetCompare}>
-              📷 Retake Both Photos
+              {EMOJIS.CAMERA_LENS} Retake Both Photos
             </MagicButton>
           </CosmicCard>
         );
@@ -153,10 +154,10 @@ export default function CompareView({
           </View>
 
           {[
-            ["Life Line",  "🌿", cmp.lifeLine],
-            ["Head Line",  "🧠", cmp.headLine],
-            ["Heart Line", "💛", cmp.heartLine],
-            ["Fate Line",  "🪐", cmp.fateLine],
+            ["Life Line",  EMOJIS.LEAF,         cmp.lifeLine],
+            ["Head Line",  EMOJIS.BRAIN,        cmp.headLine],
+            ["Heart Line", EMOJIS.HEART_YELLOW, cmp.heartLine],
+            ["Fate Line",  EMOJIS.SATURN,       cmp.fateLine],
           ].map(([title, icon, content]) =>
             content ? (
               <CosmicCard key={title}>
@@ -173,7 +174,7 @@ export default function CompareView({
             <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.md }}>
               {cmp.grownStronger?.length > 0 && (
                 <CosmicCard style={[s.halfCard, { borderColor: "rgba(34,197,94,0.2)", flex: 1, marginBottom: 0 }]}>
-                  <Text style={[s.halfTitle, { color: color.success }]}>✦ Grown Stronger</Text>
+                  <Text style={[s.halfTitle, { color: color.success }]}>{EMOJIS.STAR4} Grown Stronger</Text>
                   {cmp.grownStronger.map((g, i) => (
                     <View key={i} style={s.bulletRow}>
                       <Text style={{ color: color.success, fontWeight: "700", marginRight: 6 }}>↑</Text>
@@ -184,7 +185,7 @@ export default function CompareView({
               )}
               {cmp.watchPoints?.length > 0 && (
                 <CosmicCard style={[s.halfCard, { borderColor: "rgba(251,191,36,0.2)", flex: 1, marginBottom: 0 }]}>
-                  <Text style={[s.halfTitle, { color: color.warning }]}>✦ Still Showing Up</Text>
+                  <Text style={[s.halfTitle, { color: color.warning }]}>{EMOJIS.STAR4} Still Showing Up</Text>
                   {cmp.watchPoints.map((w, i) => (
                     <View key={i} style={s.bulletRow}>
                       <Text style={{ color: color.warning, fontWeight: "700", marginRight: 6 }}>•</Text>
@@ -198,14 +199,14 @@ export default function CompareView({
 
           {cmp.lifeAdvice ? (
             <CosmicCard style={{ borderColor: "rgba(168,85,247,0.25)" }}>
-              <Text style={[s.cardTitle, { color: color.primaryLight }]}>🎯 Direction</Text>
+              <Text style={[s.cardTitle, { color: color.primaryLight }]}>{EMOJIS.TARGET} Direction</Text>
               <Text style={s.lineBody}>{cmp.lifeAdvice}</Text>
             </CosmicCard>
           ) : null}
 
           <View style={{ flexDirection: "row", gap: spacing.md }}>
             <Pressable onPress={resetCompare} style={[s.revealBtn, { flex: 1, marginBottom: 0 }]}>
-              <Text style={s.revealText}>🔄 Re-do Comparison</Text>
+              <Text style={s.revealText}>{EMOJIS.REFRESH} Re-do Comparison</Text>
             </Pressable>
             <Pressable onPress={() => {
                setPalmComparison(null);
@@ -216,7 +217,7 @@ export default function CompareView({
                reset();
                // stays on the same screen but renders the upload UI
              }} style={[s.revealBtn, { flex: 1, marginBottom: 0, backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.12)" }]}>
-               <Text style={[s.revealText, { color: "#94a3b8" }]}>🖐️ Scan Different Hand</Text>
+               <Text style={[s.revealText, { color: "#94a3b8" }]}>{EMOJIS.HAND_OPEN} Scan Different Hand</Text>
              </Pressable>
           </View>
 

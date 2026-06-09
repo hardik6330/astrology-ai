@@ -6,6 +6,7 @@ import MagicButton from "../../../components/MagicButton";
 import { useStyles } from "../../../theme/useStyles";
 import { spacing } from "../../../theme/tokens";
 import { REJECT_INFO } from "../constants";
+import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 
 // Shown when a single-hand reading came back imageQuality === "unusable".
@@ -27,7 +28,7 @@ export default function RejectView({ palm, preview, reset }) {
         <Text style={s.rejectReason}>{palm.retakeReason}</Text>
       ) : null}
       <MagicButton style={{ width: "100%", marginTop: spacing.md }} onPress={reset}>
-        📷 Upload Another Photo
+        {EMOJIS.CAMERA_LENS} Upload Another Photo
       </MagicButton>
     </CosmicCard>
   );

@@ -138,6 +138,73 @@ export function SkeletonPalm() {
   );
 }
 
+// Brief settle-in placeholder for the birth-details form (Home). No data is
+// actually fetched — this is purely a polished entrance shimmer.
+export function SkeletonHome() {
+  const styles = useStyles(makeStyles);
+  return (
+    <View>
+      <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.xl, marginBottom: spacing.xl }}>
+        <Skeleton width="48%" height={6} r={3} />
+        <Skeleton width="48%" height={6} r={3} />
+      </View>
+      <Skeleton width="70%" height={32} />
+      <Skeleton width="90%" height={14} style={{ marginTop: 10, marginBottom: spacing.xl }} />
+      {[0, 1].map((i) => (
+        <View key={i} style={{ marginBottom: spacing.lg }}>
+          <Skeleton width={160} height={13} style={{ marginBottom: 10 }} />
+          <Skeleton width="100%" height={56} r={radius.md} />
+        </View>
+      ))}
+      <Skeleton width="100%" height={56} r={radius.md} style={{ marginTop: spacing.md }} />
+    </View>
+  );
+}
+
+// Brief settle-in placeholder for the Help screen's two cards.
+export function SkeletonHelp() {
+  const styles = useStyles(makeStyles);
+  return (
+    <View>
+      {[3, 3].map((rows, c) => (
+        <View key={c} style={[styles.card, { marginBottom: spacing.md }]}>
+          <Skeleton width={150} height={16} style={{ marginBottom: spacing.md }} />
+          {Array.from({ length: rows }).map((_, i) => (
+            <View key={i} style={{ flexDirection: "row", alignItems: "center", paddingVertical: spacing.md }}>
+              {c === 0 && <Skeleton width={28} height={28} r={14} style={{ marginRight: 12 }} />}
+              <View style={{ flex: 1 }}>
+                <Skeleton width="40%" height={11} />
+                <Skeleton width="70%" height={14} style={{ marginTop: 6 }} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// Placeholder for the credit-plan list while it loads from the API.
+export function SkeletonCredits() {
+  const styles = useStyles(makeStyles);
+  return (
+    <View>
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={[styles.card, { marginBottom: spacing.md }]}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <View>
+              <Skeleton width={120} height={20} />
+              <Skeleton width={80} height={12} style={{ marginTop: 8 }} />
+            </View>
+            <Skeleton width={70} height={28} r={radius.sm} />
+          </View>
+          <Skeleton width="100%" height={44} r={radius.md} style={{ marginTop: spacing.md }} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const makeStyles = (c) =>
   StyleSheet.create({
     card: {

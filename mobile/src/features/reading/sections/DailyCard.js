@@ -7,6 +7,7 @@ import { useCosts } from "../../../hooks/useCosts";
 import { useCredits } from "../../../hooks/useCredits";
 import { spacing } from "../../../theme/tokens";
 import { WD_SHORT, MONTHS } from "../constants";
+import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 
 export default function DailyCard({
@@ -47,7 +48,7 @@ export default function DailyCard({
         <View style={{ textAlign: "right" }}>
           {activeLoc?.isGps ? (
             <Text style={{ fontSize: 11, lineHeight: 16, includeFontPadding: false, color: color.primaryLight, fontWeight: "500" }}>
-              📍 {activeLoc.n} (Live)
+              {EMOJIS.PIN} {activeLoc.n} (Live)
             </Text>
           ) : (
             <Pressable onPress={getGpsLocation}>
@@ -60,7 +61,7 @@ export default function DailyCard({
                   includeFontPadding: false,
                 }}
               >
-                {locError ? "⚠️ GPS Blocked" : "📍 Use Live Location"}
+                {locError ? `${EMOJIS.WARNING} GPS Blocked` : `${EMOJIS.PIN} Use Live Location`}
               </Text>
             </Pressable>
           )}

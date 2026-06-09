@@ -10,7 +10,7 @@ import * as ImagePicker from "expo-image-picker";
 import ScreenContainer from "../../components/ScreenContainer";
 import CosmicCard from "../../components/CosmicCard";
 import MagicButton from "../../components/MagicButton";
-import { useChart } from "../../context/ChartContext";
+import { useForm, usePalm } from "../../context/ChartContext";
 import { comparePalms } from "../../services/api";
 import { useBackToKundali } from "../../utils/useBackToKundali";
 import { haptics } from "../../utils/haptics";
@@ -18,18 +18,19 @@ import { compressPhoto } from "../../utils/compressImage";
 import { useColors } from "../../theme/ThemeContext";
 import { useStyles } from "../../theme/useStyles";
 import { radius, spacing } from "../../theme/tokens";
+import { EMOJIS } from "../../utils/emojis";
 import { gatePalmImage, warmUpGate } from "./palmGate";
 
 export default function PalmCompareScreen({ navigation }) {
+  const { form } = useForm();
   const {
-    form,
     setPalmComparison,
     setPalmLeftPhoto, setPalmRightPhoto,
     setPalmAnalyzing,
     setPalmOverloaded,
     setPalmLowCredits,
     setPalmLeftLandmarks, setPalmRightLandmarks,
-  } = useChart();
+  } = usePalm();
   const color = useColors();
   const s = useStyles(makeStyles);
 
@@ -147,8 +148,8 @@ export default function PalmCompareScreen({ navigation }) {
           {/* Split the two hand emojis into their own Text views — the
               joined "✋🤚" form clips the second glyph on some Android
               emoji fonts. */}
-          <Text style={s.titleEmoji}>✋</Text>
-          <Text style={s.titleEmoji}>🤚</Text>
+          <Text style={s.titleEmoji}>{EMOJIS.HAND}</Text>
+          <Text style={s.titleEmoji}>{EMOJIS.HAND_LEFT}</Text>
           <Text style={s.title}>  Full Life Comparison</Text>
         </View>
         <Text style={s.subtitle}>
@@ -168,7 +169,7 @@ export default function PalmCompareScreen({ navigation }) {
             {left ? (
               <Image source={{ uri: left.uri }} style={s.thumb} contentFit="cover" transition={150} />
             ) : (
-              <Text style={s.handIcon}>🤚</Text>
+              <Text style={s.handIcon}>{EMOJIS.HAND_LEFT}</Text>
             )}
             <View style={{ flex: 1 }}>
               <Text style={s.handLabel}>Step 1 · Left Hand</Text>
@@ -176,7 +177,7 @@ export default function PalmCompareScreen({ navigation }) {
                 Potential — what you were born with{left ? " (tap to replace)" : ""}
               </Text>
             </View>
-            <Text style={[s.chev, { color: color.primaryLight }]}>{left ? "✓" : "›"}</Text>
+            <Text style={[s.chev, { color: color.primaryLight }]}>{left ? EMOJIS.CHECK : "›"}</Text>
           </Pressable>
 
           {/* RIGHT */}
@@ -188,7 +189,7 @@ export default function PalmCompareScreen({ navigation }) {
             {right ? (
               <Image source={{ uri: right.uri }} style={s.thumb} contentFit="cover" transition={150} />
             ) : (
-              <Text style={s.handIcon}>✋</Text>
+              <Text style={s.handIcon}>{EMOJIS.HAND}</Text>
             )}
             <View style={{ flex: 1 }}>
               <Text style={s.handLabel}>Step 2 · Right Hand</Text>
@@ -196,7 +197,7 @@ export default function PalmCompareScreen({ navigation }) {
                 Reality — what you&apos;ve shaped through choices{right ? " (tap to replace)" : ""}
               </Text>
             </View>
-            <Text style={[s.chev, { color: color.primaryLight }]}>{right ? "✓" : "›"}</Text>
+            <Text style={[s.chev, { color: color.primaryLight }]}>{right ? EMOJIS.CHECK : "›"}</Text>
           </Pressable>
 
           <MagicButton
@@ -204,7 +205,7 @@ export default function PalmCompareScreen({ navigation }) {
             onPress={submit}
             disabled={!ready}
           >
-            ✨ Read the Evolution
+            {EMOJIS.SPARKLES} Read the Evolution
           </MagicButton>
         </View>
 
@@ -236,7 +237,7 @@ export default function PalmCompareScreen({ navigation }) {
               disabled={busy}
               style={({ pressed }) => [s.sourceBtn, s.sourceBtnPrimary, pressed && { opacity: 0.85 }, busy && { opacity: 0.6 }]}
             >
-              <Text style={s.sourceIcon}>📷</Text>
+              <Text style={s.sourceIcon}>{EMOJIS.CAMERA_LENS}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={s.sourceLabel}>Take a Photo</Text>
                 <Text style={s.sourceSub}>For an accurate reading we use a live camera shot, not gallery uploads</Text>

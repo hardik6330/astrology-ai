@@ -8,6 +8,7 @@ import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { radius, spacing } from "../../../theme/tokens";
 import { signOf, ZE } from "../../../shared/astrology";
+import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 import DailyCard from "./DailyCard";
 
@@ -24,7 +25,7 @@ export default function KundaliTab({ chart, chartStyle, setChartStyle, daily }) 
   return (
     <>
       <View style={s.row3}>
-        {[["Sun Sign", sunV, "☀️", null], ["Moon Sign", moonV, "🌙", null], ["Lagna", ascV, "⬆", color.primaryLight]].map(([l, v, ic, tint]) => (
+        {[["Sun Sign", sunV, EMOJIS.SUN_FACE, null], ["Moon Sign", moonV, EMOJIS.MOON, null], ["Lagna", ascV, EMOJIS.ARROW_UP, color.primaryLight]].map(([l, v, ic, tint]) => (
           <View key={l} style={s.bigThree}>
             <Text style={{ fontSize: 22, lineHeight: 30, marginBottom: 4, color: tint || undefined }}>{ic}</Text>
             <Text style={s.bigThreeLabel}>{l}</Text>

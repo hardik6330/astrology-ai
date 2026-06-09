@@ -12,8 +12,9 @@ import MagicButton from "@/components/MagicButton";
 import MenuButton from "@/components/MenuButton";
 import { Label, PremiumInput, DateField } from "@/components/PremiumInput";
 import Picker from "@/components/Picker";
+import { SkeletonHome } from "@/components/Skeleton";
 import CitySearch from "@/features/location/CitySearch";
-import { useChart } from "@/context/ChartContext";
+import { useForm } from "@/context/ChartContext";
 import { useTheme } from "@/theme/ThemeContext";
 import { computeChart } from "@/shared/astrology";
 import { saveProfile } from "@/services/api";
@@ -32,10 +33,16 @@ export default function HomeScreen({ navigation, route }) {
   const {
     form, setForm, chart, setChart, resetReading,
     redirectToReading, consumeRedirect,
-  } = useChart();
+  } = useForm();
   const { colors: color, mode } = useTheme();
   const [step, setStep] = useState(route.params?.step || 1);
   const [error, setError] = useState("");
+  // Brief settle-in shimmer before the form fades in (no real data fetch).
+  const [booting, setBooting] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setBooting(false), 450);
+    return () => clearTimeout(t);
+  }, []);
 
   // Update step if route params change (e.g. coming back from PalmStep)
   useEffect(() => {
@@ -170,6 +177,8 @@ export default function HomeScreen({ navigation, route }) {
 
   return (
     <ScreenContainer showMenu={false} scrollEnabled={!suggestOpen}>
+      {booting ? <SkeletonHome /> : (
+      <Animated.View entering={FadeIn.duration(300)}>
       <View style={styles.headerArea}>
         <View style={styles.progressRow}>
           <View style={styles.progressSegment}>
@@ -334,6 +343,8 @@ export default function HomeScreen({ navigation, route }) {
             </MagicButton>
           </View>
         </Animated.View>
+      )}
+      </Animated.View>
       )}
     </ScreenContainer>
   );

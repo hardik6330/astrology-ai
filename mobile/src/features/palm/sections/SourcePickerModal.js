@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, Pressable, Modal, ActivityIndicator } from "react-native";
 import { useStyles } from "../../../theme/useStyles";
 import { useColors } from "../../../theme/ThemeContext";
+import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 
 // Bottom-sheet modal that appears after the user taps a hand card. Camera only
@@ -41,7 +42,7 @@ export default function SourcePickerModal({ visible, activeHand, onClose, pick, 
               </>
             ) : (
               <>
-                <Text style={s.sourceIcon}>📷</Text>
+                <Text style={s.sourceIcon}>{EMOJIS.CAMERA_LENS}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={s.sourceLabel}>Take a Photo</Text>
                   <Text style={s.sourceSub}>For an accurate reading we use a live camera shot, not gallery uploads</Text>

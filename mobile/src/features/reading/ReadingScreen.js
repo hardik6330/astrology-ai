@@ -9,7 +9,7 @@ import MenuButton from "../../components/MenuButton";
 import CosmicBackdrop from "../../components/CosmicBackdrop";
 import CosmicCard from "../../components/CosmicCard";
 import { SkeletonReading } from "../../components/Skeleton";
-import { useChart } from "../../context/ChartContext";
+import { useForm, useReading } from "../../context/ChartContext";
 import { useColors } from "../../theme/ThemeContext";
 import { useStyles } from "../../theme/useStyles";
 import { spacing, fontSize } from "../../theme/tokens";
@@ -17,6 +17,7 @@ import { signOf, computeDaily, buildFactSheet } from "../../shared/astrology";
 import { MSGS } from "../../shared/prompts";
 import { chatCompletionJSON, fetchSaved, fetchDailyDates } from "../../services/api";
 import { haptics } from "../../utils/haptics";
+import { EMOJIS } from "../../utils/emojis";
 import { SUB_TABS, iso } from "./constants";
 import { makeStyles } from "./styles";
 import KundaliTab from "./sections/KundaliTab";
@@ -25,7 +26,8 @@ import TimelineTab from "./sections/TimelineTab";
 import ReadingTab from "./sections/ReadingTab";
 
 export default function ReadingScreen({ navigation, route }) {
-  const { form, chart, interp, setInterp, currentLoc, setCurrentLoc } = useChart();
+  const { form, chart, currentLoc, setCurrentLoc } = useForm();
+  const { interp, setInterp } = useReading();
   const color = useColors();
   const s = useStyles(makeStyles);
   const [tab, setTab]             = useState(route.params?.tab || "kundali");
@@ -242,7 +244,7 @@ Running period: ${d.dasha}`;
 
           {error ? (
             <CosmicCard error>
-              <Text style={{ color: color.danger, fontSize: fontSize.sm }}>⚠️ {error}</Text>
+              <Text style={{ color: color.danger, fontSize: fontSize.sm }}>{EMOJIS.WARNING} {error}</Text>
             </CosmicCard>
           ) : null}
 
