@@ -15,9 +15,6 @@ export default function PlanetsTab({ chart, now }) {
       {/* Planet table */}
       <Card>
         <p className="m-0 mb-0.5 flex items-center gap-2 text-sm font-semibold text-ink">
-          <span className="astrology-icon" style={{ fontSize: 18, margin: 0 }}>
-            {EMOJIS.SATURN}
-          </span>{" "}
           Planetary Positions
         </p>
         <p className="mx-0 mt-0 mb-4 text-[10.5px] text-muted">
