@@ -363,7 +363,7 @@ const makeStyles = (c) =>
     },
 
     titleRow: {
-      marginBottom: spacing.lg,
+      marginBottom: spacing.md,
     },
     mainTitle: {
       fontSize: 36,
@@ -511,7 +511,7 @@ const makeStyles = (c) =>
       height: 6,
       backgroundColor: c.inputBg,
       borderRadius: 3,
-      marginBottom: spacing.lg,
+      marginBottom: spacing.md,
       overflow: "hidden",
       marginHorizontal: spacing.xl,
     },

@@ -6,9 +6,9 @@ import { radius } from "../theme/tokens";
 import { haptics } from "../utils/haptics";
 
 const TABS = [
-  { key: "kundali",  label: "Birth Chart", icon: "🪔", route: "Reading", params: { tab: "kundali" } },
+  { key: "kundali",  label: "Birth Chart", icon: "🔯", route: "Reading", params: { tab: "kundali" } },
   { key: "planets",  label: "Planets",  icon: "🪐", route: "Reading", params: { tab: "planets" } },
-  { key: "timeline", label: "Timeline", icon: "🔮", route: "Reading", params: { tab: "timeline" } },
+  { key: "timeline", label: "Timeline", icon: "🕒", route: "Reading", params: { tab: "timeline" } },
   { key: "reading",  label: "Insights", icon: "✨", route: "Reading", params: { tab: "reading" } },
 ];
 

@@ -11,9 +11,9 @@ import { EMOJIS } from "@/utils/emojis";
 //                 switch its local tab state. If absent (e.g. on /palm), we navigate
 //                 to /reading and pass the tab key in location state.
 const TABS = [
-  ["kundali", "Birth Chart", EMOJIS.DIYA],
+  ["kundali", "Birth Chart", EMOJIS.KUNDLI],
   ["planets", "Planets", EMOJIS.SATURN],
-  ["timeline", "Timeline", EMOJIS.CRYSTAL_BALL],
+  ["timeline", "Timeline", EMOJIS.CLOCK],
   ["reading", "Insights", EMOJIS.SPARKLES],
   ["palm", "Palm", EMOJIS.HAND_OPEN],
   ["chat", "Chat", EMOJIS.CHAT],

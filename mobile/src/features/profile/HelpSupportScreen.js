@@ -103,7 +103,7 @@ const makeStyles = (c) =>
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,
-      marginBottom: spacing.lg,
+      marginBottom: spacing.md,
     },
 
     cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 24, fontWeight: "700", marginBottom: spacing.md },

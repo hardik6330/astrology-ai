@@ -34,11 +34,11 @@ export function SkeletonReading() {
   const styles = useStyles(makeStyles);
   return (
     <View>
-      <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
+      <View style={{ alignItems: "center", marginBottom: spacing.md }}>
         <Skeleton width={180} height={14} />
         <Skeleton width={220} height={11} style={{ marginTop: 6 }} />
       </View>
-      <View style={{ flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg }}>
+      <View style={{ flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md }}>
         {[0, 1, 2].map((i) => (
           <View key={i} style={[styles.card, { flex: 1, alignItems: "center", marginBottom: 0, paddingVertical: spacing.lg }]}>
             <Skeleton width={32} height={32} r={16} />
@@ -122,7 +122,7 @@ export function SkeletonPalm() {
   const styles = useStyles(makeStyles);
   return (
     <View>
-      <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
+      <View style={{ alignItems: "center", marginBottom: spacing.md }}>
         <Skeleton width={180} height={14} />
         <Skeleton width={240} height={11} style={{ marginTop: 6 }} />
       </View>
@@ -143,12 +143,12 @@ const makeStyles = (c) =>
     card: {
       backgroundColor: c.cardBgSolid,
       borderWidth: 1, borderColor: c.cardBorder,
-      borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.lg,
+      borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.md,
     },
     blueprintPlaceholder: {
       backgroundColor: c.primarySoft,
       borderWidth: 1, borderColor: c.primaryBorder,
       borderRadius: radius.xl, padding: spacing.xl,
-      marginBottom: spacing.lg, alignItems: "center",
+      marginBottom: spacing.md, alignItems: "center",
     },
   });

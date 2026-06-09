@@ -170,7 +170,7 @@ export default function CompareView({
           )}
 
           {(cmp.grownStronger?.length > 0 || cmp.watchPoints?.length > 0) && (
-            <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.lg }}>
+            <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.md }}>
               {cmp.grownStronger?.length > 0 && (
                 <CosmicCard style={[s.halfCard, { borderColor: "rgba(34,197,94,0.2)", flex: 1, marginBottom: 0 }]}>
                   <Text style={[s.halfTitle, { color: color.success }]}>✦ Grown Stronger</Text>

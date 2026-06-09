@@ -56,7 +56,7 @@ export default function ReadingResult({ palm, preview, reset }) {
       )}
 
       {(palm.strengths?.length > 0 || palm.watchOuts?.length > 0) && (
-        <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.lg }}>
+        <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.md }}>
           {palm.strengths?.length > 0 && (
             <CosmicCard style={[s.halfCard, { borderColor: "rgba(34,197,94,0.2)", flex: 1, marginBottom: 0 }]}>
               <Text style={[s.halfTitle, { color: color.success }]}>✦ Strengths</Text>

@@ -55,7 +55,7 @@ const makeStyles = (c) =>
       color: c.primaryLight,
       fontSize: fontSize.lg,
       fontWeight: "700",
-      marginBottom: spacing.lg,
+      marginBottom: spacing.md,
     },
     pickerRow: {
       flexDirection: "row",

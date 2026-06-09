@@ -115,7 +115,8 @@ export default function ProfileScreen({ navigation }) {
             <View key={l} style={s.miniCard}>
               <Text style={{ fontSize: 22, lineHeight: 30, color: tint || undefined }}>{ic}</Text>
               <Text style={s.miniLabel}>{l}</Text>
-              <Text style={s.miniValue}>{ZE[v] || ""} {v}</Text>
+              <Text style={s.miniGlyph}>{ZE[v] || ""}</Text>
+              <Text style={s.miniValue} numberOfLines={1} adjustsFontSizeToFit>{v}</Text>
             </View>
           ))}
         </View>
@@ -172,7 +173,7 @@ const makeStyles = (c) =>
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,
-      marginBottom: spacing.lg,
+      marginBottom: spacing.md,
     },
     headerTitle: { color: c.primaryLight, fontSize: 18, lineHeight: 24, fontWeight: "700", textAlign: "center" },
     headerSub:   { color: c.textMuted, fontSize: 13, marginTop: 2, textAlign: "center" },
@@ -189,7 +190,7 @@ const makeStyles = (c) =>
     name:       { color: c.primaryLight, fontSize: 24, fontWeight: "700" },
     tagline:    { color: c.textMuted, fontSize: 14, marginTop: 4 },
 
-    row3:    { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
+    row3:    { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
     miniCard: {
       flex: 1,
       backgroundColor: c.cardBgSolid,
@@ -198,7 +199,9 @@ const makeStyles = (c) =>
       alignItems: "center",
     },
     miniLabel: { color: c.textMuted, fontSize: 12, marginTop: 6, textTransform: "uppercase" },
-    miniValue: { color: c.text, fontSize: 14, lineHeight: 20, fontWeight: "700", marginTop: 4 },
+    // Zodiac glyph on its own line above the name so every card stacks the same.
+    miniGlyph: { fontSize: 18, lineHeight: 24, marginTop: 4, textAlign: "center" },
+    miniValue: { color: c.text, fontSize: 14, lineHeight: 18, fontWeight: "700", marginTop: 2, textAlign: "center", alignSelf: "stretch" },
 
     creditsCard: {
       paddingVertical: spacing.lg,

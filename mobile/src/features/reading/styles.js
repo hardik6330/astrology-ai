@@ -12,7 +12,7 @@ export const makeStyles = (c) => StyleSheet.create({
     borderWidth: 1,
     borderColor: c.accentBorder,
     backgroundColor: c.accentSoft,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   backText: { color: c.accentLight, fontSize: 14, fontWeight: "600" },
 
@@ -28,11 +28,11 @@ export const makeStyles = (c) => StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   headerTitleWrap: { flex: 1 },
 
-  row3:    { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
+  row3:    { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   bigThree: {
     flex: 1,
     backgroundColor: c.cardBgSolid,
@@ -43,7 +43,10 @@ export const makeStyles = (c) => StyleSheet.create({
     alignItems: "center",
   },
   bigThreeLabel: { fontSize: 13, color: c.textMuted, textTransform: "uppercase", marginBottom: 4 },
-  bigThreeValue: { fontSize: 16, lineHeight: 24, fontWeight: "700", color: c.text, textAlign: "center" },
+  // Zodiac glyph on its own line above the name so every card stacks the same
+  // way regardless of name length (short "Leo" vs long "Sagittarius").
+  bigThreeGlyph: { fontSize: 20, lineHeight: 26, marginBottom: 2, textAlign: "center" },
+  bigThreeValue: { fontSize: 16, lineHeight: 22, fontWeight: "700", color: c.text, textAlign: "center", alignSelf: "stretch" },
 
   cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 22, fontWeight: "700", marginBottom: 4 },
   cardSub:   { color: c.textMuted, fontSize: 13, marginBottom: spacing.md },
@@ -125,7 +128,7 @@ export const makeStyles = (c) => StyleSheet.create({
   blueprint: {
     backgroundColor: c.primarySoft,
     borderWidth: 1, borderColor: c.primaryBorder,
-    borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg,
+    borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.md,
     alignItems: "center",
   },
   blueprintLabel: {
@@ -231,7 +234,7 @@ export const makeStyles = (c) => StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(148,163,184,0.3)",
     borderRadius: radius.lg,
     padding: spacing.xl,
-    marginTop: spacing.md, marginBottom: spacing.lg,
+    marginTop: spacing.md, marginBottom: spacing.md,
     alignItems: "center",
   },
   footerKicker: {

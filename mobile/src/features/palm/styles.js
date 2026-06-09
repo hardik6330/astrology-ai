@@ -8,7 +8,7 @@ export const makeStyles = (c) => StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10,
     borderWidth: 1, borderColor: c.accentBorder, backgroundColor: c.accentSoft,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   backText: { color: c.accentLight, fontSize: 14, fontWeight: "600" },
 
@@ -19,7 +19,7 @@ export const makeStyles = (c) => StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
 
   cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 28, fontWeight: "700", marginBottom: 4, includeFontPadding: false },
@@ -163,7 +163,7 @@ export const makeStyles = (c) => StyleSheet.create({
     backgroundColor: "rgba(99,102,241,0.15)",
     borderWidth: 1, borderColor: "rgba(168,85,247,0.3)",
     borderRadius: radius.xl, padding: spacing.xl,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     alignItems: "center",
   },
   summaryLabel: {

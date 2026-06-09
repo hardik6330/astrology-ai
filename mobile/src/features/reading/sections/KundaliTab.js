@@ -28,7 +28,8 @@ export default function KundaliTab({ chart, chartStyle, setChartStyle, daily }) 
           <View key={l} style={s.bigThree}>
             <Text style={{ fontSize: 22, lineHeight: 30, marginBottom: 4, color: tint || undefined }}>{ic}</Text>
             <Text style={s.bigThreeLabel}>{l}</Text>
-            <Text style={s.bigThreeValue}>{ZE[v] || ""} {v}</Text>
+            <Text style={s.bigThreeGlyph}>{ZE[v] || ""}</Text>
+            <Text style={s.bigThreeValue} numberOfLines={1} adjustsFontSizeToFit>{v}</Text>
           </View>
         ))}
       </View>

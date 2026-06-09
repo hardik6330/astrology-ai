@@ -153,7 +153,7 @@ export default function PalmStepScreen({ navigation }) {
         <Ionicons name="chevron-back" size={28} color={color.text} />
       </Pressable>
 
-      <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
+      <View style={{ alignItems: "center", marginBottom: spacing.md }}>
         <Text style={s.title}>Add a Palm Reading?</Text>
         <Text style={s.subtitle}>
           Optional — we&apos;ll analyse your palm while your kundali is being built.

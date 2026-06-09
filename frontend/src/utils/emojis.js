@@ -12,6 +12,7 @@ export const EMOJIS = {
   PERSON: "🧑",
   CHEVRON_RIGHT: "›",
   DIYA: "🪔",
+  KUNDLI: "🔯",
   SATURN: "🪐",
   USER: "👤",
   HAND: "✋",

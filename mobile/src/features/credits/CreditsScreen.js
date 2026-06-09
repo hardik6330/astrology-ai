@@ -314,7 +314,7 @@ const makeStyles = (c) =>
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,
-      marginBottom: spacing.lg,
+      marginBottom: spacing.md,
     },
     headerTitle: { color: c.primaryLight, fontSize: 18, lineHeight: 24, fontWeight: "700", textAlign: "center" },
     headerSub:   { color: c.textMuted, fontSize: 13, marginTop: 2, textAlign: "center" },

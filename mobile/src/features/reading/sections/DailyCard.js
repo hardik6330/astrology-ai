@@ -46,7 +46,7 @@ export default function DailyCard({
 
         <View style={{ textAlign: "right" }}>
           {activeLoc?.isGps ? (
-            <Text style={{ fontSize: 11, color: color.primaryLight, fontWeight: "500" }}>
+            <Text style={{ fontSize: 11, lineHeight: 16, includeFontPadding: false, color: color.primaryLight, fontWeight: "500" }}>
               📍 {activeLoc.n} (Live)
             </Text>
           ) : (
@@ -56,6 +56,8 @@ export default function DailyCard({
                   color: locError ? color.danger : color.primaryLight,
                   textDecorationLine: "underline",
                   fontSize: 11,
+                  lineHeight: 16,
+                  includeFontPadding: false,
                 }}
               >
                 {locError ? "⚠️ GPS Blocked" : "📍 Use Live Location"}

@@ -142,7 +142,7 @@ export default function PalmCompareScreen({ navigation }) {
         <Text style={s.backText}>← Back</Text>
       </Pressable>
 
-      <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
+      <View style={{ alignItems: "center", marginBottom: spacing.md }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
           {/* Split the two hand emojis into their own Text views — the
               joined "✋🤚" form clips the second glyph on some Android
