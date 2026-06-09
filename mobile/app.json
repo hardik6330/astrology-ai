@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "scheme": "astrologyai",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "icon": "./assets/logo-removebg-preview.png",
     "splash": {
       "resizeMode": "contain",
@@ -36,10 +36,6 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO",
-        "android.permission.POST_NOTIFICATIONS",
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS"
       ]
     },
@@ -62,6 +58,16 @@
         {
           "ios": {
             "useFrameworks": "static"
+          },
+          "android": {
+            "newArchEnabled": true,
+            "kotlinVersion": "2.0.21",
+            "kspVersion": "2.0.21-1.0.28",
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "extraMavenRepos": [
+              "https://www.jitpack.io"
+            ]
           }
         }
       ]
