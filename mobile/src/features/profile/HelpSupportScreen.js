@@ -96,8 +96,8 @@ function ContactRow({ icon, label, value, onPress }) {
 
 const makeStyles = (c) =>
   StyleSheet.create({
-    title: { color: c.primaryLight, fontSize: 16, lineHeight: 22, fontWeight: "700", textAlign: "center" },
-    sub:   { color: c.textMuted, fontSize: 11, marginTop: 2, textAlign: "center" },
+    title: { color: c.primaryLight, fontSize: 18, lineHeight: 24, fontWeight: "700", textAlign: "center" },
+    sub:   { color: c.textMuted, fontSize: 13, marginTop: 2, textAlign: "center" },
 
     headerRow: {
       flexDirection: "row",
@@ -106,32 +106,32 @@ const makeStyles = (c) =>
       marginBottom: spacing.lg,
     },
 
-    cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 22, fontWeight: "700", marginBottom: spacing.md },
+    cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 24, fontWeight: "700", marginBottom: spacing.md },
 
     contactRow: {
       flexDirection: "row", alignItems: "center",
       paddingVertical: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.cardBorder,
     },
-    contactLabel: { color: c.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 },
-    contactValue: { color: c.text, fontSize: 14, fontWeight: "600", marginTop: 2 },
+    contactLabel: { color: c.textMuted, fontSize: 13, textTransform: "uppercase", letterSpacing: 0.5 },
+    contactValue: { color: c.text, fontSize: 16, fontWeight: "600", marginTop: 2 },
 
     faqItem: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.cardBorder, paddingVertical: spacing.sm },
     faqRow:  { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
-    faqQ:    { flex: 1, color: c.textBody, fontSize: 13.5, fontWeight: "600" },
-    faqA:    { color: c.textDim, fontSize: 13, lineHeight: 21, marginTop: 8, paddingRight: spacing.md },
-    chev:    { color: c.primaryLight, fontSize: 18, fontWeight: "700", paddingLeft: 8 },
+    faqQ:    { flex: 1, color: c.textBody, fontSize: 16, fontWeight: "600" },
+    faqA:    { color: c.textDim, fontSize: 15, lineHeight: 23, marginTop: 8, paddingRight: spacing.md },
+    chev:    { color: c.primaryLight, fontSize: 20, fontWeight: "700", paddingLeft: 8 },
 
     detailRow: {
       flexDirection: "row", justifyContent: "space-between",
       paddingVertical: 10,
       borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.cardBorder,
     },
-    detailKey: { color: c.textMuted, fontSize: 12 },
-    detailVal: { color: c.text, fontSize: 13, fontWeight: "600" },
+    detailKey: { color: c.textMuted, fontSize: 14 },
+    detailVal: { color: c.text, fontSize: 15, fontWeight: "600" },
 
     disclaimer: {
-      fontSize: 11, color: c.textFaint, textAlign: "center",
+      fontSize: 13, color: c.textFaint, textAlign: "center",
       marginTop: spacing.lg, lineHeight: 18,
     },
   });

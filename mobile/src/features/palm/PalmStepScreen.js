@@ -300,12 +300,12 @@ function HandButton({ icon, label, sublabel, onPress, disabled, color, styles: s
 
 const makeStyles = (c) =>
   StyleSheet.create({
-    title:    { color: c.text, fontSize: 22, fontWeight: "800", textAlign: "center", marginTop: spacing.md },
-    subtitle: { color: c.textDim, fontSize: 13, textAlign: "center", marginTop: 6, paddingHorizontal: spacing.lg, lineHeight: 19 },
+    title:    { color: c.text, fontSize: 24, fontWeight: "800", textAlign: "center", marginTop: spacing.md },
+    subtitle: { color: c.textDim, fontSize: 15, textAlign: "center", marginTop: 6, paddingHorizontal: spacing.lg, lineHeight: 21 },
 
     handBtn: {
       flexDirection: "row", alignItems: "center", gap: spacing.md,
-      paddingVertical: 16, paddingHorizontal: spacing.md,
+      paddingVertical: 18, paddingHorizontal: spacing.md,
       borderRadius: radius.lg,
       borderWidth: 1, borderColor: c.primaryBorder,
       backgroundColor: c.primarySoft,
@@ -314,22 +314,22 @@ const makeStyles = (c) =>
     // border + glow vs. the single-hand cards so it reads as the headline.
     bothBtn: {
       flexDirection: "row", alignItems: "center", gap: spacing.md,
-      paddingVertical: 16, paddingHorizontal: spacing.md,
+      paddingVertical: 20, paddingHorizontal: spacing.md,
       borderRadius: radius.lg,
       borderWidth: 1.5, borderColor: c.primaryLight,
       backgroundColor: c.primarySoft,
     },
     handIcon: {
-      fontSize: 28, lineHeight: 38,
-      width: 44, height: 40,
+      fontSize: 32, lineHeight: 42,
+      width: 48, height: 44,
       textAlign: "center", textAlignVertical: "center",
       includeFontPadding: false,
     },
     // Wider variant for the Both-Hands button — single-emoji handIcon's
     // width (44) clips the second emoji of "✋🤚".
     bothIcon: {
-      fontSize: 26, lineHeight: 38,
-      width: 64, height: 40,
+      fontSize: 30, lineHeight: 42,
+      width: 72, height: 44,
       textAlign: "center", textAlignVertical: "center",
       includeFontPadding: false,
     },
@@ -338,15 +338,15 @@ const makeStyles = (c) =>
     // of the joined "✋🤚" run).
     bothIconWrap: {
       flexDirection: "row", alignItems: "center", justifyContent: "center",
-      width: 64, height: 40,
+      width: 72, height: 44,
     },
     bothIconGlyph: {
-      fontSize: 22, lineHeight: 32, marginHorizontal: 1,
+      fontSize: 26, lineHeight: 36, marginHorizontal: 1,
       includeFontPadding: false,
     },
-    handLabel: { color: c.text, fontSize: 15, fontWeight: "700" },
-    handSub:   { color: c.textMuted, fontSize: 12, marginTop: 2 },
-    chev:      { fontSize: 26, fontWeight: "700", paddingHorizontal: 6 },
+    handLabel: { color: c.text, fontSize: 17, fontWeight: "700" },
+    handSub:   { color: c.textMuted, fontSize: 14, marginTop: 2 },
+    chev:      { fontSize: 28, fontWeight: "700", paddingHorizontal: 6 },
 
     skipBtn: {
       marginTop: spacing.sm,

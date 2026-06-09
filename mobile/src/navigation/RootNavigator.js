@@ -16,12 +16,25 @@ import CreditsScreen     from "../features/credits/CreditsScreen";
 import HelpSupportScreen from "../features/profile/HelpSupportScreen";
 import LoginScreen       from "../features/auth/LoginScreen";
 import DrawerContent     from "../components/DrawerContent";
+import { withErrorBoundary } from "../components/ErrorBoundary";
 import { color } from "../theme/tokens";
 import { useAuth } from "../features/auth/AuthContext";
 import { useChart } from "../context/ChartContext";
 
 const Drawer = createDrawerNavigator();
 const Stack  = createNativeStackNavigator();
+
+// Per-screen error isolation: a crash in one screen shows the fallback in just
+// that screen, leaving the drawer + other screens usable.
+const Home        = withErrorBoundary(HomeScreen);
+const Reading     = withErrorBoundary(ReadingScreen);
+const Chat        = withErrorBoundary(ChatScreen);
+const Palm        = withErrorBoundary(PalmScreen);
+const PalmStep    = withErrorBoundary(PalmStepScreen);
+const PalmCompare = withErrorBoundary(PalmCompareScreen);
+const Profile     = withErrorBoundary(ProfileScreen);
+const Credits     = withErrorBoundary(CreditsScreen);
+const Help        = withErrorBoundary(HelpSupportScreen);
 
 const navTheme = {
   ...DarkTheme,
@@ -87,27 +100,27 @@ function MainDrawer() {
         backBehavior: "history",
       }}
     >
-      <Drawer.Screen name="Home"     component={HomeScreen} />
+      <Drawer.Screen name="Home"     component={Home} />
       <Drawer.Screen
         name="PalmStep"
-        component={PalmStepScreen}
+        component={PalmStep}
         options={{ swipeEnabled: false, drawerItemStyle: { display: "none" } }}
       />
       <Drawer.Screen
         name="PalmCompare"
-        component={PalmCompareScreen}
+        component={PalmCompare}
         options={{ swipeEnabled: false, drawerItemStyle: { display: "none" } }}
       />
-      <Drawer.Screen name="Reading"  component={ReadingScreen} />
-      <Drawer.Screen name="Palm"     component={PalmScreen} />
-      <Drawer.Screen name="Chat"    component={ChatScreen} />
-      <Drawer.Screen name="Profile" component={ProfileScreen} />
+      <Drawer.Screen name="Reading"  component={Reading} />
+      <Drawer.Screen name="Palm"     component={Palm} />
+      <Drawer.Screen name="Chat"    component={Chat} />
+      <Drawer.Screen name="Profile" component={Profile} />
       <Drawer.Screen
         name="Credits"
-        component={CreditsScreen}
+        component={Credits}
         options={{ swipeEnabled: false, drawerItemStyle: { display: "none" } }}
       />
-      <Drawer.Screen name="Help"    component={HelpSupportScreen} />
+      <Drawer.Screen name="Help"    component={Help} />
     </Drawer.Navigator>
   );
 }

@@ -4,7 +4,8 @@
 // later without touching the plan list.
 
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, StyleSheet, Modal, ActivityIndicator, Platform } from "react-native";
+import { View, Text, StyleSheet, Modal, ActivityIndicator, Platform, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 // react-native-iap removed — incompatible with RN 0.81 (Kotlin 2.x).
 // IAP is mock-only for now (no plan has a productId). Re-add when upgrading
@@ -20,13 +21,20 @@ import MagicButton from "@/components/MagicButton";
 import MenuButton from "@/components/MenuButton";
 import { useColors } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
-import { spacing, fontSize } from "@/theme/tokens";
+import { radius, spacing, fontSize } from "@/theme/tokens";
 import { useCredits } from "@/hooks/useCredits";
 import { useBackToKundali } from "@/utils/useBackToKundali";
 import { fetchCreditPlans, purchasePlan, getCredits, verifyIapPayment } from "@/services/api";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+const PLAN_FEATURES = [
+  "AI Kundali Interpretation",
+  "Daily Personalized Guidance",
+  "AI Astrologer Chat Access",
+  "Palm Reading Analysis",
+];
 
 // paise → "₹49" (drops the .00 when whole rupees).
 const formatInr = (paise) => {
@@ -155,46 +163,68 @@ export default function CreditsScreen({ navigation }) {
       ) : plans.length === 0 ? (
         <Text style={s.empty}>No plans available right now.</Text>
       ) : (
-        plans.map((p) => {
-          const isPopular = p.bonusLabel?.toLowerCase().includes("popular");
-          const isBestValue = p.bonusLabel?.toLowerCase().includes("value");
+        <View style={s.plansContainer}>
+          {plans.map((p) => {
+            const isPopular = p.bonusLabel?.toLowerCase().includes("popular");
+            const isBestValue = p.bonusLabel?.toLowerCase().includes("value");
+            const perCredit = (p.priceInr / 100 / p.credits).toFixed(2);
 
-          return (
-            <CosmicCard
-              key={p.id}
-              style={[
-                s.planCard,
-                isPopular && { borderColor: c.primaryLight + "60", borderWidth: 1.5 },
-                isBestValue && { borderColor: c.warning + "40", borderWidth: 1 }
-              ]}
-            >
-              {p.bonusLabel ? (
-                <View style={[
-                  s.badgeContainer,
-                  { backgroundColor: isPopular ? c.primaryLight : isBestValue ? c.warning : c.textMuted }
-                ]}>
-                  <Text style={s.badgeText}>{p.bonusLabel}</Text>
-                </View>
-              ) : null}
-
-              <View style={s.planRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.planName}>{p.name}</Text>
-                  <Text style={s.planCredits}>✨ {p.credits} credits</Text>
-                </View>
-                <Text style={[s.planPrice, { color: c.primaryLight }]}>{formatInr(p.priceInr)}</Text>
-              </View>
-
-              <MagicButton
-                style={{ marginTop: spacing.lg }}
-                variant={isPopular ? "primary" : "ghost"}
+            return (
+              <Pressable
+                key={p.id}
                 onPress={() => { setError(""); setSelected(p); }}
+                style={({ pressed }) => [
+                  s.planCard,
+                  isPopular && s.planCardPopular,
+                  isBestValue && s.planCardBestValue,
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
+                ]}
               >
-                BUY NOW
-              </MagicButton>
-            </CosmicCard>
-          );
-        })
+                {p.bonusLabel ? (
+                  <View style={[
+                    s.badgeContainer,
+                    { backgroundColor: isPopular ? c.primary : isBestValue ? c.warning : c.textMuted }
+                  ]}>
+                    <Text style={s.badgeText}>{p.bonusLabel}</Text>
+                  </View>
+                ) : null}
+
+                <View style={s.planContent}>
+                  <View style={s.planIconContainer}>
+                    <Ionicons 
+                      name={p.credits >= 100 ? "diamond-outline" : "sparkles-outline"} 
+                      size={28} 
+                      color={isPopular ? c.primaryLight : c.textDim} 
+                    />
+                  </View>
+                  
+                  <View style={s.planInfo}>
+                    <Text style={s.planName}>{p.name}</Text>
+                    <Text style={s.planCredits}>✨ {p.credits} Credits</Text>
+                  </View>
+
+                  <View style={s.planPriceContainer}>
+                    <Text style={[s.planPrice, { color: isPopular ? c.primaryLight : c.text }]}>
+                      {formatInr(p.priceInr)}
+                    </Text>
+                    <View style={[s.buyArrow, isPopular && { backgroundColor: c.primarySoft }]}>
+                      <Ionicons name="chevron-forward" size={18} color={isPopular ? c.primaryLight : c.textMuted} />
+                    </View>
+                  </View>
+                </View>
+
+                <View style={s.featuresList}>
+                  {PLAN_FEATURES.map((feat, idx) => (
+                    <View key={idx} style={s.featureRow}>
+                      <Ionicons name="checkmark-circle" size={14} color={isPopular ? c.primaryLight : c.success} />
+                      <Text style={s.featureText}>{feat}</Text>
+                    </View>
+                  ))}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
       )}
 
       <CheckoutModal
@@ -286,12 +316,12 @@ const makeStyles = (c) =>
       gap: spacing.sm,
       marginBottom: spacing.lg,
     },
-    headerTitle: { color: c.primaryLight, fontSize: 16, lineHeight: 22, fontWeight: "700", textAlign: "center" },
-    headerSub:   { color: c.textMuted, fontSize: 11, marginTop: 2, textAlign: "center" },
+    headerTitle: { color: c.primaryLight, fontSize: 18, lineHeight: 24, fontWeight: "700", textAlign: "center" },
+    headerSub:   { color: c.textMuted, fontSize: 13, marginTop: 2, textAlign: "center" },
 
-    subtitle: { color: c.textDim, fontSize: 13.5, lineHeight: 20, textAlign: "center", paddingHorizontal: 20, marginBottom: spacing.xl },
-    error:    { color: c.danger, fontSize: 12.5, textAlign: "center", marginBottom: spacing.md },
-    empty:    { color: c.textDim, fontSize: 13, textAlign: "center", marginTop: spacing.md },
+    subtitle: { color: c.textDim, fontSize: 16, lineHeight: 24, textAlign: "center", paddingHorizontal: 20, marginBottom: spacing.xl },
+    error:    { color: c.danger, fontSize: 14.5, textAlign: "center", marginBottom: spacing.md },
+    empty:    { color: c.textDim, fontSize: 15, textAlign: "center", marginTop: spacing.md },
 
     balanceCard: {
       flexDirection: "row",
@@ -313,15 +343,15 @@ const makeStyles = (c) =>
       backgroundColor: c.primaryLight,
       opacity: 0.9,
     },
-    balanceLabel: { color: c.textMuted, fontSize: 10, fontWeight: "800", letterSpacing: 1.5, marginBottom: 4 },
-    balanceValue: { color: c.text, fontSize: 26, fontWeight: "900" },
+    balanceLabel: { color: c.textMuted, fontSize: 12, fontWeight: "800", letterSpacing: 1.5, marginBottom: 4 },
+    balanceValue: { color: c.text, fontSize: 30, fontWeight: "900" },
     balanceStatus: {
       flex: 1,
       alignItems: "flex-end",
     },
     balanceStatusText: {
       color: c.primaryLight,
-      fontSize: 10,
+      fontSize: 12,
       fontWeight: "700",
       backgroundColor: c.bg === "#050508" ? c.primaryLight + "15" : c.primaryLight + "08",
       paddingHorizontal: 10,
@@ -332,40 +362,108 @@ const makeStyles = (c) =>
     },
 
     loaderContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 40 },
-    loaderText: { color: c.textDim, fontSize: 13, marginTop: 12 },
+    loaderText: { color: c.textDim, fontSize: 15, marginTop: 12 },
 
-    planCard: { 
-      padding: spacing.xl, 
-      marginBottom: spacing.lg,
-      backgroundColor: c.cardBgSolid,
-      borderColor: c.bg === "#050508" ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.05)",
-      borderWidth: 1,
-      shadowOpacity: c.bg === "#050508" ? 0.2 : 0.05,
-      shadowRadius: 10,
+    plansContainer: {
+      gap: spacing.md,
     },
-    planRow:  { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    planName: { color: c.text, fontSize: 18, fontWeight: "800" },
-    planCredits: { color: c.textMuted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", marginTop: 4 },
-    planPrice: { fontSize: 22, fontWeight: "900" },
+    planCard: { 
+      padding: spacing.lg, 
+      marginBottom: spacing.sm,
+      backgroundColor: c.cardBgSolid,
+      borderColor: c.cardBorder,
+      borderWidth: 1,
+      borderRadius: radius.lg,
+      position: "relative",
+    },
+    planCardPopular: {
+      borderColor: c.primary,
+      borderWidth: 2,
+      backgroundColor: c.bg === "#050508" ? "rgba(168,85,247,0.05)" : "rgba(168,85,247,0.02)",
+    },
+    planCardBestValue: {
+      borderColor: c.warning,
+    },
+    planContent: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    planIconContainer: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: c.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: spacing.md,
+    },
+    planInfo: {
+      flex: 1,
+    },
+    planCredits: {
+      color: c.primaryLight,
+      fontSize: 16,
+      fontWeight: "800",
+      marginTop: 2,
+    },
+    planName: {
+      color: c.text,
+      fontSize: 18,
+      fontWeight: "700",
+    },
+    planPriceContainer: {
+      alignItems: "flex-end",
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    planPrice: {
+      fontSize: 20,
+      fontWeight: "900",
+    },
+    buyArrow: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: c.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    featuresList: {
+      marginTop: spacing.md,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: c.cardBorder,
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    featureRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      width: "47%", // roughly 2 columns
+      gap: 6,
+    },
+    featureText: {
+      color: c.textDim,
+      fontSize: 11,
+    },
 
     badgeContainer: {
       position: "absolute",
-      top: -12, alignSelf: "center",
-      paddingHorizontal: 12,
+      top: -10,
+      right: 12,
+      paddingHorizontal: 10,
       paddingVertical: 4,
-      borderRadius: 99,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 4,
+      borderRadius: 6,
+      zIndex: 10,
     },
-    badgeText: { color: "#fff", fontSize: 10, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1 },
+    badgeText: { color: "#fff", fontSize: 10, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.5 },
 
     modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
     modalCard:     { width: "100%", maxWidth: 340, alignItems: "center", marginBottom: 0 },
     modalIcon:     { fontSize: 34, lineHeight: 44, marginBottom: 4 },
-    modalTitle:    { color: c.text, fontSize: 16, fontWeight: "700", textAlign: "center" },
-    modalSub:      { color: c.textBody, fontSize: 13, textAlign: "center", marginTop: 4, marginBottom: spacing.sm },
-    modalNote:     { color: c.textDim, fontSize: 10.5, lineHeight: 15, textAlign: "center", marginTop: 10 },
+    modalTitle:    { color: c.text, fontSize: 18, fontWeight: "700", textAlign: "center" },
+    modalSub:      { color: c.textBody, fontSize: 15, textAlign: "center", marginTop: 4, marginBottom: spacing.sm },
+    modalNote:     { color: c.textDim, fontSize: 12.5, lineHeight: 18, textAlign: "center", marginTop: 10 },
   });

@@ -5,12 +5,9 @@
 import React, { useRef, useState, useEffect } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BlurView } from "expo-blur";
-import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import Animated, {
   useSharedValue, useAnimatedStyle,
-  withRepeat, withTiming, withDelay, withSequence, Easing,
-  FadeIn, FadeOut,
+  withRepeat, withTiming, withSequence, Easing,
 } from "react-native-reanimated";
 import { useAuth } from "./AuthContext";
 import { verifyPhone, confirmCode } from "./otp";
@@ -18,192 +15,10 @@ import { getAuthConfig } from "@/services/api";
 import { useChart } from "@/context/ChartContext";
 import { useTheme } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
-import { radius, spacing } from "@/theme/tokens";
+import { LoginBackdrop } from "@/components/cosmic";
+import { spacing } from "@/theme/tokens";
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
-
-// Cheap twinkling star — uses a plain Animated.View with native-driven
-// opacity. No SVG re-render, no per-frame JS work. Each star only animates
-// opacity (not radius) so the compositor can run on the GPU.
-function TwinkleStar({ x, y, size, baseOpacity, dur, delay }) {
-  const opacity = useSharedValue(baseOpacity);
-  useEffect(() => {
-    opacity.value = withDelay(delay, withRepeat(
-      withSequence(
-        withTiming(baseOpacity * 0.25, { duration: dur, easing: Easing.inOut(Easing.quad) }),
-        withTiming(baseOpacity,        { duration: dur, easing: Easing.inOut(Easing.quad) }),
-      ), -1, false));
-  }, [opacity, baseOpacity, dur, delay]);
-
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  return (
-    <Animated.View pointerEvents="none" style={[{
-      position: "absolute", left: x, top: y,
-      width: size, height: size, borderRadius: size / 2,
-      backgroundColor: "#fff",
-    }, style]} />
-  );
-}
-
-function ShootingStar() {
-  const x = useSharedValue(-200);
-  const y = useSharedValue(-100);
-  const opacity = useSharedValue(0);
-  const rotation = useSharedValue(20);
-  const sideRef = useRef(0); // 0 = left, 1 = right
-
-  useEffect(() => {
-    const loop = () => {
-      if (sideRef.current === 0) {
-        // From Top-Left to Middle-Right
-        x.value = -200;
-        y.value = -100;
-        rotation.value = 20;
-        x.value = withTiming(SCREEN_W * 0.7, { duration: 1800, easing: Easing.out(Easing.quad) });
-        y.value = withTiming(SCREEN_H * 0.5, { duration: 1800, easing: Easing.out(Easing.quad) });
-      } else {
-        // From Top-Right to Middle-Left
-        x.value = SCREEN_W + 100;
-        y.value = -100;
-        rotation.value = -20;
-        x.value = withTiming(SCREEN_W * 0.3, { duration: 1800, easing: Easing.out(Easing.quad) });
-        y.value = withTiming(SCREEN_H * 0.5, { duration: 1800, easing: Easing.out(Easing.quad) });
-      }
-
-      opacity.value = 0;
-      opacity.value = withSequence(
-        withTiming(0,   { duration: 200 }),
-        withTiming(0.9, { duration: 200 }),
-        withTiming(0,   { duration: 1400 }),
-      );
-
-      sideRef.current = 1 - sideRef.current;
-    };
-    loop();
-    const id = setInterval(loop, 7000);
-    return () => clearInterval(id);
-  }, [x, y, opacity, rotation]);
-
-  const style = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [
-      { translateX: x.value },
-      { translateY: y.value },
-      { rotate: `${rotation.value}deg` }
-    ],
-  }));
-  return <Animated.View style={[shootingStarStyle, style]} />;
-}
-
-// Single orbital ring with one planet circling. Stacked at different radii
-// + speeds to build the orbital system.
-function Orbit({ size, dur, reverse, planetColor, planetSize = 8 }) {
-  const rot = useSharedValue(0);
-  useEffect(() => {
-    rot.value = withRepeat(withTiming(reverse ? -360 : 360, {
-      duration: dur, easing: Easing.linear,
-    }), -1, false);
-  }, [rot, dur, reverse]);
-  const style = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rot.value}deg` }],
-  }));
-  return (
-    <Animated.View pointerEvents="none" style={[{
-      position: "absolute",
-      width: size, height: size,
-      top: (SCREEN_H - size) / 2, left: (SCREEN_W - size) / 2,
-      borderRadius: size / 2,
-      borderWidth: 1, borderColor: "rgba(167,139,250,0.18)",
-      borderStyle: "dashed",
-    }, style]}>
-      <View style={{
-        position: "absolute", top: -planetSize / 2,
-        left: size / 2 - planetSize / 2,
-        width: planetSize, height: planetSize, borderRadius: planetSize / 2,
-        backgroundColor: planetColor,
-        shadowColor: planetColor, shadowOpacity: 1, shadowRadius: 8,
-        shadowOffset: { width: 0, height: 0 }, elevation: 6,
-      }} />
-    </Animated.View>
-  );
-}
-
-function CenterSun() {
-  const s = useSharedValue(1);
-  useEffect(() => {
-    s.value = withRepeat(withTiming(1.3, { duration: 2000, easing: Easing.inOut(Easing.quad) }), -1, true);
-  }, [s]);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }));
-  return (
-    <Animated.View pointerEvents="none" style={[{
-      position: "absolute",
-      top: SCREEN_H / 2 - 8, left: SCREEN_W / 2 - 8,
-      width: 16, height: 16, borderRadius: 8,
-      backgroundColor: "#fff",
-      shadowColor: "#c7d2fe", shadowOpacity: 1, shadowRadius: 20,
-      shadowOffset: { width: 0, height: 0 }, elevation: 10,
-    }, style]} />
-  );
-}
-
-function CosmicBackdrop({ color, theme }) {
-  // ~30 stars instead of 70, opacity-only animation. Plenty for a starry
-  // feel without the GPU cost of dozens of overlapping animated SVG nodes.
-  const stars = Array.from({ length: 30 }, (_, i) => ({
-    x: ((i * 53) % 100) / 100 * SCREEN_W,
-    y: ((i * 37) % 100) / 100 * SCREEN_H,
-    size: ((i * 7) % 3) + 1.4,
-    o: 0.3 + ((i * 11) % 7) / 14,
-    dur: 1800 + (i % 5) * 700,
-    delay: (i * 137) % 2400,
-  }));
-
-  const isLight = theme === "light";
-  const stop1 = isLight ? "#e0e7ff" : (color.primarySoft || "#1e1b4b");
-  const stop2 = color.bg;
-
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {/* Solid radial gradient — drawn once, never animated. */}
-      <Svg width={SCREEN_W} height={SCREEN_H} style={StyleSheet.absoluteFill}>
-        <Defs>
-          <RadialGradient id="bgGrad" cx="20%" cy="20%" r="80%">
-            <Stop offset="0%"   stopColor={stop1} stopOpacity="1" />
-            <Stop offset="100%" stopColor={stop2} stopOpacity="1" />
-          </RadialGradient>
-        </Defs>
-        <Rect x="0" y="0" width={SCREEN_W} height={SCREEN_H} fill="url(#bgGrad)" />
-      </Svg>
-
-      {stars.map((s, i) => (
-        <TwinkleStar key={i} x={s.x} y={s.y} size={s.size}
-                     baseOpacity={isLight ? s.o * 0.4 : s.o} dur={s.dur} delay={s.delay} />
-      ))}
-
-      <Orbit size={SCREEN_W * 1.0} dur={80000} planetColor={isLight ? "#f59e0b" : "#fbbf24"} planetSize={9} />
-      <Orbit size={SCREEN_W * 0.7} dur={50000} reverse planetColor={isLight ? "#8b5cf6" : "#a78bfa"} planetSize={8} />
-      <Orbit size={SCREEN_W * 0.42} dur={30000} planetColor={isLight ? "#10b981" : "#34d399"} planetSize={6} />
-      <CenterSun />
-
-      <ShootingStar />
-    </View>
-  );
-}
-
-const glyphStyle = {
-  position: "absolute",
-  color: "rgba(167,139,250,0.12)",
-  fontWeight: "300",
-};
-
-const shootingStarStyle = {
-  position: "absolute", top: 0, left: 0,
-  width: 110, height: 2, borderRadius: 2,
-  backgroundColor: "#fff",
-  shadowColor: "#c7d2fe", shadowOpacity: 1, shadowRadius: 8,
-  shadowOffset: { width: 0, height: 0 },
-  elevation: 6,
-};
+const { width: SCREEN_W } = Dimensions.get("window");
 
 const RESEND_SECS = 30;
 
@@ -379,7 +194,7 @@ export default function LoginScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <CosmicBackdrop color={color} theme={theme} />
+      <LoginBackdrop color={color} theme={theme} />
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}

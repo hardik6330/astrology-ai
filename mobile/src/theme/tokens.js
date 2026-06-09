@@ -77,9 +77,9 @@ export const palettes = { dark, light };
 // Static default — kept for files that haven't migrated to useTheme() yet.
 export const color = dark;
 
-export const radius   = { sm: 8, md: 10, lg: 14, xl: 18, pill: 9999 };
-export const spacing  = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
-export const fontSize = { xs: 11, sm: 13, md: 15, lg: 17, xl: 20, xxl: 24, hero: 28 };
+export const radius   = { sm: 12, md: 14, lg: 18, xl: 24, pill: 9999 };
+export const spacing  = { xs: 8, sm: 12, md: 16, lg: 22, xl: 30, xxl: 40 };
+export const fontSize = { xs: 14, sm: 16, md: 18, lg: 20, xl: 24, xxl: 28, hero: 36 };
 
 export const shadow = {
   card: {

@@ -35,14 +35,18 @@ export const SETTING_DEFAULTS = [
 ];
 
 export async function seedSettings() {
-  const count = await Setting.count();
-  if (count > 0) {
-    logger.info('System settings already present — skipping seed');
-    return;
-  }
-
+  let created = 0;
   for (const s of SETTING_DEFAULTS) {
-    await Setting.create(s);
+    const [instance, wasCreated] = await Setting.findOrCreate({
+      where: { key: s.key },
+      defaults: s
+    });
+    if (wasCreated) created++;
   }
-  logger.info('System settings seeded (all default keys created)');
+  
+  if (created > 0) {
+    logger.info(`System settings seeded: ${created} new keys created`);
+  } else {
+    logger.info('System settings already up to date');
+  }
 }

@@ -25,6 +25,20 @@ export default class ErrorBoundary extends React.Component {
   }
 }
 
+// Wrap a screen so its crash is contained — the drawer/nav chrome stays alive
+// and the user can navigate elsewhere instead of the whole app blanking.
+export function withErrorBoundary(Component) {
+  function Wrapped(props) {
+    return (
+      <ErrorBoundary>
+        <Component {...props} />
+      </ErrorBoundary>
+    );
+  }
+  Wrapped.displayName = `withErrorBoundary(${Component.displayName || Component.name || "Screen"})`;
+  return Wrapped;
+}
+
 const styles = StyleSheet.create({
   wrap: {
     flex: 1, backgroundColor: color.bg,

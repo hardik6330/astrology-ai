@@ -14,15 +14,15 @@ export const makeStyles = (c) => StyleSheet.create({
     backgroundColor: c.accentSoft,
     marginBottom: spacing.lg,
   },
-  backText: { color: c.accentLight, fontSize: 12, fontWeight: "600" },
+  backText: { color: c.accentLight, fontSize: 14, fontWeight: "600" },
 
   // Insights lock-by-default preview card.
-  lockTitle: { color: c.text, fontSize: 17, fontWeight: "700", marginBottom: 6, textAlign: "center" },
-  lockBody:  { color: c.textBody, fontSize: 13, lineHeight: 20, textAlign: "center", paddingHorizontal: spacing.sm },
-  lockNote:  { color: c.textMuted, fontSize: 11, marginTop: spacing.sm, textAlign: "center" },
+  lockTitle: { color: c.text, fontSize: 20, fontWeight: "700", marginBottom: 6, textAlign: "center" },
+  lockBody:  { color: c.textBody, fontSize: 15, lineHeight: 22, textAlign: "center", paddingHorizontal: spacing.sm },
+  lockNote:  { color: c.textMuted, fontSize: 13, marginTop: spacing.sm, textAlign: "center" },
 
-  heroLabel: { color: c.primaryLight, fontSize: 13, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", textAlign: "center" },
-  heroSub:   { color: c.textMuted, fontSize: 12, marginTop: 4, textAlign: "center" },
+  heroLabel: { color: c.primaryLight, fontSize: 15, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", textAlign: "center" },
+  heroSub:   { color: c.textMuted, fontSize: 14, marginTop: 4, textAlign: "center" },
 
   headerRow: {
     flexDirection: "row",
@@ -42,12 +42,12 @@ export const makeStyles = (c) => StyleSheet.create({
     padding: spacing.md,
     alignItems: "center",
   },
-  bigThreeLabel: { fontSize: 11, color: c.textMuted, textTransform: "uppercase", marginBottom: 4 },
-  bigThreeValue: { fontSize: 14, lineHeight: 22, fontWeight: "700", color: c.text, textAlign: "center" },
+  bigThreeLabel: { fontSize: 13, color: c.textMuted, textTransform: "uppercase", marginBottom: 4 },
+  bigThreeValue: { fontSize: 16, lineHeight: 24, fontWeight: "700", color: c.text, textAlign: "center" },
 
   cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 22, fontWeight: "700", marginBottom: 4 },
-  cardSub:   { color: c.textMuted, fontSize: 11, marginBottom: spacing.md },
-  body:      { color: c.textBody, fontSize: fontSize.sm, lineHeight: 20 },
+  cardSub:   { color: c.textMuted, fontSize: 13, marginBottom: spacing.md },
+  body:      { color: c.textBody, fontSize: fontSize.sm, lineHeight: 22 },
 
   chartHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   styleBtn: {
@@ -55,15 +55,15 @@ export const makeStyles = (c) => StyleSheet.create({
     borderWidth: 1, borderColor: c.cardBorder,
   },
   styleBtnActive: { borderColor: c.accent, backgroundColor: c.accentSoft },
-  styleBtnText:   { color: c.textDim, fontSize: 11 },
-  legend:         { color: c.textFaint, fontSize: 10, textAlign: "center", marginTop: spacing.md, letterSpacing: 0.5 },
+  styleBtnText:   { color: c.textDim, fontSize: 13 },
+  legend:         { color: c.textFaint, fontSize: 12, textAlign: "center", marginTop: spacing.md, letterSpacing: 0.5 },
 
   scoreRow:   { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  scoreLabel: { color: c.textDim, fontSize: 12 },
-  scoreValue: { fontWeight: "700", fontSize: 13 },
-  scoreMax:   { color: c.textFaint, fontWeight: "400", fontSize: 10 },
+  scoreLabel: { color: c.textDim, fontSize: 14 },
+  scoreValue: { fontWeight: "700", fontSize: 15 },
+  scoreMax:   { color: c.textFaint, fontWeight: "400", fontSize: 12 },
   barTrack: {
-    height: 6, backgroundColor: c.inputBg,
+    height: 8, backgroundColor: c.inputBg,
     borderRadius: radius.pill, overflow: "hidden",
   },
 
@@ -71,33 +71,33 @@ export const makeStyles = (c) => StyleSheet.create({
     flexDirection: "row", paddingBottom: 8,
     borderBottomWidth: 1, borderBottomColor: c.cardBorder,
   },
-  thCell: { fontSize: 11, color: c.textMuted, letterSpacing: 0.5 },
+  thCell: { fontSize: 13, color: c.textMuted, letterSpacing: 0.5 },
   tableRow: {
-    flexDirection: "row", paddingVertical: 10, alignItems: "center",
+    flexDirection: "row", paddingVertical: 12, alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.cardBorder,
   },
-  tdCell: { fontSize: 12.5, lineHeight: 20, color: c.textBody },
+  tdCell: { fontSize: 15, lineHeight: 22, color: c.textBody },
 
   dashaCurrent: {
     backgroundColor: c.accentSoft,
     borderWidth: 1, borderColor: c.accentBorder,
     borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md,
   },
-  dashaTitle: { color: c.text, fontWeight: "600", fontSize: 14 },
-  dashaDates: { color: c.textDim, fontSize: 12, marginVertical: 8 },
+  dashaTitle: { color: c.text, fontWeight: "600", fontSize: 16 },
+  dashaDates: { color: c.textDim, fontSize: 14, marginVertical: 8 },
   dashaRow: {
     flexDirection: "row", justifyContent: "space-between",
-    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.cardBorder,
+    paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.cardBorder,
   },
-  dashaRowLabel: { color: c.textDim, fontSize: 13 },
-  dashaRowDate:  { color: c.textMuted, fontSize: 12 },
+  dashaRowLabel: { color: c.textDim, fontSize: 15 },
+  dashaRowDate:  { color: c.textMuted, fontSize: 14 },
 
-  timelineItem:  { borderLeftWidth: 2, paddingLeft: 12, marginBottom: 14 },
+  timelineItem:  { borderLeftWidth: 2, paddingLeft: 12, marginBottom: 16 },
   tlHeader:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  tlPeriod:      { fontSize: 12.5, fontWeight: "600", color: c.text },
-  tlNow:         { fontSize: 9, color: c.success, fontWeight: "700" },
-  tlPhase:       { fontSize: 10, fontWeight: "600", borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-  tlDates:       { fontSize: 10.5, color: c.textMuted, marginTop: 2, marginBottom: 6 },
+  tlPeriod:      { fontSize: 15, fontWeight: "600", color: c.text },
+  tlNow:         { fontSize: 11, color: c.success, fontWeight: "700" },
+  tlPhase:       { fontSize: 12, fontWeight: "600", borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  tlDates:       { fontSize: 13, color: c.textMuted, marginTop: 2, marginBottom: 6 },
   tlSummary:     { fontSize: 11.5, color: c.textDim, marginBottom: 7, lineHeight: 17 },
   tlHouse:       { fontSize: 9.5, color: c.textMuted, backgroundColor: c.inputBg, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 2 },
 

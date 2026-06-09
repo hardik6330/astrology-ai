@@ -61,6 +61,8 @@
           "android": {
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
             "extraMavenRepos": [
               "https://www.jitpack.io"
             ]

@@ -9,6 +9,10 @@ import { decodeJpeg } from "@tensorflow/tfjs-react-native";
 import * as ImageManipulator from "expo-image-manipulator";
 import "@tensorflow/tfjs-react-native";
 
+// Verbose per-photo gate diagnostics — dev only. Stays silent in release builds
+// so we don't spam logcat or leak quality metrics on every scan.
+const log = __DEV__ ? console.log.bind(console) : () => {};
+
 // ── Gate thresholds ──────────────────────────────────────────────────────────
 // MUST mirror the web gate (frontend/src/utils/palmGate.js). Luminance + blur
 // run on the 256px downsample; lighting evenness + line detail run ONLY on the
@@ -29,16 +33,16 @@ async function getDetector() {
   if (_detector) return _detector;
   if (_detectorPromise) return _detectorPromise;
   _detectorPromise = (async () => {
-    console.log("Gate: Initializing TensorFlow.js and MediaPipe Hands detector...");
+    log("Gate: Initializing TensorFlow.js and MediaPipe Hands detector...");
     
     // Explicitly wait for TF and set the fastest backend
     await tf.ready();
     try {
       // Try to use WebGL for GPU acceleration
       await tf.setBackend('rn-webgl');
-      console.log("Gate: Using rn-webgl backend");
+      log("Gate: Using rn-webgl backend");
     } catch (e) {
-      console.log("Gate: rn-webgl failed, using default backend");
+      log("Gate: rn-webgl failed, using default backend");
     }
 
     _detector = await handPoseDetection.createDetector(
@@ -49,7 +53,7 @@ async function getDetector() {
         maxHands: 1, // Optimized: Only look for one hand
       },
     );
-    console.log("Gate: MediaPipe Hands detector initialized successfully.");
+    log("Gate: MediaPipe Hands detector initialized successfully.");
     return _detector;
   })();
   return _detectorPromise;
@@ -91,7 +95,7 @@ function reject(rejectReason, debugInfo = "", duration = 0) {
     rejectReason, 
     retakeReason: (TIPS[rejectReason] || "Please retake with a clearer palm photo.")
   };
-  console.log(`Gate: Final Result -> REJECTED (Time: ${duration}ms)`, { reason: rejectReason, debug: debugInfo, response });
+  log(`Gate: Final Result -> REJECTED (Time: ${duration}ms)`, { reason: rejectReason, debug: debugInfo, response });
   return response;
 }
 
@@ -101,7 +105,7 @@ function reject(rejectReason, debugInfo = "", duration = 0) {
  */
 function checkQuality(tensor) {
   return tf.tidy(() => {
-    console.log("Gate: Running quality checks (Darkness & Blur)...");
+    log("Gate: Running quality checks (Darkness & Blur)...");
     const [h, w] = tensor.shape;
     const scale = Math.min(1, 256 / Math.max(h, w));
     const newH = Math.max(1, Math.round(h * scale));
@@ -115,7 +119,7 @@ function checkQuality(tensor) {
     const weights = tf.tensor1d([0.2126, 0.7152, 0.0722]);
     const gray = tf.sum(tf.mul(small, weights), -1);
     const lum = tf.mean(gray).dataSync()[0];
-    console.log(`Gate: Mean Luminance = ${lum.toFixed(2)} (Threshold: ${MIN_LUMINANCE})`);
+    log(`Gate: Mean Luminance = ${lum.toFixed(2)} (Threshold: ${MIN_LUMINANCE})`);
 
     // 2. Laplacian Variance (Blur)
     const laplacianKernel = tf.tensor2d([0, 1, 0, 1, -4, 1, 0, 1, 0], [3, 3]).reshape([3, 3, 1, 1]);
@@ -123,12 +127,12 @@ function checkQuality(tensor) {
     const laplacian = tf.conv2d(gray4d, laplacianKernel, 1, "valid");
     const { variance } = tf.moments(laplacian);
     const lapVar = variance.dataSync()[0];
-    console.log(`Gate: Laplacian Variance = ${lapVar.toFixed(2)} (Threshold: ${MIN_LAPLACIAN_VAR})`);
+    log(`Gate: Laplacian Variance = ${lapVar.toFixed(2)} (Threshold: ${MIN_LAPLACIAN_VAR})`);
 
     if (lum < MIN_LUMINANCE) return { ok: false, reason: "too_dark", lum, lapVar };
     if (lapVar < MIN_LAPLACIAN_VAR) return { ok: false, reason: "blurry", lum, lapVar };
 
-    console.log("Gate: Quality checks PASSED.");
+    log("Gate: Quality checks PASSED.");
     return { ok: true, lum, lapVar };
   });
 }
@@ -178,20 +182,20 @@ function palmRegionStats(tensor, bounds) {
  */
 export async function gatePalmImage(asset, claimedHand) {
   const startTime = Date.now();
-  console.log("Gate: Starting detection flow...");
+  log("Gate: Starting detection flow...");
 
   let tensor = null;
   try {
     // CRITICAL SPEED FIX: Resize the image BEFORE decoding to tensor.
     // Decoding a 4096px image to tensor takes ~40-50s on CPU.
     // Resizing it via native ImageManipulator takes ~100ms.
-    console.log("Gate: Pre-resizing image using Native ImageManipulator...");
+    log("Gate: Pre-resizing image using Native ImageManipulator...");
     const manipulated = await ImageManipulator.manipulateAsync(
       asset.uri,
       [{ resize: { width: 512 } }], // Resize to 512px width first
       { base64: true, format: ImageManipulator.SaveFormat.JPEG, quality: 0.7 }
     );
-    console.log(`Gate: Pre-resize done in ${Date.now() - startTime}ms`);
+    log(`Gate: Pre-resize done in ${Date.now() - startTime}ms`);
 
     const detector = await getDetector();
     
@@ -204,7 +208,7 @@ export async function gatePalmImage(asset, claimedHand) {
 
     tensor = decodeJpeg(uint8);
     const [height, width] = tensor.shape;
-    console.log(`Gate: Tensor ready (${width}x${height}) in ${Date.now() - startTime}ms`);
+    log(`Gate: Tensor ready (${width}x${height}) in ${Date.now() - startTime}ms`);
 
     // 1. Pixel heuristics first (darkness/blur)
     const quality = checkQuality(tensor);
@@ -231,7 +235,7 @@ export async function gatePalmImage(asset, claimedHand) {
     // 2. MediaPipe hand detection
     // No need to resize again, we are already at 512px
     const hands = await detector.estimateHands(tensor, { flipHorizontal: false });
-    console.log("Gate: Hands detected:", hands.length);
+    log("Gate: Hands detected:", hands.length);
 
     if (hands.length === 0)   return reject("not_a_palm", "No hand detected", Date.now() - startTime);
     if (hands.length > 1)     return reject("multiple_hands", `Found ${hands.length} hands`, Date.now() - startTime);
@@ -247,7 +251,7 @@ export async function gatePalmImage(asset, claimedHand) {
     }
     
     const bounds = landmarkBounds(hand.keypoints, width, height);
-    console.log("Gate: Coverage:", bounds.coverage);
+    log("Gate: Coverage:", bounds.coverage);
 
     // 3. Palm too small in frame.
     if (bounds.coverage < MIN_PALM_COVERAGE) return reject("too_far", `Coverage ${Math.round(bounds.coverage * 100)}%`, Date.now() - startTime);
@@ -262,7 +266,7 @@ export async function gatePalmImage(asset, claimedHand) {
     // 5. Palm-region quality — lighting evenness + line detail, measured INSIDE
     // the palm only (background never skews these).
     const { edgeScore, lightingVar } = palmRegionStats(tensor, bounds);
-    console.log(`Gate: Palm edgeScore = ${edgeScore.toFixed(1)} (Min: ${MIN_PALM_EDGE_SCORE}), lightingVar = ${lightingVar.toFixed(1)} (Max: ${MAX_PALM_LIGHTING_VAR})`);
+    log(`Gate: Palm edgeScore = ${edgeScore.toFixed(1)} (Min: ${MIN_PALM_EDGE_SCORE}), lightingVar = ${lightingVar.toFixed(1)} (Max: ${MAX_PALM_LIGHTING_VAR})`);
     if (lightingVar > MAX_PALM_LIGHTING_VAR) {
       return reject("uneven_light", `variance ${lightingVar.toFixed(0)}`, Date.now() - startTime);
     }
@@ -274,13 +278,13 @@ export async function gatePalmImage(asset, claimedHand) {
     if (claimedHand && hand.handedness && hand.score >= HAND_REJECT_MIN_CONFIDENCE) {
       const modelLabel = hand.handedness;
       const actualLabel = modelLabel === "Left" ? "Right" : "Left"; 
-      console.log("Gate: Model says", modelLabel, "Actual", actualLabel, "Claimed", claimedHand);
+      log("Gate: Model says", modelLabel, "Actual", actualLabel, "Claimed", claimedHand);
       if (actualLabel !== claimedHand) {
         return reject("wrong_hand", "", Date.now() - startTime);
       }
     }
 
-    console.log(`Gate: Final Result -> PASSED (Total Time: ${Date.now() - startTime}ms)`);
+    log(`Gate: Final Result -> PASSED (Total Time: ${Date.now() - startTime}ms)`);
     // Surface landmarks (in `tensor` pixel coords) + dims so a future scan-screen
     // skeleton overlay can pin them on the photo. Web mirrors this shape.
     // Also include ordered checks (metrics) for the UI report.
@@ -322,7 +326,7 @@ export async function gatePalmImage(asset, claimedHand) {
   } finally {
     if (tensor) {
       tf.dispose(tensor);
-      console.log("Gate: Tensor disposed");
+      log("Gate: Tensor disposed");
     }
   }
 }

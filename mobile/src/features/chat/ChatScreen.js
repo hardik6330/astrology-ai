@@ -34,6 +34,23 @@ const PLACEHOLDERS = [
   "Is this a good time for change?",
 ];
 
+// Memoized so the typewriter placeholder ticking (~20×/s on the parent) doesn't
+// re-render every visible message bubble. Props are stable per message.
+const ChatBubble = React.memo(function ChatBubble({ role, content }) {
+  const s = useStyles(makeStyles);
+  const isUser = role === "user";
+  return (
+    <View style={[s.bubbleRow, isUser ? { flexDirection: "row-reverse" } : { flexDirection: "row" }]}>
+      <View style={[s.avatar, isUser ? s.avatarUser : s.avatarAi]}>
+        <Text style={{ fontSize: 18, lineHeight: 24 }}>{isUser ? "🧑" : "🔮"}</Text>
+      </View>
+      <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAi]}>
+        <Text style={s.bubbleText}>{content}</Text>
+      </View>
+    </View>
+  );
+});
+
 export default function ChatScreen({ navigation }) {
   const { form, chart, chatMsgs, setChatMsgs } = useChart();
   useBackToKundali(navigation);
@@ -212,19 +229,7 @@ export default function ChatScreen({ navigation }) {
             keyExtractor={(_, i) => String(i)}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.md, gap: 10 }}
             onContentSizeChange={() => listRef.current?.scrollToEnd?.({ animated: false })}
-            renderItem={({ item }) => {
-              const isUser = item.role === "user";
-              return (
-                <View style={[s.bubbleRow, isUser ? { flexDirection: "row-reverse" } : { flexDirection: "row" }]}>
-                  <View style={[s.avatar, isUser ? s.avatarUser : s.avatarAi]}>
-                    <Text style={{ fontSize: 18, lineHeight: 24 }}>{isUser ? "🧑" : "🔮"}</Text>
-                  </View>
-                  <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAi]}>
-                    <Text style={s.bubbleText}>{item.content}</Text>
-                  </View>
-                </View>
-              );
-            }}
+            renderItem={({ item }) => <ChatBubble role={item.role} content={item.content} />}
           />
           )}
 
@@ -283,7 +288,7 @@ const makeStyles = (c) => StyleSheet.create({
     borderWidth: 1, borderColor: c.accentBorder, backgroundColor: c.accentSoft,
     marginBottom: spacing.sm,
   },
-  backText: { color: c.accentLight, fontSize: 12, fontWeight: "600" },
+  backText: { color: c.accentLight, fontSize: 14, fontWeight: "600" },
 
   headerRow: {
     flexDirection: "row",
@@ -291,12 +296,12 @@ const makeStyles = (c) => StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },
-  headerTitle: { color: c.primaryLight, fontSize: 16, lineHeight: 22, fontWeight: "700" },
-  headerSub:   { color: c.textMuted, fontSize: 11, marginTop: 2 },
+  headerTitle: { color: c.primaryLight, fontSize: 18, lineHeight: 24, fontWeight: "700" },
+  headerSub:   { color: c.textMuted, fontSize: 13, marginTop: 2 },
 
   bubbleRow: { alignItems: "flex-start", gap: 8 },
   avatar: {
-    width: 32, height: 32, borderRadius: 16,
+    width: 36, height: 36, borderRadius: 18,
     alignItems: "center", justifyContent: "center",
     borderWidth: 1,
   },
@@ -305,19 +310,19 @@ const makeStyles = (c) => StyleSheet.create({
 
   bubble: {
     maxWidth: "78%",
-    paddingHorizontal: 14, paddingVertical: 10,
+    paddingHorizontal: 16, paddingVertical: 12,
     borderRadius: 14, borderWidth: 1,
   },
   bubbleUser: { backgroundColor: c.accentSoft, borderColor: c.accentBorder },
   bubbleAi:   { backgroundColor: c.inputBg,    borderColor: c.cardBorder },
-  bubbleText: { color: c.textBody, fontSize: 13.5, lineHeight: 22 },
+  bubbleText: { color: c.textBody, fontSize: 16, lineHeight: 24 },
 
   inputWrap: {
     paddingHorizontal: spacing.lg, paddingTop: spacing.sm,
     borderTopWidth: 1, borderTopColor: c.cardBorder,
     backgroundColor: c.bg,
   },
-  suggestionRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 10 },
+  suggestionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   suggestion: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
     borderWidth: 1, borderColor: c.primaryBorder,
@@ -325,14 +330,14 @@ const makeStyles = (c) => StyleSheet.create({
   },
   suggestionText: { color: c.accentLight, fontSize: 12 },
 
-  costNote: { color: c.textMuted, fontSize: 10.5, textAlign: "center", marginBottom: 6 },
+  costNote: { color: c.textMuted, fontSize: 12, textAlign: "center", marginBottom: 8 },
 
   input: {
     flex: 1,
     backgroundColor: c.inputBg,
     borderWidth: 1, borderColor: c.cardBorder,
     borderRadius: radius.md,
-    paddingHorizontal: spacing.md, paddingVertical: 10,
+    paddingHorizontal: spacing.md, paddingVertical: 12,
     color: c.text, fontSize: fontSize.md, maxHeight: 110,
   },
   sendBtn: {

@@ -158,7 +158,7 @@ const makeStyles = (c) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      minHeight: 48,
+      minHeight: 60,
     },
     inputError: {
       borderColor: c.danger,
@@ -173,7 +173,7 @@ const makeStyles = (c) =>
     // icon out of the field; the icon keeps a fixed slot beside it.
     inputText:       { flexShrink: 1, color: c.text, fontSize: fontSize.md },
     placeholderText: { flexShrink: 1, color: c.textMuted, fontSize: fontSize.md },
-    fieldIcon:       { marginLeft: spacing.sm, fontSize: 16, lineHeight: 20, color: c.textDim },
+    fieldIcon:       { marginLeft: spacing.sm, fontSize: 20, lineHeight: 24, color: c.textDim },
     doneBtn:         { alignSelf: "flex-end", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
     doneText:        { fontWeight: "600" },
 
@@ -181,18 +181,18 @@ const makeStyles = (c) =>
       flexDirection: "row",
       alignItems: "center",
       padding: spacing.md,
-      minHeight: 64,
+      minHeight: 80,
     },
     customIconBox: {
-      width: 40,
-      height: 40,
+      width: 54,
+      height: 54,
       borderRadius: radius.md,
       alignItems: "center",
       justifyContent: "center",
       marginRight: spacing.md,
     },
     customIconText: {
-      fontSize: 20,
+      fontSize: 28,
       includeFontPadding: false,
       textAlign: "center",
     },
@@ -200,12 +200,12 @@ const makeStyles = (c) =>
       flex: 1,
     },
     customValueText: {
-      fontSize: 18,
+      fontSize: 20,
       fontWeight: "600",
       color: c.text,
     },
     customChevron: {
-      fontSize: 24,
+      fontSize: 28,
       color: c.textMuted,
       marginLeft: spacing.sm,
     },

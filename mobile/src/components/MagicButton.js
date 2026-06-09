@@ -44,10 +44,10 @@ const makeStyles = (c) =>
     btn: {
       borderRadius: radius.md,
       paddingHorizontal: spacing.lg,
-      paddingVertical: 14,
+      paddingVertical: 16,
       alignItems: "center",
       justifyContent: "center",
-      minHeight: 50,
+      minHeight: 56,
     },
     primary: {
       backgroundColor: c.primary,
@@ -64,7 +64,7 @@ const makeStyles = (c) =>
     label: {
       color: "#fff",
       fontWeight: "700",
-      fontSize: fontSize.md,
+      fontSize: fontSize.sm,
       letterSpacing: 0.3,
     },
     labelGhost: { color: c.primaryLight },

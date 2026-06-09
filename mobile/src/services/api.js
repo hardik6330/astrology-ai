@@ -42,7 +42,7 @@ function deriveDevUrl() {
 }
 
 export const API_URL =
-  ENV_URL && !/^https?:\/\/(localhost|127\.0\.0\.1)/i.test(ENV_URL)
+  ENV_URL && ENV_URL.startsWith("http")
     ? ENV_URL
     : deriveDevUrl();
 

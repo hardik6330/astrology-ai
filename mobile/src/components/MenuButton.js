@@ -4,7 +4,7 @@ import { useNavigation, DrawerActions } from "@react-navigation/native";
 import { useStyles } from "../theme/useStyles";
 import { radius } from "../theme/tokens";
 
-export default function MenuButton({ style }) {
+function MenuButton({ style }) {
   const navigation = useNavigation();
   const styles = useStyles(makeStyles);
   return (
@@ -17,6 +17,8 @@ export default function MenuButton({ style }) {
     </Pressable>
   );
 }
+
+export default React.memo(MenuButton);
 
 const makeStyles = (c) =>
   StyleSheet.create({

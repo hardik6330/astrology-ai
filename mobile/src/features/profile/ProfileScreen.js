@@ -174,20 +174,20 @@ const makeStyles = (c) =>
       gap: spacing.sm,
       marginBottom: spacing.lg,
     },
-    headerTitle: { color: c.primaryLight, fontSize: 16, lineHeight: 22, fontWeight: "700", textAlign: "center" },
-    headerSub:   { color: c.textMuted, fontSize: 11, marginTop: 2, textAlign: "center" },
+    headerTitle: { color: c.primaryLight, fontSize: 18, lineHeight: 24, fontWeight: "700", textAlign: "center" },
+    headerSub:   { color: c.textMuted, fontSize: 13, marginTop: 2, textAlign: "center" },
 
     hero: { alignItems: "center", marginBottom: spacing.xl, marginTop: spacing.sm },
     avatar: {
-      width: 88, height: 88, borderRadius: 44,
+      width: 100, height: 100, borderRadius: 50,
       backgroundColor: c.primarySoft,
       borderWidth: 2, borderColor: c.primaryBorder,
       alignItems: "center", justifyContent: "center",
       marginBottom: spacing.md,
     },
-    avatarText: { color: c.primaryLight, fontSize: 38, fontWeight: "800" },
-    name:       { color: c.primaryLight, fontSize: 22, fontWeight: "700" },
-    tagline:    { color: c.textMuted, fontSize: 12, marginTop: 4 },
+    avatarText: { color: c.primaryLight, fontSize: 44, fontWeight: "800" },
+    name:       { color: c.primaryLight, fontSize: 24, fontWeight: "700" },
+    tagline:    { color: c.textMuted, fontSize: 14, marginTop: 4 },
 
     row3:    { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
     miniCard: {
@@ -197,8 +197,8 @@ const makeStyles = (c) =>
       borderRadius: radius.lg, paddingVertical: spacing.md,
       alignItems: "center",
     },
-    miniLabel: { color: c.textMuted, fontSize: 10, marginTop: 6, textTransform: "uppercase" },
-    miniValue: { color: c.text, fontSize: 12, lineHeight: 20, fontWeight: "700", marginTop: 4 },
+    miniLabel: { color: c.textMuted, fontSize: 12, marginTop: 6, textTransform: "uppercase" },
+    miniValue: { color: c.text, fontSize: 14, lineHeight: 20, fontWeight: "700", marginTop: 4 },
 
     creditsCard: {
       paddingVertical: spacing.lg,
@@ -223,23 +223,24 @@ const makeStyles = (c) =>
       opacity: 0.9,
     },
     creditsTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    creditsLabel: { color: c.textMuted, fontSize: 10, fontWeight: "800", letterSpacing: 1.5, marginBottom: 2 },
-    creditsValue: { fontSize: 24, fontWeight: "900" },
-    creditsSub: { color: c.textMuted, fontSize: 11, lineHeight: 16, marginTop: 8 },
-    buyBtn: { minWidth: 110, paddingVertical: 8 },
+    creditsLabel: { color: c.textMuted, fontSize: 12, fontWeight: "800", letterSpacing: 1.5, marginBottom: 2 },
+    creditsValue: { fontSize: 28, fontWeight: "900" },
+    creditsSub: { color: c.textMuted, fontSize: 13, lineHeight: 18, marginTop: 8 },
+    buyBtn: { minWidth: 120 },
 
-    cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 22, fontWeight: "700", marginBottom: spacing.md },
+    cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 24, fontWeight: "700", marginBottom: spacing.md },
     detailRow: {
       flexDirection: "row", justifyContent: "space-between",
       paddingVertical: 10,
       borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.cardBorder,
     },
-    detailKey: { color: c.textMuted, fontSize: 12 },
-    detailVal: { color: c.text, fontSize: 13, fontWeight: "600" },
+    detailKey: { color: c.textMuted, fontSize: 14 },
+    detailVal: { color: c.text, fontSize: 15, fontWeight: "600" },
 
     logoutBtn: {
       marginTop: spacing.xl,
-      paddingVertical: spacing.md,
+      paddingVertical: 16,
+      minHeight: 56,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: radius.md,
@@ -247,5 +248,5 @@ const makeStyles = (c) =>
       borderColor: c.danger + "40",
       backgroundColor: c.danger + "10",
     },
-    logoutText: { color: c.danger, fontSize: 14, fontWeight: "600" },
+    logoutText: { color: c.danger, fontSize: 16, fontWeight: "600" },
   });

@@ -352,9 +352,9 @@ const makeStyles = (c) =>
     },
     progressSegment: {
       flex: 1,
-      height: 4,
+      height: 6,
       backgroundColor: c.cardBorder, // More visible track in both modes
-      borderRadius: 2,
+      borderRadius: 3,
       overflow: "hidden",
     },
     progressFill: {
@@ -366,22 +366,22 @@ const makeStyles = (c) =>
       marginBottom: spacing.lg,
     },
     mainTitle: {
-      fontSize: 32,
+      fontSize: 36,
       fontWeight: "900",
       color: c.text,
       marginBottom: spacing.xs,
     },
     subTitle: {
-      fontSize: 16,
+      fontSize: 18,
       color: c.textDim,
-      lineHeight: 24,
+      lineHeight: 26,
     },
 
     fieldGroup: {
       marginBottom: spacing.xl,
     },
     fieldLabel: {
-      fontSize: 16,
+      fontSize: 18,
       fontWeight: "700",
       color: c.text,
       marginBottom: spacing.md,
@@ -393,7 +393,7 @@ const makeStyles = (c) =>
       borderRadius: radius.lg,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.lg,
-      fontSize: 18,
+      fontSize: 20,
       color: c.text,
     },
     
@@ -414,9 +414,9 @@ const makeStyles = (c) =>
       backgroundColor: c.primarySoft,
     },
     genderIconContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       backgroundColor: c.inputBg,
       alignItems: "center",
       justifyContent: "center",
@@ -426,7 +426,7 @@ const makeStyles = (c) =>
       flex: 1,
     },
     genderLabel: {
-      fontSize: 16,
+      fontSize: 20,
       fontWeight: "700",
       color: c.text,
     },
@@ -434,14 +434,14 @@ const makeStyles = (c) =>
       color: c.primary,
     },
     genderSub: {
-      fontSize: 12,
+      fontSize: 16,
       color: c.textMuted,
       marginTop: 2,
     },
     radio: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
       borderWidth: 2,
       borderColor: c.cardBorder,
       alignItems: "center",
@@ -451,9 +451,9 @@ const makeStyles = (c) =>
       borderColor: c.primary,
     },
     radioInner: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+      width: 14,
+      height: 14,
+      borderRadius: 7,
       backgroundColor: c.primary,
     },
 
@@ -472,7 +472,7 @@ const makeStyles = (c) =>
       marginBottom: spacing.xl,
     },
     toggleLabel: {
-      fontSize: 14,
+      fontSize: 18,
       fontWeight: "600",
       color: c.text,
     },
@@ -497,20 +497,20 @@ const makeStyles = (c) =>
     },
     errorText: {
       color: c.danger,
-      fontSize: 12,
+      fontSize: 14,
       marginTop: 4,
       marginLeft: spacing.sm,
     },
     toggleText: {
       color: c.textDim,
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: "500",
     },
 
     progressTrack: {
-      height: 4,
+      height: 6,
       backgroundColor: c.inputBg,
-      borderRadius: 2,
+      borderRadius: 3,
       marginBottom: spacing.lg,
       overflow: "hidden",
       marginHorizontal: spacing.xl,
@@ -533,7 +533,7 @@ const makeStyles = (c) =>
     errText: { color: c.danger, fontSize: fontSize.sm, flex: 1 },
     fieldErrorText: {
       color: c.danger,
-      fontSize: 12,
+      fontSize: 14,
       marginTop: 4,
       fontWeight: "500",
     },
@@ -545,7 +545,7 @@ const makeStyles = (c) =>
     },
     summaryLabel: {
       color: c.textMuted,
-      fontSize: 10,
+      fontSize: 12,
       fontWeight: "700",
       letterSpacing: 1,
       marginBottom: 2,
