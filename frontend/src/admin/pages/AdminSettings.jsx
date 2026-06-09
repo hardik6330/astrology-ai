@@ -195,57 +195,55 @@ export default function AdminSettings() {
       <ErrorText>{error?.message}</ErrorText>
 
       {isPending ? (
-        <p className="mt-2 text-[13px] text-dim">Loading settings…</p>
-      ) : settings.length === 0 ? (
-        <p className="mt-2 text-[13px] text-dim">No settings found.</p>
+        <Card className="flex items-center justify-center py-20">
+          <p className="text-muted">Loading settings...</p>
+        </Card>
       ) : (
-        <form onSubmit={save} className="mt-2 flex max-w-280 flex-col gap-5">
-          {/* Two columns on wide screens (lg+), stacked on narrow. items-start
-              so the shorter Credits card doesn't stretch to match Notifications. */}
-          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-            {/* Section 1 — Credits & costs. Card's .cosmic-card is unlayered →
-                padding/margin-bottom stay inline; flex/gap use utilities. */}
-            <Card className="flex flex-col gap-5" style={{ padding: 24, marginBottom: 0 }}>
-              <h2 className="m-0 text-[15px] font-semibold text-ink">Credits & Costs</h2>
-              {creditSettings.map(renderField)}
+        <form onSubmit={save} className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            {/* Column 1: Feature Costs & Credits */}
+            <Card title="Feature Costs & Credits" className="h-fit">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                {creditSettings.map(renderField)}
+              </div>
             </Card>
 
-            {/* Section 2 — Engagement notifications. */}
-            <Card className="flex flex-col gap-5" style={{ padding: 24, marginBottom: 0 }}>
-              <h2 className="m-0 text-[15px] font-semibold text-ink">Notifications</h2>
-              <p className="m-0 -mt-3 text-[12px] text-muted">
-                Randomised engagement pushes — timing, audience, and content source.
+            {/* Column 2: Engagement Notifications */}
+            <Card title="Engagement Notifications" className="h-fit">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                {notifSettings.map(renderField)}
+              </div>
+            </Card>
+
+            {/* Column 3: App / Force Update */}
+            <Card title="App / Force Update" className="h-fit">
+              <p className="mx-0 mt-0 mb-6 text-[13px] text-muted leading-relaxed">
+                Publish a new version number, then turn Force Update on to block users on older builds.
               </p>
-              {/* Fields 2-per-row (1 row × 2 cols), stacking to 1 col on narrow. */}
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">{notifSettings.map(renderField)}</div>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                {appSettings.map(renderField)}
+              </div>
             </Card>
           </div>
 
-          {/* Section 3 — App / force-update. Served to mobile via /auth/config. */}
-          {appSettings.length > 0 && (
-            <Card className="flex flex-col gap-5" style={{ padding: 24, marginBottom: 0 }}>
-              <h2 className="m-0 text-[15px] font-semibold text-ink">App / Force Update</h2>
-              <p className="m-0 -mt-3 text-[12px] text-muted">
-                Publish a new version number, then turn Force Update on to block users on older builds.
-              </p>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">{appSettings.map(renderField)}</div>
-            </Card>
-          )}
-
-          <div className="flex max-w-130 flex-col gap-2">
+          <div className="sticky bottom-6 z-10 flex flex-col items-center gap-3">
             <Button
               type="submit"
+              size="lg"
+              className="min-w-[200px] shadow-xl"
               busy={busy}
-              busyLabel="Saving…"
+              busyLabel="Saving..."
+              disabled={!changed.length}
               icon={LuSave}
-              disabled={busy || changed.length === 0}
             >
-              {changed.length
-                ? `Save ${changed.length} change${changed.length > 1 ? "s" : ""}`
-                : "Save changes"}
+              {changed.length ? `Save ${changed.length} changes` : "Save changes"}
             </Button>
-            <ErrorText style={{ fontSize: 12.5, margin: 0 }}>{saveErr}</ErrorText>
-            {saved && <p className="m-0 text-[12.5px] text-success">Settings saved.</p>}
+            {saved && (
+              <p className="text-sm text-green-500 font-medium animate-fade-in">
+                Settings saved successfully!
+              </p>
+            )}
+            {saveErr && <ErrorText>{saveErr}</ErrorText>}
           </div>
         </form>
       )}
