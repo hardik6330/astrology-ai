@@ -6,13 +6,14 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, Modal, ActivityIndicator, Platform } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import {
-  requestPurchase,
-  useIAP,
-  getProducts,
-  finishTransaction,
-  ErrorCode,
-} from "react-native-iap";
+// react-native-iap removed — incompatible with RN 0.81 (Kotlin 2.x).
+// IAP is mock-only for now (no plan has a productId). Re-add when upgrading
+// to react-native-iap v14+ with react-native-nitro-modules.
+const requestPurchase = async () => { throw new Error("IAP not installed"); };
+const useIAP = () => ({ connected: false });
+const getProducts = async () => [];
+const finishTransaction = async () => {};
+const ErrorCode = { E_USER_CANCELLED: "E_USER_CANCELLED" };
 import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
 import MagicButton from "@/components/MagicButton";

@@ -14,7 +14,7 @@ import { setupForegroundNotifications, setupNotificationNavigation, requestDispl
 import UpdateModal from "./src/components/UpdateModal";
 import { isOutdated } from "./src/utils/version";
 import { getItem, setItem } from "./src/utils/storage";
-import { withIAPContext } from "react-native-iap";
+
 import Constants, { ExecutionEnvironment } from "expo-constants";
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -139,6 +139,4 @@ function App() {
   );
 }
 
-// In Expo Go, withIAPContext might crash because native modules are absent.
-// We wrap it only when NOT in Expo Go, or providing a safe fallback.
-export default isExpoGo ? App : withIAPContext(App);
+export default App;

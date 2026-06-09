@@ -51,8 +51,7 @@
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "@react-native-firebase/messaging",
-      "./plugins/withRemoveIapSupportLib",
-      "react-native-iap",
+
       [
         "expo-build-properties",
         {
@@ -60,9 +59,6 @@
             "useFrameworks": "static"
           },
           "android": {
-            "newArchEnabled": true,
-            "kotlinVersion": "2.0.21",
-            "kspVersion": "2.0.21-1.0.28",
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "extraMavenRepos": [
