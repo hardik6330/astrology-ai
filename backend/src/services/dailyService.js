@@ -1,4 +1,5 @@
-import { DailyData } from '../models/index.js';
+import { Op } from 'sequelize';
+import { DailyData, User } from '../models/index.js';
 import { callGemini } from '../ai/gemini.js';
 import { DAILY_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
@@ -49,6 +50,34 @@ export async function generateDailyGuidance({ form, ctx, targetDate }) {
     const { charged, balance } = await charge({
       userId: user.id, costKey: 'daily_cost', reason: 'daily', meta: { date },
     });
+
+    // Same birth data + same date already generated for ANOTHER user (different
+    // phone)? Daily guidance is deterministic from birth data + date, so the
+    // answer is identical — reuse it instead of burning Gemini tokens. We still
+    // write a row owned by THIS user so per-user lifecycle stays clean. Mirrors
+    // the kundali sibling-copy: charged like a fresh day, just no AI call.
+    const sibling = await User.findOne({
+      where: {
+        name: form.name,
+        birthDate: form.date,
+        birthTime: form.time,
+        birthCity: form.city,
+        gender: form.gender || null,
+        id: { [Op.ne]: user.id },
+      },
+    });
+    if (sibling) {
+      const siblingDaily = await DailyData.findOne({ where: { userId: sibling.id, date } });
+      if (siblingDaily) {
+        try {
+          await DailyData.create({ userId: user.id, date, guidance: siblingDaily.guidance });
+          log.info({ userId: user.id, copiedFrom: sibling.id, date }, 'Daily copied from sibling user');
+        } catch (saveError) {
+          log.error({ err: saveError }, 'Daily sibling-copy save failed');
+        }
+        return { content: asContent(siblingDaily.guidance), balance };
+      }
+    }
 
     let generated;
     try {
