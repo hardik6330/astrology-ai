@@ -9,7 +9,7 @@ import { genId } from '../utils/genId.js';
 // biometric-ish data can be queried, tuned, or purged independently.
 // Auto-created by sequelize.sync() (new table); no migration needed.
 const PalmEmbedding = sequelize.define('PalmEmbedding', {
-  id:            { type: DataTypes.STRING(24), primaryKey: true, defaultValue: () => genId() },
+  id:            { type: DataTypes.STRING(24), primaryKey: true, defaultValue: () => genId() }, //new
   userId:        { type: DataTypes.STRING(24), allowNull: false },
   palmReadingId: { type: DataTypes.STRING(24), allowNull: false },
   handType:      { type: DataTypes.STRING, allowNull: true },     // 'Left' | 'Right' — match within the same hand
