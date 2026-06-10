@@ -8,9 +8,17 @@ import { decode as decodeBase64 } from "base-64";
 import { decodeJpeg } from "@tensorflow/tfjs-react-native";
 import * as ImageManipulator from "expo-image-manipulator";
 import "@tensorflow/tfjs-react-native";
+// Conditionally import ML Kit to prevent Expo Go crashes
+let ObjectDetection = null;
+if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
+  try {
+    ObjectDetection = require('@infinitered/react-native-mlkit-object-detection').default;
+  } catch (e) {
+    console.warn("ML Kit module not found, skipping...");
+  }
+}
 
-// Verbose per-photo gate diagnostics — dev only. Stays silent in release builds
-// so we don't spam logcat or leak quality metrics on every scan.
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 const log = __DEV__ ? console.log.bind(console) : () => {};
 
 // ── Gate thresholds ──────────────────────────────────────────────────────────
@@ -176,6 +184,42 @@ function palmRegionStats(tensor, bounds) {
 }
 
 /**
+ * Fast pre-check using Google ML Kit Object Detection.
+ * Only runs on real devices (not Expo Go).
+ */
+async function mlKitPreCheck(uri) {
+  if (isExpoGo || !ObjectDetection) return { ok: true, reason: "expo_go_skip" };
+  
+  try {
+    log("Gate: Running ML Kit Object Detection pre-check...");
+    // Using the detect method from @infinitered/react-native-mlkit-object-detection
+    const objects = await ObjectDetection.detect(uri);
+
+    if (!objects || objects.length === 0) {
+      log("Gate: ML Kit found NO objects.");
+      return { ok: false, reason: "not_a_palm" };
+    }
+
+    // Check if any detected object is a hand/palm/person
+    const isHand = objects.some(obj => {
+      const labels = obj.labels.map(l => l.text.toLowerCase());
+      return labels.includes("hand") || labels.includes("palm") || labels.includes("finger") || labels.includes("person");
+    });
+
+    if (!isHand) {
+      log("Gate: ML Kit found objects but none look like a hand.");
+      return { ok: false, reason: "not_a_palm" };
+    }
+
+    log("Gate: ML Kit pre-check PASSED.");
+    return { ok: true };
+  } catch (e) {
+    log("Gate: ML Kit failed, falling back to MediaPipe", e.message);
+    return { ok: true, reason: "error_fallback" };
+  }
+}
+
+/**
  * Run the full gate on a photo.
  * @param {object} asset The image asset from Expo ImagePicker.
  * @param {string} claimedHand Optional "Left" | "Right".
@@ -183,6 +227,12 @@ function palmRegionStats(tensor, bounds) {
 export async function gatePalmImage(asset, claimedHand) {
   const startTime = Date.now();
   log("Gate: Starting detection flow...");
+
+  // 0. ML Kit Pre-check (Native only)
+  const mlCheck = await mlKitPreCheck(asset.uri);
+  if (!mlCheck.ok) {
+    return reject(mlCheck.reason, "ML Kit rejection", Date.now() - startTime);
+  }
 
   let tensor = null;
   try {
@@ -333,4 +383,10 @@ export async function gatePalmImage(asset, claimedHand) {
 
 export function warmUpGate() {
   getDetector().catch(() => {});
+}
+
+// Awaitable model readiness — callers await this BEFORE gating so the gate
+// reliably produces landmarks (instead of racing a timeout that drops them).
+export function ensureGate() {
+  return getDetector();
 }

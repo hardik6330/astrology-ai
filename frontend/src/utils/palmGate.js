@@ -365,3 +365,10 @@ export function warmUpGate() {
     /* swallow — gate will retry on first use */
   });
 }
+
+// Awaitable model readiness. Callers await this BEFORE gating so the gate
+// reliably produces landmarks (instead of racing a timeout that drops them).
+// Resolves the detector, or rejects if the model genuinely can't load.
+export function ensureGate() {
+  return getDetector();
+}

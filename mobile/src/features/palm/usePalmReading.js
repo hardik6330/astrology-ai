@@ -6,11 +6,26 @@ import { useForm, usePalm } from "../../context/ChartContext";
 import { useCosts } from "../../hooks/useCosts";
 import { useCredits } from "../../hooks/useCredits";
 import { analyzePalm, fetchSaved, fetchPalmHistory, fetchPalmById } from "../../services/api";
-import { gatePalmImage, warmUpGate } from "./palmGate";
+import { gatePalmImage, warmUpGate, ensureGate } from "./palmGate";
 import { haptics } from "../../utils/haptics";
 import { logEvent } from "../../features/notifications/analytics";
 import { compressPhoto } from "../../utils/compressImage";
 import { SCAN_MSGS } from "./constants";
+
+// We wait for the gate MODEL to load (one-time) before scanning so the gate
+// reliably produces the landmarks the biometric match needs, rather than racing
+// a timeout that drops them. Inference is fast once the model is warm. Only a
+// genuine load failure (beyond MODEL_READY_TIMEOUT_MS) falls back to the backend gate.
+const MODEL_READY_TIMEOUT_MS = 25000;
+const GATE_INFER_TIMEOUT_MS = 8000;
+
+// Resolve `promise`, or reject with a timeout error after `ms`.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("gate timeout")), ms)),
+  ]);
+}
 
 // All of PalmScreen's state, effects, and handlers. Keeping it here lets the
 // screen stay a thin render layer — the single-hand flow has a lot of moving
@@ -207,26 +222,41 @@ export function usePalmReading() {
     setError(""); // Clear previous errors
     setGateReport(null); // Clear previous report
     try {
-      const gateResult = await gatePalmImage(a, hand);
-      setGateReport(gateResult.checks || null);
-      if (!gateResult.ok) {
+      // Wait for the gate MODEL to be ready (one-time load), THEN run the fast
+      // inference — so the 21 landmarks the biometric match needs are reliably
+      // captured rather than dropped by a timeout. Only a genuine model-load
+      // failure falls back to the backend gate (skipGate:false below).
+      let gateResult = null;
+      try {
+        await withTimeout(ensureGate(), MODEL_READY_TIMEOUT_MS);
+        gateResult = await withTimeout(gatePalmImage(a, hand), GATE_INFER_TIMEOUT_MS);
+      } catch (gateErr) {
+        console.warn("[palm] gate unavailable — deferring to backend gate:", gateErr?.message);
+      }
+      setGateReport(gateResult?.checks || null);
+      if (gateResult && !gateResult.ok) {
         setError(gateResult.retakeReason);
         haptics.warning();
         return;
       }
-      setPalmLandmarks({
-        keypoints: gateResult.landmarks,
-        imgW: gateResult.imgW,
-        imgH: gateResult.imgH,
-      });
+      if (gateResult?.landmarks) {
+        setPalmLandmarks({
+          keypoints: gateResult.landmarks,
+          imgW: gateResult.imgW,
+          imgH: gateResult.imgH,
+        });
+      }
       const img = await compressPhoto(a);
-      runAnalyze(img, hand);
+      // gateResult present → client gated (skipGate:true). Null → gate didn't
+      // run; let the backend gate (skipGate:false). Pass the 21 landmarks (when
+      // present) for the biometric match.
+      runAnalyze(img, hand, !!gateResult, gateResult?.landmarks || null);
     } finally {
       setGating(false);
     }
   }
 
-  async function runAnalyze(img, hand) {
+  async function runAnalyze(img, hand, skipGate = true, landmarks = null) {
     setError("");
     setLowCredits(false);
     setOverloaded(false);
@@ -237,7 +267,7 @@ export function usePalmReading() {
     setScanMsg(SCAN_MSGS[0]);
     const iv = setInterval(() => { i++; setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]); }, 1800);
     try {
-      const result = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand);
+      const result = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand, skipGate, landmarks);
       logEvent("palm_analysis_success", { hand, user_name: form.name });
       setPalm(result);
       setRescan(false);

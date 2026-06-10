@@ -17,10 +17,23 @@ import { useColors } from "../../theme/ThemeContext";
 import { useStyles } from "../../theme/useStyles";
 import { radius, spacing, fontSize } from "../../theme/tokens";
 import { EMOJIS } from "../../utils/emojis";
-import { gatePalmImage, warmUpGate } from "./palmGate";
+import { gatePalmImage, warmUpGate, ensureGate } from "./palmGate";
 import MagicButton from "../../components/MagicButton";
 import { haptics } from "../../utils/haptics";
 import { compressPhoto } from "../../utils/compressImage";
+
+// Wait for the gate MODEL to load before scanning so landmarks are reliably
+// captured (rather than dropped by a timeout). Inference is fast once warm.
+const MODEL_READY_TIMEOUT_MS = 25000;
+const GATE_INFER_TIMEOUT_MS = 8000;
+
+// Resolve `promise`, or reject with a timeout error after `ms`.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("gate timeout")), ms)),
+  ]);
+}
 
 export default function PalmStepScreen({ navigation }) {
   const { form } = useForm();
@@ -68,9 +81,9 @@ export default function PalmStepScreen({ navigation }) {
     navigation.navigate("Palm");
   }
 
-  function analyzeInBackground(base64, hand) {
+  function analyzeInBackground(base64, hand, skipGate = true, landmarks = null) {
     setPalmAnalyzing(true);
-    analyzePalm(`data:image/jpeg;base64,${base64}`, form, hand)
+    analyzePalm(`data:image/jpeg;base64,${base64}`, form, hand, skipGate, landmarks)
       .then((result) => setPalm(result))
       .catch(() => { /* surfaced on Palm if the user visits it */ })
       .finally(() => setPalmAnalyzing(false));
@@ -110,18 +123,25 @@ export default function PalmStepScreen({ navigation }) {
         return;
       }
       const a = res.assets[0];
-      
-      // Client-side gate check
-      const gateResult = await gatePalmImage(a, activeHand);
-      setPalmLandmarks({
-        keypoints: gateResult.landmarks,
-        imgW: gateResult.imgW,
-        imgH: gateResult.imgH,
-      });
-      // We don't have a direct way to pass gateReport to PalmScreen via context 
-      // without adding a new context state, but since the analysis is in background, 
-      // the user won't see the gate checklist on this screen.
-      if (!gateResult.ok) {
+
+      // Wait for the gate MODEL to be ready (one-time load), THEN run the fast
+      // inference so the landmarks the biometric match needs are reliably
+      // captured. Only a genuine model-load failure defers to the backend gate.
+      let gateResult = null;
+      try {
+        await withTimeout(ensureGate(), MODEL_READY_TIMEOUT_MS);
+        gateResult = await withTimeout(gatePalmImage(a, activeHand), GATE_INFER_TIMEOUT_MS);
+      } catch (gateErr) {
+        console.warn("[palm] gate unavailable — deferring to backend gate:", gateErr?.message);
+      }
+      if (gateResult?.landmarks) {
+        setPalmLandmarks({
+          keypoints: gateResult.landmarks,
+          imgW: gateResult.imgW,
+          imgH: gateResult.imgH,
+        });
+      }
+      if (gateResult && !gateResult.ok) {
         setError(gateResult.retakeReason);
         haptics.warning();
         setBusy(false);
@@ -136,7 +156,9 @@ export default function PalmStepScreen({ navigation }) {
       setPalmPhoto(img.uri);
       setPalmClaimedHand(activeHand);   // share with PalmScreen for the scan-screen badge
       // activeHand is "Right" | "Left" — already in the right shape.
-      analyzeInBackground(img.base64, activeHand);
+      // gateResult present → client gated (skipGate:true). Null → backend gates.
+      // Pass the 21 landmarks (when present) for the biometric match.
+      analyzeInBackground(img.base64, activeHand, !!gateResult, gateResult?.landmarks || null);
       goToPalm();
     } catch {
       setError("Couldn't open the picker.");

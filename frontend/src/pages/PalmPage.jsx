@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChart } from "../context/ChartContext";
 import { analyzePalm, comparePalms, fetchSaved, fetchPalmHistory, fetchPalmById } from "../services/api";
-import { gatePalmImage, warmUpGate } from "../utils/palmGate";
+import { gatePalmImage, warmUpGate, ensureGate } from "../utils/palmGate";
 import BottomNav from "../components/BottomNav";
 import PalmSkeletonOverlay from "../components/PalmSkeletonOverlay";
 import Card from "@/common/Card";
@@ -34,6 +34,23 @@ function resizeToBase64(file, maxDim = 600, quality = 0.8) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// We wait for the gate MODEL to load (one-time TFJS download) before scanning,
+// so the gate reliably produces the hand landmarks the biometric match needs —
+// rather than racing a timeout that would drop them. The load gets a generous
+// budget; the gate inference itself is fast once the model is ready. Only a
+// genuine load failure (beyond MODEL_READY_TIMEOUT_MS) falls back to the
+// backend gate (no landmarks).
+const MODEL_READY_TIMEOUT_MS = 25000; // one-time model download
+const GATE_INFER_TIMEOUT_MS = 8000; // per-photo inference (model already warm)
+
+// Resolve `promise`, or reject with a timeout error after `ms`.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("gate timeout")), ms)),
+  ]);
 }
 
 import { EMOJIS } from "@/utils/emojis";
@@ -255,6 +272,19 @@ export default function PalmPage() {
     return () => clearInterval(iv);
   }, [palmAnalyzing]);
 
+  // Re-sync the local preview + hand from context whenever they change. The
+  // mount-time `useState(palmPhoto)` only captures the value at mount, so a scan
+  // started/continued while the user was on another page wouldn't show on
+  // return (the scan view needs `preview && scanning`). This keeps them aligned.
+  useEffect(() => {
+    if (palmPhoto && palmPhoto !== preview) setPreview(palmPhoto);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [palmPhoto]);
+  useEffect(() => {
+    if (palmClaimedHand && palmClaimedHand !== claimedHand) setClaimedHand(palmClaimedHand);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [palmClaimedHand]);
+
   // Load history list — used to show "Past Readings" on the rescan screen.
   useEffect(() => {
     fetchPalmHistory(form)
@@ -298,22 +328,28 @@ export default function PalmPage() {
     }
   }
 
-  async function runAnalyze(dataUrl, hand) {
+  async function runAnalyze(dataUrl, hand, skipGate = true, landmarks = null) {
     setError("");
     setLowCredits(false);
     setOverloaded(false);
     setPreview(dataUrl);
     setPalmPhoto(dataUrl);
-    setScanning(true);
-    let i = 0;
-    setScanMsg(SCAN_MSGS[0]);
-    const iv = setInterval(() => {
-      i++;
-      setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]);
-    }, 1800);
+    // Drive the scan through the CONTEXT flag (not local `scanning`) so the
+    // analysis keeps running and re-shows its progress if the user navigates
+    // away from /palm and back. The effect that mirrors palmAnalyzing owns the
+    // scan animation + message ticker. The await below is detached from this
+    // component — results land in context (setPalm), so an unmount can't lose
+    // them.
+    setPalmAnalyzing(true);
     try {
       // hand falls back to claimedHand state for the retry-with-same-photo path.
-      const result = await analyzePalm(dataUrl, form, hand ?? claimedHand);
+      console.log("[palm] POST /palm — analyzing", {
+        hand: hand ?? claimedHand,
+        skipGate,
+        landmarks: landmarks?.length || 0,
+      });
+      const result = await analyzePalm(dataUrl, form, hand ?? claimedHand, skipGate, landmarks);
+      console.log("[palm] reading received");
       setPalm(result);
       setRescan(false);
     } catch (err) {
@@ -328,8 +364,7 @@ export default function PalmPage() {
         setPalmPhoto(null);
       } else setError(err.message);
     } finally {
-      clearInterval(iv);
-      setScanning(false);
+      setPalmAnalyzing(false);
     }
   }
 
@@ -340,23 +375,57 @@ export default function PalmPage() {
     setError("");
     setGating(true);
     try {
-      // Client-side gate first — rejected photos never hit the API.
-      // Passing claimedHand lets MediaPipe catch obvious wrong-hand mistakes.
-      const gateResult = await gatePalmImage(file, claimedHand);
-      if (!gateResult.ok) {
+      // Persist the photo + mark a scan in progress in CONTEXT up front, so the
+      // whole flow (photo-check → AI analysis) survives the user navigating away
+      // from /palm and re-shows on return. Cleared below if the gate rejects.
+      const dataUrl = await resizeToBase64(file);
+      setRescan(false);
+      setPreview(dataUrl);
+      setPalmPhoto(dataUrl);
+      setPalmAnalyzing(true);
+
+      // Client-side gate first — rejected photos never hit the API, and it
+      // produces the 21 landmarks the biometric match needs. Wait for the model
+      // to be READY (one-time load), THEN run the fast inference — so landmarks
+      // are reliably captured instead of being dropped by a timeout. Only a
+      // genuine model-load failure falls back to the backend gate.
+      console.log("[palm] waiting for gate model…");
+      let gateResult = null;
+      try {
+        await withTimeout(ensureGate(), MODEL_READY_TIMEOUT_MS);
+        console.log("[palm] gate model ready — scanning");
+        gateResult = await withTimeout(gatePalmImage(file, claimedHand), GATE_INFER_TIMEOUT_MS);
+        console.log("[palm] gate result", {
+          ok: gateResult?.ok,
+          landmarks: gateResult?.landmarks?.length || 0,
+        });
+      } catch (gateErr) {
+        console.warn("[palm] gate unavailable — deferring to backend gate", gateErr?.message);
+      }
+
+      if (gateResult && !gateResult.ok) {
         setError(gateResult.retakeReason);
+        setPreview(null);
+        setPalmPhoto(null);
+        setPalmAnalyzing(false);
         return;
       }
       // Stash the detected landmarks so the scan animation can draw the skeleton.
       setPalmLandmarks(
-        gateResult.landmarks
+        gateResult?.landmarks
           ? { keypoints: gateResult.landmarks, imgW: gateResult.imgW, imgH: gateResult.imgH }
           : null
       );
-      const dataUrl = await resizeToBase64(file);
-      await runAnalyze(dataUrl, claimedHand);
+      // gateResult present → client already gated (skipGate:true). Null → gate
+      // didn't run; let the backend gate (skipGate:false). Pass the 21 landmarks
+      // (when present) for the biometric match.
+      await runAnalyze(dataUrl, claimedHand, !!gateResult, gateResult?.landmarks || null);
     } catch (err) {
+      console.error("[palm] onPick failed", err);
       setError("Could not read the image — try a different photo.");
+      setPreview(null);
+      setPalmPhoto(null);
+      setPalmAnalyzing(false);
     } finally {
       setGating(false);
     }

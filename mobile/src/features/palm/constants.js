@@ -20,6 +20,7 @@ export const REJECT_INFO = {
 
 export const SCAN_MSGS = [
   "Detecting your palm…",
+  "Smart Scanning with Google ML Kit…",
   "Tracing the life line…",
   "Reading the head line…",
   "Examining the heart line…",

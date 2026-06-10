@@ -54,6 +54,10 @@ export const palmBody = z.object({
   // (via MediaPipe). Tells the backend to skip its own Flash gate to
   // avoid duplicate work. Mobile leaves this off and uses the Flash gate.
   skipGate: z.boolean().optional(),
+  // The 21 MediaPipe hand landmarks from the client gate (image-pixel coords).
+  // Drives the landmark-geometry biometric match. Optional — absent when the
+  // client gate didn't run (gate timeout/fallback).
+  landmarks: z.array(z.object({ x: z.number(), y: z.number() }).passthrough()).min(15).max(40).nullish(),
 });
 
 // Both-hands comparison payload. Left = Potential (inherited blueprint),

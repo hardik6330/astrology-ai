@@ -347,12 +347,17 @@ export async function fetchPalmById(id, form) {
   return parseContent(data.content);
 }
 
-export async function analyzePalm(imageBase64, form, claimedHand) {
+export async function analyzePalm(imageBase64, form, claimedHand, skipGate = true, landmarks = null) {
   const data = await postJSON("/palm", {
     image: imageBase64,
     form: attachPhone(form),
     claimedHand,
-    skipGate: true // mobile now uses local TFJS gate, skip backend Flash gate
+    // Normally the local TFJS gate ran, so the backend skips its Flash gate.
+    // If the local gate hung/failed we pass false → backend gates instead, so
+    // the reading is never blocked by a stuck model load.
+    skipGate,
+    // The 21 MediaPipe points (when the gate ran) for the biometric match.
+    landmarks,
   });
   noteBalance(data.balance);
   return parseContent(data.content);

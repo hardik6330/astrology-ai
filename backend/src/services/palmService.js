@@ -1,16 +1,18 @@
 import crypto from 'node:crypto';
-import { PalmReading } from '../models/index.js';
+import { PalmReading, PalmEmbedding } from '../models/index.js';
 import { callGeminiVision, callGeminiVisionMulti } from '../ai/gemini.js';
 import { PALM_SYSTEM, PALM_GATE_SYSTEM, PALM_BOTH_HANDS_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
 import { charge, grant, getBalance } from './creditService.js';
+import * as settings from './settingsService.js';
 import { notifyInsightReady } from './pushService.js';
 import { validateImage } from '../utils/imageValidator.js';
+import { landmarkEmbedding, cosineSim } from '../utils/palmEmbedding.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
 import { userKey } from '../utils/userKey.js';
-import { KUNDLI_MODELS, PALM_GATE_MODELS, THINK_BUDGET } from '../config/constants.js';
+import { PALM_MODELS, PALM_GATE_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
 
@@ -57,7 +59,8 @@ export async function getPalmById(id, form) {
 // If `skipGate` is true, the Flash call is bypassed and the photo is
 // declared usable (used when the client already gated locally via
 // MediaPipe — the web flow does this).
-async function runGate({ image, claimedHand, skipGate = false }) {
+async function runGate({ image, claimedHand, skipGate = false, scanId }) {
+  const t = Date.now();
   let mimeType, base64;
   try {
     ({ mime: mimeType, base64 } = validateImage(image));
@@ -65,10 +68,14 @@ async function runGate({ image, claimedHand, skipGate = false }) {
     throw AppError.http(400, e.message, 'INVALID_IMAGE');
   }
   const imageHash = crypto.createHash('sha256').update(base64).digest('hex');
+  const kb = Math.round((base64.length * 0.75) / 1024);
 
   // Web has already gated this photo locally with MediaPipe — skip the
   // duplicate Flash call to save the token.
-  if (skipGate) return { ok: true, base64, mimeType, imageHash };
+  if (skipGate) {
+    log.info({ scanId, stage: 'gate', skipGate: true, kb, hash: imageHash.slice(0, 8), ms: Date.now() - t }, 'palm scan: gate skipped (client-gated)');
+    return { ok: true, base64, mimeType, imageHash };
+  }
 
   // We used to pass the claimed hand here, but Flash isn't reliable at
   // distinguishing left vs right (phone cameras mirror inconsistently).
@@ -87,6 +94,7 @@ async function runGate({ image, claimedHand, skipGate = false }) {
   }
 
   if (gateParsed?.imageQuality === 'unusable') {
+    log.info({ scanId, stage: 'gate', skipGate: false, kb, ok: false, reject: gateParsed.rejectReason, ms: Date.now() - t }, 'palm scan: gate REJECTED');
     return {
       ok: false,
       base64, mimeType, imageHash,
@@ -98,11 +106,68 @@ async function runGate({ image, claimedHand, skipGate = false }) {
       },
     };
   }
+  log.info({ scanId, stage: 'gate', skipGate: false, kb, ok: true, ms: Date.now() - t }, 'palm scan: gate passed (Flash)');
   return { ok: true, base64, mimeType, imageHash };
 }
 
+// 1:N biometric search — find the most-similar saved palm of the SAME hand
+// type, across ALL users, whose similarity clears the threshold. Loads every
+// embedding for that hand into memory (fine at our scale; swap for a vector
+// index if PalmEmbedding ever grows large). Returns { userId, palmReadingId,
+// sim } or null. EXPERIMENTAL — see utils/palmEmbedding.js for the caveats.
+async function findBiometricMatch({ handType, embedding, threshold, scanId }) {
+  const t = Date.now();
+  // The reading is denormalized onto the embedding row, so the match is
+  // self-contained — no JOIN, and it survives the source PalmReading being
+  // deleted. We carry the matched row's `reading` straight through.
+  const rows = await PalmEmbedding.findAll({
+    where: { handType },
+    attributes: ['userId', 'palmReadingId', 'embedding', 'reading'],
+  });
+  let best = null;
+  for (const r of rows) {
+    if (!r.reading) continue; // legacy rows without denormalized reading — skip
+    const sim = cosineSim(embedding, r.embedding);
+    if (!best || sim > best.sim) {
+      best = { userId: r.userId, palmReadingId: r.palmReadingId, sim, reading: r.reading };
+    }
+  }
+  // Always log the top score so the threshold can be tuned against real photos.
+  // `matched` shows whether this scan would reuse a saved reading.
+  log.info(
+    { scanId, stage: 'match', handType, candidates: rows.length, topSim: best ? Number(best.sim.toFixed(4)) : null, threshold, matched: !!best && best.sim >= threshold, ms: Date.now() - t },
+    'palm scan: biometric search',
+  );
+  return best && best.sim >= threshold ? best : null;
+}
+
+// Persist a reading row for this user and (for clear readings) its embedding,
+// so future photos of the same hand can match it. Best-effort — logs, doesn't throw.
+async function persistReadingWithEmbedding({ user, parsed, imageHash, embedding }) {
+  try {
+    const row = await PalmReading.create({
+      userId: user.id,
+      handType: parsed.handType,
+      imageQuality: parsed.imageQuality,
+      imageHash,
+      reading: parsed,
+    });
+    if (embedding && parsed.imageQuality === 'clear') {
+      await PalmEmbedding.create({
+        userId: user.id, palmReadingId: row.id, handType: parsed.handType, embedding,
+        reading: parsed, // denormalized so the match survives the reading being deleted
+      }).catch((e) => log.warn({ err: e.message }, 'Palm embedding save failed'));
+    }
+    return row.id;
+  } catch (saveError) {
+    log.error({ err: saveError }, 'Palm save failed');
+    return null;
+  }
+}
+
 // Run Pro + persistence. Assumes the gate has already passed.
-async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash }) {
+async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash, scanId, landmarks }) {
+  const t0 = Date.now();
   const user = await findOrCreateUser(form);
 
   // Push "your insight is ready" to this user's registered devices. Fired only
@@ -119,20 +184,74 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
   const dup = await PalmReading.findOne({
     where: { userId: user.id, imageHash, imageQuality: 'clear' },
   });
-  if (dup) return { content: asContent(dup.reading), balance: await getBalance(user.id) };
+  if (dup) {
+    log.info({ scanId, path: 'cache-hit', reason: 'same image, same user', totalMs: Date.now() - t0 }, 'palm scan: complete (free re-view)');
+    return { content: asContent(dup.reading), balance: await getBalance(user.id) };
+  }
 
-  // Fresh analysis → charge once (dups above are free). Throws 402
-  // INSUFFICIENT_CREDITS if the balance is short.
+  // EXPERIMENTAL biometric match: a NEW photo of a hand we've already read
+  // (this user OR another user/device) reuses that reading instead of calling
+  // Gemini. Uses LANDMARK GEOMETRY (the 21 MediaPipe points the client sends) —
+  // pose/scale-invariant, so different photos of the same hand can match.
+  // Requires landmarks + a known hand. Failure here is non-fatal — fall through
+  // to a normal fresh analysis.
+  let embedding = null;
+  const handType = claimedHand || null;
+  const matchEnabled = (await settings.get('palm_match_enabled')) === 'true';
+  if (matchEnabled && handType && Array.isArray(landmarks)) {
+    try {
+      const tEmb = Date.now();
+      embedding = landmarkEmbedding(landmarks);
+      if (!embedding) throw new Error('landmark embedding unavailable');
+      log.info({ scanId, stage: 'embedding', dim: embedding.length, ms: Date.now() - tEmb }, 'palm scan: landmark embedding computed');
+      const threshold = await settings.getNumber('palm_match_threshold', 0.92);
+      const match = await findBiometricMatch({ handType, embedding, threshold, scanId });
+      if (match) {
+        // match.reading is denormalized on the embedding row. It can come back
+        // from MySQL JSON as a string — parse before spreading, else
+        // { ...string } explodes into char-indexed keys (blank card).
+        const baseReading = typeof match.reading === 'string'
+          ? JSON.parse(match.reading) : match.reading;
+        if (baseReading && baseReading.imageQuality === 'clear') {
+          // Same user re-scanning their own hand → free re-view. A DIFFERENT
+          // user (new number/device) → charge like a fresh reading (matches the
+          // kundali sibling-copy policy; just skips the Gemini call). 402 if short.
+          let balance;
+          if (match.userId === user.id) {
+            balance = await getBalance(user.id);
+          } else {
+            ({ balance } = await charge({ userId: user.id, costKey: 'palm_cost', reason: 'palm', meta: { matched: true } }));
+          }
+          const parsed = { ...baseReading, handType };
+          await persistReadingWithEmbedding({ user, parsed, imageHash, embedding });
+          log.info(
+            { scanId, path: 'biometric-match', matchedFrom: match.userId, sameUser: match.userId === user.id, sim: Number(match.sim.toFixed(4)), charged: match.userId !== user.id, totalMs: Date.now() - t0 },
+            'palm scan: complete (reused — no AI call)',
+          );
+          fireInsightPush();
+          return { content: asContent(parsed), balance };
+        }
+      }
+    } catch (e) {
+      log.warn({ err: e.message }, 'Palm embedding/match failed — fresh analysis');
+    }
+  }
+
+  // Fresh analysis → charge once (dups/matches above are free or already
+  // charged). Throws 402 INSUFFICIENT_CREDITS if the balance is short.
   const { charged, balance } = await charge({ userId: user.id, costKey: 'palm_cost', reason: 'palm' });
 
   let parsed;
+  const tAI = Date.now();
   try {
     const userPrompt = `NAME: ${form.name}\nGENDER: ${form.gender || 'NOT SPECIFIED'}\n\nAnalyze this palm photograph.`;
-    const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, base64, mimeType, true, KUNDLI_MODELS, THINK_BUDGET.PALM);
+    log.info({ scanId, stage: 'ai', models: PALM_MODELS }, 'palm scan: calling Gemini vision…');
+    const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, base64, mimeType, true, PALM_MODELS, THINK_BUDGET.PALM);
     const cleaned = cleanJson(raw);
     parsed = typeof raw === 'string' ? JSON.parse(cleaned) : raw;
+    log.info({ scanId, stage: 'ai', quality: parsed.imageQuality, hand: parsed.handType, ms: Date.now() - tAI }, 'palm scan: Gemini reading done');
   } catch (e) {
-    log.error({ err: e.message }, 'Palm JSON parse failed');
+    log.error({ scanId, err: e.message, ms: Date.now() - tAI }, 'palm scan: Gemini/parse failed');
     parsed = { handType: 'Unclear', imageQuality: 'unusable', retakeReason: 'Could not parse reading. Please try again.' };
   }
 
@@ -148,20 +267,15 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
     if (refund) finalBalance = refund.balance;
   }
 
-  try {
-    await PalmReading.create({
-      userId: user.id,
-      handType: parsed.handType,
-      imageQuality: parsed.imageQuality,
-      imageHash,
-      reading: parsed,
-    });
-    // Newly persisted reading — notify the user.
-    if (parsed.imageQuality !== 'unusable') fireInsightPush();
-  } catch (saveError) {
-    log.error({ err: saveError }, 'Palm save failed');
-  }
+  // Persist the reading + (for clear readings) its embedding so future photos
+  // of this hand match. Newly persisted clear reading → notify the user.
+  await persistReadingWithEmbedding({ user, parsed, imageHash, embedding });
+  if (parsed.imageQuality !== 'unusable') fireInsightPush();
 
+  log.info(
+    { scanId, path: 'fresh-ai', quality: parsed.imageQuality, refunded: parsed.imageQuality === 'unusable' && !!charged, totalMs: Date.now() - t0 },
+    'palm scan: complete (fresh reading)',
+  );
   return { content: JSON.stringify(parsed), balance: finalBalance };
 }
 
@@ -172,17 +286,22 @@ async function persistGateRejection(_form, _imageHash, _rejection) {
   /* intentionally a no-op — see comment above */
 }
 
-export async function analyzePalm({ image, form, claimedHand, skipGate }) {
+export async function analyzePalm({ image, form, claimedHand, skipGate, landmarks }) {
+  // Short id to correlate every log line of one scan. Grep `scanId=xxxxxxxx`.
+  const scanId = crypto.randomBytes(4).toString('hex');
+  log.info({ scanId, hand: claimedHand || null, skipGate: !!skipGate, landmarks: Array.isArray(landmarks) ? landmarks.length : 0 }, 'palm scan: received');
+
   // Stage 1 — gate. We need the image hash to build the dedupe key, so the
   // gate runs before dedupe. The Flash call is cheap and we'd hit cache for
   // truly identical retries via the per-image PalmReading row inside Pro.
-  const gateResult = await runGate({ image, claimedHand, skipGate });
+  const gateResult = await runGate({ image, claimedHand, skipGate, scanId });
 
   return dedupe(`palm|${userKey(form)}|${gateResult.imageHash}`, async () => {
     if (!gateResult.ok) {
       // Bad photo never reaches Pro → no charge. balance:null leaves the
       // client's known balance unchanged.
       await persistGateRejection(form, gateResult.imageHash, gateResult.rejection);
+      log.info({ scanId, path: 'rejected', reject: gateResult.rejection.rejectReason }, 'palm scan: complete (rejected, no charge)');
       return { content: JSON.stringify(gateResult.rejection), balance: null };
     }
     return runProAndPersist({
@@ -190,6 +309,8 @@ export async function analyzePalm({ image, form, claimedHand, skipGate }) {
       base64:    gateResult.base64,
       mimeType:  gateResult.mimeType,
       imageHash: gateResult.imageHash,
+      scanId,
+      landmarks,
     });
   });
 }
@@ -265,7 +386,7 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
           { base64: leftGate.base64,  mimeType: leftGate.mimeType  },
           { base64: rightGate.base64, mimeType: rightGate.mimeType },
         ],
-        true, KUNDLI_MODELS, THINK_BUDGET.PALM,
+        true, PALM_MODELS, THINK_BUDGET.PALM,
       );
       parsed = JSON.parse(cleanJson(raw));
     } catch (e) {
