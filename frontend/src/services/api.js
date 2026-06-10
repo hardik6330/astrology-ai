@@ -15,8 +15,8 @@ export const API_BASE = API_URL;
 const appToken = tokenStore("app_token");
 const appAccount = tokenStore("app_account");
 
-// Which auth mode the backend is in. → { otpService: true|false }
-// true = real Firebase OTP; false = dummy phone-only login.
+// Startup config (force-update gate). → { latestVersion, forceUpdate, updateUrl }
+// Auth mode is decided client-side via VITE_OTP_SERVICE, not here.
 export function getAuthConfig() {
   return request("/auth/config");
 }
@@ -28,7 +28,7 @@ export function verifyOtp(idToken) {
   return request("/auth/verify-otp", { method: "POST", body: { idToken } });
 }
 
-// Dummy login (used only when otpService is OFF) — trades a bare phone for our
+// Dummy login (used when VITE_OTP_SERVICE is OFF) — trades a bare phone for our
 // JWT, no SMS. → { token, account: { id, phone }, savedForm? }
 export function dummyLogin(phone) {
   return request("/auth/dummy-login", { method: "POST", body: { phone } });

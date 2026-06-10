@@ -232,10 +232,10 @@ export default function HomeScreen({ navigation, route }) {
                     ]}
                   >
                     <View style={styles.genderIconContainer}>
-                      <Ionicons 
-                        name={g.icon} 
-                        size={24} 
-                        color={isSelected ? color.primary : color.textDim} 
+                      <Ionicons
+                        name={g.icon}
+                        size={20}
+                        color={isSelected ? color.primary : color.textDim}
                       />
                     </View>
                     <View style={styles.genderTextContainer}>
@@ -353,13 +353,13 @@ export default function HomeScreen({ navigation, route }) {
 const makeStyles = (c) =>
   StyleSheet.create({
     headerArea: {
-      marginTop: spacing.xl,
-      marginBottom: spacing.xl,
+      marginTop: spacing.md,
+      marginBottom: spacing.lg,
     },
     progressRow: {
       flexDirection: "row",
       gap: spacing.sm,
-      marginBottom: spacing.xl,
+      marginBottom: spacing.lg,
     },
     progressSegment: {
       flex: 1,
@@ -377,34 +377,34 @@ const makeStyles = (c) =>
       marginBottom: spacing.md,
     },
     mainTitle: {
-      fontSize: 36,
+      fontSize: 30,
       fontWeight: "900",
       color: c.text,
       marginBottom: spacing.xs,
     },
     subTitle: {
-      fontSize: 18,
+      fontSize: 15,
       color: c.textDim,
-      lineHeight: 26,
+      lineHeight: 22,
     },
 
     fieldGroup: {
-      marginBottom: spacing.xl,
+      marginBottom: spacing.lg,
     },
     fieldLabel: {
-      fontSize: 18,
+      fontSize: 15,
       fontWeight: "700",
       color: c.text,
-      marginBottom: spacing.md,
+      marginBottom: spacing.sm,
     },
     bigInput: {
       backgroundColor: c.cardBgSolid,
       borderWidth: 1,
       borderColor: c.cardBorder,
       borderRadius: radius.lg,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.lg,
-      fontSize: 20,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      fontSize: 17,
       color: c.text,
     },
     
@@ -425,9 +425,9 @@ const makeStyles = (c) =>
       backgroundColor: c.primarySoft,
     },
     genderIconContainer: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: c.inputBg,
       alignItems: "center",
       justifyContent: "center",
@@ -437,7 +437,7 @@ const makeStyles = (c) =>
       flex: 1,
     },
     genderLabel: {
-      fontSize: 20,
+      fontSize: 17,
       fontWeight: "700",
       color: c.text,
     },
@@ -445,14 +445,14 @@ const makeStyles = (c) =>
       color: c.primary,
     },
     genderSub: {
-      fontSize: 16,
+      fontSize: 14,
       color: c.textMuted,
       marginTop: 2,
     },
     radio: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       borderWidth: 2,
       borderColor: c.cardBorder,
       alignItems: "center",
@@ -462,9 +462,9 @@ const makeStyles = (c) =>
       borderColor: c.primary,
     },
     radioInner: {
-      width: 14,
-      height: 14,
-      borderRadius: 7,
+      width: 12,
+      height: 12,
+      borderRadius: 6,
       backgroundColor: c.primary,
     },
 
@@ -483,7 +483,7 @@ const makeStyles = (c) =>
       marginBottom: spacing.xl,
     },
     toggleLabel: {
-      fontSize: 18,
+      fontSize: 15,
       fontWeight: "600",
       color: c.text,
     },

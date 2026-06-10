@@ -36,6 +36,10 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS"
       ]
     },
@@ -51,7 +55,6 @@
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "@react-native-firebase/messaging",
-
       [
         "expo-build-properties",
         {
@@ -61,8 +64,6 @@
           "android": {
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
-            "enableProguardInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true,
             "extraMavenRepos": [
               "https://www.jitpack.io"
             ]
@@ -73,15 +74,15 @@
     "extra": {
       "apiUrl": {},
       "eas": {
-        "projectId": "a64b1d82-9d50-4971-938c-f10e61235a7a"
+        "projectId": "a80e7499-8a42-41c7-b3c1-85bf9af8b1ac"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
+    "owner": "hugging001322",
     "updates": {
-      "url": "https://u.expo.dev/a64b1d82-9d50-4971-938c-f10e61235a7a"
-    },
-    "owner": "hugging00132"
+      "url": "https://u.expo.dev/a80e7499-8a42-41c7-b3c1-85bf9af8b1ac"
+    }
   }
 }

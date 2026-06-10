@@ -155,13 +155,12 @@ function parseContent(content) {
 }
 
 // Startup config from the backend.
-// → { otpService, latestVersion, forceUpdate, updateUrl }
-//   otpService: true = real Firebase OTP; false = dummy phone-only login.
-//   forceUpdate/latestVersion/updateUrl drive the force-update gate.
-// Fails OPEN: on any error we return safe defaults (real OTP, no force-update)
-// so a flaky network never locks the user out of the app.
+// → { latestVersion, forceUpdate, updateUrl } — drive the force-update gate.
+// (Auth mode is decided client-side via EXPO_PUBLIC_OTP_SERVICE, not here.)
+// Fails OPEN: on any error we return safe defaults (no force-update) so a
+// flaky network never locks the user out of the app.
 export async function getAuthConfig() {
-  const fallback = { otpService: true, latestVersion: null, forceUpdate: false, updateUrl: "" };
+  const fallback = { latestVersion: null, forceUpdate: false, updateUrl: "" };
   try {
     const data = await getJSON("/auth/config");
     return { ...fallback, ...(data || {}) };
@@ -186,8 +185,8 @@ export async function verifyOtp(idToken) {
   return unwrap(await res.json()); // { token, account: { id, phone }, savedForm? }
 }
 
-// Dummy login (used only when otpService is OFF) — trades a bare phone for our
-// JWT, no SMS. → { token, account: { id, phone }, savedForm? }
+// Dummy login (used when EXPO_PUBLIC_OTP_SERVICE is OFF) — trades a bare phone
+// for our JWT, no SMS. → { token, account: { id, phone }, savedForm? }
 export async function dummyLogin(phone) {
   const url = `${API_URL}/auth/dummy-login`;
   const res = await fetchWithRetry(url, {

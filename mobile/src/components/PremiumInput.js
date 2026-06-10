@@ -154,11 +154,11 @@ const makeStyles = (c) =>
       color: c.text,                 // typed text — white in dark mode, dark in light
       borderWidth: 1, borderColor: c.cardBorder,
       borderRadius: radius.md,
-      paddingHorizontal: spacing.md, paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      minHeight: 60,
+      minHeight: 52,
     },
     inputError: {
       borderColor: c.danger,
@@ -171,9 +171,9 @@ const makeStyles = (c) =>
     },
     // flexShrink lets a long value truncate instead of shoving the trailing
     // icon out of the field; the icon keeps a fixed slot beside it.
-    inputText:       { flexShrink: 1, color: c.text, fontSize: fontSize.md },
-    placeholderText: { flexShrink: 1, color: c.textMuted, fontSize: fontSize.md },
-    fieldIcon:       { marginLeft: spacing.sm, fontSize: 20, lineHeight: 24, color: c.textDim },
+    inputText:       { flexShrink: 1, color: c.text, fontSize: fontSize.sm },
+    placeholderText: { flexShrink: 1, color: c.textMuted, fontSize: fontSize.sm },
+    fieldIcon:       { marginLeft: spacing.sm, fontSize: 18, lineHeight: 24, color: c.textDim },
     doneBtn:         { alignSelf: "flex-end", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
     doneText:        { fontWeight: "600" },
 
@@ -181,18 +181,18 @@ const makeStyles = (c) =>
       flexDirection: "row",
       alignItems: "center",
       padding: spacing.md,
-      minHeight: 80,
+      minHeight: 64,
     },
     customIconBox: {
-      width: 54,
-      height: 54,
+      width: 44,
+      height: 44,
       borderRadius: radius.md,
       alignItems: "center",
       justifyContent: "center",
       marginRight: spacing.md,
     },
     customIconText: {
-      fontSize: 28,
+      fontSize: 22,
       includeFontPadding: false,
       textAlign: "center",
     },
@@ -200,12 +200,12 @@ const makeStyles = (c) =>
       flex: 1,
     },
     customValueText: {
-      fontSize: 20,
+      fontSize: 17,
       fontWeight: "600",
       color: c.text,
     },
     customChevron: {
-      fontSize: 28,
+      fontSize: 24,
       color: c.textMuted,
       marginLeft: spacing.sm,
     },

@@ -85,8 +85,8 @@ export function AuthProvider({ children }) {
     return finishLogin(await verifyOtp(idToken));
   }
 
-  // Dummy login — used only when the backend's otpService flag is OFF. Trades a
-  // bare phone for our JWT, no SMS.
+  // Dummy login — used when EXPO_PUBLIC_OTP_SERVICE is OFF. Trades a bare phone
+  // for our JWT, no SMS.
   async function loginDummy(phone) {
     return finishLogin(await dummyLogin(phone));
   }

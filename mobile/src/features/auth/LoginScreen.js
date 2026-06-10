@@ -11,7 +11,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { useAuth } from "./AuthContext";
 import { verifyPhone, confirmCode } from "./otp";
-import { getAuthConfig } from "@/services/api";
 import { useForm } from "@/context/ChartContext";
 import { useTheme } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
@@ -22,6 +21,10 @@ import { spacing } from "@/theme/tokens";
 const { width: SCREEN_W } = Dimensions.get("window");
 
 const RESEND_SECS = 30;
+
+// Auth mode, controlled client-side via env: EXPO_PUBLIC_OTP_SERVICE=true → real
+// Firebase OTP, =false → dummy phone-only login. Defaults to real OTP when unset.
+const OTP_ENABLED = process.env.EXPO_PUBLIC_OTP_SERVICE !== "false";
 
 // Map Firebase Auth error codes to friendly messages.
 function otpError(err) {
@@ -83,19 +86,11 @@ export default function LoginScreen() {
   const [resending, setResending] = useState(false);
   const [notice, setNotice] = useState("");
   const [agreed, setAgreed] = useState(false);
-  // Auth mode from the backend: true = real Firebase OTP, false = dummy login.
-  // Default true (real OTP) until /auth/config resolves.
-  const [otpEnabled, setOtpEnabled] = useState(true);
   const phoneRef = useRef("");
   // verificationId (from onCodeSent) for the manual confirm path.
   const verificationIdRef = useRef(null);
   // Active verifyPhone listener — torn down on unmount / before a resend.
   const unsubRef = useRef(null);
-
-  // Discover the auth mode once on mount.
-  useEffect(() => {
-    getAuthConfig().then((c) => setOtpEnabled(!!c.otpService));
-  }, []);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -132,7 +127,7 @@ export default function LoginScreen() {
     phoneRef.current = cleaned;
 
     // OTP disabled → dummy login, straight in (no SMS, no code screen).
-    if (!otpEnabled) {
+    if (!OTP_ENABLED) {
       loginDummy(cleaned)
         .then(async ({ savedForm, commitSession }) => {
           if (savedForm) await applySavedForm(savedForm);
