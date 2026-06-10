@@ -14,12 +14,6 @@ export const SETTING_DEFAULTS = [
   { key: 'daily_cost',      value: '15',  description: 'Credits deducted per day to reveal daily guidance' },
   { key: 'palm_cost',       value: '30',  description: 'Credits deducted per palm reading' },
 
-  // EXPERIMENTAL palm biometric match — reuse a saved reading when a NEW photo
-  // of the same hand is detected (across users/devices), instead of re-calling
-  // Gemini. See services/palmService.js + utils/palmEmbedding.js.
-  { key: 'palm_match_enabled',   value: 'true', description: "When 'true', a new palm photo is matched against saved hand-landmark geometry; a hit reuses the saved reading (no AI call)." },
-  { key: 'palm_match_threshold', value: '0.985', description: 'Cosine cutoff (0-1) for the landmark-geometry palm match. Landmark distances run high, so this is strict (~0.98+). Watch the `topSim` in palm-scan logs and tune: raise if different hands match, lower if the same hand misses.' },
-
   // App force-update — served to mobile clients on startup via /auth/config.
   { key: 'app_latest_version', value: '1.0.0', description: 'Latest published app version (semver). Mobile compares its own version against this.' },
   { key: 'app_force_update',   value: 'false', description: "When 'true', clients older than app_latest_version are blocked by a non-dismissible update modal." },

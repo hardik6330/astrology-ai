@@ -20,6 +20,11 @@ export const PALM_GATE_MODELS    = ['gemini-2.5-flash', 'gemini-2.5-flash-lite']
 // quality refiner — a normal reading uses Flash. Kundli/chat stay Pro-only.
 export const PALM_MODELS         = ['gemini-2.5-flash', 'gemini-2.5-pro'];
 
+// Biometric palm matching is ALWAYS on. Cosine-similarity threshold a NEW
+// landmark embedding must clear to reuse a saved reading. Hardcoded (no DB
+// Setting) so it works everywhere without seeding. Tune here if needed.
+export const PALM_MATCH_THRESHOLD = 0.985;
+
 // Retry tuning for Gemini calls.
 export const MAX_RETRIES   = 3;
 export const RETRY_BASE_MS = 1000;       // exponential backoff: 1s, 2s, 4s

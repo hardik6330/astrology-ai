@@ -5,14 +5,13 @@ import { PALM_SYSTEM, PALM_GATE_SYSTEM, PALM_BOTH_HANDS_SYSTEM } from '../ai/pro
 import { dedupe } from '../ai/dedupe.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
 import { charge, grant, getBalance } from './creditService.js';
-import * as settings from './settingsService.js';
 import { notifyInsightReady } from './pushService.js';
 import { validateImage } from '../utils/imageValidator.js';
 import { landmarkEmbedding, cosineSim } from '../utils/palmEmbedding.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
 import { userKey } from '../utils/userKey.js';
-import { PALM_MODELS, PALM_GATE_MODELS, THINK_BUDGET } from '../config/constants.js';
+import { PALM_MODELS, PALM_GATE_MODELS, THINK_BUDGET, PALM_MATCH_THRESHOLD } from '../config/constants.js';
 import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
 
@@ -197,14 +196,15 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
   // to a normal fresh analysis.
   let embedding = null;
   const handType = claimedHand || null;
-  const matchEnabled = (await settings.get('palm_match_enabled')) === 'true';
-  if (matchEnabled && handType && Array.isArray(landmarks)) {
+  // Matching is ALWAYS on now — no DB flag. Only requirement is a known hand
+  // and the client-sent landmarks (needed to compute the geometry embedding).
+  if (handType && Array.isArray(landmarks)) {
     try {
       const tEmb = Date.now();
       embedding = landmarkEmbedding(landmarks);
       if (!embedding) throw new Error('landmark embedding unavailable');
       log.info({ scanId, stage: 'embedding', dim: embedding.length, ms: Date.now() - tEmb }, 'palm scan: landmark embedding computed');
-      const threshold = await settings.getNumber('palm_match_threshold', 0.92);
+      const threshold = PALM_MATCH_THRESHOLD;
       const match = await findBiometricMatch({ handType, embedding, threshold, scanId });
       if (match) {
         // match.reading is denormalized on the embedding row. It can come back
