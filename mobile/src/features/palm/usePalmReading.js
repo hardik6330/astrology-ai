@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing } from "react-native";
+import { Animated, Easing, Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { useForm, usePalm } from "../../context/ChartContext";
@@ -227,11 +227,25 @@ export function usePalmReading() {
       // captured rather than dropped by a timeout. Only a genuine model-load
       // failure falls back to the backend gate (skipGate:false below).
       let gateResult = null;
+      let gateFailure = null; // human-readable reason the gate produced no landmarks
       try {
         await withTimeout(ensureGate(), MODEL_READY_TIMEOUT_MS);
         gateResult = await withTimeout(gatePalmImage(a, hand), GATE_INFER_TIMEOUT_MS);
       } catch (gateErr) {
+        gateFailure = `Gate model unavailable: ${gateErr?.message || gateErr}`;
         console.warn("[palm] gate unavailable — deferring to backend gate:", gateErr?.message);
+      }
+      // The gate can also "pass" without landmarks when on-device inference
+      // throws (palmGate carries that as gateResult.gateError). Either way, no
+      // landmarks → no biometric embedding. Surface the reason so it's visible
+      // instead of failing silently with a blank screen.
+      if (gateResult?.gateError) gateFailure = gateResult.gateError;
+      else if (gateResult?.ok && !gateResult?.landmarks) gateFailure = "Gate passed but produced no hand landmarks.";
+      // TEMP DIAGNOSTIC — shows on every build (incl. preview/EAS where __DEV__
+      // is false) so we can read the real on-device gate error. Remove once the
+      // estimateHands failure is fixed.
+      if (gateFailure) {
+        Alert.alert("Palm gate diagnostic", gateFailure);
       }
       setGateReport(gateResult?.checks || null);
       if (gateResult && !gateResult.ok) {
@@ -245,7 +259,7 @@ export function usePalmReading() {
           imgW: gateResult.imgW,
           imgH: gateResult.imgH,
         });
-      }
+      }   
       const img = await compressPhoto(a);
       // gateResult present → client gated (skipGate:true). Null → gate didn't
       // run; let the backend gate (skipGate:false). Pass the 21 landmarks (when

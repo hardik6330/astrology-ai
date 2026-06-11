@@ -125,7 +125,7 @@ OUTPUT — match this exact JSON shape:
 
 If EITHER image cannot be analyzed, instead return:
 { "handType": "Both", "imageQuality": "unusable", "retakeReason": "<one short sentence on what to fix>" }
-Reject when an image is: blurry, too dark, not a human palm, the BACK of the hand (knuckles/nails/veins visible, palm creases hidden), a photo of a screen/monitor/printout/another photo (screen bezel, pixel/moiré, glare bands, flat rectangular border), multiple hands, or main lines obstructed. When unsure whether you see a palm or the back of a hand, REJECT.`;
+Reject when an image is: blurry, too dark, not a human palm, the BACK of the hand (knuckles/nails/veins visible, palm creases hidden), a photo of a screen/monitor/printout/another photo (screen bezel, pixel/moiré, glare bands, flat rectangular border), multiple hands, fingers curled/pressed tightly/fist (fingers_closed), hand rotated/tilted/not flat (tilted_hand), harsh shadow/glare across part of palm (uneven_light), or main lines obstructed. When unsure whether you see a palm or the back of a hand, REJECT.`;
 
 // Legacy two-step prompt — kept for reference but no longer used. The
 // new PALM_BOTH_HANDS_SYSTEM (above) collapses everything into one call.
@@ -251,9 +251,12 @@ Reject keys:
 - blurry         → out of focus; major lines smeared.
 - too_dark       → too dim to see line depth.
 - too_far        → palm occupies < 40% of frame.
-- cropped        → wrist or fingertips cut off AND main lines run off-frame.
-- multiple_hands → more than one palm visible.
-- obstructed     → fingers curled, or jewelry/mehndi/tattoo blocking major lines.
+- cropped         → wrist or fingertips cut off AND main lines run off-frame.
+- multiple_hands  → more than one palm visible.
+- fingers_closed  → fingers are curled, pressed tightly together, or in a fist (mounts/lines are compressed).
+- tilted_hand     → hand is rotated (not vertical), tilted away from camera, or not flat (distorts line length).
+- uneven_light    → harsh shadow or glare falls across part of the palm (lines become inconsistent).
+- obstructed      → jewelry/mehndi/tattoo/dirt blocking major lines.
 
 NOTE on hand side (Left vs Right): The user prompt may include "CLAIMED HAND: Left/Right". You should IGNORE this — do not attempt to verify which hand is shown. Phone cameras inconsistently mirror selfies, and reliable left/right detection is not the gate's job. Trust the user's selection.
 
@@ -280,9 +283,12 @@ Reject keys:
 - blurry         → out of focus; major lines smeared.
 - too_dark       → too dim to see line depth.
 - too_far        → palm occupies < 40% of frame.
-- cropped        → wrist or fingertips cut off AND main lines run off-frame.
-- multiple_hands → more than one palm visible.
-- obstructed     → fingers curled, or jewelry/mehndi/tattoo blocking major lines.
+- cropped         → wrist or fingertips cut off AND main lines run off-frame.
+- multiple_hands  → more than one palm visible.
+- fingers_closed  → fingers are curled, pressed tightly together, or in a fist (mounts/lines are compressed).
+- tilted_hand     → hand is rotated (not vertical), tilted away from camera, or not flat (distorts line length).
+- uneven_light    → harsh shadow or glare falls across part of the palm (lines become inconsistent).
+- obstructed      → jewelry/mehndi/tattoo/dirt blocking major lines.
 
 retakeReason: ONE short, friendly sentence telling the user how to fix it. Do not output any other fields when rejecting.
 

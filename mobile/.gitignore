@@ -5,5 +5,7 @@ web-build/
 .env
 *.log
 .DS_Store
-ios/
-android/
+# Prebuild output at project root only — anchored so the local native module
+# (modules/hand-landmarker/android|ios) stays tracked and ships to EAS.
+/ios/
+/android/

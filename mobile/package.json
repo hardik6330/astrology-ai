@@ -17,8 +17,6 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@infinitered/react-native-mlkit-object-detection": "^5.0.0",
-    "@mediapipe/hands": "^0.4.1675469240",
     "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
@@ -31,11 +29,7 @@
     "@react-navigation/drawer": "^7.10.2",
     "@react-navigation/native": "^7.1.6",
     "@react-navigation/native-stack": "^7.3.10",
-    "@tensorflow-models/hand-pose-detection": "^2.0.1",
-    "@tensorflow/tfjs": "^4.22.0",
-    "@tensorflow/tfjs-react-native": "^1.0.0",
     "astronomy-engine": "^2.1.19",
-    "base-64": "^1.0.0",
     "expo": "~54.0.0",
     "expo-blur": "~15.0.8",
     "expo-build-properties": "~1.0.10",
@@ -61,17 +55,20 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-worklets": "0.5.1",
-    "react-refresh": "^0.18.0"
+    "react-refresh": "^0.18.0",
+    "hand-landmarker": "./modules/hand-landmarker"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@types/react": "~19.1.10",
     "babel-plugin-module-resolver": "^5.0.3",
     "babel-preset-expo": "~54.0.10",
     "eslint": "^9.18.0",
     "eslint-config-expo": "~10.0.0",
     "glob": "^7.1.6",
     "minimatch": "^3.0.4",
-    "prettier": "^3.3.3"
+    "prettier": "^3.3.3",
+    "typescript": "~5.9.2"
   },
   "private": true
 }

@@ -8,9 +8,7 @@
 //   { ok: true }
 //   { ok: false, rejectReason: '<key>', retakeReason: '<one sentence>' }
 
-import * as tf from "@tensorflow/tfjs-core";
-import "@tensorflow/tfjs-backend-webgl";
-import * as handPoseDetection from "@tensorflow-models/hand-pose-detection";
+import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
 // ── Gate thresholds ──────────────────────────────────────────────────────────
 // Luminance + blur run on the 256px downsample. The two palm-quality checks
@@ -28,6 +26,8 @@ const MIN_PALM_COVERAGE = 0.22; // palm bbox area ÷ frame; below → too_far
 // shadow/glare). Both display their raw value in the gate checklist.
 const MIN_PALM_EDGE_SCORE = 90; // below → lines_faint
 const MAX_PALM_LIGHTING_VAR = 2800; // above → uneven_light
+const MIN_FINGER_SPREAD = 0.12; // min normalized distance between finger tips
+const MAX_ORIENTATION_DEVIATION = 35; // max degrees away from vertical (up)
 const PALM_NORM_W = 200; // palm crop width for the in-region metrics
 // (resolution-independent: web 256 ≈ mobile 512).
 
@@ -39,12 +39,16 @@ async function getDetector() {
   if (_detector) return _detector;
   if (_detectorPromise) return _detectorPromise;
   _detectorPromise = (async () => {
-    await tf.setBackend("webgl");
-    await tf.ready();
-    _detector = await handPoseDetection.createDetector(handPoseDetection.SupportedModels.MediaPipeHands, {
-      runtime: "tfjs",
-      modelType: "lite", // smaller (~6MB) and faster — accuracy plenty for a gate
-      maxHands: 2, // we need to detect multi-hand for rejection
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
+    );
+    _detector = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+        delegate: "GPU",
+      },
+      runningMode: "IMAGE",
+      numHands: 2,
     });
     return _detector;
   })();
@@ -207,6 +211,8 @@ const TIPS = {
   lines_faint:
     "Take a sharp photo of your real hand in bright light — a photo of a screen won't have enough line detail.",
   uneven_light: "Even out the lighting — avoid harsh shadow or glare falling across your palm.",
+  fingers_closed: "Spread your fingers naturally so the full palm is visible.",
+  tilted_hand: "Keep your hand straight (fingers pointing up) and flat towards the camera.",
 };
 
 // MediaPipe handedness is reported from the OPPOSITE side because the model
@@ -216,6 +222,54 @@ const TIPS = {
 // Confidence below this threshold → don't reject (mirror cameras + edge
 // cases make low-confidence calls unreliable).
 const HAND_REJECT_MIN_CONFIDENCE = 0.95;
+
+function checkFingerSpread(landmarks) {
+  const p5 = landmarks[5]; // Index base
+  const p17 = landmarks[17]; // Pinky base
+  const palmWidth = Math.sqrt((p5.x - p17.x) ** 2 + (p5.y - p17.y) ** 2);
+
+  const tips = [8, 12, 16, 20]; // Index, Middle, Ring, Pinky tips
+  let minGap = Infinity;
+
+  for (let i = 0; i < tips.length - 1; i++) {
+    const t1 = landmarks[tips[i]];
+    const t2 = landmarks[tips[i + 1]];
+    const dist = Math.sqrt((t1.x - t2.x) ** 2 + (t1.y - t2.y) ** 2);
+    const normalized = dist / palmWidth;
+    if (normalized < minGap) minGap = normalized;
+  }
+
+  return minGap >= MIN_FINGER_SPREAD;
+}
+
+function checkOrientation(landmarks) {
+  const p0 = landmarks[0]; // Wrist
+  const p9 = landmarks[9]; // Middle base
+
+  // Angle in degrees. Math.atan2(dy, dx)
+  // Upwards in screen space is dy < 0, dx = 0 -> -90 degrees
+  const angle = (Math.atan2(p9.y - p0.y, p9.x - p0.x) * 180) / Math.PI;
+
+  // Deviation from -90
+  const deviation = Math.abs(angle + 90);
+  return deviation <= MAX_ORIENTATION_DEVIATION;
+}
+
+// Simple flatness check: ratio of palm width to palm height.
+// If too skewed, the hand is likely tilted away from the camera.
+function checkFlatness(landmarks) {
+  const p5 = landmarks[5];
+  const p17 = landmarks[17];
+  const p0 = landmarks[0];
+  const p9 = landmarks[9];
+
+  const w = Math.sqrt((p5.x - p17.x) ** 2 + (p5.y - p17.y) ** 2);
+  const h = Math.sqrt((p0.x - p9.x) ** 2 + (p0.y - p9.y) ** 2);
+
+  const ratio = w / h;
+  // Normal palm ratio is roughly 0.8 to 1.2
+  return ratio > 0.6 && ratio < 1.4;
+}
 
 function retakeFor(reason) {
   return TIPS[reason] || "Please retake with a clearer palm photo.";
@@ -253,8 +307,24 @@ export async function gatePalmImage(file, claimedHand) {
   let hands;
   try {
     const detector = await getDetector();
-    hands = await detector.estimateHands(img, { flipHorizontal: false });
-  } catch {
+    const result = detector.detect(img);
+
+    // Convert normalized landmarks to pixel coordinates to match the gate's
+    // coordinate space (same as the old TFJS detector).
+    hands = result.landmarks.map((points, idx) => {
+      const handedness = result.handedness[idx]?.[0];
+      return {
+        keypoints: points.map((p) => ({
+          x: p.x * img.width,
+          y: p.y * img.height,
+          z: p.z,
+        })),
+        score: handedness?.score || 0,
+        handedness: handedness?.categoryName || "Unknown",
+      };
+    });
+  } catch (err) {
+    console.warn("Gate: Model inference failed", err);
     // Model load/inference failed — fall through (let Pro see the image).
     return { ok: true, checks: [] };
   }
@@ -265,6 +335,9 @@ export async function gatePalmImage(file, claimedHand) {
 
   const bounds = hasHand ? landmarkBounds(hand.keypoints, img.width, img.height) : null;
   const region = hasHand ? palmRegionStats(img, bounds) : null;
+  const fingersSpread = hasHand ? checkFingerSpread(hand.keypoints) : false;
+  const orientationOk = hasHand ? checkOrientation(hand.keypoints) : false;
+  const flatnessOk = hasHand ? checkFlatness(hand.keypoints) : false;
 
   const pad = 4; // px tolerance for the off-edge (cropped) test
   const cropped = bounds
@@ -274,12 +347,11 @@ export async function gatePalmImage(file, claimedHand) {
       bounds.maxY > img.height - pad
     : false;
 
-  // Hand-side: MediaPipe reports handedness from a mirrored (selfie) POV, so on
-  // a non-mirrored file the model's "Right" maps to a real LEFT hand. Invert.
+  // Hand-side check.
+  // MediaPipe Tasks Vision handedness is usually the ACTUAL handedness (non-mirrored).
   let wrongHand = false;
   if (hasHand && claimedHand && hand.handedness && hand.score >= HAND_REJECT_MIN_CONFIDENCE) {
-    const actual = hand.handedness === "Left" ? "Right" : "Left";
-    wrongHand = actual !== claimedHand;
+    wrongHand = hand.handedness !== claimedHand;
   }
 
   // User-facing checklist (astro-2 order). `cropped` + `wrong_hand` are enforced
@@ -317,6 +389,16 @@ export async function gatePalmImage(file, claimedHand) {
         key: "lighting_even",
         ok: region.lightingVar <= MAX_PALM_LIGHTING_VAR,
         label: `Even lighting (variance ${Math.round(region.lightingVar)})`,
+      },
+      {
+        key: "spread",
+        ok: fingersSpread,
+        label: "Fingers spread open",
+      },
+      {
+        key: "straight",
+        ok: orientationOk && flatnessOk,
+        label: "Hand straight and flat",
       }
     );
   }
@@ -344,6 +426,8 @@ export async function gatePalmImage(file, claimedHand) {
   else if (cropped) rejectReason = "cropped";
   else if (region.edgeScore < MIN_PALM_EDGE_SCORE) rejectReason = "lines_faint";
   else if (region.lightingVar > MAX_PALM_LIGHTING_VAR) rejectReason = "uneven_light";
+  else if (!fingersSpread) rejectReason = "fingers_closed";
+  else if (!orientationOk || !flatnessOk) rejectReason = "tilted_hand";
   else if (wrongHand) rejectReason = "wrong_hand";
 
   const base = {
@@ -366,9 +450,11 @@ export function warmUpGate() {
   });
 }
 
-// Awaitable model readiness. Callers await this BEFORE gating so the gate
-// reliably produces landmarks (instead of racing a timeout that drops them).
-// Resolves the detector, or rejects if the model genuinely can't load.
+/**
+ * Awaitable model readiness. Callers await this BEFORE gating so the gate
+ * reliably produces landmarks (instead of racing a timeout that drops them).
+ * Resolves the detector, or rejects if the model genuinely can't load.
+ */
 export function ensureGate() {
   return getDetector();
 }

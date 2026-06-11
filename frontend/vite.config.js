@@ -41,15 +41,9 @@ export default defineConfig(({ mode }) => {
   return {
     server: { host: true, proxy }, // `npm run dev`
     preview: { host: true, proxy }, // `npm run preview`
-    // @tensorflow-models/hand-pose-detection statically imports `Hands`
-    // from @mediapipe/hands so it can offer a 'mediapipe' runtime — but
-    // we always use runtime: 'tfjs', so that import is never invoked.
-    // Aliasing it to a small stub keeps rollup happy AND avoids shipping
-    // the ~2MB mediapipe bundle to the client.
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
-        "@mediapipe/hands": fileURLToPath(new URL("./src/utils/mediapipeStub.js", import.meta.url)),
       },
     },
     plugins: [

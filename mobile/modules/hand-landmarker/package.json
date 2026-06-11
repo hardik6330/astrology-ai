@@ -1,0 +1,16 @@
+{
+  "name": "hand-landmarker",
+  "version": "0.1.0",
+  "description": "Native MediaPipe HandLandmarker for Expo",
+  "main": "index.ts",
+  "types": "index.ts",
+  "files": [
+    "index.ts",
+    "expo-module.config.json",
+    "android",
+    "ios"
+  ],
+  "peerDependencies": {
+    "expo": "*"
+  }
+}

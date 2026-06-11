@@ -1,70 +1,52 @@
 // Client-side palm-photo gate for React Native.
-// Replaces the server-side Gemini Flash gate — runs TensorFlow.js and MediaPipe Hands 
-// locally to detect hand presence/quality.
+// Uses the NATIVE MediaPipe HandLandmarker (modules/hand-landmarker) to detect
+// the hand and its 21 landmarks on a still photo. This replaces the old
+// TensorFlow.js + MediaPipe-Hands path, which was unreliable on-device
+// (estimateHands threw / crashed → no landmarks → no biometric embedding and,
+// in some builds, a white screen). The native detector is fast and stable.
+//
+// NOTE: the pixel dark/blur/line-detail heuristics the web gate runs are NOT
+// reproduced here — they required decoding the image to a TFJS tensor, which is
+// exactly the fragile path we removed. On mobile, hand PRESENCE + GEOMETRY
+// (coverage, cropping) are checked from the native landmarks; genuine quality
+// problems still get caught downstream when the Pro reading marks the image
+// `unusable` (and the charge is refunded). Keep this divergence from the web
+// gate in mind (CLAUDE.md asks the gates stay in sync — this is a deliberate,
+// documented exception until web also moves to a native/stable detector).
 
-import * as tf from "@tensorflow/tfjs";
-import * as handPoseDetection from "@tensorflow-models/hand-pose-detection";
-import { decode as decodeBase64 } from "base-64";
-import { decodeJpeg } from "@tensorflow/tfjs-react-native";
 import * as ImageManipulator from "expo-image-manipulator";
-import "@tensorflow/tfjs-react-native";
-// Conditionally import ML Kit to prevent Expo Go crashes
-let ObjectDetection = null;
-if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
-  try {
-    ObjectDetection = require('@infinitered/react-native-mlkit-object-detection').default;
-  } catch (e) {
-    console.warn("ML Kit module not found, skipping...");
-  }
-}
+import { detectHandLandmarks, warmUpHandLandmarker } from "../../../modules/hand-landmarker";
 
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+// Verbose per-photo gate diagnostics — dev only. Stays silent in release builds.
 const log = __DEV__ ? console.log.bind(console) : () => {};
 
-// ── Gate thresholds ──────────────────────────────────────────────────────────
-// MUST mirror the web gate (frontend/src/utils/palmGate.js). Luminance + blur
-// run on the 256px downsample; lighting evenness + line detail run ONLY on the
-// detected palm region (background never skews them). Console logs the live
-// values per photo (mobile already logs verbosely) — calibrate from those.
-const MIN_LUMINANCE         = 55;    // mean luma below → too_dark
-const MIN_LAPLACIAN_VAR     = 160;   // global focus; below → blurry
-const MIN_PALM_COVERAGE     = 0.22;  // palm bbox area ÷ frame; below → too_far
-const MIN_PALM_EDGE_SCORE   = 90;    // palm-region Laplacian variance below → lines_faint
-const MAX_PALM_LIGHTING_VAR = 2800;  // palm-region 9x9 grid variance above → uneven_light
-const PALM_NORM_W           = 200;   // palm crop width for the in-region metrics (web 256 ≈ mobile 512)
+// ── Gate thresholds (geometry only) ──────────────────────────────────────────
+const MIN_PALM_COVERAGE = 0.22; // palm bbox area ÷ frame; below → too_far
+const GATE_RESIZE_W = 512; // pre-resize width; landmark coords are in this pixel space
+const MIN_FINGER_SPREAD = 0.12; // min normalized distance between finger tips
+const MAX_ORIENTATION_DEVIATION = 35; // max degrees away from vertical (up)
 
-// Memoized model.
-let _detector = null;
-let _detectorPromise = null;
+const TIPS = {
+  not_a_palm: "Please upload a clear photo of your open hand, palm facing the camera.",
+  too_far: "Bring the camera closer — your palm should fill most of the frame.",
+  cropped: "Include your full palm — from wrist to fingertips — in the photo.",
+  blurry: "Hold steady and take a sharp, focused photo of your palm.",
+  wrong_hand: "The photo looks like your other hand — please retake with the hand you selected.",
+  fingers_closed: "Spread your fingers naturally so the full palm is visible.",
+  tilted_hand: "Keep your hand straight (fingers pointing up) and flat towards the camera.",
+  multiple_hands: "Show just one open palm in the photo.",
+};
 
-async function getDetector() {
-  if (_detector) return _detector;
-  if (_detectorPromise) return _detectorPromise;
-  _detectorPromise = (async () => {
-    log("Gate: Initializing TensorFlow.js and MediaPipe Hands detector...");
-    
-    // Explicitly wait for TF and set the fastest backend
-    await tf.ready();
-    try {
-      // Try to use WebGL for GPU acceleration
-      await tf.setBackend('rn-webgl');
-      log("Gate: Using rn-webgl backend");
-    } catch (e) {
-      log("Gate: rn-webgl failed, using default backend");
-    }
+const HAND_REJECT_MIN_CONFIDENCE = 0.95;
 
-    _detector = await handPoseDetection.createDetector(
-      handPoseDetection.SupportedModels.MediaPipeHands,
-      {
-        runtime: "tfjs",
-        modelType: "lite",
-        maxHands: 1, // Optimized: Only look for one hand
-      },
-    );
-    log("Gate: MediaPipe Hands detector initialized successfully.");
-    return _detector;
-  })();
-  return _detectorPromise;
+function reject(rejectReason, debugInfo = "", duration = 0) {
+  const response = {
+    ok: false,
+    rejectReason,
+    retakeReason: TIPS[rejectReason] || "Please retake with a clearer palm photo.",
+  };
+  log(`Gate: Final Result -> REJECTED (Time: ${duration}ms)`, { reason: rejectReason, debug: debugInfo });
+  return response;
 }
 
 function landmarkBounds(landmarks, imgW, imgH) {
@@ -83,310 +65,143 @@ function landmarkBounds(landmarks, imgW, imgH) {
   };
 }
 
-const TIPS = {
-  too_dark:       "Move into bright, even light so the lines on your palm are clearly visible.",
-  blurry:         "Hold steady and take a sharp, focused photo of your palm.",
-  not_a_palm:     "Please upload a clear photo of your open hand, palm facing the camera.",
-  multiple_hands: "Show just one open palm in the photo.",
-  too_far:        "Bring the camera closer — your palm should fill most of the frame.",
-  cropped:        "Include your full palm — from wrist to fingertips — in the photo.",
-  wrong_hand:     "The photo looks like your other hand — please retake with the hand you selected.",
-  lines_faint:    "Take a sharp photo of your real hand in bright light — a photo of a screen won't have enough line detail.",
-  uneven_light:   "Even out the lighting — avoid harsh shadow or glare falling across your palm.",
-};
-
-const HAND_REJECT_MIN_CONFIDENCE = 0.95;
-
-function reject(rejectReason, debugInfo = "", duration = 0) {
-  const response = { 
-    ok: false, 
-    rejectReason, 
-    retakeReason: (TIPS[rejectReason] || "Please retake with a clearer palm photo.")
-  };
-  log(`Gate: Final Result -> REJECTED (Time: ${duration}ms)`, { reason: rejectReason, debug: debugInfo, response });
-  return response;
-}
-
-/**
- * Cheap pixel heuristics using TFJS.
- * Downsamples to 256px to match web thresholds.
- */
-function checkQuality(tensor) {
-  return tf.tidy(() => {
-    log("Gate: Running quality checks (Darkness & Blur)...");
-    const [h, w] = tensor.shape;
-    const scale = Math.min(1, 256 / Math.max(h, w));
-    const newH = Math.max(1, Math.round(h * scale));
-    const newW = Math.max(1, Math.round(w * scale));
-    
-    // Resize for faster processing and threshold consistency
-    const small = tf.image.resizeBilinear(tensor.expandDims(0), [newH, newW]).squeeze(0);
-
-    // 1. Mean Luminance (Darkness). Lighting *evenness* is judged separately,
-    // inside the palm region, after detection.
-    const weights = tf.tensor1d([0.2126, 0.7152, 0.0722]);
-    const gray = tf.sum(tf.mul(small, weights), -1);
-    const lum = tf.mean(gray).dataSync()[0];
-    log(`Gate: Mean Luminance = ${lum.toFixed(2)} (Threshold: ${MIN_LUMINANCE})`);
-
-    // 2. Laplacian Variance (Blur)
-    const laplacianKernel = tf.tensor2d([0, 1, 0, 1, -4, 1, 0, 1, 0], [3, 3]).reshape([3, 3, 1, 1]);
-    const gray4d = gray.expandDims(0).expandDims(-1);
-    const laplacian = tf.conv2d(gray4d, laplacianKernel, 1, "valid");
-    const { variance } = tf.moments(laplacian);
-    const lapVar = variance.dataSync()[0];
-    log(`Gate: Laplacian Variance = ${lapVar.toFixed(2)} (Threshold: ${MIN_LAPLACIAN_VAR})`);
-
-    if (lum < MIN_LUMINANCE) return { ok: false, reason: "too_dark", lum, lapVar };
-    if (lapVar < MIN_LAPLACIAN_VAR) return { ok: false, reason: "blurry", lum, lapVar };
-
-    log("Gate: Quality checks PASSED.");
-    return { ok: true, lum, lapVar };
-  });
-}
-
-// Quality metrics measured INSIDE the palm bounding box only (background never
-// skews them). `bounds` are in `tensor` pixel coords. Mirrors the web gate.
-//   • edgeScore — Laplacian variance of a width-normalized crop (PALM_NORM_W).
-//     High = crisp lines; low = washed-out / faint.
-//   • lightingVar — luminance variance of a 9x9 low-frequency grid. High only
-//     when part of the palm is in harsh shadow/glare vs the rest.
-// Returns { edgeScore: Infinity, lightingVar: 0 } when the box is too small.
-function palmRegionStats(tensor, bounds) {
-  return tf.tidy(() => {
-    const [H, W] = tensor.shape;
-    const x0 = Math.max(0, Math.floor(bounds.minX));
-    const y0 = Math.max(0, Math.floor(bounds.minY));
-    const bw = Math.min(W - x0, Math.ceil(bounds.maxX - bounds.minX));
-    const bh = Math.min(H - y0, Math.ceil(bounds.maxY - bounds.minY));
-    if (bw < 8 || bh < 8) return { edgeScore: Infinity, lightingVar: 0 };
-
-    const region = tensor.slice([y0, x0, 0], [bh, bw, 3]);
-    const weights = tf.tensor1d([0.2126, 0.7152, 0.0722]);
-
-    // Width-normalized crop → edge score (Laplacian variance, same as web).
-    const scale = PALM_NORM_W / bw;
-    const nh = Math.max(3, Math.round(bh * scale));
-    const nw = Math.max(3, Math.round(bw * scale));
-    const gray2d = tf.sum(
-      tf.mul(tf.image.resizeBilinear(region.expandDims(0), [nh, nw]).squeeze(0), weights), -1,
-    ); // [nh, nw]
-    const normGray = gray2d.expandDims(0).expandDims(-1);
-    const laplacianKernel = tf.tensor2d([0, 1, 0, 1, -4, 1, 0, 1, 0], [3, 3]).reshape([3, 3, 1, 1]);
-    const edgeScore = tf.moments(tf.conv2d(normGray, laplacianKernel, 1, "valid")).variance.dataSync()[0];
-
-    // Tiny 9x9 grid → low-frequency lighting variance only.
-    const gridGray = tf.sum(tf.mul(tf.image.resizeBilinear(region.expandDims(0), [9, 9]).squeeze(0), weights), -1);
-    const lightingVar = tf.moments(gridGray).variance.dataSync()[0];
-
-    return { edgeScore, lightingVar };
-  });
-}
-
-/**
- * Fast pre-check using Google ML Kit Object Detection.
- * Only runs on real devices (not Expo Go).
- */
-async function mlKitPreCheck(uri) {
-  if (isExpoGo || !ObjectDetection) return { ok: true, reason: "expo_go_skip" };
-  
-  try {
-    log("Gate: Running ML Kit Object Detection pre-check...");
-    // Using the detect method from @infinitered/react-native-mlkit-object-detection
-    const objects = await ObjectDetection.detect(uri);
-
-    if (!objects || objects.length === 0) {
-      log("Gate: ML Kit found NO objects.");
-      return { ok: false, reason: "not_a_palm" };
-    }
-
-    // Check if any detected object is a hand/palm/person
-    const isHand = objects.some(obj => {
-      const labels = obj.labels.map(l => l.text.toLowerCase());
-      return labels.includes("hand") || labels.includes("palm") || labels.includes("finger") || labels.includes("person");
-    });
-
-    if (!isHand) {
-      log("Gate: ML Kit found objects but none look like a hand.");
-      return { ok: false, reason: "not_a_palm" };
-    }
-
-    log("Gate: ML Kit pre-check PASSED.");
-    return { ok: true };
-  } catch (e) {
-    log("Gate: ML Kit failed, falling back to MediaPipe", e.message);
-    return { ok: true, reason: "error_fallback" };
+function checkFingerSpread(landmarks) {
+  const p5 = landmarks[5];
+  const p17 = landmarks[17];
+  const palmWidth = Math.sqrt((p5.x - p17.x) ** 2 + (p5.y - p17.y) ** 2);
+  const tips = [8, 12, 16, 20];
+  let minGap = Infinity;
+  for (let i = 0; i < tips.length - 1; i++) {
+    const t1 = landmarks[tips[i]];
+    const t2 = landmarks[tips[i + 1]];
+    const dist = Math.sqrt((t1.x - t2.x) ** 2 + (t1.y - t2.y) ** 2);
+    const normalized = dist / palmWidth;
+    if (normalized < minGap) minGap = normalized;
   }
+  return minGap >= MIN_FINGER_SPREAD;
 }
 
-/**
- * Run the full gate on a photo.
- * @param {object} asset The image asset from Expo ImagePicker.
- * @param {string} claimedHand Optional "Left" | "Right".
- */
+function checkOrientation(landmarks) {
+  const p0 = landmarks[0];
+  const p9 = landmarks[9];
+  const angle = (Math.atan2(p9.y - p0.y, p9.x - p0.x) * 180) / Math.PI;
+  const deviation = Math.abs(angle + 90);
+  return deviation <= MAX_ORIENTATION_DEVIATION;
+}
+
+function checkFlatness(landmarks) {
+  const p5 = landmarks[5];
+  const p17 = landmarks[17];
+  const p0 = landmarks[0];
+  const p9 = landmarks[9];
+  const w = Math.sqrt((p5.x - p17.x) ** 2 + (p5.y - p17.y) ** 2);
+  const h = Math.sqrt((p0.x - p9.x) ** 2 + (p0.y - p9.y) ** 2);
+  const ratio = w / h;
+  return ratio > 0.6 && ratio < 1.4;
+}
+
+// Gate a single palm photo. Returns:
+//   { ok: true, landmarks: [{x,y,z}], imgW, imgH, checks }   when usable
+//   { ok: false, rejectReason, retakeReason }                otherwise
+// landmarks are in PIXEL coords of the resized image — same space as the web
+// gate — so the backend landmark-geometry embedding matches across platforms.
 export async function gatePalmImage(asset, claimedHand) {
   const startTime = Date.now();
-  log("Gate: Starting detection flow...");
+  log("Gate: Starting native detection flow...");
 
-  // 0. ML Kit Pre-check (Native only)
-  const mlCheck = await mlKitPreCheck(asset.uri);
-  if (!mlCheck.ok) {
-    return reject(mlCheck.reason, "ML Kit rejection", Date.now() - startTime);
-  }
-
-  let tensor = null;
   try {
-    // CRITICAL SPEED FIX: Resize the image BEFORE decoding to tensor.
-    // Decoding a 4096px image to tensor takes ~40-50s on CPU.
-    // Resizing it via native ImageManipulator takes ~100ms.
-    log("Gate: Pre-resizing image using Native ImageManipulator...");
+    // Pre-resize so the native decode + detect is fast and the landmark pixel
+    // space is consistent (width = GATE_RESIZE_W). No base64 needed — the native
+    // module reads the file URI directly.
     const manipulated = await ImageManipulator.manipulateAsync(
       asset.uri,
-      [{ resize: { width: 512 } }], // Resize to 512px width first
-      { base64: true, format: ImageManipulator.SaveFormat.JPEG, quality: 0.7 }
+      [{ resize: { width: GATE_RESIZE_W } }],
+      { format: ImageManipulator.SaveFormat.JPEG, compress: 0.7 },
     );
     log(`Gate: Pre-resize done in ${Date.now() - startTime}ms`);
 
-    const detector = await getDetector();
-    
-    // Decode the SMALLER base64
-    const binary = decodeBase64(manipulated.base64);
-    const uint8 = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      uint8[i] = binary.charCodeAt(i);
+    const { landmarks, handedness, score, handCount, width, height } = await detectHandLandmarks(manipulated.uri);
+    log(`Gate: Native detect done in ${Date.now() - startTime}ms — hands=${handCount} score=${score?.toFixed(2)} handedness=${handedness} (${width}x${height})`);
+
+    // No hand / incomplete hand → reject.
+    if (!Array.isArray(landmarks) || landmarks.length < 21) {
+      return reject("not_a_palm", `points=${landmarks?.length || 0}`, Date.now() - startTime);
     }
 
-    tensor = decodeJpeg(uint8);
-    const [height, width] = tensor.shape;
-    log(`Gate: Tensor ready (${width}x${height}) in ${Date.now() - startTime}ms`);
-
-    // 1. Pixel heuristics first (darkness/blur)
-    const quality = checkQuality(tensor);
-    if (!quality.ok) {
-      // Return ordered checks even on failure so UI can show what failed
-      const checks = [
-        {
-          key: "lighting",
-          ok: quality.lum >= MIN_LUMINANCE,
-          label: `Lighting ${quality.lum >= MIN_LUMINANCE ? "OK" : "too dark"} (${Math.round(quality.lum)} / 255)`,
-        },
-        {
-          key: "sharpness",
-          ok: quality.lapVar >= MIN_LAPLACIAN_VAR,
-          label: `Sharpness ${quality.lapVar >= MIN_LAPLACIAN_VAR ? "OK" : "blurry"} (${Math.round(quality.lapVar)})`,
-        }
-      ];
-      return { 
-        ...reject(quality.reason, `Value: ${Math.round(quality.reason === "too_dark" ? quality.lum : quality.lapVar)}`, Date.now() - startTime),
-        checks
-      };
+    // Multiple hands check.
+    if (handCount > 1) {
+      return reject("multiple_hands", `Found ${handCount} hands`, Date.now() - startTime);
     }
 
-    // 2. MediaPipe hand detection
-    // No need to resize again, we are already at 512px
-    const hands = await detector.estimateHands(tensor, { flipHorizontal: false });
-    log("Gate: Hands detected:", hands.length);
-
-    if (hands.length === 0)   return reject("not_a_palm", "No hand detected", Date.now() - startTime);
-    if (hands.length > 1)     return reject("multiple_hands", `Found ${hands.length} hands`, Date.now() - startTime);
-
-    const hand = hands[0];
-    if (!hand?.keypoints || hand.keypoints.length < 21) {
-      return reject("not_a_palm", "Incomplete hand data", Date.now() - startTime);
+    // Blurry / Low confidence check.
+    if (score < 0.6) {
+      return reject("blurry", `Low confidence (${Math.round(score * 100)}%)`, Date.now() - startTime);
     }
 
-    // Check detection confidence
-    if (hand.score < 0.85) {
-      return reject("not_a_palm", `Low confidence (${Math.round(hand.score * 100)}%)`, Date.now() - startTime);
-    }
-    
-    const bounds = landmarkBounds(hand.keypoints, width, height);
+    const bounds = landmarkBounds(landmarks, width, height);
     log("Gate: Coverage:", bounds.coverage);
 
-    // 3. Palm too small in frame.
-    if (bounds.coverage < MIN_PALM_COVERAGE) return reject("too_far", `Coverage ${Math.round(bounds.coverage * 100)}%`, Date.now() - startTime);
+    // Palm too small in frame.
+    if (bounds.coverage < MIN_PALM_COVERAGE) {
+      return reject("too_far", `Coverage ${Math.round(bounds.coverage * 100)}%`, Date.now() - startTime);
+    }
 
-    // 4. Palm runs off-edge.
+    // Palm runs off-edge.
     const pad = 4;
     if (bounds.minX < pad || bounds.minY < pad ||
         bounds.maxX > width - pad || bounds.maxY > height - pad) {
       return reject("cropped", "Hand touching edge", Date.now() - startTime);
     }
 
-    // 5. Palm-region quality — lighting evenness + line detail, measured INSIDE
-    // the palm only (background never skews these).
-    const { edgeScore, lightingVar } = palmRegionStats(tensor, bounds);
-    log(`Gate: Palm edgeScore = ${edgeScore.toFixed(1)} (Min: ${MIN_PALM_EDGE_SCORE}), lightingVar = ${lightingVar.toFixed(1)} (Max: ${MAX_PALM_LIGHTING_VAR})`);
-    if (lightingVar > MAX_PALM_LIGHTING_VAR) {
-      return reject("uneven_light", `variance ${lightingVar.toFixed(0)}`, Date.now() - startTime);
+    // Additional rules
+    const fingersSpread = checkFingerSpread(landmarks);
+    const orientationOk = checkOrientation(landmarks);
+    const flatnessOk = checkFlatness(landmarks);
+
+    if (!fingersSpread) {
+      return reject("fingers_closed", "Tips too close", Date.now() - startTime);
     }
-    if (edgeScore < MIN_PALM_EDGE_SCORE) {
-      return reject("lines_faint", `edge score ${edgeScore.toFixed(0)}`, Date.now() - startTime);
+    if (!orientationOk || !flatnessOk) {
+      return reject("tilted_hand", `angle/ratio fail`, Date.now() - startTime);
     }
 
-    // 6. Hand-side check
-    if (claimedHand && hand.handedness && hand.score >= HAND_REJECT_MIN_CONFIDENCE) {
-      const modelLabel = hand.handedness;
-      const actualLabel = modelLabel === "Left" ? "Right" : "Left"; 
-      log("Gate: Model says", modelLabel, "Actual", actualLabel, "Claimed", claimedHand);
-      if (actualLabel !== claimedHand) {
-        return reject("wrong_hand", "", Date.now() - startTime);
+    // Handedness check.
+    // MediaPipe native handedness is usually the ACTUAL handedness (non-mirrored).
+    // If the model says "Left" and user claimed "Right", reject.
+    if (claimedHand && handedness) {
+      log(`Gate: Handedness check -> claimed=${claimedHand}, detected=${handedness}`);
+      if (handedness !== claimedHand) {
+        return reject("wrong_hand", `Detected ${handedness} vs Claimed ${claimedHand}`, Date.now() - startTime);
       }
     }
 
     log(`Gate: Final Result -> PASSED (Total Time: ${Date.now() - startTime}ms)`);
-    // Surface landmarks (in `tensor` pixel coords) + dims so a future scan-screen
-    // skeleton overlay can pin them on the photo. Web mirrors this shape.
-    // Also include ordered checks (metrics) for the UI report.
     const checks = [
-      hands.length > 1
-        ? { key: "multiple_hands", ok: false, label: "More than one hand detected" }
-        : { key: "landmarks", ok: true, label: `${hand.keypoints.length} hand landmarks detected` },
-      {
-        key: "lighting",
-        ok: quality.ok || quality.lum >= MIN_LUMINANCE,
-        label: `Lighting ${quality.lum >= MIN_LUMINANCE ? "OK" : "too dark"} (${Math.round(quality.lum)} / 255)`,
-      },
-      {
-        key: "sharpness",
-        ok: quality.ok || quality.lapVar >= MIN_LAPLACIAN_VAR,
-        label: `Sharpness ${quality.lapVar >= MIN_LAPLACIAN_VAR ? "OK" : "low"} (variance ${Math.round(quality.lapVar)})`,
-      },
-      {
-        key: "coverage",
-        ok: bounds.coverage >= MIN_PALM_COVERAGE,
-        label: `Palm fills frame (${Math.round(bounds.coverage * 100)}%)`,
-      },
-      {
-        key: "evenness",
-        ok: lightingVar <= MAX_PALM_LIGHTING_VAR,
-        label: `Even lighting (variance ${Math.round(lightingVar)})`,
-      },
-      {
-        key: "detail",
-        ok: edgeScore >= MIN_PALM_EDGE_SCORE,
-        label: `Palm lines visible (edge score ${Math.round(edgeScore)})`,
-      }
+      { key: "multiple_hands", ok: handCount === 1, label: handCount > 1 ? "Multiple hands detected" : "Single hand detected" },
+      { key: "landmarks", ok: true, label: `${landmarks.length} hand landmarks detected` },
+      { key: "sharpness", ok: score >= 0.7, label: `Sharpness ${score >= 0.7 ? "OK" : "low"} (${Math.round(score * 100)}%)` },
+      { key: "coverage", ok: true, label: `Palm fills frame (${Math.round(bounds.coverage * 100)}%)` },
+      { key: "handedness", ok: true, label: `Correct hand (${handedness || "unknown"})` },
+      { key: "spread", ok: true, label: "Fingers spread open" },
+      { key: "straight", ok: true, label: "Hand straight and flat" },
     ];
-
-    return { ok: true, landmarks: hand.keypoints, imgW: width, imgH: height, checks };
+    return { ok: true, landmarks, imgW: width, imgH: height, checks };
   } catch (err) {
-    console.warn("Palm gate encountered an error, falling back to PASS:", err);
-    return { ok: true }; 
-  } finally {
-    if (tensor) {
-      tf.dispose(tensor);
-      log("Gate: Tensor disposed");
-    }
+    // Fail OPEN so a detector crash never blocks a reading — but carry the error
+    // out so the caller can surface WHY no landmarks were produced.
+    const gateError = String(err?.message || err);
+    console.warn("Palm gate (native) error — falling back to PASS:", gateError);
+    return { ok: true, gateError };
   }
 }
 
+// Warm the native detector (loads the ~7 MB model) so the first gate is fast.
 export function warmUpGate() {
-  getDetector().catch(() => {});
+  warmUpHandLandmarker().catch(() => {});
 }
 
-// Awaitable model readiness — callers await this BEFORE gating so the gate
-// reliably produces landmarks (instead of racing a timeout that drops them).
+// Awaitable model readiness — callers await this BEFORE gating so the first
+// inference isn't paying the model-load cost.
 export function ensureGate() {
-  return getDetector();
+  return warmUpHandLandmarker();
 }
