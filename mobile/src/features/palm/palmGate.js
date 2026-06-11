@@ -24,7 +24,7 @@ const log = __DEV__ ? console.log.bind(console) : () => {};
 const MIN_PALM_COVERAGE = 0.22; // palm bbox area ÷ frame; below → too_far
 const GATE_RESIZE_W = 512; // pre-resize width; landmark coords are in this pixel space
 const MIN_FINGER_SPREAD = 0.12; // min normalized distance between finger tips
-const MAX_ORIENTATION_DEVIATION = 55; // max degrees away from vertical (up)
+const MAX_ORIENTATION_DEVIATION = 40; // max degrees away from vertical (up)
 
 const TIPS = {
   not_a_palm: "Please upload a clear photo of your open hand, palm facing the camera.",
