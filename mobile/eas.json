@@ -10,6 +10,9 @@
       "channel": "development"
     },
     "preview": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://astrology-ai-pro-ez9t.vercel.app/api"
+      },
       "distribution": "internal",
       "channel": "preview",
       "android": {

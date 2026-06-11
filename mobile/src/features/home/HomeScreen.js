@@ -224,7 +224,7 @@ export default function HomeScreen({ navigation, route }) {
                 return (
                   <Pressable
                     key={g.value}
-                    onPress={() => { set("gender", g.value); setError(""); haptics.selection(); }}
+                    onPress={() => { set("gender", g.value); setError(""); haptics.select(); }}
                     style={[
                       styles.genderCard,
                       isSelected && styles.genderCardActive,

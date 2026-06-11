@@ -14,11 +14,8 @@ export const CHAT_ANSWER_MODELS  = ['gemini-2.5-pro'];
 // fallback if Flash is rate-limited.
 export const PALM_GATE_MODELS    = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
-// Palm READING model chain. Flash-first for speed/cost (palm reading is
-// descriptive vision — Flash is good enough and ~3-5× faster than Pro). Pro is
-// the FALLBACK: it only runs if Flash fails (overload/parse-fail), NOT as a
-// quality refiner — a normal reading uses Flash. Kundli/chat stay Pro-only.
-export const PALM_MODELS         = ['gemini-2.5-flash', 'gemini-2.5-pro'];
+// Palm READING model chain. Use Pro for high-quality interpretation.
+export const PALM_MODELS         = ['gemini-2.5-pro'];
 
 // Biometric palm matching is ALWAYS on. Cosine-similarity threshold a NEW
 // landmark embedding must clear to reuse a saved reading. Hardcoded (no DB

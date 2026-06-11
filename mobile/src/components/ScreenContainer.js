@@ -1,5 +1,5 @@
 import React from "react";
-import { View, ScrollView, StyleSheet } from "react-native";
+import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import MenuButton from "./MenuButton";
@@ -26,18 +26,23 @@ export default function ScreenContainer({ children, scroll = true, scrollEnabled
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={["top", "left", "right"]}>
       <CosmicBackdrop />
-      {scroll ? (
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={scrollEnabled}
-        >
-          {inner}
-        </ScrollView>
-      ) : (
-        inner
-      )}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        {scroll ? (
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={scrollEnabled}
+          >
+            {inner}
+          </ScrollView>
+        ) : (
+          inner
+        )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
