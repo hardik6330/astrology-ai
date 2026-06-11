@@ -8,6 +8,7 @@ import { findOrCreateUser, findUserByForm } from './userService.js';
 import { charge, grant, getBalance } from './creditService.js';
 import { notifyInsightReady } from './pushService.js';
 import { tryBiometricReuse, persistReadingWithEmbedding } from './palmMatchService.js';
+import { extractPalmSignatures } from '../utils/palmSignature.js';
 import { validateImage } from '../utils/imageValidator.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
@@ -114,7 +115,7 @@ async function runGate({ image, claimedHand, skipGate = false, scanId }) {
 }
 
 // Run Pro + persistence. Assumes the gate has already passed.
-async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash, scanId, landmarks }) {
+async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash, scanId, landmarks, textureSignature, lineSignature }) {
   const t0 = Date.now();
   const user = await findOrCreateUser(form);
 
@@ -142,6 +143,7 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
   // embedding comes back either way so the fresh path below can persist it.
   const { result: reused, embedding } = await tryBiometricReuse({
     user, claimedHand, landmarks, imageHash, scanId, t0, fireInsightPush,
+    textureSignature, lineSignature
   });
   if (reused) return reused;
 
@@ -175,9 +177,10 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
     if (refund) finalBalance = refund.balance;
   }
 
-  // Persist the reading + (for clear readings) its embedding so future photos
-  // of this hand match. Newly persisted clear reading → notify the user.
-  await persistReadingWithEmbedding({ user, parsed, imageHash, embedding });
+  // Persist the reading + signatures so future photos of this hand match.
+  await persistReadingWithEmbedding({ 
+    user, parsed, imageHash, embedding, textureSignature, lineSignature 
+  });
   if (parsed.imageQuality !== 'unusable') fireInsightPush();
 
   log.info(
@@ -205,12 +208,13 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
   const gateResult = await runGate({ image, claimedHand, skipGate, scanId });
 
   if (!gateResult.ok) {
-    // Bad photo never reaches Pro → no charge. balance:null leaves the
-    // client's known balance unchanged.
     await persistGateRejection(form, gateResult.imageHash, gateResult.rejection);
     log.info({ scanId, path: 'rejected', reject: gateResult.rejection.rejectReason }, 'palm scan: complete (rejected, no charge)');
     return { content: JSON.stringify(gateResult.rejection), balance: null };
   }
+
+  // Extract Texture and Line signatures for Level 2/3 matching
+  const signatures = await extractPalmSignatures(gateResult.base64);
 
   return runProAndPersist({
     form, claimedHand,
@@ -219,6 +223,7 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
     imageHash: gateResult.imageHash,
     scanId,
     landmarks,
+    ...signatures
   });
 }
 

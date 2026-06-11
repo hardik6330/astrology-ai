@@ -59,7 +59,7 @@ async function findBiometricMatch({ handType, embedding, scanId }) {
 
 // Persist a reading row for this user and (for clear readings) its embedding,
 // so future photos of the same hand can match it. Best-effort — logs, doesn't throw.
-export async function persistReadingWithEmbedding({ user, parsed, imageHash, embedding }) {
+export async function persistReadingWithEmbedding({ user, parsed, imageHash, embedding, textureSignature, lineSignature }) {
   try {
     const row = await PalmReading.create({
       userId: user.id,
@@ -70,8 +70,13 @@ export async function persistReadingWithEmbedding({ user, parsed, imageHash, emb
     });
     if (embedding && parsed.imageQuality === 'clear') {
       await PalmEmbedding.create({
-        userId: user.id, palmReadingId: row.id, handType: parsed.handType, embedding,
-        reading: parsed, // denormalized so the match survives the reading being deleted
+        userId: user.id, 
+        palmReadingId: row.id, 
+        handType: parsed.handType, 
+        embedding,
+        textureSignature,
+        lineSignature,
+        reading: parsed, 
       }).catch((e) => log.warn({ err: e.message }, 'Palm embedding save failed'));
     }
     return row.id;
@@ -91,7 +96,7 @@ export async function persistReadingWithEmbedding({ user, parsed, imageHash, emb
 //   embedding — the computed landmark embedding (null on failure), which the
 //               caller persists alongside a fresh reading so future photos of
 //               this hand can match it
-export async function tryBiometricReuse({ user, claimedHand, landmarks, imageHash, scanId, t0, fireInsightPush }) {
+export async function tryBiometricReuse({ user, claimedHand, landmarks, imageHash, scanId, t0, fireInsightPush, textureSignature, lineSignature }) {
   let embedding = null;
   const handType = claimedHand || null;
   // Matching is ALWAYS on now — no DB flag.
@@ -118,7 +123,14 @@ export async function tryBiometricReuse({ user, claimedHand, landmarks, imageHas
             ({ balance } = await charge({ userId: user.id, costKey: 'palm_cost', reason: 'palm', meta: { matched: true } }));
           }
           const parsed = { ...baseReading, handType };
-          await persistReadingWithEmbedding({ user, parsed, imageHash, embedding });
+          await persistReadingWithEmbedding({ 
+            user, 
+            parsed, 
+            imageHash, 
+            embedding, 
+            textureSignature, 
+            lineSignature 
+          });
           log.info(
             { scanId, path: 'biometric-match-auto', matchedFrom: match.userId, sameUser: match.userId === user.id, sim: Number(match.sim.toFixed(4)), charged: match.userId !== user.id, totalMs: Date.now() - t0 },
             'palm scan: complete (reused — no AI call)',
