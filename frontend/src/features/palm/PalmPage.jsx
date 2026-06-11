@@ -222,8 +222,11 @@ export default function PalmPage() {
       // Persist the photo + mark a scan in progress in CONTEXT up front, so the
       // whole flow (photo-check → AI analysis) survives the user navigating away
       // from /palm and re-shows on return. Cleared below if the gate rejects.
+      // NB: rescan stays TRUE until the analysis SUCCEEDS (runAnalyze flips it).
+      // Clearing it here re-armed the saved-reading auto-restore, so a gate
+      // rejection on the next photo instantly resurfaced the previous scan's
+      // error card instead of the upload screen.
       const dataUrl = await resizeToBase64(file);
-      setRescan(false);
       setPreview(dataUrl);
       setPalmPhoto(dataUrl);
       setPalmAnalyzing(true);

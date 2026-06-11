@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { Op } from 'sequelize';
 import { PalmReading } from '../models/index.js';
 import { callGeminiVision, callGeminiVisionMulti } from '../ai/gemini.js';
 import { PALM_SYSTEM, PALM_GATE_SYSTEM, PALM_BOTH_HANDS_SYSTEM } from '../ai/prompts.js';
@@ -17,12 +18,15 @@ import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'palm' });
 
-// GET the latest saved palm reading.
+// GET the latest saved USABLE palm reading. Unusable results are persisted
+// (history shows them as unreadable) but must never be auto-restored as "the
+// saved reading" — otherwise one failed scan re-surfaces its error card on
+// every later visit until a new reading replaces it.
 export async function getSavedPalm(form) {
   const user = await findUserByForm(form);
   if (!user) return null;
   const palm = await PalmReading.findOne({
-    where: { userId: user.id },
+    where: { userId: user.id, imageQuality: { [Op.ne]: 'unusable' } },
     order: [['createdAt', 'DESC']],
   });
   if (!palm) return null;
