@@ -204,22 +204,21 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
   // truly identical retries via the per-image PalmReading row inside Pro.
   const gateResult = await runGate({ image, claimedHand, skipGate, scanId });
 
-  return dedupe(`palm|${userKey(form)}|${gateResult.imageHash}`, async () => {
-    if (!gateResult.ok) {
-      // Bad photo never reaches Pro → no charge. balance:null leaves the
-      // client's known balance unchanged.
-      await persistGateRejection(form, gateResult.imageHash, gateResult.rejection);
-      log.info({ scanId, path: 'rejected', reject: gateResult.rejection.rejectReason }, 'palm scan: complete (rejected, no charge)');
-      return { content: JSON.stringify(gateResult.rejection), balance: null };
-    }
-    return runProAndPersist({
-      form, claimedHand,
-      base64:    gateResult.base64,
-      mimeType:  gateResult.mimeType,
-      imageHash: gateResult.imageHash,
-      scanId,
-      landmarks,
-    });
+  if (!gateResult.ok) {
+    // Bad photo never reaches Pro → no charge. balance:null leaves the
+    // client's known balance unchanged.
+    await persistGateRejection(form, gateResult.imageHash, gateResult.rejection);
+    log.info({ scanId, path: 'rejected', reject: gateResult.rejection.rejectReason }, 'palm scan: complete (rejected, no charge)');
+    return { content: JSON.stringify(gateResult.rejection), balance: null };
+  }
+
+  return runProAndPersist({
+    form, claimedHand,
+    base64:    gateResult.base64,
+    mimeType:  gateResult.mimeType,
+    imageHash: gateResult.imageHash,
+    scanId,
+    landmarks,
   });
 }
 

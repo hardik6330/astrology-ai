@@ -20,7 +20,8 @@ export const PALM_MODELS         = ['gemini-2.5-pro'];
 // Biometric palm matching is ALWAYS on. Cosine-similarity threshold a NEW
 // landmark embedding must clear to reuse a saved reading. Hardcoded (no DB
 // Setting) so it works everywhere without seeding. Tune here if needed.
-export const PALM_MATCH_THRESHOLD = 0.985;
+// Increased to 0.995 for stricter matching as per user request.
+export const PALM_MATCH_THRESHOLD = 0.995;
 
 // Retry tuning for Gemini calls.
 export const MAX_RETRIES   = 3;
