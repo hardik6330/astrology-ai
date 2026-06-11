@@ -8,6 +8,7 @@ import Card from "@/common/Card";
 import Button from "@/common/Button";
 import PageHeader from "@/common/PageHeader";
 import ErrorText from "@/common/ErrorText";
+import { SkeletonRows } from "@/common/Skeleton";
 import { useAdminPurchases } from "@/admin/api/queries";
 
 const PAGE = 25;
@@ -72,11 +73,7 @@ export default function AdminPurchases() {
           </thead>
           <tbody>
             {isPending ? (
-              <tr>
-                <td className={tdClass} colSpan={8}>
-                  Loading…
-                </td>
-              </tr>
+              <SkeletonRows rows={8} cols={8} />
             ) : data.rows.length === 0 ? (
               <tr>
                 <td className={tdClass} colSpan={8}>

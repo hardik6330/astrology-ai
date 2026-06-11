@@ -18,6 +18,7 @@ import {
 import Card from "@/common/Card";
 import PageHeader from "@/common/PageHeader";
 import ErrorText from "@/common/ErrorText";
+import { SkeletonCards } from "@/common/Skeleton";
 import { useAdminStats } from "@/admin/api/queries";
 
 // priceInr is stored in paise — render as whole rupees, Indian grouping.
@@ -77,7 +78,7 @@ function StatCard({ color, Icon, value, label }) {
 }
 
 export default function AdminDashboard() {
-  const { data: stats, error } = useAdminStats();
+  const { data: stats, isPending, error } = useAdminStats();
   const revenue = stats?.revenue;
 
   return (
@@ -85,30 +86,38 @@ export default function AdminDashboard() {
       <PageHeader title="Dashboard" />
       <ErrorText>{error?.message}</ErrorText>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
-        {CARDS.map((c) => (
-          <StatCard
-            key={c.key}
-            color={c.color}
-            Icon={c.Icon}
-            value={stats ? (stats[c.key] ?? 0) : "—"}
-            label={c.label}
-          />
-        ))}
-      </div>
+      {isPending ? (
+        <SkeletonCards count={CARDS.length} />
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
+          {CARDS.map((c) => (
+            <StatCard
+              key={c.key}
+              color={c.color}
+              Icon={c.Icon}
+              value={stats ? (stats[c.key] ?? 0) : "—"}
+              label={c.label}
+            />
+          ))}
+        </div>
+      )}
 
       <p className="mx-0 mt-7 mb-3 text-[13px] font-semibold tracking-[1px] text-dim uppercase">Revenue</p>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
-        {REVENUE_CARDS.map((c) => (
-          <StatCard
-            key={c.key}
-            color={c.color}
-            Icon={c.Icon}
-            value={revenue ? c.value(revenue) : "—"}
-            label={c.label}
-          />
-        ))}
-      </div>
+      {isPending ? (
+        <SkeletonCards count={REVENUE_CARDS.length} />
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
+          {REVENUE_CARDS.map((c) => (
+            <StatCard
+              key={c.key}
+              color={c.color}
+              Icon={c.Icon}
+              value={revenue ? c.value(revenue) : "—"}
+              label={c.label}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

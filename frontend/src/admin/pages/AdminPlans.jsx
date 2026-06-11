@@ -12,6 +12,7 @@ import Field from "@/common/Field";
 import Button from "@/common/Button";
 import PageHeader from "@/common/PageHeader";
 import ErrorText from "@/common/ErrorText";
+import { Skeleton } from "@/common/Skeleton";
 import { useAdminPlans } from "@/admin/api/queries";
 import { adminCreatePlan, adminUpdatePlan } from "@/admin/api/adminApi";
 
@@ -36,7 +37,16 @@ export default function AdminPlans() {
         <NewPlanForm onSaved={() => qc.invalidateQueries({ queryKey: ["admin", "plans"] })} />
 
         {isPending ? (
-          <p className="text-[13px] text-dim">Loading plans…</p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} style={{ marginBottom: 0 }}>
+                <Skeleton className="mb-3 h-5 w-32" />
+                <Skeleton className="mb-2 h-3.5 w-24" />
+                <Skeleton className="mb-4 h-3.5 w-20" />
+                <Skeleton className="h-9 w-full rounded-[10px]" />
+              </Card>
+            ))}
+          </div>
         ) : plans.length === 0 ? (
           <p className="text-[13px] text-dim">No plans yet — add one above.</p>
         ) : (

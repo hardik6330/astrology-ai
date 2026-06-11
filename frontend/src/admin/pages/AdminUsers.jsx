@@ -10,6 +10,7 @@ import Button from "@/common/Button";
 import Field from "@/common/Field";
 import PageHeader from "@/common/PageHeader";
 import ErrorText from "@/common/ErrorText";
+import { SkeletonRows } from "@/common/Skeleton";
 import { useAdminUsers } from "@/admin/api/queries";
 import { adminPushUser } from "@/admin/api/adminApi";
 
@@ -88,11 +89,7 @@ export default function AdminUsers() {
           </thead>
           <tbody>
             {isPending ? (
-              <tr>
-                <td className={tdClass} colSpan={7}>
-                  Loading…
-                </td>
-              </tr>
+              <SkeletonRows rows={8} cols={7} />
             ) : data.rows.length === 0 ? (
               <tr>
                 <td className={tdClass} colSpan={7}>

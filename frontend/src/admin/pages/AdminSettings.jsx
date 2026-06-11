@@ -10,6 +10,7 @@ import Field from "@/common/Field";
 import Button from "@/common/Button";
 import PageHeader from "@/common/PageHeader";
 import ErrorText from "@/common/ErrorText";
+import { Skeleton } from "@/common/Skeleton";
 import { useAdminSettings } from "@/admin/api/queries";
 import { adminSaveSettings } from "@/admin/api/adminApi";
 
@@ -195,9 +196,21 @@ export default function AdminSettings() {
       <ErrorText>{error?.message}</ErrorText>
 
       {isPending ? (
-        <Card className="flex items-center justify-center py-20">
-          <p className="text-muted">Loading settings...</p>
-        </Card>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, col) => (
+            <Card key={col} className="h-fit">
+              <Skeleton className="mb-5 h-5 w-44" />
+              <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+                {Array.from({ length: 6 }).map((_, f) => (
+                  <div key={f}>
+                    <Skeleton className="mb-2 h-3 w-24" />
+                    <Skeleton className="h-9 w-full rounded-[10px]" />
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </div>
       ) : (
         <form onSubmit={save} className="space-y-6">
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
