@@ -24,7 +24,7 @@ const log = __DEV__ ? console.log.bind(console) : () => {};
 const MIN_PALM_COVERAGE = 0.22; // palm bbox area ÷ frame; below → too_far
 const GATE_RESIZE_W = 512; // pre-resize width; landmark coords are in this pixel space
 const MIN_FINGER_SPREAD = 0.12; // min normalized distance between finger tips
-const MAX_ORIENTATION_DEVIATION = 35; // max degrees away from vertical (up)
+const MAX_ORIENTATION_DEVIATION = 55; // max degrees away from vertical (up)
 
 const TIPS = {
   not_a_palm: "Please upload a clear photo of your open hand, palm facing the camera.",
@@ -97,7 +97,9 @@ function checkFlatness(landmarks) {
   const w = Math.sqrt((p5.x - p17.x) ** 2 + (p5.y - p17.y) ** 2);
   const h = Math.sqrt((p0.x - p9.x) ** 2 + (p0.y - p9.y) ** 2);
   const ratio = w / h;
-  return ratio > 0.6 && ratio < 1.4;
+  // Widened from 0.6–1.4 to tolerate a hand held at an angle / slightly
+  // foreshortened (was producing false "tilted_hand" rejects).
+  return ratio > 0.45 && ratio < 1.8;
 }
 
 // Gate a single palm photo. Returns:

@@ -27,7 +27,7 @@ const MIN_PALM_COVERAGE = 0.22; // palm bbox area ÷ frame; below → too_far
 const MIN_PALM_EDGE_SCORE = 90; // below → lines_faint
 const MAX_PALM_LIGHTING_VAR = 2800; // above → uneven_light
 const MIN_FINGER_SPREAD = 0.12; // min normalized distance between finger tips
-const MAX_ORIENTATION_DEVIATION = 35; // max degrees away from vertical (up)
+const MAX_ORIENTATION_DEVIATION = 55; // max degrees away from vertical (up)
 const PALM_NORM_W = 200; // palm crop width for the in-region metrics
 // (resolution-independent: web 256 ≈ mobile 512).
 
@@ -267,8 +267,9 @@ function checkFlatness(landmarks) {
   const h = Math.sqrt((p0.x - p9.x) ** 2 + (p0.y - p9.y) ** 2);
 
   const ratio = w / h;
-  // Normal palm ratio is roughly 0.8 to 1.2
-  return ratio > 0.6 && ratio < 1.4;
+  // Normal palm ratio is roughly 0.8 to 1.2; widened to tolerate a hand held
+  // at an angle / slightly foreshortened (false "tilted_hand" rejects).
+  return ratio > 0.45 && ratio < 1.8;
 }
 
 function retakeFor(reason) {
