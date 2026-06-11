@@ -50,6 +50,7 @@ export async function callGemini(systemPrompt, userPrompt, jsonMode = false, mod
       try {
         const startTime = Date.now();
         const generationConfig = {
+          temperature: 1.0,
           ...(jsonMode && { responseMimeType: 'application/json' }),
           ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
         };
@@ -90,6 +91,7 @@ export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, js
       try {
         const startTime = Date.now();
         const generationConfig = {
+          temperature: 1.0,
           ...(jsonMode && { responseMimeType: 'application/json' }),
           ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
         };
@@ -133,6 +135,7 @@ export async function callGeminiVision(systemPrompt, userPrompt, imageBase64, mi
       try {
         const startTime = Date.now();
         const generationConfig = {
+          temperature: 1.0,
           ...(jsonMode && { responseMimeType: 'application/json' }),
           ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
         };

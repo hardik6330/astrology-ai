@@ -138,7 +138,7 @@ export function usePalmReading() {
     setScanning(true);
     setHydrating(false);
     let i = 0;
-    setScanMsg(SCAN_MSGS[0]);
+    setScanMsg("Analyzing with Gemini Pro...");
     const iv = setInterval(() => { i++; setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]); }, 1800);
     return () => clearInterval(iv);
   }, [palmAnalyzing]);
@@ -278,7 +278,7 @@ export function usePalmReading() {
     setPalmPhoto(img.uri);
     setScanning(true);
     let i = 0;
-    setScanMsg(SCAN_MSGS[0]);
+    setScanMsg("Analyzing with Gemini Pro...");
     const iv = setInterval(() => { i++; setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]); }, 1800);
     try {
       const result = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand, skipGate, landmarks);
@@ -296,7 +296,12 @@ export function usePalmReading() {
         // buttons again instead of an empty scan frame.
         setPreview(null);
         setPalmPhoto(null);
-      } else setError(err.message);
+      } else {
+        setError(err.message);
+        // Clear preview on any other error so the UI resets to hand-pick buttons
+        setPreview(null);
+        setPalmPhoto(null);
+      }
       haptics.warning();
     } finally {
       clearInterval(iv);
