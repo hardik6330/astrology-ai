@@ -46,8 +46,13 @@ CreditTransaction.belongsTo(User, { foreignKey: 'userId' });
 User.hasMany(Purchase, { foreignKey: 'userId', onDelete: 'CASCADE' });
 Purchase.belongsTo(User, { foreignKey: 'userId' });
 
+// Plans soft-delete via `active`, so historical purchases keep a resolvable
+// planId — this join powers the admin order list's "Plan" column.
+CreditPlan.hasMany(Purchase, { foreignKey: 'planId' });
+Purchase.belongsTo(CreditPlan, { foreignKey: 'planId' });
+
 // Admin has no association — it's a standalone back-office login.
-// Setting + NotificationTemplate + CreditPlan are standalone — no associations.
+// Setting + NotificationTemplate are standalone — no associations.
 
 export {
   User, AuthAccount, Kundali, DailyData, ChatMessage, PalmReading, PalmEmbedding,

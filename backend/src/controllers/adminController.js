@@ -22,10 +22,10 @@ export const users = asyncHandler(async (req, res) => {
   res.json(await adminSvc.listUsers({ limit, offset, search }));
 });
 
-// Paying users — one aggregated row per user with ≥1 paid purchase.
-export const buyers = asyncHandler(async (req, res) => {
+// Order history — one row per Purchase, buyer + plan joined in.
+export const orders = asyncHandler(async (req, res) => {
   const { limit, offset, search } = req.query;
-  res.json(await adminSvc.listBuyers({ limit, offset, search }));
+  res.json(await adminSvc.listOrders({ limit, offset, search }));
 });
 
 export const broadcast = asyncHandler(async (req, res) => {

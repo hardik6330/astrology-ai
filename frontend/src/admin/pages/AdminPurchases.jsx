@@ -1,7 +1,6 @@
-// Paying users — one aggregated row per user with at least one PAID purchase
-// (order count, total spent, credits bought, last purchase), from
-// /admin/purchases with a name/phone search. Renders inside AdminLayout's
-// <Outlet>.
+// Purchases — one row per order (buyer, plan, ₹ amount, status, provider,
+// date), newest first, from /admin/purchases with a name/phone search.
+// Renders inside AdminLayout's <Outlet>.
 
 import { useState } from "react";
 import { LuSearch, LuChevronLeft, LuChevronRight } from "react-icons/lu";
@@ -13,8 +12,15 @@ import { useAdminPurchases } from "@/admin/api/queries";
 
 const PAGE = 25;
 
-// priceInr aggregates are in paise — show whole rupees, Indian grouping.
-const inr = (paise) => `₹${Math.round((paise || 0) / 100).toLocaleString("en-IN")}`;
+// pricePaise is in paise — show rupees, Indian grouping (₹199, ₹1,999).
+const inr = (paise) => `₹${((paise || 0) / 100).toLocaleString("en-IN")}`;
+
+// Status chip colors: settled green, in-flight amber, failed red.
+const STATUS_STYLE = {
+  paid: { color: "#4ade80", background: "rgba(74,222,128,0.12)" },
+  created: { color: "#fbbf24", background: "rgba(251,191,36,0.12)" },
+  failed: { color: "#f87171", background: "rgba(248,113,113,0.12)" },
+};
 
 export default function AdminPurchases() {
   const [search, setSearch] = useState("");
@@ -54,7 +60,7 @@ export default function AdminPurchases() {
         <table className="w-full border-collapse text-[13.5px]">
           <thead>
             <tr>
-              {["Name", "Phone", "Orders", "Credits Bought", "Total Spent", "Last Purchase"].map((h) => (
+              {["Name", "Phone", "Plan", "Credits", "Amount", "Status", "Provider", "Date"].map((h) => (
                 <th
                   key={h}
                   className="border-b border-(--c-border-soft) px-4 py-3 text-left font-semibold whitespace-nowrap text-dim"
@@ -67,25 +73,36 @@ export default function AdminPurchases() {
           <tbody>
             {isPending ? (
               <tr>
-                <td className={tdClass} colSpan={6}>
+                <td className={tdClass} colSpan={8}>
                   Loading…
                 </td>
               </tr>
             ) : data.rows.length === 0 ? (
               <tr>
-                <td className={tdClass} colSpan={6}>
-                  No paid purchases yet.
+                <td className={tdClass} colSpan={8}>
+                  No purchases yet.
                 </td>
               </tr>
             ) : (
-              data.rows.map((b) => (
-                <tr key={b.userId}>
-                  <td className={tdClass}>{b.name}</td>
-                  <td className={tdClass}>{b.phone || "—"}</td>
-                  <td className={tdClass}>{b.orders}</td>
-                  <td className={tdClass}>{b.creditsBought}</td>
-                  <td className={`${tdClass} font-semibold text-[#4ade80]`}>{inr(b.spentPaise)}</td>
-                  <td className={tdClass}>{b.lastPaidAt ? new Date(b.lastPaidAt).toLocaleString() : "—"}</td>
+              data.rows.map((o) => (
+                <tr key={o.id}>
+                  <td className={tdClass}>{o.name}</td>
+                  <td className={tdClass}>{o.phone || "—"}</td>
+                  <td className={tdClass}>{o.plan}</td>
+                  <td className={tdClass}>{o.credits}</td>
+                  <td className={`${tdClass} font-semibold text-[#4ade80]`}>{inr(o.pricePaise)}</td>
+                  <td className={tdClass}>
+                    <span
+                      className="rounded-full px-2.5 py-1 text-[11px] font-bold tracking-[0.5px] uppercase"
+                      // Status accent is data-driven → inline (Tailwind can't
+                      // generate a class from a runtime value).
+                      style={STATUS_STYLE[o.status] || STATUS_STYLE.created}
+                    >
+                      {o.status}
+                    </span>
+                  </td>
+                  <td className={tdClass}>{o.provider}</td>
+                  <td className={tdClass}>{o.createdAt ? new Date(o.createdAt).toLocaleString() : "—"}</td>
                 </tr>
               ))
             )}

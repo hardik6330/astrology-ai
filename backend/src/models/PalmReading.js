@@ -15,6 +15,10 @@ const PalmReading = sequelize.define('PalmReading', {
   imageQuality: { type: DataTypes.STRING, allowNull: true },   // 'clear' | 'blurry' | 'unusable'
   imageHash:    { type: DataTypes.STRING(64), allowNull: true },
   reading:      { type: DataTypes.JSON, allowNull: false },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  // Per-scan dedupe filters { userId, imageHash } before any AI spend.
+  indexes: [{ name: 'palm_readings_user_image_hash', fields: ['userId', 'imageHash'] }],
+});
 
 export default PalmReading;

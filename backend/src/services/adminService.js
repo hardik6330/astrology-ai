@@ -1,9 +1,9 @@
 // Back-office admin auth. Admins log in with username + password (seeded from
 // env on boot — see adminSeed.js), and receive a role-tagged session JWT.
 
-import { Op, fn, col } from 'sequelize';
+import { Op } from 'sequelize';
 import {
-  Admin, User, Kundali, PalmReading, ChatMessage, PushToken, Purchase,
+  Admin, User, Kundali, PalmReading, ChatMessage, PushToken, Purchase, CreditPlan,
 } from '../models/index.js';
 import { verifyPassword } from '../utils/password.js';
 import { signAdminToken } from '../middleware/auth.js';
@@ -83,54 +83,44 @@ export async function listUsers({ limit = 25, offset = 0, search = '' } = {}) {
   return { rows, count };
 }
 
-// Paying users ("buyers"): one row per user with at least one PAID purchase,
-// aggregated (order count, total spent, credits bought, last purchase), newest
-// buyer activity first. Optional name/phone search; paginated like listUsers.
-export async function listBuyers({ limit = 25, offset = 0, search = '' } = {}) {
+// Order list: one row per Purchase (all statuses — paid, created, failed —
+// each row carries its status), newest first, with the buyer + plan joined in.
+// Optional name/phone search; paginated like listUsers.
+export async function listOrders({ limit = 25, offset = 0, search = '' } = {}) {
   // NB: Op.or is a Symbol key — Object.keys() can't see it, so gate on
   // `search` itself, not on the object's (always-empty) string keys.
   const like = { [Op.like]: `%${search}%` };
-  const include = [{
-    model: User,
-    attributes: ['name', 'phone'],
-    where: search ? { [Op.or]: [{ name: like }, { phone: like }] } : undefined,
-    required: true,
-  }];
-
-  const [rows, count] = await Promise.all([
-    Purchase.findAll({
-      where: { status: 'paid' },
-      attributes: [
-        'userId',
-        [fn('COUNT', col('Purchase.id')), 'orders'],
-        [fn('SUM', col('Purchase.priceInr')), 'spentPaise'],
-        [fn('SUM', col('Purchase.credits')), 'creditsBought'],
-        [fn('MAX', col('Purchase.updatedAt')), 'lastPaidAt'],
-      ],
-      include,
-      // Grouping by the joined PK keeps ONLY_FULL_GROUP_BY (MySQL default on
-      // Railway) happy — User.name/phone are functionally dependent on it.
-      group: ['Purchase.userId', 'User.id'],
-      order: [[fn('MAX', col('Purchase.updatedAt')), 'DESC']],
-      limit: Math.min(Number(limit) || 25, 100),
-      offset: Number(offset) || 0,
-      subQuery: false,
-      raw: true,
-      nest: true,
-    }),
-    Purchase.count({ where: { status: 'paid' }, include, distinct: true, col: 'userId' }),
-  ]);
+  const { rows, count } = await Purchase.findAndCountAll({
+    attributes: ['id', 'credits', 'priceInr', 'status', 'provider', 'createdAt', 'updatedAt'],
+    include: [
+      {
+        model: User,
+        attributes: ['id', 'name', 'phone'],
+        where: search ? { [Op.or]: [{ name: like }, { phone: like }] } : undefined,
+        required: true,
+      },
+      // Plan may be soft-disabled but never hard-deleted, so the name resolves
+      // for historical orders too. LEFT JOIN just in case.
+      { model: CreditPlan, attributes: ['name'], required: false },
+    ],
+    order: [['createdAt', 'DESC']],
+    limit: Math.min(Number(limit) || 25, 100),
+    offset: Number(offset) || 0,
+  });
 
   return {
     count,
-    rows: rows.map((r) => ({
-      userId: r.userId,
-      name: r.User?.name || '—',
-      phone: r.User?.phone || null,
-      orders: Number(r.orders) || 0,
-      spentPaise: Number(r.spentPaise) || 0,
-      creditsBought: Number(r.creditsBought) || 0,
-      lastPaidAt: r.lastPaidAt,
+    rows: rows.map((p) => ({
+      id: p.id,
+      userId: p.User?.id,
+      name: p.User?.name || '—',
+      phone: p.User?.phone || null,
+      plan: p.CreditPlan?.name || '—',
+      credits: p.credits,
+      pricePaise: p.priceInr,
+      status: p.status,
+      provider: p.provider,
+      createdAt: p.createdAt,
     })),
   };
 }

@@ -11,6 +11,10 @@ const DailyData = sequelize.define('DailyData', {
   userId:   { type: DataTypes.STRING(24), allowNull: false },
   date:     { type: DataTypes.DATEONLY, allowNull: false },
   guidance: { type: DataTypes.JSON, allowNull: false },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  // Every daily fetch/save filters { userId, date } — serve it from one index.
+  indexes: [{ name: 'daily_data_user_date', fields: ['userId', 'date'] }],
+});
 
 export default DailyData;

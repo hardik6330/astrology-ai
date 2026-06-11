@@ -32,6 +32,14 @@ const Purchase = sequelize.define('Purchase', {
   // UNIQUE so a replayed verify (double-submit, retry) can never grant twice —
   // the second settle collides instead of creating a duplicate paid order.
   providerTxnId: { type: DataTypes.STRING(255), allowNull: true, unique: true },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  // Admin order list sorts newest-first; revenue sums filter status='paid'
+  // (and this-month on updatedAt — the settlement instant).
+  indexes: [
+    { name: 'purchases_created_at', fields: ['createdAt'] },
+    { name: 'purchases_status_updated_at', fields: ['status', 'updatedAt'] },
+  ],
+});
 
 export default Purchase;

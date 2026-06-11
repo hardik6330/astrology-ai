@@ -17,6 +17,16 @@ const User = sequelize.define('User', {
   // Spendable Cosmic Credits balance. New profiles are granted the
   // initial_credits bonus on creation (see userService.findOrCreateUser).
   credits:   { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  // findUserByForm (every content request) filters on name+birth fields, and
+  // sibling lookups do the same — (name, birthDate) keeps those off full scans.
+  // Phone EQUALITY (form-scoped lookups) uses the phone index; the suffix
+  // LIKE '%digits' login path can't use any B-tree index by nature.
+  indexes: [
+    { name: 'users_name_birth_date', fields: ['name', 'birthDate'] },
+    { name: 'users_phone', fields: ['phone'] },
+  ],
+});
 
 export default User;

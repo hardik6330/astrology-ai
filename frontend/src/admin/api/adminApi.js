@@ -35,8 +35,9 @@ export function adminUsers({ limit = 25, offset = 0, search = "" } = {}) {
   return adminFetch(`/admin/users?${qs}`);
 }
 
-// GET /admin/purchases → { rows, count }. One aggregated row per paying user
-// (orders, spentPaise, creditsBought, lastPaidAt). Supports paging + search.
+// GET /admin/purchases → { rows, count }. One row per order (name, phone,
+// plan, credits, pricePaise, status, provider, createdAt), newest first.
+// Supports paging + name/phone search.
 export function adminPurchases({ limit = 25, offset = 0, search = "" } = {}) {
   const qs = new URLSearchParams({ limit, offset });
   if (search) qs.set("search", search);
