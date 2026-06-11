@@ -12,12 +12,14 @@ import {
   LuLogOut,
   LuShield,
   LuCreditCard,
+  LuIndianRupee,
 } from "react-icons/lu";
 import { useAdminAuth } from "@/admin/context/AdminAuthContext";
 
 const NAV = [
   { to: "/admin", label: "Dashboard", Icon: LuLayoutDashboard, end: true },
   { to: "/admin/users", label: "Users", Icon: LuUsers },
+  { to: "/admin/purchases", label: "Purchases", Icon: LuIndianRupee },
   { to: "/admin/push", label: "Push Notification", Icon: LuBell },
   { to: "/admin/plans", label: "Credit Plans", Icon: LuCreditCard },
   { to: "/admin/settings", label: "System Settings", Icon: LuSettings },

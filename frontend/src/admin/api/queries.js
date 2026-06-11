@@ -3,7 +3,7 @@
 // it tripped) with cached, deduped queries keyed under ["admin", …].
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { adminStats, adminUsers, adminMe, adminGetSettings, adminGetPlans } from "./adminApi";
+import { adminStats, adminUsers, adminPurchases, adminMe, adminGetSettings, adminGetPlans } from "./adminApi";
 
 export function useAdminStats() {
   return useQuery({ queryKey: ["admin", "stats"], queryFn: adminStats });
@@ -14,6 +14,14 @@ export function useAdminUsers({ page, search, pageSize }) {
     queryKey: ["admin", "users", { page, search, pageSize }],
     queryFn: () => adminUsers({ limit: pageSize, offset: page * pageSize, search }),
     // Keep the previous page on screen while the next page/search loads.
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAdminPurchases({ page, search, pageSize }) {
+  return useQuery({
+    queryKey: ["admin", "purchases", { page, search, pageSize }],
+    queryFn: () => adminPurchases({ limit: pageSize, offset: page * pageSize, search }),
     placeholderData: keepPreviousData,
   });
 }

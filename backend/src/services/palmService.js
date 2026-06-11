@@ -1,17 +1,17 @@
 import crypto from 'node:crypto';
-import { PalmReading, PalmEmbedding } from '../models/index.js';
+import { PalmReading } from '../models/index.js';
 import { callGeminiVision, callGeminiVisionMulti } from '../ai/gemini.js';
 import { PALM_SYSTEM, PALM_GATE_SYSTEM, PALM_BOTH_HANDS_SYSTEM } from '../ai/prompts.js';
 import { dedupe } from '../ai/dedupe.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
 import { charge, grant, getBalance } from './creditService.js';
 import { notifyInsightReady } from './pushService.js';
+import { tryBiometricReuse, persistReadingWithEmbedding } from './palmMatchService.js';
 import { validateImage } from '../utils/imageValidator.js';
-import { landmarkEmbedding, cosineSim } from '../utils/palmEmbedding.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
 import { userKey } from '../utils/userKey.js';
-import { PALM_MODELS, PALM_GATE_MODELS, THINK_BUDGET, PALM_MATCH_THRESHOLD } from '../config/constants.js';
+import { PALM_MODELS, PALM_GATE_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
 
@@ -109,61 +109,6 @@ async function runGate({ image, claimedHand, skipGate = false, scanId }) {
   return { ok: true, base64, mimeType, imageHash };
 }
 
-// 1:N biometric search — find the most-similar saved palm of the SAME hand
-// type, across ALL users, whose similarity clears the threshold. Loads every
-// embedding for that hand into memory (fine at our scale; swap for a vector
-// index if PalmEmbedding ever grows large). Returns { userId, palmReadingId,
-// sim } or null. EXPERIMENTAL — see utils/palmEmbedding.js for the caveats.
-async function findBiometricMatch({ handType, embedding, threshold, scanId }) {
-  const t = Date.now();
-  // The reading is denormalized onto the embedding row, so the match is
-  // self-contained — no JOIN, and it survives the source PalmReading being
-  // deleted. We carry the matched row's `reading` straight through.
-  const rows = await PalmEmbedding.findAll({
-    where: { handType },
-    attributes: ['userId', 'palmReadingId', 'embedding', 'reading'],
-  });
-  let best = null;
-  for (const r of rows) {
-    if (!r.reading) continue; // legacy rows without denormalized reading — skip
-    const sim = cosineSim(embedding, r.embedding);
-    if (!best || sim > best.sim) {
-      best = { userId: r.userId, palmReadingId: r.palmReadingId, sim, reading: r.reading };
-    }
-  }
-  // Always log the top score so the threshold can be tuned against real photos.
-  // `matched` shows whether this scan would reuse a saved reading.
-  log.info(
-    { scanId, stage: 'match', handType, candidates: rows.length, topSim: best ? Number(best.sim.toFixed(4)) : null, threshold, matched: !!best && best.sim >= threshold, ms: Date.now() - t },
-    'palm scan: biometric search',
-  );
-  return best && best.sim >= threshold ? best : null;
-}
-
-// Persist a reading row for this user and (for clear readings) its embedding,
-// so future photos of the same hand can match it. Best-effort — logs, doesn't throw.
-async function persistReadingWithEmbedding({ user, parsed, imageHash, embedding }) {
-  try {
-    const row = await PalmReading.create({
-      userId: user.id,
-      handType: parsed.handType,
-      imageQuality: parsed.imageQuality,
-      imageHash,
-      reading: parsed,
-    });
-    if (embedding && parsed.imageQuality === 'clear') {
-      await PalmEmbedding.create({
-        userId: user.id, palmReadingId: row.id, handType: parsed.handType, embedding,
-        reading: parsed, // denormalized so the match survives the reading being deleted
-      }).catch((e) => log.warn({ err: e.message }, 'Palm embedding save failed'));
-    }
-    return row.id;
-  } catch (saveError) {
-    log.error({ err: saveError }, 'Palm save failed');
-    return null;
-  }
-}
-
 // Run Pro + persistence. Assumes the gate has already passed.
 async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash, scanId, landmarks }) {
   const t0 = Date.now();
@@ -188,54 +133,13 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
     return { content: asContent(dup.reading), balance: await getBalance(user.id) };
   }
 
-  // EXPERIMENTAL biometric match: a NEW photo of a hand we've already read
-  // (this user OR another user/device) reuses that reading instead of calling
-  // Gemini. Uses LANDMARK GEOMETRY (the 21 MediaPipe points the client sends) —
-  // pose/scale-invariant, so different photos of the same hand can match.
-  // Requires landmarks + a known hand. Failure here is non-fatal — fall through
-  // to a normal fresh analysis.
-  let embedding = null;
-  const handType = claimedHand || null;
-  // Matching is ALWAYS on now — no DB flag. Only requirement is a known hand
-  // and the client-sent landmarks (needed to compute the geometry embedding).
-  if (handType && Array.isArray(landmarks)) {
-    try {
-      const tEmb = Date.now();
-      embedding = landmarkEmbedding(landmarks);
-      if (!embedding) throw new Error('landmark embedding unavailable');
-      log.info({ scanId, stage: 'embedding', dim: embedding.length, ms: Date.now() - tEmb }, 'palm scan: landmark embedding computed');
-      const threshold = PALM_MATCH_THRESHOLD;
-      const match = await findBiometricMatch({ handType, embedding, threshold, scanId });
-      if (match) {
-        // match.reading is denormalized on the embedding row. It can come back
-        // from MySQL JSON as a string — parse before spreading, else
-        // { ...string } explodes into char-indexed keys (blank card).
-        const baseReading = typeof match.reading === 'string'
-          ? JSON.parse(match.reading) : match.reading;
-        if (baseReading && baseReading.imageQuality === 'clear') {
-          // Same user re-scanning their own hand → free re-view. A DIFFERENT
-          // user (new number/device) → charge like a fresh reading (matches the
-          // kundali sibling-copy policy; just skips the Gemini call). 402 if short.
-          let balance;
-          if (match.userId === user.id) {
-            balance = await getBalance(user.id);
-          } else {
-            ({ balance } = await charge({ userId: user.id, costKey: 'palm_cost', reason: 'palm', meta: { matched: true } }));
-          }
-          const parsed = { ...baseReading, handType };
-          await persistReadingWithEmbedding({ user, parsed, imageHash, embedding });
-          log.info(
-            { scanId, path: 'biometric-match', matchedFrom: match.userId, sameUser: match.userId === user.id, sim: Number(match.sim.toFixed(4)), charged: match.userId !== user.id, totalMs: Date.now() - t0 },
-            'palm scan: complete (reused — no AI call)',
-          );
-          fireInsightPush();
-          return { content: asContent(parsed), balance };
-        }
-      }
-    } catch (e) {
-      log.warn({ err: e.message }, 'Palm embedding/match failed — fresh analysis');
-    }
-  }
+  // EXPERIMENTAL biometric match (palmMatchService): a NEW photo of a hand
+  // we've already read reuses that reading instead of calling Gemini. The
+  // embedding comes back either way so the fresh path below can persist it.
+  const { result: reused, embedding } = await tryBiometricReuse({
+    user, claimedHand, landmarks, imageHash, scanId, t0, fireInsightPush,
+  });
+  if (reused) return reused;
 
   // Fresh analysis → charge once (dups/matches above are free or already
   // charged). Throws 402 INSUFFICIENT_CREDITS if the balance is short.

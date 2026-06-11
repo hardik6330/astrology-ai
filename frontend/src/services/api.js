@@ -15,12 +15,6 @@ export const API_BASE = API_URL;
 const appToken = tokenStore("app_token");
 const appAccount = tokenStore("app_account");
 
-// Startup config (force-update gate). → { latestVersion, forceUpdate, updateUrl }
-// Auth mode is decided client-side via VITE_OTP_SERVICE, not here.
-export function getAuthConfig() {
-  return request("/auth/config");
-}
-
 // Real OTP login — POSTs the Firebase ID token (from webOtp.confirmOtp) to
 // /auth/verify-otp. Backend verifies it, upserts the AuthAccount, and returns
 // our JWT + any saved birth details. → { token, account: { id, phone }, savedForm? }
@@ -73,7 +67,7 @@ function formParams(form) {
 
 // Every authenticated request goes through here so the Bearer token is
 // attached centrally. `request()` in apiClient handles the 401 -> /login redirect.
-export async function authFetch(url, init = {}) {
+async function authFetch(url, init = {}) {
   const token = appToken.get();
   const headers = new Headers(init.headers || {});
   if (token) headers.set("Authorization", `Bearer ${token}`);

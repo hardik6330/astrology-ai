@@ -144,11 +144,15 @@ export async function verifyRazorpayPayment({
       return { granted: 0, balance: await getBalance(userId), credits: locked.credits, status: 'paid' };
     }
 
+    // Grant INSIDE the settlement txn: the credits and the paid/providerTxnId
+    // flip commit (or roll back) together, so a crash mid-settle can never
+    // leave granted credits on an unsettled order for a replay to re-grant.
     const { granted, balance } = await grant({
       userId,
       amount: locked.credits,
       reason: 'purchase',
       meta: { orderId: locked.id, planId: locked.planId, priceInr: locked.priceInr, razorpayPaymentId },
+      transaction: t,
     });
     await locked.update(
       {
@@ -206,6 +210,7 @@ export async function verifyIapPayment({
       amount: plan.credits,
       reason: 'purchase',
       meta: { planId: plan.id, platform, transactionId },
+      transaction: t, // atomic with the Purchase row below — see verifyRazorpayPayment
     });
 
     await Purchase.create(
@@ -331,6 +336,7 @@ export async function confirmOrder({ userId, orderId, mockSuccess = true }) {
       amount: locked.credits,
       reason: 'purchase',
       meta: { orderId: locked.id, planId: locked.planId, priceInr: locked.priceInr },
+      transaction: t, // atomic with the status flip — see verifyRazorpayPayment
     });
     await locked.update({ status: 'paid' }, { transaction: t });
     log.info({ userId, orderId, granted, balance }, 'purchase settled (mock)');

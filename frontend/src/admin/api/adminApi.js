@@ -35,6 +35,14 @@ export function adminUsers({ limit = 25, offset = 0, search = "" } = {}) {
   return adminFetch(`/admin/users?${qs}`);
 }
 
+// GET /admin/purchases → { rows, count }. One aggregated row per paying user
+// (orders, spentPaise, creditsBought, lastPaidAt). Supports paging + search.
+export function adminPurchases({ limit = 25, offset = 0, search = "" } = {}) {
+  const qs = new URLSearchParams({ limit, offset });
+  if (search) qs.set("search", search);
+  return adminFetch(`/admin/purchases?${qs}`);
+}
+
 // POST /admin/push/broadcast → FCM fan-out summary.
 export function adminBroadcast(title, body) {
   return adminFetch("/admin/push/broadcast", { method: "POST", body: { title, body } });

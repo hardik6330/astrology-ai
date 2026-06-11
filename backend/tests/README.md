@@ -1,9 +1,13 @@
 # Backend tests
 
 Runner: **Vitest** (`npm test`, or `npm run test:watch`). `setup.js` injects the
-minimum env (`GEMINI_API_KEY`, `JWT_SECRET`) the app validates at import time.
+minimum env (`GEMINI_API_KEY`, `JWT_SECRET`) the app validates at import time,
+and blanks the Razorpay/IAP keys so a developer's `.env` can't flip the suite
+onto a real payment gateway.
 
-## What's covered (no database required)
+## What's covered
+
+No database:
 
 - `health.test.js` — app is importable + routable without a port (proves the
   `app.js` / `server.js` split).
@@ -12,19 +16,23 @@ minimum env (`GEMINI_API_KEY`, `JWT_SECRET`) the app validates at import time.
 - `errors.test.js` — the single error type (`AppError`) + the global
   `errorHandler` envelope and status mapping.
 
-## Still owed — money-path integration tests (need a test DB)
+Against a throwaway SQLite database (no MySQL server needed — `dbConfig.js`
+switches to a file-backed SQLite DB in `os.tmpdir()` when `NODE_ENV=test`; WAL
+mode lets the services' caller-owned + standalone transactions coexist):
 
-These touch Sequelize and need a real/compatible MySQL, so they aren't wired up
-yet. Add them once a disposable test DB is available (a `mysql` service in CI, or
-point `DB_*` at a throwaway schema and run migrations first):
+- `money.test.js` — the invariants from CLAUDE.md's "things that have bitten":
+  - `creditService.charge()` atomic guarded decrement — concurrent charges
+    can't overspend, 402 `INSUFFICIENT_CREDITS` leaves no ledger row, every
+    spend/grant appends exactly one ledger row with the running balance.
+  - `purchaseService` settlement idempotency — a replayed `confirmOrder` /
+    `verifyIapPayment` (same `providerTxnId`) grants once; order snapshots
+    survive later plan edits; the IAP mock fallback is exercised explicitly.
+  - `engageService` — the atomic claim of `notif_next_at`: of two overlapping
+    cron ticks exactly one sends; not-due and kill-switch short-circuits.
 
-- **`creditService`** — `charge()` atomic guarded decrement rejects overspend
-  with 402 `INSUFFICIENT_CREDITS`; `grant()`/`charge()` write exactly one ledger
-  row in the same transaction; concurrent charges don't double-spend.
-- **`purchaseService`** — Razorpay HMAC verify accepts a correctly-signed payload
-  and rejects a tampered one; settlement is idempotent (a replayed verify with
-  the same `providerTxnId` grants once); IAP verify is idempotent per
-  transaction id.
+## Known SQLite limits
 
-Recommended approach: a `beforeAll` that connects + `sequelize.sync({ force })`
-against the test schema, seeds a user, and a `afterAll` that drops it.
+`SELECT ... FOR UPDATE` is a no-op on SQLite, so the *truly concurrent*
+double-confirm race in `purchaseService` (guarded by the row lock + in-txn
+paid re-check) can only be exercised against MySQL. The sequential replay
+tests cover the idempotency contract itself.

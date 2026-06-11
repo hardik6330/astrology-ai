@@ -20,17 +20,21 @@ import { AppError } from '../errors/AppError.js';
 //
 // Returns { charged, balance }. A zero/disabled price is a no-op.
 // Throws 402 INSUFFICIENT_CREDITS when the balance can't cover the cost.
-export async function charge({ userId, costKey, reason, meta = null }) {
+//
+// Pass `transaction` to make the deduction part of a caller-owned transaction
+// (so it commits/rolls back WITH the caller's writes); omitted, it runs in its
+// own transaction as before.
+export async function charge({ userId, costKey, reason, meta = null, transaction = null }) {
   const cost = Math.max(0, Math.round(await settings.getNumber(costKey, 0)));
 
   // Free / disabled feature — nothing to deduct, no ledger noise.
   if (cost === 0) {
-    const u = await User.findByPk(userId, { attributes: ['credits'] });
+    const u = await User.findByPk(userId, { attributes: ['credits'], transaction });
     if (!u) throw AppError.http(404, 'User not found', 'NOT_FOUND');
     return { charged: 0, balance: u.credits };
   }
 
-  return sequelize.transaction(async (t) => {
+  const run = async (t) => {
     // Atomic guarded decrement. affectedCount is 0 if the user is missing OR
     // the balance is below `cost` — the WHERE clause enforces both.
     const [affected] = await User.update(
@@ -50,20 +54,22 @@ export async function charge({ userId, costKey, reason, meta = null }) {
       { transaction: t },
     );
     return { charged: cost, balance: user.credits };
-  });
+  };
+  return transaction ? run(transaction) : sequelize.transaction(run);
 }
 
 // Add credits (signup bonus, admin grant, future top-ups). Same atomic
-// pattern + ledger row. Returns { granted, balance }.
-export async function grant({ userId, amount, reason, meta = null }) {
+// pattern + ledger row + optional caller-owned `transaction` as charge().
+// Returns { granted, balance }.
+export async function grant({ userId, amount, reason, meta = null, transaction = null }) {
   const amt = Math.max(0, Math.round(Number(amount) || 0));
   if (amt === 0) {
-    const u = await User.findByPk(userId, { attributes: ['credits'] });
+    const u = await User.findByPk(userId, { attributes: ['credits'], transaction });
     if (!u) throw AppError.http(404, 'User not found', 'NOT_FOUND');
     return { granted: 0, balance: u.credits };
   }
 
-  return sequelize.transaction(async (t) => {
+  const run = async (t) => {
     const [affected] = await User.update(
       { credits: literal(`credits + ${amt}`) },
       { where: { id: userId }, transaction: t },
@@ -76,7 +82,8 @@ export async function grant({ userId, amount, reason, meta = null }) {
       { transaction: t },
     );
     return { granted: amt, balance: user.credits };
-  });
+  };
+  return transaction ? run(transaction) : sequelize.transaction(run);
 }
 
 // Current balance for a user (null if the user doesn't exist).

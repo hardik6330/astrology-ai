@@ -22,6 +22,12 @@ export const users = asyncHandler(async (req, res) => {
   res.json(await adminSvc.listUsers({ limit, offset, search }));
 });
 
+// Paying users — one aggregated row per user with ≥1 paid purchase.
+export const buyers = asyncHandler(async (req, res) => {
+  const { limit, offset, search } = req.query;
+  res.json(await adminSvc.listBuyers({ limit, offset, search }));
+});
+
 export const broadcast = asyncHandler(async (req, res) => {
   res.json(await adminSvc.broadcastPush(req.body));
 });

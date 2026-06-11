@@ -1,9 +1,9 @@
 // Back-office admin auth. Admins log in with username + password (seeded from
 // env on boot — see adminSeed.js), and receive a role-tagged session JWT.
 
-import { Op } from 'sequelize';
+import { Op, fn, col } from 'sequelize';
 import {
-  Admin, User, Kundali, PalmReading, ChatMessage, PushToken,
+  Admin, User, Kundali, PalmReading, ChatMessage, PushToken, Purchase,
 } from '../models/index.js';
 import { verifyPassword } from '../utils/password.js';
 import { signAdminToken } from '../middleware/auth.js';
@@ -33,16 +33,37 @@ export async function getAdmin(adminId) {
   return admin;
 }
 
-// Dashboard headline counts.
+// Dashboard headline counts + revenue. Revenue counts PAID orders only;
+// priceInr is the paise snapshot taken at order time, so later plan edits
+// never rewrite history. `updatedAt` stands in for the settlement instant
+// (the status flip to 'paid' is the row's last write).
 export async function getStats() {
-  const [users, kundalis, palmReadings, chatMessages, pushTokens] = await Promise.all([
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const paid = { status: 'paid' };
+  const [users, kundalis, palmReadings, chatMessages, pushTokens,
+    revenuePaise, monthPaise, paidOrders, payingUsers] = await Promise.all([
     User.count(),
     Kundali.count(),
     PalmReading.count(),
     ChatMessage.count(),
     PushToken.count({ where: { enabled: true } }),
+    Purchase.sum('priceInr', { where: paid }),
+    Purchase.sum('priceInr', { where: { ...paid, updatedAt: { [Op.gte]: monthStart } } }),
+    Purchase.count({ where: paid }),
+    Purchase.count({ where: paid, distinct: true, col: 'userId' }),
   ]);
-  return { users, kundalis, palmReadings, chatMessages, pushTokens };
+  return {
+    users, kundalis, palmReadings, chatMessages, pushTokens,
+    revenue: {
+      totalPaise: revenuePaise || 0,
+      monthPaise: monthPaise || 0,
+      paidOrders,
+      payingUsers,
+    },
+  };
 }
 
 // Paginated user list with an optional name/phone/city search.
@@ -60,6 +81,58 @@ export async function listUsers({ limit = 25, offset = 0, search = '' } = {}) {
     offset: Number(offset) || 0,
   });
   return { rows, count };
+}
+
+// Paying users ("buyers"): one row per user with at least one PAID purchase,
+// aggregated (order count, total spent, credits bought, last purchase), newest
+// buyer activity first. Optional name/phone search; paginated like listUsers.
+export async function listBuyers({ limit = 25, offset = 0, search = '' } = {}) {
+  // NB: Op.or is a Symbol key — Object.keys() can't see it, so gate on
+  // `search` itself, not on the object's (always-empty) string keys.
+  const like = { [Op.like]: `%${search}%` };
+  const include = [{
+    model: User,
+    attributes: ['name', 'phone'],
+    where: search ? { [Op.or]: [{ name: like }, { phone: like }] } : undefined,
+    required: true,
+  }];
+
+  const [rows, count] = await Promise.all([
+    Purchase.findAll({
+      where: { status: 'paid' },
+      attributes: [
+        'userId',
+        [fn('COUNT', col('Purchase.id')), 'orders'],
+        [fn('SUM', col('Purchase.priceInr')), 'spentPaise'],
+        [fn('SUM', col('Purchase.credits')), 'creditsBought'],
+        [fn('MAX', col('Purchase.updatedAt')), 'lastPaidAt'],
+      ],
+      include,
+      // Grouping by the joined PK keeps ONLY_FULL_GROUP_BY (MySQL default on
+      // Railway) happy — User.name/phone are functionally dependent on it.
+      group: ['Purchase.userId', 'User.id'],
+      order: [[fn('MAX', col('Purchase.updatedAt')), 'DESC']],
+      limit: Math.min(Number(limit) || 25, 100),
+      offset: Number(offset) || 0,
+      subQuery: false,
+      raw: true,
+      nest: true,
+    }),
+    Purchase.count({ where: { status: 'paid' }, include, distinct: true, col: 'userId' }),
+  ]);
+
+  return {
+    count,
+    rows: rows.map((r) => ({
+      userId: r.userId,
+      name: r.User?.name || '—',
+      phone: r.User?.phone || null,
+      orders: Number(r.orders) || 0,
+      spentPaise: Number(r.spentPaise) || 0,
+      creditsBought: Number(r.creditsBought) || 0,
+      lastPaidAt: r.lastPaidAt,
+    })),
+  };
 }
 
 // Broadcast a custom push to every enabled device. Returns the FCM fan-out

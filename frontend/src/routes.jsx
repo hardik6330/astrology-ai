@@ -49,6 +49,7 @@ const AdminLoginPage = lazyWithReload(() => import("@/admin/pages/AdminLoginPage
 const AdminLayout = lazyWithReload(() => import("@/admin/layout/AdminLayout"));
 const AdminDashboard = lazyWithReload(() => import("@/admin/pages/AdminDashboard"));
 const AdminUsers = lazyWithReload(() => import("@/admin/pages/AdminUsers"));
+const AdminPurchases = lazyWithReload(() => import("@/admin/pages/AdminPurchases"));
 const AdminPush = lazyWithReload(() => import("@/admin/pages/AdminPush"));
 const AdminProfile = lazyWithReload(() => import("@/admin/pages/AdminProfile"));
 const AdminSettings = lazyWithReload(() => import("@/admin/pages/AdminSettings"));
@@ -104,6 +105,7 @@ function adminRoutes() {
       children: [
         { index: true, element: <AdminDashboard /> },
         { path: "users", element: <AdminUsers /> },
+        { path: "purchases", element: <AdminPurchases /> },
         { path: "push", element: <AdminPush /> },
         { path: "settings", element: <AdminSettings /> },
         { path: "plans", element: <AdminPlans /> },
