@@ -8,6 +8,7 @@
 // match/persist concerns stay single-purpose. palmService owns the gate + Pro
 // call; this module owns embeddings, the 1:N search, and reading persistence.
 
+import Jimp from 'jimp';
 import { PalmReading, PalmEmbedding } from '../models/index.js';
 import { charge, getBalance } from './creditService.js';
 import { landmarkEmbedding, cosineSim } from '../utils/palmEmbedding.js';
@@ -15,26 +16,59 @@ import { asContent } from '../utils/asContent.js';
 import { PALM_MATCH_THRESHOLD_AUTO, PALM_MATCH_THRESHOLD_ASK } from '../config/constants.js';
 import { logger } from '../config/logger.js';
 
-// Same `mod` as palmService so one scanId greps across both files' log lines.
-const log = logger.child({ mod: 'palm' });
+// Helper to compare two perceptual hashes (Texture)
+function textureSim(h1, h2) {
+  if (!h1 || !h2) return 0;
+  try {
+    const dist = Jimp.compareHashes(h1, h2);
+    return 1 - dist; // Convert distance to similarity
+  } catch { return 0; }
+}
 
-// 1:N biometric search — find the most-similar saved palm of the SAME hand
-// type, across ALL users, whose similarity clears the threshold. Loads every
-// embedding for that hand into memory (fine at our scale; swap for a vector
-// index if PalmEmbedding ever grows large). Returns { userId, palmReadingId,
-// sim, reading } or null.
-async function findBiometricMatch({ handType, embedding, scanId }) {
+// Helper to compare binary line maps (Lines)
+function lineSim(l1, l2) {
+  if (!l1 || !l2 || !Array.isArray(l1) || !Array.isArray(l2)) return 0;
+  let matches = 0;
+  const len = Math.min(l1.length, l2.length);
+  if (len === 0) return 0;
+  for (let i = 0; i < len; i++) {
+    if (l1[i] === l2[i]) matches++;
+  }
+  return matches / len;
+}
+
+// 1:N biometric search — uses 4-layer verification (Geometry, Texture, Lines)
+async function findBiometricMatch({ handType, embedding, textureSignature, lineSignature, scanId }) {
   const t = Date.now();
   const rows = await PalmEmbedding.findAll({
     where: { handType },
-    attributes: ['userId', 'palmReadingId', 'embedding', 'reading'],
+    attributes: ['userId', 'palmReadingId', 'embedding', 'textureSignature', 'lineSignature', 'reading'],
   });
+  
   let best = null;
   for (const r of rows) {
     if (!r.reading) continue;
-    const sim = cosineSim(embedding, r.embedding);
-    if (!best || sim > best.sim) {
-      best = { userId: r.userId, palmReadingId: r.palmReadingId, sim, reading: r.reading };
+    
+    // Layer 1: Geometry (25%)
+    const gSim = cosineSim(embedding, r.embedding);
+    
+    // Layer 2: Texture (50%)
+    const tSim = textureSim(textureSignature, r.textureSignature);
+    
+    // Layer 3: Lines (25%)
+    const lSim = lineSim(lineSignature, r.lineSignature);
+    
+    // Weighted final score
+    const totalSim = (gSim * 0.25) + (tSim * 0.50) + (lSim * 0.25);
+    
+    if (!best || totalSim > best.sim) {
+      best = { 
+        userId: r.userId, 
+        palmReadingId: r.palmReadingId, 
+        sim: totalSim, 
+        reading: r.reading,
+        breakdown: { gSim, tSim, lSim }
+      };
     }
   }
 
@@ -46,10 +80,11 @@ async function findBiometricMatch({ handType, embedding, scanId }) {
       scanId, stage: 'match', handType, 
       candidates: rows.length, 
       topSim: best ? Number(best.sim.toFixed(4)) : null, 
+      breakdown: best ? best.breakdown : null,
       matchedAuto, matchedAsk,
       ms: Date.now() - t 
     },
-    'palm scan: biometric search',
+    'palm scan: biometric search (4-layer)',
   );
 
   if (matchedAuto) return { ...best, matchType: 'auto' };
@@ -108,7 +143,7 @@ export async function tryBiometricReuse({ user, claimedHand, landmarks, imageHas
     if (!embedding) throw new Error('landmark embedding unavailable');
     log.info({ scanId, stage: 'embedding', dim: embedding.length, ms: Date.now() - tEmb }, 'palm scan: landmark embedding computed');
     
-    const match = await findBiometricMatch({ handType, embedding, scanId });
+    const match = await findBiometricMatch({ handType, embedding, textureSignature, lineSignature, scanId });
     if (match) {
       const baseReading = typeof match.reading === 'string'
         ? JSON.parse(match.reading) : match.reading;
