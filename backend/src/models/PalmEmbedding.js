@@ -13,7 +13,9 @@ const PalmEmbedding = sequelize.define('PalmEmbedding', {
   userId:        { type: DataTypes.STRING(24), allowNull: false },
   palmReadingId: { type: DataTypes.STRING(24), allowNull: false },
   handType:      { type: DataTypes.STRING, allowNull: true },     // 'Left' | 'Right' — match within the same hand
-  embedding:     { type: DataTypes.JSON, allowNull: false },      // number[] (L2-normalized)
+  embedding:     { type: DataTypes.JSON, allowNull: false },      // number[] (Geometry/Landmarks)
+  textureSignature: { type: DataTypes.JSON, allowNull: true },    // Placeholder for OpenCV texture
+  lineSignature:    { type: DataTypes.JSON, allowNull: true },    // Placeholder for OpenCV lines
   // The reading content is denormalized here so a biometric match is
   // self-contained — it doesn't break if the source PalmReading row is deleted.
   reading:       { type: DataTypes.JSON, allowNull: true },
