@@ -18,6 +18,7 @@ import { useStyles } from "../../theme/useStyles";
 import { radius, spacing, fontSize } from "../../theme/tokens";
 import { EMOJIS } from "../../utils/emojis";
 import { gatePalmImage, warmUpGate, ensureGate } from "./palmGate";
+import { cropPalmRegion } from "./cropPalm";
 import MagicButton from "../../components/MagicButton";
 import { haptics } from "../../utils/haptics";
 import { compressPhoto } from "../../utils/compressImage";
@@ -125,7 +126,7 @@ export default function PalmStepScreen({ navigation }) {
       const a = res.assets[0];
 
       // Wait for the gate MODEL to be ready (one-time load), THEN run the fast
-      // inference so the landmarks the biometric match needs are reliably
+      // inference so the landmarks the palm-geometry hint needs are reliably
       // captured. Only a genuine model-load failure defers to the backend gate.
       let gateResult = null;
       try {
@@ -149,7 +150,12 @@ export default function PalmStepScreen({ navigation }) {
         return;
       }
 
-      const img = await compressPhoto(a);
+      // High-res ROI crop from the original photo when we have landmarks; falls
+      // back to a plain compress if the crop can't run.
+      const img =
+        (gateResult?.landmarks && gateResult.imgW
+          ? await cropPalmRegion(a, gateResult.landmarks, gateResult.imgW, gateResult.imgH)
+          : null) || (await compressPhoto(a));
       // Clear old data so PalmScreen shows the scanning animation for the new photo
       setPalm(null);
       setPalmComparison(null);
@@ -157,7 +163,7 @@ export default function PalmStepScreen({ navigation }) {
       setPalmClaimedHand(activeHand);   // share with PalmScreen for the scan-screen badge
       // activeHand is "Right" | "Left" — already in the right shape.
       // gateResult present → client gated (skipGate:true). Null → backend gates.
-      // Pass the 21 landmarks (when present) for the biometric match.
+      // Pass the 21 landmarks (when present) for the palm-geometry hint.
       analyzeInBackground(img.base64, activeHand, !!gateResult, gateResult?.landmarks || null);
       goToPalm();
     } catch {

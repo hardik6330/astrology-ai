@@ -5,7 +5,7 @@
 import { EMOJIS } from "@/utils/emojis";
 
 // We wait for the gate MODEL to load (one-time TFJS download) before scanning,
-// so the gate reliably produces the hand landmarks the biometric match needs —
+// so the gate reliably produces the hand landmarks the palm-geometry hint needs —
 // rather than racing a timeout that would drop them. The load gets a generous
 // budget; the gate inference itself is fast once the model is ready. Only a
 // genuine load failure (beyond MODEL_READY_TIMEOUT_MS) falls back to the

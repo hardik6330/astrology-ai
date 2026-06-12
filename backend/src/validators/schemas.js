@@ -55,8 +55,8 @@ export const palmBody = z.object({
   // avoid duplicate work. Mobile leaves this off and uses the Flash gate.
   skipGate: z.boolean().optional(),
   // The 21 MediaPipe hand landmarks from the client gate (image-pixel coords).
-  // Drives the landmark-geometry biometric match. Optional — absent when the
-  // client gate didn't run (gate timeout/fallback).
+  // Used to build the palm-geometry hint sent to Gemini. Optional — absent when
+  // the client gate didn't run (gate timeout/fallback).
   landmarks: z.array(z.object({ x: z.number(), y: z.number() }).passthrough()).min(15).max(40).nullish(),
 });
 

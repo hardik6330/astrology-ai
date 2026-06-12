@@ -215,13 +215,21 @@ const TIPS = {
   tilted_hand: "Keep your hand straight (fingers pointing up) and flat towards the camera.",
 };
 
-// MediaPipe handedness is reported from the OPPOSITE side because the model
-// assumes a mirrored image (selfie convention). With `flipHorizontal: false`
-// on a non-mirrored photo, the convention is: model says "Right" → it's
-// actually a LEFT hand, and vice versa. We invert below for the comparison.
-// Confidence below this threshold → don't reject (mirror cameras + edge
-// cases make low-confidence calls unreliable).
-const HAND_REJECT_MIN_CONFIDENCE = 0.95;
+// Determine handedness from LANDMARK GEOMETRY, not MediaPipe's label. MediaPipe
+// reports handedness under a mirror (selfie) assumption that doesn't hold
+// reliably across cameras, so we compute it ourselves: with the palm facing the
+// camera and fingers pointing up (enforced by the orientation check), a
+// non-mirrored photo puts the thumb on the image-LEFT for a RIGHT hand and the
+// image-RIGHT for a LEFT hand. Calibrated against real samples. Returns null
+// when thumb/pinky aren't clearly separated horizontally (too ambiguous).
+function geometricHand(keypoints) {
+  const thumbTip = keypoints[4];
+  const pinkyMcp = keypoints[17];
+  const palmWidth = Math.abs(keypoints[5].x - keypoints[17].x) || 1;
+  const dx = thumbTip.x - pinkyMcp.x;
+  if (Math.abs(dx) < palmWidth * 0.15) return null;
+  return dx < 0 ? "Right" : "Left";
+}
 
 function checkFingerSpread(landmarks) {
   const p5 = landmarks[5]; // Index base
@@ -287,8 +295,8 @@ function retakeFor(reason) {
  *
  * @param {File}   file        The user-picked image file.
  * @param {string} claimedHand Optional "Left" | "Right" — if set, the gate
- *   rejects when MediaPipe is highly confident the photo shows the opposite
- *   hand. Skipped under the confidence threshold (mirror-camera false positives).
+ *   rejects when the landmark geometry says the photo shows the opposite hand
+ *   (see geometricHand). Skipped when the thumb/pinky split is too ambiguous.
  */
 export async function gatePalmImage(file, claimedHand) {
   let img;
@@ -348,11 +356,12 @@ export async function gatePalmImage(file, claimedHand) {
       bounds.maxY > img.height - pad
     : false;
 
-  // Hand-side check.
-  // MediaPipe Tasks Vision handedness is usually the ACTUAL handedness (non-mirrored).
+  // Hand-side check — handedness from landmark geometry (see geometricHand),
+  // not MediaPipe's mirror-prone label. Skipped when the call is too ambiguous.
   let wrongHand = false;
-  if (hasHand && claimedHand && hand.handedness && hand.score >= HAND_REJECT_MIN_CONFIDENCE) {
-    wrongHand = hand.handedness !== claimedHand;
+  if (hasHand && claimedHand) {
+    const detectedHand = geometricHand(hand.keypoints);
+    if (detectedHand) wrongHand = detectedHand !== claimedHand;
   }
 
   // User-facing checklist (astro-2 order). `cropped` + `wrong_hand` are enforced

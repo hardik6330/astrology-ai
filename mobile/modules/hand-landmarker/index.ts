@@ -20,8 +20,12 @@ export interface HandPoint {
 
 export interface HandResult {
   landmarks: HandPoint[]; // 21 points, or [] if no hand was found
-  handedness?: "Left" | "Right"; // "Left" or "Right" as detected by the model
-  score: number; // confidence score (0..1)
+  handedness?: "Left" | "Right"; // model label — MIRROR-CONVENTION (selfie). For a
+  // non-mirrored palm photo this is the OPPOSITE of the true hand; the JS gate
+  // inverts it before comparing to the user's claimed hand.
+  score: number; // handedness classification confidence (0..1) — NOT a blur metric
+  sharpness: number; // variance of 3x3 Laplacian (256px downsample); low → blurry
+  brightness: number; // mean luma 0..255 (256px downsample); low → too dark
   handCount: number; // total number of hands detected in the frame
   width: number; // decoded image width  (pixels)
   height: number; // decoded image height (pixels)

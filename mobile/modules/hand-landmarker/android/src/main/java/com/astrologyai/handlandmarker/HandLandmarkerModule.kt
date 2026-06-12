@@ -64,6 +64,53 @@ class HandLandmarkerModule : Module() {
     return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, m, true)
   }
 
+  // Pixel quality metrics, computed on a 256px-wide downsample so the numbers
+  // are comparable to the WEB gate (which measures on a 256px downsample) and
+  // its thresholds (MIN_LAPLACIAN_VAR / MIN_LUMINANCE) transfer directly.
+  //   sharpness  = variance of a 3x3 Laplacian over the grayscale image (blur:
+  //                a flat/out-of-focus photo has low edge energy → low variance)
+  //   brightness = mean luma (0..255); too low → the photo is too dark to read
+  private fun computeQuality(src: Bitmap): Pair<Double, Double> {
+    val targetW = 256
+    val scale = targetW.toDouble() / src.width
+    val targetH = (src.height * scale).toInt().coerceAtLeast(1)
+    val small = Bitmap.createScaledBitmap(src, targetW, targetH, true)
+    val w = small.width
+    val h = small.height
+    val pixels = IntArray(w * h)
+    small.getPixels(pixels, 0, w, 0, 0, w, h)
+
+    val gray = DoubleArray(w * h)
+    var lumaSum = 0.0
+    for (i in pixels.indices) {
+      val p = pixels[i]
+      val r = (p shr 16) and 0xFF
+      val g = (p shr 8) and 0xFF
+      val b = p and 0xFF
+      val y = 0.299 * r + 0.587 * g + 0.114 * b
+      gray[i] = y
+      lumaSum += y
+    }
+    val brightness = lumaSum / (w * h)
+
+    // Laplacian [0,1,0; 1,-4,1; 0,1,0] variance over interior pixels.
+    var sum = 0.0
+    var sqSum = 0.0
+    var n = 0
+    for (y in 1 until h - 1) {
+      for (x in 1 until w - 1) {
+        val idx = y * w + x
+        val lap = gray[idx - w] + gray[idx + w] + gray[idx - 1] + gray[idx + 1] - 4 * gray[idx]
+        sum += lap
+        sqSum += lap * lap
+        n++
+      }
+    }
+    val mean = if (n > 0) sum / n else 0.0
+    val variance = if (n > 0) (sqSum / n) - (mean * mean) else 0.0
+    return Pair(variance, brightness)
+  }
+
   override fun definition() = ModuleDefinition {
     Name("HandLandmarker")
 
@@ -79,6 +126,10 @@ class HandLandmarkerModule : Module() {
       val w = bitmap.width
       val h = bitmap.height
       val result = detector().detect(BitmapImageBuilder(bitmap).build())
+
+      // Pixel quality (blur + darkness) — computed natively since JS has no
+      // pixel access on-device. Always returned, even when no hand is found.
+      val (sharpness, brightness) = computeQuality(bitmap)
 
       // MediaPipe returns NORMALIZED coords (0..1). Multiply by width/height so
       // the payload is in pixel space — matching the web gate, which keeps the
@@ -107,6 +158,8 @@ class HandLandmarkerModule : Module() {
         "landmarks" to points,
         "handedness" to handedness,
         "score" to score,
+        "sharpness" to sharpness,
+        "brightness" to brightness,
         "handCount" to result.landmarks().size,
         "width" to w,
         "height" to h

@@ -7,8 +7,8 @@ import { dedupe } from '../ai/dedupe.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
 import { charge, grant, getBalance } from './creditService.js';
 import { notifyInsightReady } from './pushService.js';
-import { tryBiometricReuse, persistReadingWithEmbedding } from './palmMatchService.js';
-import { extractPalmSignatures } from '../utils/palmSignature.js';
+import { buildPalmGeometry } from '../utils/palmGeometry.js';
+import { enhancePalmImage } from '../utils/palmImage.js';
 import { validateImage } from '../utils/imageValidator.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
@@ -18,6 +18,23 @@ import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'palm' });
+
+// Handedness from landmark GEOMETRY — the same calibrated rule the client gates
+// run (frontend/src/utils/palmGate.js, mobile/.../palmGate.js). Server-side copy
+// so the wrong-hand check still holds even when the client gate failed open
+// (Expo Go / detector crash) or is a stale build. With the palm facing the
+// camera and fingers up, a NON-mirrored photo puts the thumb on the image-LEFT
+// for a RIGHT hand and image-RIGHT for a LEFT hand. Returns null when the
+// thumb/pinky split is too small to call (hand rotated / pointing at camera).
+function geometricHand(landmarks) {
+  if (!Array.isArray(landmarks) || landmarks.length < 21) return null;
+  const thumbTip = landmarks[4], pinkyMcp = landmarks[17], indexMcp = landmarks[5];
+  if (!thumbTip || !pinkyMcp || !indexMcp) return null;
+  const palmWidth = Math.abs(indexMcp.x - pinkyMcp.x) || 1;
+  const dx = thumbTip.x - pinkyMcp.x;
+  if (Math.abs(dx) < palmWidth * 0.15) return null;
+  return dx < 0 ? 'Right' : 'Left';
+}
 
 // GET the latest saved USABLE palm reading. Unusable results are persisted
 // (history shows them as unreadable) but must never be auto-restored as "the
@@ -115,7 +132,7 @@ async function runGate({ image, claimedHand, skipGate = false, scanId }) {
 }
 
 // Run Pro + persistence. Assumes the gate has already passed.
-async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash, scanId, landmarks, textureSignature, lineSignature, deviceId }) {
+async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash, scanId, landmarks }) {
   const t0 = Date.now();
   const user = await findOrCreateUser(form);
 
@@ -138,44 +155,38 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
     return { content: asContent(dup.reading), balance: await getBalance(user.id) };
   }
 
-  // EXPERIMENTAL biometric match (palmMatchService): a NEW photo of a hand
-  // we've already read reuses that reading instead of calling Gemini. The
-  // embedding comes back either way so the fresh path below can persist it.
-  const { result: reused, embedding } = await tryBiometricReuse({
-    user, claimedHand, landmarks, imageHash, scanId, t0, fireInsightPush,
-    textureSignature, lineSignature, deviceId
-  });
-  if (reused) return reused;
-
-  // Fresh analysis → charge once (dups/matches above are free or already
-  // charged). Throws 402 INSUFFICIENT_CREDITS if the balance is short.
+  // Fresh analysis → charge once (a same-image re-view above is free).
+  // Throws 402 INSUFFICIENT_CREDITS if the balance is short.
   const { charged, balance } = await charge({ userId: user.id, costKey: 'palm_cost', reason: 'palm' });
 
   let parsed;
   const tAI = Date.now();
   try {
-      // Layer 3: Astrology JSON Builder
-      // Convert landmarks to a structured JSON to help Gemini "see" the geometry better
-      let geometryData = "N/A";
-      if (landmarks && landmarks.length >= 21) {
-        const getDist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-        const palmWidth = getDist(landmarks[5], landmarks[17]);
-        const palmHeight = getDist(landmarks[0], landmarks[9]);
-        const fingers = {
-          thumb: getDist(landmarks[1], landmarks[4]),
-          index: getDist(landmarks[5], landmarks[8]),
-          middle: getDist(landmarks[9], landmarks[12]),
-          ring: getDist(landmarks[13], landmarks[16]),
-          pinky: getDist(landmarks[17], landmarks[20]),
-        };
-        geometryData = JSON.stringify({ palmWidth, palmHeight, fingers, ratio: (palmWidth / palmHeight).toFixed(2) });
-      }
+      // Geometry hints (palm element, finger ratios, thumb angle, Mercury reach)
+      // computed from the client's landmarks — sharpens shape/finger observations
+      // Gemini can't measure precisely from pixels. See utils/palmGeometry.js.
+      const geo = buildPalmGeometry(landmarks);
+      const geometryData = geo ? JSON.stringify(geo) : 'N/A';
 
-      const userPrompt = `NAME: ${form.name}\nGENDER: ${form.gender || 'NOT SPECIFIED'}\nPALM_GEOMETRY: ${geometryData}\n\nAnalyze this palm photograph. Use the geometry data to inform your observations about finger length and palm shape.`;
-      
+      const userPrompt =
+        `NAME: ${form.name}\n` +
+        `GENDER: ${form.gender || 'NOT SPECIFIED'}\n` +
+        `PALM_GEOMETRY (measured from hand landmarks — use as hints, not gospel): ${geometryData}\n` +
+        `  ratio=palmWidth/height; element=approx hand element from shape+finger length; ` +
+        `fingers=length as fraction of palm height; jupiterVsApollo=index vs ring finger length; ` +
+        `thumbAngle=thumb openness in degrees; mercuryReachesRing=pinky reaches ring's top joint.\n\n` +
+        `Analyze this palm photograph. Ground the reading in the visible lines and mounts; ` +
+        `use the geometry only to sharpen finger-length and palm-shape observations.`;
+
+      // Lightly normalize + contrast the photo (Jimp) so creases read clearer for
+      // the model. Best-effort — falls back to the original on any failure.
+      const tEnh = Date.now();
+      const enhanced = await enhancePalmImage(base64);
+      log.info({ scanId, stage: 'enhance', applied: enhanced.enhanced, ms: Date.now() - tEnh }, 'palm scan: image normalize');
+
       log.info({ scanId, stage: 'ai', models: PALM_MODELS }, 'palm scan: calling Gemini vision…');
-      // Layer 5: LLM Routing - Temperature = 0 for consistency
-      const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, base64, mimeType, true, PALM_MODELS, THINK_BUDGET.PALM, 0.0);
+      // Temperature 0 for run-to-run consistency on the same photo.
+      const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, enhanced.base64, enhanced.mimeType, true, PALM_MODELS, THINK_BUDGET.PALM, 0.0);
       const cleaned = cleanJson(raw);
       parsed = typeof raw === 'string' ? JSON.parse(cleaned) : raw;
       log.info({ scanId, stage: 'ai', quality: parsed.imageQuality, hand: parsed.handType, ms: Date.now() - tAI }, 'palm scan: Gemini reading done');
@@ -196,10 +207,18 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
     if (refund) finalBalance = refund.balance;
   }
 
-  // Persist the reading + signatures so future photos of this hand match.
-  await persistReadingWithEmbedding({ 
-    user, parsed, imageHash, embedding, textureSignature, lineSignature, deviceId 
-  });
+  // Persist the reading (never the image bytes — only the hash + AI output).
+  try {
+    await PalmReading.create({
+      userId: user.id,
+      handType: parsed.handType,
+      imageQuality: parsed.imageQuality,
+      imageHash,
+      reading: parsed,
+    });
+  } catch (saveError) {
+    log.error({ scanId, err: saveError.message }, 'palm save failed');
+  }
   if (parsed.imageQuality !== 'unusable') fireInsightPush();
 
   log.info(
@@ -216,10 +235,10 @@ async function persistGateRejection(_form, _imageHash, _rejection) {
   /* intentionally a no-op — see comment above */
 }
 
-export async function analyzePalm({ image, form, claimedHand, skipGate, landmarks, deviceId }) {
+export async function analyzePalm({ image, form, claimedHand, skipGate, landmarks }) {
   // Short id to correlate every log line of one scan. Grep `scanId=xxxxxxxx`.
   const scanId = crypto.randomBytes(4).toString('hex');
-  log.info({ scanId, hand: claimedHand || null, skipGate: !!skipGate, landmarks: Array.isArray(landmarks) ? landmarks.length : 0, deviceId }, 'palm scan: received');
+  log.info({ scanId, hand: claimedHand || null, skipGate: !!skipGate, landmarks: Array.isArray(landmarks) ? landmarks.length : 0 }, 'palm scan: received');
 
   // Stage 1 — gate. We need the image hash to build the dedupe key, so the
   // gate runs before dedupe. The Flash call is cheap and we'd hit cache for
@@ -232,9 +251,22 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
     return { content: JSON.stringify(gateResult.rejection), balance: null };
   }
 
-  // Layer 3: Extraction Engine - Extract signatures (Texture/Lines)
-  // We pass landmarks for potential ROI cropping in the future
-  const signatures = await extractPalmSignatures(gateResult.base64, landmarks);
+  // Server-side handedness guard. The client gate also checks this, but it fails
+  // open (no landmarks / Expo Go) and can be a stale build — so enforce here too
+  // whenever the client sent landmarks. No charge: this returns before Pro.
+  const detectedHand = geometricHand(landmarks);
+  if (claimedHand && detectedHand && detectedHand !== claimedHand) {
+    log.info({ scanId, path: 'rejected', reject: 'wrong_hand', detectedHand, claimedHand }, 'palm scan: complete (wrong hand, server geometry)');
+    return {
+      content: JSON.stringify({
+        handType: 'Unclear',
+        imageQuality: 'unusable',
+        rejectReason: 'wrong_hand',
+        retakeReason: 'The photo looks like your other hand — please retake with the hand you selected.',
+      }),
+      balance: null,
+    };
+  }
 
   return runProAndPersist({
     form, claimedHand,
@@ -243,8 +275,6 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
     imageHash: gateResult.imageHash,
     scanId,
     landmarks,
-    deviceId,
-    ...signatures
   });
 }
 
@@ -261,7 +291,7 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
 //   2. Build a SHA-256 hash of (leftHash | rightHash) for dedupe.
 //   3. Single Pro Vision call with BOTH images.
 //   4. Save the parsed result with handType="Both".
-export async function comparePalms({ form, leftImage, rightImage, skipGate, deviceId }) {
+export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
   // Stage 1 — gate both photos. No Pro spend yet.
   const [leftGate, rightGate] = await Promise.all([
     runGate({ image: leftImage,  claimedHand: 'Left',  skipGate }),
@@ -343,7 +373,6 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate, devi
     try {
       await PalmReading.create({
         userId: user.id,
-        deviceId,
         handType: 'Both',
         imageQuality: parsed.imageQuality || 'clear',
         imageHash: combinedHash,

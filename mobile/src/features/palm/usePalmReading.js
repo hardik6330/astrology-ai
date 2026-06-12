@@ -7,13 +7,14 @@ import { useCosts } from "../../hooks/useCosts";
 import { useCredits } from "../../hooks/useCredits";
 import { analyzePalm, fetchSaved, fetchPalmHistory, fetchPalmById } from "../../services/api";
 import { gatePalmImage, warmUpGate, ensureGate } from "./palmGate";
+import { cropPalmRegion } from "./cropPalm";
 import { haptics } from "../../utils/haptics";
 import { logEvent } from "../../features/notifications/analytics";
 import { compressPhoto } from "../../utils/compressImage";
 import { SCAN_MSGS } from "./constants";
 
 // We wait for the gate MODEL to load (one-time) before scanning so the gate
-// reliably produces the landmarks the biometric match needs, rather than racing
+// reliably produces the landmarks the geometry hint uses, rather than racing
 // a timeout that drops them. Inference is fast once the model is warm. Only a
 // genuine load failure (beyond MODEL_READY_TIMEOUT_MS) falls back to the backend gate.
 const MODEL_READY_TIMEOUT_MS = 25000;
@@ -223,7 +224,7 @@ export function usePalmReading() {
     setGateReport(null); // Clear previous report
     try {
       // Wait for the gate MODEL to be ready (one-time load), THEN run the fast
-      // inference — so the 21 landmarks the biometric match needs are reliably
+      // inference — so the 21 landmarks the geometry hint uses are reliably
       // captured rather than dropped by a timeout. Only a genuine model-load
       // failure falls back to the backend gate (skipGate:false below).
       let gateResult = null;
@@ -237,7 +238,7 @@ export function usePalmReading() {
       }
       // The gate can also "pass" without landmarks when on-device inference
       // throws (palmGate carries that as gateResult.gateError). Either way, no
-      // landmarks → no biometric embedding. Surface the reason so it's visible
+      // landmarks → no geometry hint. Surface the reason so it's visible
       // instead of failing silently with a blank screen.
       if (gateResult?.gateError) gateFailure = gateResult.gateError;
       else if (gateResult?.ok && !gateResult?.landmarks) gateFailure = "Gate passed but produced no hand landmarks.";
@@ -260,10 +261,15 @@ export function usePalmReading() {
           imgH: gateResult.imgH,
         });
       }   
-      const img = await compressPhoto(a);
+      // High-res ROI crop from the original photo when we have landmarks; falls
+      // back to a plain compress if the crop can't run (no landmarks / failure).
+      const img =
+        (gateResult?.landmarks && gateResult.imgW
+          ? await cropPalmRegion(a, gateResult.landmarks, gateResult.imgW, gateResult.imgH)
+          : null) || (await compressPhoto(a));
       // gateResult present → client gated (skipGate:true). Null → gate didn't
       // run; let the backend gate (skipGate:false). Pass the 21 landmarks (when
-      // present) for the biometric match.
+      // present) for the palm-geometry hint.
       runAnalyze(img, hand, !!gateResult, gateResult?.landmarks || null);
     } finally {
       setGating(false);
@@ -282,41 +288,11 @@ export function usePalmReading() {
     const iv = setInterval(() => { i++; setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]); }, 1800);
     try {
       const data = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand, skipGate, landmarks);
-      
-      // Handle "ask_user" action if biometric match is high but not auto-confirmable
-      if (data.action === "ask_user") {
-        logEvent("palm_match_ask", { hand, sim: data.similarity });
-        Alert.alert(
-          "Use Previous Analysis?",
-          "We found a very similar reading for this hand. Would you like to use the existing analysis (free) or generate a fresh one?",
-          [
-            { 
-              text: "Use Existing", 
-              onPress: () => {
-                setPalm(data.existingReading);
-                setRescan(false);
-                haptics.success();
-              }
-            },
-            { 
-              text: "Fresh Analysis", 
-              onPress: () => {
-                // To force fresh analysis, we could pass a flag, but for now 
-                // we just let the user know. In a real flow, we'd call the 
-                // API again with force_fresh=true.
-                setPalm(data.content);
-                setRescan(false);
-                haptics.success();
-              }
-            }
-          ]
-        );
-      } else {
-        logEvent("palm_analysis_success", { hand, user_name: form.name });
-        setPalm(data.content);
-        setRescan(false);
-        haptics.success();
-      }
+
+      logEvent("palm_analysis_success", { hand, user_name: form.name });
+      setPalm(data.content);
+      setRescan(false);
+      haptics.success();
     } catch (err) {
       if (err.code === "AI_OVERLOADED") {
         setOverloaded(true);

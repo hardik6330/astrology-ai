@@ -17,13 +17,6 @@ export const PALM_GATE_MODELS    = ['gemini-2.5-flash', 'gemini-2.5-flash-lite']
 // Palm READING model chain. Use Pro for high-quality interpretation.
 export const PALM_MODELS         = ['gemini-2.5-pro'];
 
-// Biometric palm matching is ALWAYS on. Cosine-similarity threshold a NEW
-// landmark embedding must clear to reuse a saved reading. Hardcoded (no DB
-// Setting) so it works everywhere without seeding. Tune here if needed.
-// Set to 0.90 (90%) as per recommended Level 2/3 fraud prevention.
-export const PALM_MATCH_THRESHOLD_AUTO = 0.90; // Auto-show existing
-export const PALM_MATCH_THRESHOLD_ASK  = 0.75; // Ask user
-
 // Retry tuning for Gemini calls.
 export const MAX_RETRIES   = 3;
 export const RETRY_BASE_MS = 1000;       // exponential backoff: 1s, 2s, 4s

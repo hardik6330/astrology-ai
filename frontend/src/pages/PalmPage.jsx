@@ -36,8 +36,59 @@ function resizeToBase64(file, maxDim = 600, quality = 0.8) {
   });
 }
 
+// Crop the palm ROI from the ORIGINAL (natural-res) image using the gate's 21
+// landmarks (already in natural-image pixels), then downscale the crop. Cropping
+// the full-hand bounding box from full-res BEFORE the downscale means the hand
+// fills the frame at far higher effective resolution than uploading the whole
+// shrunk photo — so Gemini sees the creases. 20% padding keeps the mounts and
+// finger bases in frame. Best-effort: resolves null on failure so the caller
+// falls back to resizeToBase64.
+function cropPalmToDataUrl(file, landmarks, maxDim = 1024, quality = 0.82, pad = 0.2) {
+  return new Promise((resolve) => {
+    if (!file || !Array.isArray(landmarks) || landmarks.length < 21) return resolve(null);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        for (const p of landmarks) {
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y > maxY) maxY = p.y;
+        }
+        const bw = maxX - minX,
+          bh = maxY - minY;
+        if (bw <= 0 || bh <= 0) return resolve(null);
+        const x0 = Math.max(0, minX - bw * pad);
+        const y0 = Math.max(0, minY - bh * pad);
+        const x1 = Math.min(img.width, maxX + bw * pad);
+        const y1 = Math.min(img.height, maxY + bh * pad);
+        const cw = x1 - x0,
+          ch = y1 - y0;
+        if (cw < 10 || ch < 10) return resolve(null);
+        const scale = Math.min(1, maxDim / Math.max(cw, ch));
+        const ow = Math.round(cw * scale),
+          oh = Math.round(ch * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = ow;
+        canvas.height = oh;
+        canvas.getContext("2d").drawImage(img, x0, y0, cw, ch, 0, 0, ow, oh);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => resolve(null);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
 // We wait for the gate MODEL to load (one-time TFJS download) before scanning,
-// so the gate reliably produces the hand landmarks the biometric match needs —
+// so the gate reliably produces the hand landmarks the palm-geometry hint needs —
 // rather than racing a timeout that would drop them. The load gets a generous
 // budget; the gate inference itself is fast once the model is ready. Only a
 // genuine load failure (beyond MODEL_READY_TIMEOUT_MS) falls back to the
@@ -328,7 +379,11 @@ export default function PalmPage() {
     }
   }
 
-  async function runAnalyze(dataUrl, hand, skipGate = true, landmarks = null) {
+  // `dataUrl` is the image shown on-screen (full photo, so the skeleton overlay
+  // lines up). `uploadUrl` is what's sent to the backend — the high-res palm
+  // crop when available, else the same dataUrl. Decoupled so the crop never
+  // breaks the overlay (whose landmarks are in full-image space).
+  async function runAnalyze(dataUrl, hand, skipGate = true, landmarks = null, uploadUrl = null) {
     setError("");
     setLowCredits(false);
     setOverloaded(false);
@@ -348,7 +403,7 @@ export default function PalmPage() {
         skipGate,
         landmarks: landmarks?.length || 0,
       });
-      const result = await analyzePalm(dataUrl, form, hand ?? claimedHand, skipGate, landmarks);
+      const result = await analyzePalm(uploadUrl || dataUrl, form, hand ?? claimedHand, skipGate, landmarks);
       console.log("[palm] reading received");
       setPalm(result);
       setRescan(false);
@@ -385,7 +440,7 @@ export default function PalmPage() {
       setPalmAnalyzing(true);
 
       // Client-side gate first — rejected photos never hit the API, and it
-      // produces the 21 landmarks the biometric match needs. Wait for the model
+      // produces the 21 landmarks the palm-geometry hint needs. Wait for the model
       // to be READY (one-time load), THEN run the fast inference — so landmarks
       // are reliably captured instead of being dropped by a timeout. Only a
       // genuine model-load failure falls back to the backend gate.
@@ -416,10 +471,15 @@ export default function PalmPage() {
           ? { keypoints: gateResult.landmarks, imgW: gateResult.imgW, imgH: gateResult.imgH }
           : null
       );
+      // High-res ROI crop from the original file for upload (the on-screen
+      // preview stays the full photo so the skeleton overlay lines up). Falls
+      // back to the resized dataUrl when no landmarks / crop fails.
+      const uploadUrl =
+        (gateResult?.landmarks ? await cropPalmToDataUrl(file, gateResult.landmarks) : null) || dataUrl;
       // gateResult present → client already gated (skipGate:true). Null → gate
       // didn't run; let the backend gate (skipGate:false). Pass the 21 landmarks
-      // (when present) for the biometric match.
-      await runAnalyze(dataUrl, claimedHand, !!gateResult, gateResult?.landmarks || null);
+      // (when present) for the palm-geometry hint.
+      await runAnalyze(dataUrl, claimedHand, !!gateResult, gateResult?.landmarks || null, uploadUrl);
     } catch (err) {
       console.error("[palm] onPick failed", err);
       setError("Could not read the image — try a different photo.");

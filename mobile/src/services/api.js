@@ -12,10 +12,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { noteBalance } from "./creditsStore";
 import { noteCosts } from "./costsStore";
 
-// Device ID: Layer 1 requirement for biometric matching.
-// We use installationId from Expo Constants as a persistent unique ID.
-const DEVICE_ID = Constants.installationId || Constants.sessionId || "unknown_device";
-
 // Phone is cached after the dummy OTP login and attached to every form
 // payload so the backend can stamp it on the User row. Kept in a module ref
 // to avoid an AsyncStorage round-trip on every API call.
@@ -358,17 +354,13 @@ export async function analyzePalm(imageBase64, form, claimedHand, skipGate = tru
     claimedHand,
     skipGate,
     landmarks,
-    deviceId: DEVICE_ID,
-    timestamp: Date.now(),
   };
   const data = await postJSON("/palm", body);
   if (data.balance !== undefined) noteBalance(data.balance);
   if (data.costs) noteCosts(data.costs);
-  
-  // Return the full data object so usePalmReading can handle action: 'ask_user'
-  return { 
-    ...data, 
-    content: data.content ? parseContent(data.content) : null 
+  return {
+    ...data,
+    content: data.content ? parseContent(data.content) : null,
   };
 }
 
@@ -380,8 +372,6 @@ export async function comparePalms(leftBase64, rightBase64, form, leftLandmarks 
     leftLandmarks,
     rightLandmarks,
     skipGate: true,
-    deviceId: DEVICE_ID,
-    timestamp: Date.now(),
   };
   const data = await postJSON("/palm/compare", body);
   if (data.balance !== undefined) noteBalance(data.balance);

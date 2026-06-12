@@ -232,7 +232,7 @@ export default function PalmPage() {
       setPalmAnalyzing(true);
 
       // Client-side gate first — rejected photos never hit the API, and it
-      // produces the 21 landmarks the biometric match needs. Wait for the model
+      // produces the 21 landmarks the palm-geometry hint needs. Wait for the model
       // to be READY (one-time load), THEN run the fast inference — so landmarks
       // are reliably captured instead of being dropped by a timeout. Only a
       // genuine model-load failure falls back to the backend gate.
@@ -265,7 +265,7 @@ export default function PalmPage() {
       );
       // gateResult present → client already gated (skipGate:true). Null → gate
       // didn't run; let the backend gate (skipGate:false). Pass the 21 landmarks
-      // (when present) for the biometric match.
+      // (when present) for the palm-geometry hint.
       await runAnalyze(dataUrl, claimedHand, !!gateResult, gateResult?.landmarks || null);
     } catch (err) {
       console.error("[palm] onPick failed", err);

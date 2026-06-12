@@ -201,7 +201,7 @@ export async function analyzePalm(imageBase64, form, claimedHand, skipGate = tru
     // skipGate: web normally runs MediaPipe locally before upload, so the
     // backend can skip its own Flash gate. If the local gate hung/failed, we
     // pass skipGate:false so the backend gates instead (never blocks the read).
-    // landmarks: the 21 MediaPipe points (when the gate ran) for the biometric match.
+    // landmarks: the 21 MediaPipe points (when the gate ran) for the palm-geometry hint.
     body: JSON.stringify({ image: imageBase64, form: attachPhone(form), claimedHand, skipGate, landmarks }),
   });
   if (!res.ok) {

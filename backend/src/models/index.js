@@ -4,7 +4,6 @@ import Kundali from './Kundali.js';
 import DailyData from './DailyData.js';
 import ChatMessage from './ChatMessage.js';
 import PalmReading from './PalmReading.js';
-import PalmEmbedding from './PalmEmbedding.js';
 import PushToken from './PushToken.js';
 import Location from './Location.js';
 import Admin from './Admin.js';
@@ -30,11 +29,6 @@ ChatMessage.belongsTo(User, { foreignKey: 'userId' });
 User.hasMany(PalmReading, { foreignKey: 'userId', onDelete: 'CASCADE' });
 PalmReading.belongsTo(User, { foreignKey: 'userId' });
 
-User.hasMany(PalmEmbedding, { foreignKey: 'userId', onDelete: 'CASCADE' });
-PalmEmbedding.belongsTo(User, { foreignKey: 'userId' });
-PalmReading.hasOne(PalmEmbedding, { foreignKey: 'palmReadingId', onDelete: 'CASCADE' });
-PalmEmbedding.belongsTo(PalmReading, { foreignKey: 'palmReadingId' });
-
 // Push tokens hang off the auth identity, not the profile — a device belongs to
 // whoever logged in, independent of which birth chart they're viewing.
 AuthAccount.hasMany(PushToken, { foreignKey: 'accountId', onDelete: 'CASCADE' });
@@ -55,7 +49,7 @@ Purchase.belongsTo(CreditPlan, { foreignKey: 'planId' });
 // Setting + NotificationTemplate are standalone — no associations.
 
 export {
-  User, AuthAccount, Kundali, DailyData, ChatMessage, PalmReading, PalmEmbedding,
+  User, AuthAccount, Kundali, DailyData, ChatMessage, PalmReading,
   PushToken, Location, Admin, Setting, CreditTransaction, CreditPlan,
   Purchase, NotificationTemplate,
 };
