@@ -108,10 +108,17 @@ export async function setupForegroundNotifications() {
     const messaging = getMessaging();
 
     // Android requires a channel before any notification can be shown (8.0+).
+    // The custom push sound lives on the CHANNEL (channel sound is immutable on
+    // Android 8+, so we use a NEW id — "default-sound" — rather than mutating the
+    // old "default" channel). `sound: "notification"` references
+    // res/raw/notification.wav, bundled by plugins/withNotificationSound.js.
+    // Created on every launch so it ALSO exists for FCM-drawn background
+    // notifications, which the backend routes to this same channelId.
     androidChannelId = await notifee.createChannel({
-      id: "default",
-      name: "General",
+      id: "default-sound",
+      name: "Alerts",
       importance: AndroidImportance.HIGH,
+      sound: "notification",
     });
 
     // Tap on a notifee-rendered notification (foreground case) → deep-link to
@@ -142,10 +149,12 @@ export async function setupForegroundNotifications() {
           body,
           data: remoteMessage?.data || {},
           android: {
-            channelId: androidChannelId,
+            channelId: androidChannelId, // sound is carried by the channel
             smallIcon: "ic_launcher",
             pressAction: { id: "default" },
           },
+          // Android plays the channel sound; iOS needs it per-notification.
+          ios: { sound: "notification.wav" },
         });
       } catch (err) {
         if (__DEV__) console.warn("[push] onMessage display skipped:", err?.message);

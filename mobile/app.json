@@ -69,7 +69,8 @@
             ]
           }
         }
-      ]
+      ],
+      "./plugins/withNotificationSound"
     ],
     "extra": {
       "apiUrl": {},

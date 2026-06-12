@@ -20,6 +20,21 @@ const FCM_SW_SCOPE = "/firebase-cloud-messaging-push-scope";
 
 let foregroundUnsub = null;
 
+// Play a short chime when a push arrives while the tab is OPEN. Best-effort:
+// browsers block autoplay until the user has interacted with the page, so the
+// very first one may be silently rejected — we swallow that. (Backgrounded web
+// notifications can't play a custom sound at all — a service-worker
+// showNotification only triggers the system sound — so this is foreground-only.)
+function playChime() {
+  try {
+    const audio = new Audio("/notification.wav");
+    audio.volume = 0.6;
+    audio.play().catch(() => {}); // autoplay blocked / file missing — ignore
+  } catch {
+    /* no Audio support — ignore */
+  }
+}
+
 // Call after login. Idempotent — backend upserts on the token.
 export async function registerForWebPush() {
   try {
@@ -53,6 +68,7 @@ export async function registerForWebPush() {
       const { title, body } = payload.notification || {};
       const reg = await navigator.serviceWorker.getRegistration(FCM_SW_SCOPE);
       if (Notification.permission === "granted" && reg) {
+        playChime(); // foreground-only custom sound (see note on playChime)
         reg.showNotification(title || "Astrology AI", {
           body: body || "",
           icon: "/icon.svg",

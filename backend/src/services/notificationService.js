@@ -53,12 +53,24 @@ export async function sendToTokens(rows, { title, body, data = {} }) {
       tokens: batch.map((r) => r.token),
       notification: { title, body },
       data: stringData,
-      // No explicit channelId: a non-existent channel makes Android 8+ silently
-      // drop the notification. Letting FCM fall back to its auto-created default
-      // channel guarantees display until the app defines its own channels.
-      android: { priority: 'high' },
+      // Route to the app's "default-sound" channel so BACKGROUND (FCM-drawn)
+      // notifications play res/raw/notification.wav. ⚠️ This channel must exist
+      // on the device — the app creates it on launch (push.js). If the backend
+      // is deployed BEFORE users have the app build that creates it, Android 8+
+      // silently DROPS the notification. Deploy order: ship the EAS app build
+      // first, then this backend. `sound` is a fallback for pre-O devices.
+      android: {
+        priority: 'high',
+        notification: { channelId: 'default-sound', sound: 'notification' },
+      },
+      // iOS (dormant until APNs): play the bundled sound on the alert.
+      apns: {
+        payload: { aps: { sound: 'notification.wav' } },
+      },
       // Web push: give the SW an icon + a click-through URL so background
-      // notifications render consistently across Chrome/Brave/Firefox.
+      // notifications render consistently across Chrome/Brave/Firefox. (Custom
+      // sound is NOT possible for backgrounded web — the SW plays the system
+      // sound only; the foreground chime lives in webPush.js.)
       webpush: {
         notification: { title, body, icon: '/icon.svg' },
         fcmOptions: stringData.screen ? { link: `/${stringData.screen}` } : undefined,
