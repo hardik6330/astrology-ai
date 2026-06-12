@@ -15,7 +15,7 @@ import GateChecklist from "./GateChecklist";
 // chosen, then the animated scan frame while the analysis runs.
 export default function UploadView({
   navigation, setActiveHand, setError, gating, error, preview, scanning, activeHand, claimedHand, scanAnim, scanMsg,
-  palmCost = 30, cannotAfford = false, palmLandmarks, gateReport,
+  palmCost = 30, cannotAfford = false, palmLandmarks, gateReport, gateConfidence,
 }) {
   const color = useColors();
   const s = useStyles(makeStyles);
@@ -132,7 +132,7 @@ export default function UploadView({
           {/* Web-style gate checklist + analyzing pill — shown ONLY here, on the
               scanning screen. Each label carries its score; the final purple
               pill is the live "Analyzing palm lines with AI…" row. */}
-          <GateChecklist checks={gateReport || []} analyzing analyzingLabel={scanMsg} />
+          <GateChecklist checks={gateReport || []} analyzing confidence={gateConfidence} analyzingLabel={scanMsg} />
           <Text style={[s.scanSub, { marginTop: spacing.sm }]}>This usually takes 10–30 seconds.</Text>
         </View>
       )}

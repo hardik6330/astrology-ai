@@ -74,6 +74,8 @@ export function usePalmReading() {
   const [hydrating, setHydrating] = useState(true);
   // Palm gate quality report (ordered list of checks)
   const [gateReport, setGateReport] = useState(null);
+  // 0-100 photo-quality confidence, shown above the checklist on a passing scan.
+  const [gateConfidence, setGateConfidence] = useState(null);
   // True between tapping "Take a Photo" and the native camera actually opening
   // (permission check + cold camera launch can lag a second or two) — drives a
   // spinner on the picker button so the tap doesn't feel dead.
@@ -259,6 +261,9 @@ export function usePalmReading() {
         Alert.alert("Palm gate diagnostic", gateFailure);
       }
       setGateReport(gateResult?.checks || null);
+      // Confidence only on a passing photo — a reject shows the failing-check
+      // card instead, where a score would just be noise.
+      setGateConfidence(gateResult?.ok ? gateResult.confidence ?? null : null);
       if (gateResult && !gateResult.ok) {
         // Render the client-gate rejection through the SAME reject card as a
         // backend rejection (palm.imageQuality === "unusable" → RejectView),
@@ -360,6 +365,7 @@ export function usePalmReading() {
     setPalmAnalyzing(false);
     setPalmLandmarks(null);
     setGateReport(null);
+    setGateConfidence(null);
     setActiveHand(null);
     setPalmClaimedHand(null);
     setError("");
@@ -387,7 +393,7 @@ export function usePalmReading() {
     // local state
     preview, scanning, gating, scanMsg,
     error, setError, overloaded, setOverloaded,
-    cooldown, history, hydrating, gateReport, launching,
+    cooldown, history, hydrating, gateReport, gateConfidence, launching,
     activeHand, setActiveHand, scanAnim,
     // derived
     palmCost, cannotAfford, unusable, inCompareMode,

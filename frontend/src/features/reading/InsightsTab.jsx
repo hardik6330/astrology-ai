@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Card from "@/common/Card";
 import Button from "@/common/Button";
 import { asText } from "./asText";
@@ -89,14 +90,20 @@ export default function InsightsTab({
             </p>
           </div>
 
+          {interp.pastCheck?.question && (
+            <div className="mb-4">
+              <TimelineCheck pastCheck={interp.pastCheck} />
+            </div>
+          )}
+
           <div className="grid gap-4">
             {[
-              ["Core Identity", EMOJIS.SPARKLES, asText(interp.bigThree)],
-              ["Personality Matrix", EMOJIS.USER, asText(interp.personality)],
-              ["Destiny & Purpose", EMOJIS.BRIEFCASE, asText(interp.career)],
-              ["Heart & Soul", EMOJIS.HEART_YELLOW, asText(interp.relationships)],
+              ["Core Identity", EMOJIS.SPARKLES, asText(interp.bigThree), null],
+              ["Personality Matrix", EMOJIS.USER, asText(interp.personality), "personality"],
+              ["Destiny & Purpose", EMOJIS.BRIEFCASE, asText(interp.career), "career"],
+              ["Heart & Soul", EMOJIS.HEART_YELLOW, asText(interp.relationships), "relationships"],
             ].map(
-              ([title, icon, content], idx) =>
+              ([title, icon, content, evKey], idx) =>
                 content && (
                   // margin:0 (override cosmic-card) + computed animationDelay → inline.
                   <Card key={title} style={{ margin: 0, animationDelay: `${idx * 0.1}s` }}>
@@ -107,6 +114,13 @@ export default function InsightsTab({
                       <p className="m-0 text-[15px] font-bold tracking-[0.5px] text-ink">{title}</p>
                     </div>
                     <p className="m-0 text-[13px] leading-[1.7] text-dim">{content}</p>
+                    {/* "Show your work" — the exact chart factors behind this section. */}
+                    {evKey && interp.evidence?.[evKey] && (
+                      <p className="m-0 mt-3 rounded-lg border border-[rgba(168,85,247,0.25)] bg-[rgba(168,85,247,0.08)] px-3 py-2 text-[11.5px] leading-[1.6] text-[#c4b5fd]">
+                        {EMOJIS.SPARKLES} <span className="font-semibold">Astrology logic:</span>{" "}
+                        {interp.evidence[evKey]}
+                      </p>
+                    )}
                   </Card>
                 )
             )}
@@ -199,5 +213,51 @@ export default function InsightsTab({
         </div>
       )}
     </>
+  );
+}
+
+// "Timeline Check" — a single grounded yes/no question that tests the chart
+// against the user's real past (pastCheck.basis is a genuine dasha/transit
+// window, computed — not a cold read). HONEST by design: the acknowledgement
+// reflects the user's ACTUAL answer instead of "confirmed" no matter what.
+function TimelineCheck({ pastCheck }) {
+  const [answer, setAnswer] = useState(null);
+  if (!pastCheck?.question) return null;
+
+  if (answer) {
+    const msg =
+      answer === "yes"
+        ? `That tracks with your chart — this window is shaped by ${pastCheck.basis || "the active dasha"}. Your reading weighs it accordingly.`
+        : "Good to know — the same transit doesn't land the same way for everyone. Your reading focuses on the patterns active for you now.";
+    return (
+      <Card style={{ borderColor: "rgba(168,85,247,0.3)", background: "rgba(30,20,45,0.45)" }}>
+        <p className="m-0 text-[13px] leading-[1.7] text-[#c4b5fd]">
+          {answer === "yes" ? EMOJIS.SPARKLES : "🧭"} {msg}
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(30,20,45,0.55)" }}>
+      <p className="mx-0 mt-0 mb-1 text-[11px] font-bold tracking-[2px] text-[#a855f7] uppercase">
+        {EMOJIS.SPARKLES} Timeline Check
+      </p>
+      <p className="mx-0 mt-0 mb-4 text-[14px] leading-[1.6] font-semibold text-ink">{pastCheck.question}</p>
+      <div className="flex gap-3">
+        <button
+          onClick={() => setAnswer("yes")}
+          className="flex-1 cursor-pointer rounded-[10px] border border-[rgba(34,197,94,0.4)] bg-[rgba(34,197,94,0.12)] p-2.5 text-[13px] font-semibold text-[#4ade80]"
+        >
+          Yes, that's true
+        </button>
+        <button
+          onClick={() => setAnswer("no")}
+          className="flex-1 cursor-pointer rounded-[10px] border border-[rgba(255,255,255,0.15)] bg-white/5 p-2.5 text-[13px] font-semibold text-subtle"
+        >
+          No, not really
+        </button>
+      </div>
+    </Card>
   );
 }

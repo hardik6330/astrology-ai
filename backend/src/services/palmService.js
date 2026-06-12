@@ -178,12 +178,14 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
   const { charged, balance } = await charge({ userId: user.id, costKey: 'palm_cost', reason: 'palm' });
 
   let parsed;
+  // Geometry hints (palm element, finger ratios, thumb angle, Mercury reach)
+  // computed from the client's landmarks — sharpens shape/finger observations
+  // Gemini can't measure precisely from pixels. See utils/palmGeometry.js.
+  // Hoisted so we can attach it to the reading below ("Show Your Work" badge:
+  // the palm-math evidence is MEASURED here, never invented by the model).
+  const geo = buildPalmGeometry(landmarks);
   const tAI = Date.now();
   try {
-      // Geometry hints (palm element, finger ratios, thumb angle, Mercury reach)
-      // computed from the client's landmarks — sharpens shape/finger observations
-      // Gemini can't measure precisely from pixels. See utils/palmGeometry.js.
-      const geo = buildPalmGeometry(landmarks);
       const geometryData = geo ? JSON.stringify(geo) : 'N/A';
 
       const userPrompt =
@@ -219,6 +221,12 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
 
   if (claimedHand && parsed.imageQuality !== 'unusable') {
     parsed.handType = claimedHand;
+  }
+
+  // Attach the MEASURED geometry buckets so the client can render the
+  // "Palmistry Math" evidence badge from real landmark data (not model guesses).
+  if (geo && parsed.imageQuality !== 'unusable') {
+    parsed.geometry = geo;
   }
 
   // Unusable result → refund: the user shouldn't pay for a reading they can't use.

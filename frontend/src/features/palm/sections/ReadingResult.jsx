@@ -6,8 +6,24 @@ import Card from "@/common/Card";
 import Button from "@/common/Button";
 import { REJECT_INFO, BLUEPRINT, BLUEPRINT_QUOTE, LINE_TITLE, BULLET_ROW, DISCLAIMER } from "../constants";
 
+// "Palmistry Math" chips — formatted from the MEASURED geometry buckets the
+// backend computed from the 21 hand landmarks (never model guesses). Shows the
+// user there's real geometry behind the shape/finger/element observations.
+function geometryChips(geo) {
+  if (!geo) return [];
+  const chips = [];
+  if (geo.element) chips.push(`${geo.element} hand`);
+  if (geo.palmShape) chips.push(`${geo.palmShape} palm`);
+  if (geo.fingerLength) chips.push(`${geo.fingerLength} fingers`);
+  if (geo.dominantFinger && geo.dominantFinger !== "balanced") chips.push(`${geo.dominantFinger}`);
+  if (geo.thumb) chips.push(`${geo.thumb} thumb`);
+  if (geo.mercury) chips.push(`Mercury (pinky) ${geo.mercury}`);
+  return chips;
+}
+
 export default function ReadingResult({ palm, preview, onReset }) {
   const unusable = palm.imageQuality === "unusable";
+  const geoChips = geometryChips(palm.geometry);
 
   if (unusable) {
     const info = REJECT_INFO[palm.rejectReason] || REJECT_INFO.default;
@@ -61,6 +77,32 @@ export default function ReadingResult({ palm, preview, onReset }) {
         </p>
         <p className={BLUEPRINT_QUOTE}>"{palm.overallVibe}"</p>
       </div>
+
+      {geoChips.length > 0 && (
+        <Card
+          style={{
+            margin: 0,
+            marginBottom: 16,
+            borderColor: "rgba(168,85,247,0.25)",
+            background: "rgba(30,20,45,0.4)",
+          }}
+        >
+          <p className="mx-0 mt-0 mb-1 text-[13px] font-bold text-[#c084fc]">📏 Palmistry Math</p>
+          <p className="mx-0 mt-0 mb-3 text-[11px] text-muted">
+            Measured from 21 hand landmarks — the geometry behind your reading
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {geoChips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full border border-[rgba(168,85,247,0.35)] bg-[rgba(168,85,247,0.1)] px-3 py-1 text-[11.5px] font-medium text-[#c4b5fd]"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-4">
         {[

@@ -44,6 +44,52 @@ function NarrativeCard({ sec, s }) {
           </Text>
         </Pressable>
       )}
+      {/* "Show your work" — the exact chart factors behind this section. */}
+      {sec.evidence ? (
+        <View style={s.evidenceBox}>
+          <Text style={s.evidenceText}>
+            <Text style={s.evidenceLabel}>{EMOJIS.SPARKLES} Astrology logic: </Text>
+            {sec.evidence}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+// "Timeline Check" — a single grounded yes/no question testing the chart against
+// the user's real past (pastCheck.basis is a genuine, computed dasha/transit
+// window — not a cold read). HONEST: the acknowledgement reflects the user's
+// ACTUAL answer instead of "confirmed" no matter what. Twin of the web's
+// TimelineCheck in frontend/src/features/reading/InsightsTab.jsx.
+function TimelineCheck({ pastCheck, s }) {
+  const [answer, setAnswer] = useState(null);
+  if (!pastCheck?.question) return null;
+
+  if (answer) {
+    const msg =
+      answer === "yes"
+        ? `That tracks with your chart — this window is shaped by ${pastCheck.basis || "the active dasha"}. Your reading weighs it accordingly.`
+        : "Good to know — the same transit doesn't land the same way for everyone. Your reading focuses on the patterns active for you now.";
+    return (
+      <View style={s.timelineAck}>
+        <Text style={s.timelineAckText}>{(answer === "yes" ? EMOJIS.SPARKLES : "🧭") + " " + msg}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={s.timelineCard}>
+      <Text style={s.timelineLabel}>{EMOJIS.SPARKLES} TIMELINE CHECK</Text>
+      <Text style={s.timelineQuestion}>{pastCheck.question}</Text>
+      <View style={{ flexDirection: "row", gap: 12 }}>
+        <Pressable onPress={() => setAnswer("yes")} style={[s.timelineBtn, s.timelineBtnYes]}>
+          <Text style={s.timelineBtnYesText}>{"Yes, that's true"}</Text>
+        </Pressable>
+        <Pressable onPress={() => setAnswer("no")} style={[s.timelineBtn, s.timelineBtnNo]}>
+          <Text style={s.timelineBtnNoText}>No, not really</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -121,12 +167,14 @@ export default function ReadingTab({
             </Text>
           </View>
 
+          {interp.pastCheck?.question ? <TimelineCheck pastCheck={interp.pastCheck} s={s} /> : null}
+
           {/* ── Numbered narrative sections ───────────────────── */}
           {[
             { title: "Core Identity",      icon: EMOJIS.SPARKLES,     body: asText(interp.bigThree),      accent: color.primaryLight },
-            { title: "Personality Matrix", icon: EMOJIS.USER,         body: asText(interp.personality),   accent: color.accentLight },
-            { title: "Destiny & Purpose",  icon: EMOJIS.BRIEFCASE,    body: asText(interp.career),        accent: color.warning },
-            { title: "Heart & Soul",       icon: EMOJIS.HEART_YELLOW, body: asText(interp.relationships), accent: color.danger },
+            { title: "Personality Matrix", icon: EMOJIS.USER,         body: asText(interp.personality),   accent: color.accentLight, evidence: interp.evidence?.personality },
+            { title: "Destiny & Purpose",  icon: EMOJIS.BRIEFCASE,    body: asText(interp.career),        accent: color.warning,      evidence: interp.evidence?.career },
+            { title: "Heart & Soul",       icon: EMOJIS.HEART_YELLOW, body: asText(interp.relationships), accent: color.danger,       evidence: interp.evidence?.relationships },
           ].map((sec) =>
             sec.body ? <NarrativeCard key={sec.title} sec={sec} s={s} /> : null
           )}

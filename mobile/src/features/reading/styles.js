@@ -169,6 +169,23 @@ export const makeStyles = (c) => StyleSheet.create({
   narrativeBody:   { color: c.textBody, fontSize: 13.5, lineHeight: 23 },
   showMore:        { fontSize: 13, fontWeight: "700", marginTop: 8 },
 
+  // "Show your work" evidence badge under a narrative section.
+  evidenceBox:     { marginTop: 12, borderWidth: 1, borderColor: "rgba(168,85,247,0.25)", backgroundColor: "rgba(168,85,247,0.08)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  evidenceText:    { color: "#c4b5fd", fontSize: 11.5, lineHeight: 18 },
+  evidenceLabel:   { color: "#c4b5fd", fontWeight: "700" },
+
+  // "Timeline Check" grounded yes/no question (Phase 2).
+  timelineCard:     { borderWidth: 1, borderColor: "rgba(168,85,247,0.4)", backgroundColor: "rgba(30,20,45,0.55)", borderRadius: 14, padding: 16, marginBottom: spacing.md },
+  timelineLabel:    { color: "#a855f7", fontSize: 11, fontWeight: "800", letterSpacing: 2, marginBottom: 8 },
+  timelineQuestion: { color: c.text, fontSize: 14, lineHeight: 21, fontWeight: "600", marginBottom: 16 },
+  timelineBtn:      { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 11, alignItems: "center" },
+  timelineBtnYes:   { borderColor: "rgba(34,197,94,0.4)", backgroundColor: "rgba(34,197,94,0.12)" },
+  timelineBtnNo:    { borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)" },
+  timelineBtnYesText: { color: "#4ade80", fontSize: 13, fontWeight: "700" },
+  timelineBtnNoText:  { color: c.textMuted, fontSize: 13, fontWeight: "700" },
+  timelineAck:      { borderWidth: 1, borderColor: "rgba(168,85,247,0.3)", backgroundColor: "rgba(30,20,45,0.45)", borderRadius: 12, padding: 14, marginBottom: spacing.md },
+  timelineAckText:  { color: "#c4b5fd", fontSize: 13, lineHeight: 21 },
+
   // ── Strengths / Growth panel cards ───────────────────────────────
   panelCard: {
     backgroundColor: c.cardBgSolid,

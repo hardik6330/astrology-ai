@@ -124,6 +124,7 @@ export default function PalmScreen({ navigation }) {
                   cannotAfford={vm.cannotAfford}
                   palmLandmarks={vm.palmLandmarks}
                   gateReport={vm.gateReport}
+                  gateConfidence={vm.gateConfidence}
                 />
               </AnimatedRE.View>
             )}

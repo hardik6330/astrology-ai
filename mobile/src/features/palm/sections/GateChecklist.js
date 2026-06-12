@@ -31,11 +31,32 @@ function Pill({ ok, children, tone }) {
   );
 }
 
-export default function GateChecklist({ checks = [], analyzing = false, analyzingLabel = "Analyzing palm lines with AI…" }) {
+// Tone the confidence number green / amber / red by score so a borderline-but-
+// passing photo reads honestly (mirrors the web checklist).
+function confColors(score) {
+  if (score >= 85) return { border: "rgba(34,197,94,0.4)",  bg: "rgba(34,197,94,0.10)",  fg: "#86efac" };
+  if (score >= 70) return { border: "rgba(251,191,36,0.4)", bg: "rgba(251,191,36,0.10)", fg: "#fcd34d" };
+  return { border: "rgba(248,113,113,0.4)", bg: "rgba(248,113,113,0.10)", fg: "#fca5a5" };
+}
+
+export default function GateChecklist({ checks = [], analyzing = false, confidence = null, analyzingLabel = "Analyzing palm lines with AI…" }) {
   useColors(); // re-render on theme change (pill colors are fixed brand tones)
   if (!checks.length && !analyzing) return null;
+  const conf = typeof confidence === "number" ? confColors(confidence) : null;
   return (
     <View style={{ width: "100%", gap: 8, marginTop: spacing.md }}>
+      {conf && (
+        <View
+          style={{
+            flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+            borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11,
+            borderColor: conf.border, backgroundColor: conf.bg,
+          }}
+        >
+          <Text style={{ color: conf.fg, fontSize: 13, fontWeight: "700" }}>AI Confidence</Text>
+          <Text style={{ color: conf.fg, fontSize: 13, fontWeight: "700" }}>{confidence}%</Text>
+        </View>
+      )}
       {checks.map((check) => (
         <Pill key={check.key} ok={check.ok}>{check.label}</Pill>
       ))}

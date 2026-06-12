@@ -1078,6 +1078,45 @@ export default function PalmPage() {
             <p className={BLUEPRINT_QUOTE}>"{palm.overallVibe}"</p>
           </div>
 
+          {/* "Palmistry Math" — MEASURED geometry buckets (backend, from the 21
+              landmarks), not model guesses. The proof there's real math behind it. */}
+          {palm.geometry &&
+            (() => {
+              const g = palm.geometry;
+              const chips = [];
+              if (g.element) chips.push(`${g.element} hand`);
+              if (g.palmShape) chips.push(`${g.palmShape} palm`);
+              if (g.fingerLength) chips.push(`${g.fingerLength} fingers`);
+              if (g.dominantFinger && g.dominantFinger !== "balanced") chips.push(`${g.dominantFinger}`);
+              if (g.thumb) chips.push(`${g.thumb} thumb`);
+              if (g.mercury) chips.push(`Mercury (pinky) ${g.mercury}`);
+              return chips.length ? (
+                <Card
+                  style={{
+                    margin: 0,
+                    marginBottom: 16,
+                    borderColor: "rgba(168,85,247,0.25)",
+                    background: "rgba(30,20,45,0.4)",
+                  }}
+                >
+                  <p className="mx-0 mt-0 mb-1 text-[13px] font-bold text-[#c084fc]">📏 Palmistry Math</p>
+                  <p className="mx-0 mt-0 mb-3 text-[11px] text-muted">
+                    Measured from 21 hand landmarks — the geometry behind your reading
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {chips.map((chip) => (
+                      <span
+                        key={chip}
+                        className="rounded-full border border-[rgba(168,85,247,0.35)] bg-[rgba(168,85,247,0.1)] px-3 py-1 text-[11.5px] font-medium text-[#c4b5fd]"
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                </Card>
+              ) : null;
+            })()}
+
           <div className="grid gap-4">
             {[
               ["Life Line", "🌿", palm.lifeLine],

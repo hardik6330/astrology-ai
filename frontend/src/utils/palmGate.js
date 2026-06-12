@@ -286,6 +286,24 @@ function retakeFor(reason) {
   return TIPS[reason] || "Please retake with a clearer palm photo.";
 }
 
+// Overall photo-quality confidence (0-100) for the "AI Confidence" UI. Built
+// from the three metrics BOTH clients measure on a passing photo — brightness,
+// sharpness, palm coverage — so the number is computed identically on web and
+// mobile (keep this in sync with mobile/src/features/palm/palmGate.js).
+// A photo that just clears the gate scores ~70%; comfortably-good metrics → 100%.
+// We never surface this on a REJECTED photo (the reject card shows instead), so
+// the floor of 0.7 at threshold keeps passing photos feeling trustworthy.
+export function confidenceScore({ brightness, sharpness, coverage }) {
+  const norm = (val, min, good) => {
+    if (typeof val !== "number" || !isFinite(val)) return 0.85; // metric absent → assume fine
+    return 0.7 + 0.3 * Math.max(0, Math.min(1, (val - min) / (good - min)));
+  };
+  const b = norm(brightness, MIN_LUMINANCE, MIN_LUMINANCE * 2.6); // 55 → 143
+  const s = norm(sharpness, MIN_LAPLACIAN_VAR, MIN_LAPLACIAN_VAR * 4); // 160 → 640
+  const c = norm(coverage, MIN_PALM_COVERAGE, MIN_PALM_COVERAGE * 2.5); // 0.22 → 0.55
+  return Math.round(100 * Math.max(0, Math.min(1, 0.3 * b + 0.4 * s + 0.3 * c)));
+}
+
 /**
  * Run the full gate on a File. Computes EVERY metric (never short-circuits) so
  * the UI can render a per-check diagnostic list. Returns:
@@ -444,6 +462,11 @@ export async function gatePalmImage(file, claimedHand) {
 
   const base = {
     checks,
+    confidence: confidenceScore({
+      brightness: lum,
+      sharpness: lapVar,
+      coverage: bounds ? bounds.coverage : undefined,
+    }),
     landmarks: hasHand ? hand.keypoints : undefined,
     imgW: img.width,
     imgH: img.height,

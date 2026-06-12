@@ -21,12 +21,29 @@ function CheckRow({ check, index }) {
   );
 }
 
-export default function PalmGateChecklist({ checks = [], analyzing = false }) {
+// Tone the confidence number green / amber by score so a borderline-but-passing
+// photo reads honestly (high = crisp, lower = usable-but-could-be-better).
+function confTone(score) {
+  if (score >= 85) return "border-[rgba(34,197,94,0.4)] bg-[rgba(34,197,94,0.1)] text-[#86efac]";
+  if (score >= 70) return "border-[rgba(251,191,36,0.4)] bg-[rgba(251,191,36,0.1)] text-[#fcd34d]";
+  return "border-[rgba(248,113,113,0.4)] bg-[rgba(248,113,113,0.1)] text-[#fca5a5]";
+}
+
+export default function PalmGateChecklist({ checks = [], analyzing = false, confidence = null }) {
   if (!checks.length && !analyzing) return null;
   return (
     <div className="mx-auto grid w-full max-w-90 gap-2 text-left">
+      {typeof confidence === "number" && (
+        <div
+          className={`flex items-center justify-between rounded-lg border px-3.5 py-2.5 text-[13px] font-semibold ${confTone(confidence)}`}
+          style={{ animation: "checkIn 0.32s ease-out both" }}
+        >
+          <span>AI Confidence</span>
+          <span className="tabular-nums">{confidence}%</span>
+        </div>
+      )}
       {checks.map((c, i) => (
-        <CheckRow key={c.key} check={c} index={i} />
+        <CheckRow key={c.key} check={c} index={i + (typeof confidence === "number" ? 1 : 0)} />
       ))}
 
       {analyzing && (

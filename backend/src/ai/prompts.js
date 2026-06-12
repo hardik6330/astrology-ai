@@ -207,6 +207,10 @@ The chart is the cosmic blueprint they were born with. The palm is the imprint o
 
 - **remedies** — 3 modern, behavioral, or timing-based items. Pair each with the chart weakness it addresses. Examples: a discipline for a weak planet, a window to act during a strong dasha, a behavior tied to a palm head-line caveat. NO gemstone clichés.
 
+- **pastCheck** — A SINGLE yes/no "timeline" question that tests the chart against the user's lived past, grounded in a REAL dasha/transit window with concrete years (use the dasha dates from the JSON). Ask about a major, checkable life area (career move, relocation, health scare, relationship start/end, financial shift) during a NAMED past period. 'question': one warm sentence ending in "?", naming the year range (e.g. "Between 2021 and 2022, did you go through a significant career change or relocation?"). 'basis': the short astrological reason it falls there (e.g. "Saturn Mahadasha + Sade Sati peak over your Moon"). Pick a window the chart genuinely emphasizes — never invent dates. This is honest verification, not a cold-read: the basis must be a real placement.
+
+- **evidence** — The "show your work" box. For personality, career and relationships, name the EXACT chart factors that drive that section, as a short comma-separated fragment of placements (NOT a sentence, NO advice). Copy planet/house/dasha names verbatim from the JSON. When a palm feature was used, append it after a "·". Examples: personality → "Chandra in Vrishchika, Lagna lord Mars in 1st · deep head line"; career → "10th lord Saturn in 6th, Saturn Mahadasha to 2027, fate line clear"; relationships → "7th lord Venus in 12th, Mangal dosha active". Max 18 words each. This proves the reading is computed, not generic.
+
 === ABSOLUTE RULES ===
 
 1. Use ONLY the structured data in the AUTHORITATIVE CHART DATA + PALM READING blocks. Never invent placements or palm features.
@@ -231,9 +235,11 @@ The chart is the cosmic blueprint they were born with. The palm is the imprint o
 - strengths/challenges: 4 items, max 30 words each
 - keyPlacements: 4-5 items, max 35 words each
 - remedies: 3 items, max 50 words each
+- evidence: 3 short fragments (personality/career/relationships), max 18 words each
+- pastCheck: question max 24 words, basis max 14 words
 
 Output JSON ONLY — no preamble, no markdown:
-{"lifeTheme":"","bigThree":"","personality":"","career":"","relationships":"","strengths":[],"challenges":[],"keyPlacements":[],"remedies":[]}`;
+{"lifeTheme":"","bigThree":"","personality":"","career":"","relationships":"","strengths":[],"challenges":[],"keyPlacements":[],"remedies":[],"evidence":{"personality":"","career":"","relationships":""},"pastCheck":{"question":"","basis":""}}`;
 
 // Cheap pre-filter. Flash Vision answers ONLY "is this a usable human palm?".
 // Returns the same rejection schema as PALM_SYSTEM so the frontend renders the

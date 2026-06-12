@@ -64,6 +64,22 @@ function geometricHand(landmarks) {
   return dx > 0 ? "Right" : "Left";
 }
 
+// Overall photo-quality confidence (0-100) for the "AI Confidence" UI. Built
+// from the three metrics measured on a passing photo — brightness, sharpness,
+// palm coverage — identical formula to the web gate (keep in sync with
+// frontend/src/utils/palmGate.js). A photo that just clears the gate scores
+// ~70%; comfortably-good metrics → 100%. Only surfaced on a PASSED photo.
+function confidenceScore({ brightness, sharpness, coverage }) {
+  const norm = (val, min, good) => {
+    if (typeof val !== "number" || !isFinite(val)) return 0.85; // metric absent → assume fine
+    return 0.7 + 0.3 * Math.max(0, Math.min(1, (val - min) / (good - min)));
+  };
+  const b = norm(brightness, MIN_LUMINANCE, MIN_LUMINANCE * 2.6);       // 55 → 143
+  const s = norm(sharpness, MIN_LAPLACIAN_VAR, MIN_LAPLACIAN_VAR * 4);   // 160 → 640
+  const c = norm(coverage, MIN_PALM_COVERAGE, MIN_PALM_COVERAGE * 2.5);  // 0.22 → 0.55
+  return Math.round(100 * Math.max(0, Math.min(1, 0.3 * b + 0.4 * s + 0.3 * c)));
+}
+
 function reject(rejectReason, debugInfo = "", duration = 0) {
   const response = {
     ok: false,
@@ -223,7 +239,8 @@ export async function gatePalmImage(asset, claimedHand) {
       { key: "spread", ok: true, label: "Fingers spread open" },
       { key: "straight", ok: true, label: "Hand straight and flat" },
     ];
-    return { ok: true, landmarks, imgW: width, imgH: height, checks };
+    const confidence = confidenceScore({ brightness, sharpness, coverage: bounds.coverage });
+    return { ok: true, landmarks, imgW: width, imgH: height, checks, confidence };
   } catch (err) {
     // Fail OPEN so a detector crash never blocks a reading — but carry the error
     // out so the caller can surface WHY no landmarks were produced.

@@ -87,6 +87,7 @@ export default function PalmStepPage() {
   // checklist while the AI analysis runs, instead of navigating away first.
   const [preview, setPreview] = useState(null); // resized data URL on screen
   const [checks, setChecks] = useState([]); // gate diagnostic rows
+  const [confidence, setConfidence] = useState(null); // 0-100 photo-quality score
   const [landmarks, setLandmarks] = useState(null); // { keypoints, imgW, imgH }
   const [analyzing, setAnalyzing] = useState(false);
   const [rejected, setRejected] = useState(false); // gate failed → show ✗ + retry
@@ -116,6 +117,7 @@ export default function PalmStepPage() {
     setAnalyzing(false);
     setPreview(null);
     setChecks([]);
+    setConfidence(null);
     setLandmarks(null);
     setError("");
   }
@@ -162,6 +164,9 @@ export default function PalmStepPage() {
         : null;
       setPreview(dataUrl);
       setChecks(gateResult.checks || []);
+      // Only surface the confidence number on a PASSING photo — a reject shows
+      // the failing-check card instead, where a score would just be noise.
+      setConfidence(gateResult.ok ? (gateResult.confidence ?? null) : null);
       setLandmarks(lm);
 
       if (!gateResult.ok) {
@@ -227,7 +232,7 @@ export default function PalmStepPage() {
             )}
           </div>
 
-          <PalmGateChecklist checks={checks} analyzing={analyzing} />
+          <PalmGateChecklist checks={checks} analyzing={analyzing} confidence={confidence} />
 
           {rejected && (
             <div className="mt-4 grid gap-2">

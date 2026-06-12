@@ -8,11 +8,27 @@ import { spacing } from "../../../theme/tokens";
 import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 
+// "Palmistry Math" chips — formatted from the MEASURED geometry buckets the
+// backend computed from the 21 hand landmarks (never model guesses). Keep in
+// sync with frontend/src/features/palm/sections/ReadingResult.jsx.
+function geometryChips(geo) {
+  if (!geo) return [];
+  const chips = [];
+  if (geo.element) chips.push(`${geo.element} hand`);
+  if (geo.palmShape) chips.push(`${geo.palmShape} palm`);
+  if (geo.fingerLength) chips.push(`${geo.fingerLength} fingers`);
+  if (geo.dominantFinger && geo.dominantFinger !== "balanced") chips.push(`${geo.dominantFinger}`);
+  if (geo.thumb) chips.push(`${geo.thumb} thumb`);
+  if (geo.mercury) chips.push(`Mercury (pinky) ${geo.mercury}`);
+  return chips;
+}
+
 // Single-hand palm reading result: photo, summary vibe, per-line cards,
 // strengths/watch-outs, practical guidance and classical notes.
 export default function ReadingResult({ palm, preview, reset }) {
   const color = useColors();
   const s = useStyles(makeStyles);
+  const geoChips = geometryChips(palm.geometry);
 
   return (
     <>
@@ -36,6 +52,20 @@ export default function ReadingResult({ palm, preview, reset }) {
         </Text>
         <Text style={s.summaryVibe}>"{palm.overallVibe}"</Text>
       </View>
+
+      {geoChips.length > 0 && (
+        <CosmicCard style={{ borderColor: "rgba(168,85,247,0.25)" }}>
+          <Text style={[s.cardTitle, { color: color.primaryLight }]}>{EMOJIS.RULER || "📏"} Palmistry Math</Text>
+          <Text style={s.cardSub}>Measured from 21 hand landmarks — the geometry behind your reading.</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+            {geoChips.map((chip) => (
+              <View key={chip} style={s.geoChip}>
+                <Text style={s.geoChipText}>{chip}</Text>
+              </View>
+            ))}
+          </View>
+        </CosmicCard>
+      )}
 
       {[
         ["Life Line",      EMOJIS.LEAF,         palm.lifeLine],
