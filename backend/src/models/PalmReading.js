@@ -11,6 +11,7 @@ const PalmReading = sequelize.define('PalmReading', {
     defaultValue: () => genId(),
   },
   userId:       { type: DataTypes.STRING(24), allowNull: false },
+  deviceId:     { type: DataTypes.STRING, allowNull: true },   // Layer 1: Unique device identification
   handType:     { type: DataTypes.STRING, allowNull: true },   // 'Left' | 'Right' | 'Unclear'
   imageQuality: { type: DataTypes.STRING, allowNull: true },   // 'clear' | 'blurry' | 'unusable'
   imageHash:    { type: DataTypes.STRING(64), allowNull: true },
@@ -18,7 +19,10 @@ const PalmReading = sequelize.define('PalmReading', {
 }, {
   timestamps: true,
   // Per-scan dedupe filters { userId, imageHash } before any AI spend.
-  indexes: [{ name: 'palm_readings_user_image_hash', fields: ['userId', 'imageHash'] }],
+  indexes: [
+    { name: 'palm_readings_user_image_hash', fields: ['userId', 'imageHash'] },
+    { fields: ['deviceId'] }
+  ],
 });
 
 export default PalmReading;

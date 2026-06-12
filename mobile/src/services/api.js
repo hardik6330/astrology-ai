@@ -12,6 +12,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { noteBalance } from "./creditsStore";
 import { noteCosts } from "./costsStore";
 
+// Device ID: Layer 1 requirement for biometric matching.
+// We use installationId from Expo Constants as a persistent unique ID.
+const DEVICE_ID = Constants.installationId || Constants.sessionId || "unknown_device";
+
 // Phone is cached after the dummy OTP login and attached to every form
 // payload so the backend can stamp it on the User row. Kept in a module ref
 // to avoid an AsyncStorage round-trip on every API call.
@@ -348,32 +352,45 @@ export async function fetchPalmById(id, form) {
 }
 
 export async function analyzePalm(imageBase64, form, claimedHand, skipGate = true, landmarks = null) {
-  const data = await postJSON("/palm", {
+  const body = {
     image: imageBase64,
     form: attachPhone(form),
     claimedHand,
-    // Normally the local TFJS gate ran, so the backend skips its Flash gate.
-    // If the local gate hung/failed we pass false → backend gates instead, so
-    // the reading is never blocked by a stuck model load.
     skipGate,
-    // The 21 MediaPipe points (when the gate ran) for the biometric match.
     landmarks,
-  });
-  noteBalance(data.balance);
-  return parseContent(data.content);
+    deviceId: DEVICE_ID,
+    timestamp: Date.now(),
+  };
+  const data = await postJSON("/palm", body);
+  if (data.balance !== undefined) noteBalance(data.balance);
+  if (data.costs) noteCosts(data.costs);
+  
+  // Return the full data object so usePalmReading can handle action: 'ask_user'
+  return { 
+    ...data, 
+    content: data.content ? parseContent(data.content) : null 
+  };
 }
 
-// Both-Hands comparison. Returns { left, right, comparison } — comparison
-// is null if either hand came back unusable (frontend renders retake UI).
-export async function comparePalms(leftBase64, rightBase64, form) {
-  const data = await postJSON("/palm/compare", {
+export async function comparePalms(leftBase64, rightBase64, form, leftLandmarks = null, rightLandmarks = null) {
+  const body = {
     leftImage: leftBase64,
     rightImage: rightBase64,
     form: attachPhone(form),
-    skipGate: true // mobile now uses local TFJS gate, skip backend Flash gate
-  });
-  noteBalance(data.balance);
-  return parseContent(data.content);
+    leftLandmarks,
+    rightLandmarks,
+    skipGate: true,
+    deviceId: DEVICE_ID,
+    timestamp: Date.now(),
+  };
+  const data = await postJSON("/palm/compare", body);
+  if (data.balance !== undefined) noteBalance(data.balance);
+  if (data.costs) noteCosts(data.costs);
+  
+  return {
+    ...data,
+    content: data.content ? parseContent(data.content) : null
+  };
 }
 
 // Google Places autocomplete via our backend proxy. `token` is the Places

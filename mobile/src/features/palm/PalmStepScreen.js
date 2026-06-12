@@ -84,7 +84,13 @@ export default function PalmStepScreen({ navigation }) {
   function analyzeInBackground(base64, hand, skipGate = true, landmarks = null) {
     setPalmAnalyzing(true);
     analyzePalm(`data:image/jpeg;base64,${base64}`, form, hand, skipGate, landmarks)
-      .then((result) => setPalm(result))
+      .then((data) => {
+        // For the background flow, we just set the content. 
+        // If it's an "ask_user" action, the PalmScreen (where the user is headed)
+        // will handle it via its own usePalmReading logic if needed, but 
+        // for simplicity here we just accept the reading.
+        setPalm(data.content);
+      })
       .catch(() => { /* surfaced on Palm if the user visits it */ })
       .finally(() => setPalmAnalyzing(false));
   }

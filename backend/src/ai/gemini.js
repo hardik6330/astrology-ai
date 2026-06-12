@@ -42,7 +42,7 @@ export function minimizeChart(chart) {
  *   thinkingBudget — caps Pro's internal reasoning tokens (cheaper = lower).
  *   Pass null to use Google's default dynamic behavior.
  */
-export async function callGemini(systemPrompt, userPrompt, jsonMode = false, models = CHAT_MODELS, thinkingBudget = null) {
+export async function callGemini(systemPrompt, userPrompt, jsonMode = false, models = CHAT_MODELS, thinkingBudget = null, temperature = 1.0) {
   let lastError;
 
   for (const modelName of models) {
@@ -50,7 +50,7 @@ export async function callGemini(systemPrompt, userPrompt, jsonMode = false, mod
       try {
         const startTime = Date.now();
         const generationConfig = {
-          temperature: 1.0,
+          temperature,
           ...(jsonMode && { responseMimeType: 'application/json' }),
           ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
         };
@@ -84,14 +84,14 @@ export async function callGemini(systemPrompt, userPrompt, jsonMode = false, mod
  * the Both-Hands palm comparison where Pro sees BOTH photos in one call.
  * Same retry/fallback semantics as callGeminiVision.
  */
-export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, jsonMode = true, models = CHAT_MODELS, thinkingBudget = null) {
+export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, jsonMode = true, models = CHAT_MODELS, thinkingBudget = null, temperature = 1.0) {
   let lastError;
   for (const modelName of models) {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         const startTime = Date.now();
         const generationConfig = {
-          temperature: 1.0,
+          temperature,
           ...(jsonMode && { responseMimeType: 'application/json' }),
           ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
         };
@@ -127,7 +127,7 @@ export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, js
  * Multimodal Gemini call — image + text. Same retry/fallback as callGemini.
  * imageBase64 must be raw base64 (no `data:` prefix).
  */
-export async function callGeminiVision(systemPrompt, userPrompt, imageBase64, mimeType = 'image/jpeg', jsonMode = true, models = CHAT_MODELS, thinkingBudget = null) {
+export async function callGeminiVision(systemPrompt, userPrompt, imageBase64, mimeType = 'image/jpeg', jsonMode = true, models = CHAT_MODELS, thinkingBudget = null, temperature = 1.0) {
   let lastError;
 
   for (const modelName of models) {
@@ -135,7 +135,7 @@ export async function callGeminiVision(systemPrompt, userPrompt, imageBase64, mi
       try {
         const startTime = Date.now();
         const generationConfig = {
-          temperature: 1.0,
+          temperature,
           ...(jsonMode && { responseMimeType: 'application/json' }),
           ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
         };

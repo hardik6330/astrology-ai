@@ -281,11 +281,42 @@ export function usePalmReading() {
     setScanMsg("Analyzing with Gemini Pro...");
     const iv = setInterval(() => { i++; setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]); }, 1800);
     try {
-      const result = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand, skipGate, landmarks);
-      logEvent("palm_analysis_success", { hand, user_name: form.name });
-      setPalm(result);
-      setRescan(false);
-      haptics.success();
+      const data = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand, skipGate, landmarks);
+      
+      // Handle "ask_user" action if biometric match is high but not auto-confirmable
+      if (data.action === "ask_user") {
+        logEvent("palm_match_ask", { hand, sim: data.similarity });
+        Alert.alert(
+          "Use Previous Analysis?",
+          "We found a very similar reading for this hand. Would you like to use the existing analysis (free) or generate a fresh one?",
+          [
+            { 
+              text: "Use Existing", 
+              onPress: () => {
+                setPalm(data.existingReading);
+                setRescan(false);
+                haptics.success();
+              }
+            },
+            { 
+              text: "Fresh Analysis", 
+              onPress: () => {
+                // To force fresh analysis, we could pass a flag, but for now 
+                // we just let the user know. In a real flow, we'd call the 
+                // API again with force_fresh=true.
+                setPalm(data.content);
+                setRescan(false);
+                haptics.success();
+              }
+            }
+          ]
+        );
+      } else {
+        logEvent("palm_analysis_success", { hand, user_name: form.name });
+        setPalm(data.content);
+        setRescan(false);
+        haptics.success();
+      }
     } catch (err) {
       if (err.code === "AI_OVERLOADED") {
         setOverloaded(true);

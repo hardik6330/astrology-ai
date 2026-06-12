@@ -115,7 +115,7 @@ async function runGate({ image, claimedHand, skipGate = false, scanId }) {
 }
 
 // Run Pro + persistence. Assumes the gate has already passed.
-async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash, scanId, landmarks, textureSignature, lineSignature }) {
+async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash, scanId, landmarks, textureSignature, lineSignature, deviceId }) {
   const t0 = Date.now();
   const user = await findOrCreateUser(form);
 
@@ -143,7 +143,7 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
   // embedding comes back either way so the fresh path below can persist it.
   const { result: reused, embedding } = await tryBiometricReuse({
     user, claimedHand, landmarks, imageHash, scanId, t0, fireInsightPush,
-    textureSignature, lineSignature
+    textureSignature, lineSignature, deviceId
   });
   if (reused) return reused;
 
@@ -154,13 +154,32 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
   let parsed;
   const tAI = Date.now();
   try {
-    const userPrompt = `NAME: ${form.name}\nGENDER: ${form.gender || 'NOT SPECIFIED'}\n\nAnalyze this palm photograph.`;
-    log.info({ scanId, stage: 'ai', models: PALM_MODELS }, 'palm scan: calling Gemini vision…');
-    const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, base64, mimeType, true, PALM_MODELS, THINK_BUDGET.PALM);
-    const cleaned = cleanJson(raw);
-    parsed = typeof raw === 'string' ? JSON.parse(cleaned) : raw;
-    log.info({ scanId, stage: 'ai', quality: parsed.imageQuality, hand: parsed.handType, ms: Date.now() - tAI }, 'palm scan: Gemini reading done');
-  } catch (e) {
+      // Layer 3: Astrology JSON Builder
+      // Convert landmarks to a structured JSON to help Gemini "see" the geometry better
+      let geometryData = "N/A";
+      if (landmarks && landmarks.length >= 21) {
+        const getDist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        const palmWidth = getDist(landmarks[5], landmarks[17]);
+        const palmHeight = getDist(landmarks[0], landmarks[9]);
+        const fingers = {
+          thumb: getDist(landmarks[1], landmarks[4]),
+          index: getDist(landmarks[5], landmarks[8]),
+          middle: getDist(landmarks[9], landmarks[12]),
+          ring: getDist(landmarks[13], landmarks[16]),
+          pinky: getDist(landmarks[17], landmarks[20]),
+        };
+        geometryData = JSON.stringify({ palmWidth, palmHeight, fingers, ratio: (palmWidth / palmHeight).toFixed(2) });
+      }
+
+      const userPrompt = `NAME: ${form.name}\nGENDER: ${form.gender || 'NOT SPECIFIED'}\nPALM_GEOMETRY: ${geometryData}\n\nAnalyze this palm photograph. Use the geometry data to inform your observations about finger length and palm shape.`;
+      
+      log.info({ scanId, stage: 'ai', models: PALM_MODELS }, 'palm scan: calling Gemini vision…');
+      // Layer 5: LLM Routing - Temperature = 0 for consistency
+      const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, base64, mimeType, true, PALM_MODELS, THINK_BUDGET.PALM, 0.0);
+      const cleaned = cleanJson(raw);
+      parsed = typeof raw === 'string' ? JSON.parse(cleaned) : raw;
+      log.info({ scanId, stage: 'ai', quality: parsed.imageQuality, hand: parsed.handType, ms: Date.now() - tAI }, 'palm scan: Gemini reading done');
+    } catch (e) {
     log.error({ scanId, err: e.message, ms: Date.now() - tAI }, 'palm scan: Gemini/parse failed');
     parsed = { handType: 'Unclear', imageQuality: 'unusable', retakeReason: 'Could not parse reading. Please try again.' };
   }
@@ -179,7 +198,7 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
 
   // Persist the reading + signatures so future photos of this hand match.
   await persistReadingWithEmbedding({ 
-    user, parsed, imageHash, embedding, textureSignature, lineSignature 
+    user, parsed, imageHash, embedding, textureSignature, lineSignature, deviceId 
   });
   if (parsed.imageQuality !== 'unusable') fireInsightPush();
 
@@ -197,10 +216,10 @@ async function persistGateRejection(_form, _imageHash, _rejection) {
   /* intentionally a no-op — see comment above */
 }
 
-export async function analyzePalm({ image, form, claimedHand, skipGate, landmarks }) {
+export async function analyzePalm({ image, form, claimedHand, skipGate, landmarks, deviceId }) {
   // Short id to correlate every log line of one scan. Grep `scanId=xxxxxxxx`.
   const scanId = crypto.randomBytes(4).toString('hex');
-  log.info({ scanId, hand: claimedHand || null, skipGate: !!skipGate, landmarks: Array.isArray(landmarks) ? landmarks.length : 0 }, 'palm scan: received');
+  log.info({ scanId, hand: claimedHand || null, skipGate: !!skipGate, landmarks: Array.isArray(landmarks) ? landmarks.length : 0, deviceId }, 'palm scan: received');
 
   // Stage 1 — gate. We need the image hash to build the dedupe key, so the
   // gate runs before dedupe. The Flash call is cheap and we'd hit cache for
@@ -213,8 +232,9 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
     return { content: JSON.stringify(gateResult.rejection), balance: null };
   }
 
-  // Extract Texture and Line signatures for Level 2/3 matching
-  const signatures = await extractPalmSignatures(gateResult.base64);
+  // Layer 3: Extraction Engine - Extract signatures (Texture/Lines)
+  // We pass landmarks for potential ROI cropping in the future
+  const signatures = await extractPalmSignatures(gateResult.base64, landmarks);
 
   return runProAndPersist({
     form, claimedHand,
@@ -223,6 +243,7 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
     imageHash: gateResult.imageHash,
     scanId,
     landmarks,
+    deviceId,
     ...signatures
   });
 }
@@ -240,7 +261,7 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
 //   2. Build a SHA-256 hash of (leftHash | rightHash) for dedupe.
 //   3. Single Pro Vision call with BOTH images.
 //   4. Save the parsed result with handType="Both".
-export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
+export async function comparePalms({ form, leftImage, rightImage, skipGate, deviceId }) {
   // Stage 1 — gate both photos. No Pro spend yet.
   const [leftGate, rightGate] = await Promise.all([
     runGate({ image: leftImage,  claimedHand: 'Left',  skipGate }),
@@ -285,6 +306,7 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
     const { charged, balance } = await charge({ userId: user.id, costKey: 'palm_cost', reason: 'palm', meta: { mode: 'compare' } });
 
     // Stage 3 — single Pro Vision call with BOTH images.
+    // Layer 5: Temperature = 0 for consistency
     const userPrompt =
       `NAME: ${form.name}\n` +
       `GENDER: ${form.gender || 'NOT SPECIFIED'}\n\n` +
@@ -298,7 +320,7 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
           { base64: leftGate.base64,  mimeType: leftGate.mimeType  },
           { base64: rightGate.base64, mimeType: rightGate.mimeType },
         ],
-        true, PALM_MODELS, THINK_BUDGET.PALM,
+        true, PALM_MODELS, THINK_BUDGET.PALM, 0.0
       );
       parsed = JSON.parse(cleanJson(raw));
     } catch (e) {
@@ -321,6 +343,7 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
     try {
       await PalmReading.create({
         userId: user.id,
+        deviceId,
         handType: 'Both',
         imageQuality: parsed.imageQuality || 'clear',
         imageHash: combinedHash,
