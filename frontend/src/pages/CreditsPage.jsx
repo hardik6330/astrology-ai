@@ -39,41 +39,65 @@ export default function CreditsPage() {
       <div className="cosmos"></div>
       <div className="stars"></div>
 
-      <div className="text-center mb-8">
-        <h2 className="mb-2 text-[28px] font-black tracking-tight text-ink bg-gradient-to-b from-white to-[#c084fc] bg-clip-text text-transparent">
+      <div className="text-center mb-10">
+        <div className="inline-flex mb-4 p-3 rounded-2xl bg-[#c084fc]/10 border border-[#c084fc]/20 shadow-[0_0_20px_rgba(192,132,252,0.2)] animate-pulse">
+          <span className="text-3xl">✨</span>
+        </div>
+        <h2 className="mb-2 text-[32px] font-black tracking-tight text-ink bg-gradient-to-b from-white to-[#c084fc] bg-clip-text text-transparent">
           Cosmic Credits
         </h2>
-        <p className="mx-auto max-w-80 text-[14px] leading-relaxed text-dim">
+        <p className="mx-auto max-w-85 text-[15px] leading-relaxed text-dim">
           Unlock the secrets of the stars with credits for readings, guidance, and AI chat.
         </p>
       </div>
 
       {/* Current balance */}
       <Card
-        className="flex items-center justify-between overflow-hidden relative"
-        style={{ padding: "20px 24px", marginBottom: 24, border: "1px solid rgba(192,132,252,0.3)" }}
+        className="flex items-center justify-between overflow-hidden relative group transition-all duration-500 hover:border-[#c084fc]/50"
+        style={{
+          padding: "24px 28px",
+          marginBottom: 32,
+          background: "linear-gradient(145deg, rgba(30, 30, 50, 0.7), rgba(20, 20, 35, 0.7))",
+          border: "1px solid rgba(192,132,252,0.25)",
+          boxShadow: "0 10px 40px rgba(0, 0, 0, 0.4)",
+        }}
       >
-        <div className="absolute top-0 left-0 w-1 h-full bg-[#c084fc]"></div>
-        <div className="flex flex-col">
-          <span className="text-[11px] font-bold uppercase tracking-[2px] text-dim mb-1">Your Balance</span>
-          <span className="text-2xl font-black text-ink">✨ {credits ?? "—"}</span>
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-[#8b5cf6] to-[#c084fc]"></div>
+        <div className="absolute -right-10 -top-10 w-32 h-32 bg-[#c084fc]/5 rounded-full blur-3xl group-hover:bg-[#c084fc]/10 transition-colors duration-500"></div>
+
+        <div className="flex flex-col relative z-10">
+          <span className="text-[12px] font-black uppercase tracking-[3px] text-[#c084fc] mb-1.5 opacity-80">
+            Your Balance
+          </span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-4xl font-black text-ink tracking-tight">✨ {credits ?? "—"}</span>
+            <span className="text-[14px] font-medium text-dim">Available</span>
+          </div>
         </div>
-        <div className="text-[12px] font-medium text-[#c084fc] bg-[#c084fc]/10 px-3 py-1 rounded-full border border-[#c084fc]/20">
-          Ready to use
+
+        <div className="relative z-10 flex flex-col items-end gap-2">
+          <div className="text-[12px] font-bold text-[#c084fc] bg-[#c084fc]/10 px-4 py-1.5 rounded-full border border-[#c084fc]/30 backdrop-blur-md shadow-[0_0_15px_rgba(192,132,252,0.15)]">
+            Ready to use
+          </div>
         </div>
       </Card>
 
       <ErrorText>{error}</ErrorText>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#c084fc] border-t-transparent"></div>
-          <p className="mt-4 text-[13px] text-dim">Loading plans…</p>
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="relative h-12 w-12">
+            <div className="absolute inset-0 rounded-full border-4 border-[#c084fc]/20"></div>
+            <div className="absolute inset-0 animate-spin rounded-full border-4 border-[#c084fc] border-t-transparent"></div>
+          </div>
+          <p className="mt-6 text-[14px] font-medium text-dim tracking-wide">Aligning the stars…</p>
         </div>
       ) : plans.length === 0 ? (
-        <p className="mt-2 text-center text-[13px] text-dim">No plans available right now.</p>
+        <div className="py-12 text-center">
+          <p className="text-[15px] text-dim">No cosmic plans available right now.</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div className="flex flex-col gap-6 max-w-100 mx-auto">
           {plans.map((p) => {
             const isPopular = p.bonusLabel?.toLowerCase().includes("popular");
             const isBestValue = p.bonusLabel?.toLowerCase().includes("value");
@@ -81,38 +105,68 @@ export default function CreditsPage() {
             return (
               <Card
                 key={p.id}
-                className={`relative flex flex-col items-center text-center transition-all duration-300 hover:scale-[1.02] ${
-                  isPopular ? "ring-2 ring-[#c084fc]/50 ring-offset-2 ring-offset-[#050508]" : ""
-                } ${isBestValue ? "border-[#fbbf24]/30" : ""}`}
-                style={{ padding: 24, marginBottom: 0 }}
+                className={`relative flex flex-col sm:flex-row items-center justify-between gap-6 transition-all duration-500 hover:scale-[1.02] group ${
+                  isPopular
+                    ? "ring-1 ring-[#c084fc]/40 bg-[#c084fc]/5 shadow-[0_0_30px_rgba(192,132,252,0.15)]"
+                    : isBestValue
+                      ? "ring-1 ring-[#fbbf24]/40 bg-[#fbbf24]/5 shadow-[0_0_30px_rgba(251,191,36,0.1)]"
+                      : "hover:border-white/20"
+                }`}
+                style={{
+                  padding: "24px 32px",
+                  marginBottom: 0,
+                  background: isPopular
+                    ? "linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, rgba(20, 20, 30, 0.6) 100%)"
+                    : isBestValue
+                      ? "linear-gradient(90deg, rgba(251, 191, 36, 0.1) 0%, rgba(20, 20, 30, 0.6) 100%)"
+                      : undefined,
+                }}
               >
                 {p.bonusLabel && (
-                  <span
-                    className={`absolute -top-3 rounded-full px-3 py-0.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg ${
+                  <div
+                    className={`absolute top-0 right-6 -translate-y-1/2 rounded-full px-4 py-1 text-[10px] font-black uppercase tracking-[1.5px] text-white shadow-xl z-20 whitespace-nowrap ${
                       isPopular
-                        ? "bg-gradient-to-r from-[#6366f1] to-[#a855f7]"
+                        ? "bg-gradient-to-r from-[#6366f1] to-[#a855f7] ring-2 ring-black/20"
                         : isBestValue
-                          ? "bg-gradient-to-r from-[#fbbf24] to-[#f59e0b]"
+                          ? "bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] ring-2 ring-black/20 text-black"
                           : "bg-zinc-800 border border-white/10"
                     }`}
                   >
+                    {isPopular && <span className="mr-1.5">🔥</span>}
+                    {isBestValue && <span className="mr-1.5">💎</span>}
                     {p.bonusLabel}
-                  </span>
+                  </div>
                 )}
-                <div className="mt-2 text-3xl font-black text-ink">✨ {p.credits}</div>
-                <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-dim">Credits</div>
-                <div className="my-5 text-2xl font-black text-[#c084fc]">{formatInr(p.priceInr)}</div>
-                <Button
-                  variant="magic"
-                  fullWidth
-                  className="font-black tracking-widest"
-                  onClick={() => {
-                    setError("");
-                    setSelected(p);
-                  }}
-                >
-                  BUY NOW
-                </Button>
+
+                <div className="flex items-center gap-4">
+                  <div className="text-4xl font-black text-ink group-hover:scale-110 transition-transform duration-500">
+                    ✨
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <div className="text-2xl font-black text-ink tracking-tight">{p.credits} Credits</div>
+                    <div className="text-[11px] font-black uppercase tracking-[2px] text-[#c084fc] opacity-80">
+                      Cosmic Power
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center sm:items-end flex-1">
+                  <div className="text-2xl font-black text-ink tracking-tight">{formatInr(p.priceInr)}</div>
+                  <div className="text-[12px] text-dim font-medium">One-time purchase</div>
+                </div>
+
+                <div className="w-full sm:w-auto">
+                  <Button
+                    variant="magic"
+                    className="font-black tracking-widest text-[13px] py-3 px-8 shadow-[0_10px_20px_rgba(192,132,252,0.3)] group-hover:shadow-[0_15px_30px_rgba(192,132,252,0.5)] group-hover:-translate-y-1"
+                    onClick={() => {
+                      setError("");
+                      setSelected(p);
+                    }}
+                  >
+                    BUY NOW
+                  </Button>
+                </div>
               </Card>
             );
           })}
@@ -210,32 +264,53 @@ function CheckoutModal({ plan, onClose, onPaid, onError, formatInr }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/80 backdrop-blur-sm p-4"
       onClick={busy ? undefined : onClose}
     >
       <Card
-        className="w-full max-w-90 text-center"
-        style={{ padding: 24 }}
+        className="w-full max-w-90 text-center relative overflow-hidden"
+        style={{
+          padding: 32,
+          background: "linear-gradient(145deg, rgba(30, 30, 50, 0.9), rgba(15, 15, 25, 0.9))",
+          border: "1px solid rgba(192,132,252,0.3)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#c084fc] to-transparent"></div>
+
         {done ? (
-          <>
-            <div className="mb-2 text-4xl">🎉</div>
-            <p className="m-0 text-[15px] font-semibold text-success">{plan.credits} credits added!</p>
-          </>
+          <div className="animate-bounce">
+            <div className="mb-4 text-6xl">🎉</div>
+            <p className="m-0 text-[18px] font-black text-success tracking-tight">
+              {plan.credits} credits added!
+            </p>
+            <p className="mt-2 text-[13px] text-dim">The stars are now in your favor.</p>
+          </div>
         ) : (
           <>
-            <div className="mb-2 text-3xl">✨</div>
-            <p className="m-0 text-[15px] font-semibold text-ink">{plan.name}</p>
-            <p className="mx-0 mb-3 mt-1 text-[13px] text-subtle">
-              {plan.credits} credits for {formatInr(plan.priceInr)}
-            </p>
-            <Button variant="magic" fullWidth busy={busy} busyLabel="Processing…" onClick={pay}>
-              Pay {formatInr(plan.priceInr)}
+            <div className="mb-4 inline-flex p-4 rounded-full bg-[#c084fc]/10 border border-[#c084fc]/20 shadow-[0_0_20px_rgba(192,132,252,0.2)]">
+              <span className="text-4xl">✨</span>
+            </div>
+            <p className="m-0 text-[20px] font-black text-ink tracking-tight uppercase">{plan.name}</p>
+            <div className="my-6 p-4 rounded-xl bg-black/30 border border-white/5">
+              <p className="m-0 text-[15px] font-bold text-subtle">{plan.credits} Cosmic Credits</p>
+              <p className="mt-1 text-2xl font-black text-[#c084fc]">{formatInr(plan.priceInr)}</p>
+            </div>
+            <Button
+              variant="magic"
+              fullWidth
+              busy={busy}
+              busyLabel="Securing transaction…"
+              className="py-4 text-[14px] font-black tracking-widest shadow-[0_10px_20px_rgba(192,132,252,0.3)]"
+              onClick={pay}
+            >
+              PAY {formatInr(plan.priceInr)}
             </Button>
-            <p className="mx-0 mb-0 mt-2.5 text-[10.5px] leading-snug text-dim">
-              Secured by Razorpay. Credits are added once your payment is verified.
-            </p>
+            <div className="mt-6 flex items-center justify-center gap-2 opacity-60">
+              <div className="h-[1px] w-8 bg-dim"></div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-dim">Secured by Razorpay</p>
+              <div className="h-[1px] w-8 bg-dim"></div>
+            </div>
           </>
         )}
       </Card>

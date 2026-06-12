@@ -1,5 +1,4 @@
 <div align="center">
-  <img src="frontend/src/assets/main/main-kundali.png" width="180" alt="Astrology AI Pro" />
   <h1>✨ Astrology AI Pro</h1>
   <p><strong>Precision Vedic astrology and AI palmistry — on web and mobile.</strong></p>
   <p><em>Real ephemeris math, not guesswork.</em></p>
@@ -26,15 +25,6 @@ Most astrology apps either hard-code a few canned horoscopes, or send your birth
 - **Honest by design.** A **Prediction Confidence** layer shows how many independent chart signatures back each theme, so "High" means several factors agree — not that the AI sounded sure. The palm reading shows its **measured** geometry, never invented numbers.
 - **Genuinely cross-platform.** One backend, two first-class clients (web + native), and an offline astrology engine so charts compute without a network on both.
 
-### The four core features
-
-| | | |
-|---|---|---|
-| **🪐 Kundali** | **✋ Palmistry** | **📅 Daily guidance** |
-| A sub-degree birth chart with Destiny Matrix scores and planetary strength meters. | On-device vision reads the left hand (inborn potential) against the right (lived reality). | A personal **Gochar** transit map — pick any date and see the live sky against your chart. |
-
-> Plus a **context-aware AI astrologer** that remembers prior turns and folds in your palm reading and live transits when it answers.
-
 ---
 
 ## 📑 Table of Contents
@@ -42,8 +32,6 @@ Most astrology apps either hard-code a few canned horoscopes, or send your birth
 - [Features at a Glance](#-features-at-a-glance)
 - [The Four Pillars (Features in depth)](#-the-four-pillars-features-in-depth)
 - [Core Features in Action](#core-features-in-action)
-- [How It Works](#how-it-works)
-- [Architecture & Data Flow](#-architecture--data-flow)
 - [Tech Stack](#tech-stack)
 - [Quick Start](#-quick-start)
 
@@ -142,50 +130,6 @@ A conversational astrologer that stays anchored to *your* chart:
 | **Timeline Forecast** | AI-driven life predictions mapped against your planetary timeline for maximum context. | <img src="frontend/src/assets/main/timeline-forcast.png" width="250" /> |
 | **Prediction Confidence** | Transparency layer showing how many independent chart signatures support each AI-driven theme. | <img src="frontend/src/assets/main/prediction-confidence.png" width="250" /> |
 | **Current Sky (Gochar)** | Real-time planetary transits relative to your Moon sign, tracking immediate energetic shifts. | <img src="frontend/src/assets/main/curretn-sky.png" width="250" /> |
-
----
-
-## How It Works
-
-How the data flows from the sky to your screen, in three stages.
-
-**1. Astronomy.** The `astronomy-engine` library gives sub-degree planetary longitudes. We apply the **Lahiri Ayanamsha** to convert tropical coordinates to the sidereal (Vedic) zodiac, and use **Whole-Sign houses** with the Lagna (Ascendant) as the 1st house.
-
-**2. Vedic math.** Deterministic algorithms run on those positions: **Planetary Strength** (Shadbala-lite — dignity + angular placement on a 0–100 scale), **Destiny Matrix** scoring (house-lord, Karaka, and benefic/malefic influence across six life areas), and the **Vimshottari Dasha** timeline (the 120-year planetary cycle that times life events).
-
-**3. AI interpretation.** We send Gemini the **calculated facts** ("Mars in the 10th house, strong, ruling the 5th"), never your personal data. The [Master Astrologer prompt](backend/src/ai/prompts.js) instructs cause → effect reasoning, and a **Prediction Confidence** layer tracks how many independent signatures support each prediction.
-
----
-
-## 🏛 Architecture & Data Flow
-
-```
-                         ┌──────────────────────────┐
-                         │   Firebase Phone Auth     │  (OTP → ID token)
-                         └─────────────┬────────────┘
-                                       │ ID token
-   ┌─────────────────┐     ┌───────────▼────────────┐     ┌──────────────────┐
-   │  Web (PWA)      │     │   Express 5 API         │     │  Google Gemini    │
-   │  React 19 +Vite │◄───►│   • verifies ID token   │◄───►│  2.5 Pro / Flash  │
-   │                 │ JWT │   • issues 30d JWT      │     │  (text + vision)  │
-   │  astrology.js   │     │   • Zod validation      │     └──────────────────┘
-   └─────────────────┘     │   • rate limit + helmet │
-                           │   • in-flight dedupe    │     ┌──────────────────┐
-   ┌─────────────────┐     │   controller→service→   │◄───►│  OpenStreetMap    │
-   │ Mobile (Expo)   │◄───►│        model            │     │  Nominatim (geo)  │
-   │ RN 0.81 + RN    │ JWT └───────────┬────────────┘     └──────────────────┘
-   │ shared/         │                 │ Sequelize
-   │  astrology.js   │     ┌───────────▼────────────┐
-   └─────────────────┘     │   MySQL 8               │
-                           │  users, kundalis,       │
-                           │  daily, chat, palm,     │
-                           │  locations, auth        │
-                           └─────────────────────────┘
-```
-
-**The golden rule:** charts are computed **on the client** (`astrology.js`), and only the resulting **fact sheet** crosses the wire. The backend orchestrates AI, persistence, auth, and geo — it never recomputes the chart.
-
-> ⚠️ **Intentional duplication:** [`frontend/src/astrology.js`](frontend/src/astrology.js) and [`mobile/src/shared/astrology.js`](mobile/src/shared/astrology.js) are ~950-line mirror copies (same for `prompts.js`). **Edit both** until a shared package is extracted. See [CLAUDE.md](CLAUDE.md).
 
 ---
 
