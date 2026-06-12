@@ -293,7 +293,7 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
 //   2. Build a SHA-256 hash of (leftHash | rightHash) for dedupe.
 //   3. Single Pro Vision call with BOTH images.
 //   4. Save the parsed result with handType="Both".
-export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
+export async function comparePalms({ form, leftImage, rightImage, skipGate, leftLandmarks, rightLandmarks }) {
   // Stage 1 — gate both photos. No Pro spend yet.
   const [leftGate, rightGate] = await Promise.all([
     runGate({ image: leftImage,  claimedHand: 'Left',  skipGate }),
@@ -309,6 +309,28 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate }) {
       content: JSON.stringify({
         left:  leftGate.ok  ? { imageQuality: 'clear' } : leftGate.rejection,
         right: rightGate.ok ? { imageQuality: 'clear' } : rightGate.rejection,
+        comparison: null,
+      }),
+      balance: null,
+    };
+  }
+
+  // Server-side handedness guard (defense-in-depth, same as analyzePalm): the
+  // LEFT slot must be a left hand and the RIGHT slot a right hand. Runs whenever
+  // the client sent per-hand landmarks; skipped (null) when it didn't. No charge.
+  const leftDetected = geometricHand(leftLandmarks);
+  const rightDetected = geometricHand(rightLandmarks);
+  const leftWrong = leftDetected && leftDetected !== 'Left';
+  const rightWrong = rightDetected && rightDetected !== 'Right';
+  if (leftWrong || rightWrong) {
+    return {
+      content: JSON.stringify({
+        left: leftWrong
+          ? { imageQuality: 'unusable', rejectReason: 'wrong_hand', retakeReason: 'This looks like your right hand — retake your LEFT hand.' }
+          : { imageQuality: 'clear' },
+        right: rightWrong
+          ? { imageQuality: 'unusable', rejectReason: 'wrong_hand', retakeReason: 'This looks like your left hand — retake your RIGHT hand.' }
+          : { imageQuality: 'clear' },
         comparison: null,
       }),
       balance: null,

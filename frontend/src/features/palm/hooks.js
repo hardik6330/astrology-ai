@@ -56,7 +56,8 @@ export function useAnalyzePalm({ form } = {}) {
 export function useComparePalms({ form } = {}) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ leftImage, rightImage }) => comparePalms(leftImage, rightImage, form),
+    mutationFn: ({ leftImage, rightImage, leftLandmarks, rightLandmarks }) =>
+      comparePalms(leftImage, rightImage, form, leftLandmarks, rightLandmarks),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: palmKeys.history(form) });
     },

@@ -66,6 +66,8 @@ export default function PalmComparePage() {
   const compare = useComparePalms({ form });
   const [left, setLeft] = useState(null); // data URL
   const [right, setRight] = useState(null); // data URL
+  const [leftLandmarks, setLeftLandmarks] = useState(null); // 21 pts for the backend handedness guard
+  const [rightLandmarks, setRightLandmarks] = useState(null);
   // Which slot is being picked into — drives the camera/gallery chooser.
   const [pickingHand, setPickingHand] = useState(null); // "left" | "right" | null
   const [chooserOpen, setChooserOpen] = useState(false);
@@ -119,10 +121,12 @@ export default function PalmComparePage() {
       if (pickingHand === "left") {
         setLeft(dataUrl);
         setPalmLeftPhoto(dataUrl);
+        setLeftLandmarks(gateResult.landmarks || null);
       }
       if (pickingHand === "right") {
         setRight(dataUrl);
         setPalmRightPhoto(dataUrl);
+        setRightLandmarks(gateResult.landmarks || null);
       }
     } catch {
       setError("Couldn't read that photo. Try a different one.");
@@ -135,7 +139,7 @@ export default function PalmComparePage() {
     setPalmOverloaded(false);
     setPalmLowCredits(false);
     compare
-      .mutateAsync({ leftImage: left, rightImage: right })
+      .mutateAsync({ leftImage: left, rightImage: right, leftLandmarks, rightLandmarks })
       .then((result) => setPalmComparison(result))
       .catch((err) => {
         // Pro 2.5 was overloaded (502 / AI_OVERLOADED). PalmPage's compare

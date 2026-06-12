@@ -93,14 +93,14 @@ export default function PalmCompareScreen({ navigation }) {
         imgH: gateResult.imgH,
       };
       setPickingHand(null);
-      if (hand === "left")  { 
-        setLeft({ uri: img.uri, base64: img.base64 });  
-        setPalmLeftPhoto(img.uri); 
+      if (hand === "left")  {
+        setLeft({ uri: img.uri, base64: img.base64, keypoints: gateResult.landmarks });
+        setPalmLeftPhoto(img.uri);
         setPalmLeftLandmarks(landmarks);
       }
-      if (hand === "right") { 
-        setRight({ uri: img.uri, base64: img.base64 }); 
-        setPalmRightPhoto(img.uri); 
+      if (hand === "right") {
+        setRight({ uri: img.uri, base64: img.base64, keypoints: gateResult.landmarks });
+        setPalmRightPhoto(img.uri);
         setPalmRightLandmarks(landmarks);
       }
     } catch {
@@ -118,6 +118,8 @@ export default function PalmCompareScreen({ navigation }) {
       `data:image/jpeg;base64,${left.base64}`,
       `data:image/jpeg;base64,${right.base64}`,
       form,
+      left.keypoints,
+      right.keypoints,
     )
       .then((result) => setPalmComparison(result))
       .catch((err) => {

@@ -70,6 +70,11 @@ export const palmCompareBody = z.object({
   rightImage: z.string().min(100).max(7_000_000),
   // See palmBody.skipGate — web client already ran MediaPipe locally.
   skipGate: z.boolean().optional(),
+  // Per-hand landmarks → backend handedness guard (left slot must be a left
+  // hand, right slot a right hand). Optional — absent when the client gate
+  // didn't run; same shape as palmBody.landmarks.
+  leftLandmarks:  z.array(z.object({ x: z.number(), y: z.number() }).passthrough()).min(15).max(40).nullish(),
+  rightLandmarks: z.array(z.object({ x: z.number(), y: z.number() }).passthrough()).min(15).max(40).nullish(),
 });
 
 export const userQuery = formSchema.partial({ gender: true }).extend({

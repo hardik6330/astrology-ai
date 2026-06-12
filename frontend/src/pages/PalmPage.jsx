@@ -428,6 +428,10 @@ export default function PalmPage() {
     e.target.value = "";
     if (!file) return;
     setError("");
+    // Start clean: drop any previous reading / reject card so a new upload never
+    // shows stale state behind the gate or a fresh rejection.
+    setPalm(null);
+    setPalmComparison(null);
     setGating(true);
     try {
       // Persist the photo + mark a scan in progress in CONTEXT up front, so the

@@ -220,7 +220,13 @@ export async function analyzePalm(imageBase64, form, claimedHand, skipGate = tru
 // Send TWO palm photos (left + right) for the full-life comparison reading.
 // Returns { left, right, comparison } — comparison is null if either hand
 // came back as unusable (frontend should render the retake UI for that hand).
-export async function comparePalms(leftBase64, rightBase64, form) {
+export async function comparePalms(
+  leftBase64,
+  rightBase64,
+  form,
+  leftLandmarks = null,
+  rightLandmarks = null
+) {
   const res = await authFetch(`${API_URL}/palm/compare`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -229,6 +235,8 @@ export async function comparePalms(leftBase64, rightBase64, form) {
       rightImage: rightBase64,
       form: attachPhone(form),
       skipGate: true,
+      leftLandmarks,
+      rightLandmarks,
     }),
   });
   if (!res.ok) {

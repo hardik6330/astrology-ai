@@ -220,6 +220,16 @@ export function usePalmReading() {
     // Client-side gate check (1–3s on cold model load). Flip `gating`
     // so the picker modal closes and a loading row shows in its place.
     setGating(true);
+    // Start clean: drop any previous reading / reject card / preview so a new
+    // upload never shows stale state behind the gate or a fresh rejection.
+    // rescan:true suppresses the saved-reading restore while this scan runs.
+    setRescan(true);
+    setPalm(null);
+    setPalmComparison(null);
+    setPreview(null);
+    setPalmPhoto(null);
+    setOverloaded(false);
+    setLowCredits(false);
     setError(""); // Clear previous errors
     setGateReport(null); // Clear previous report
     try {
