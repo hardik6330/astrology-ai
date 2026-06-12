@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, ScrollView, BackHandler } from "react-native";
+import { View, Text, ScrollView, BackHandler, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import Animated, { FadeIn, FadeInRight } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInRight, FadeInLeft } from "react-native-reanimated";
+import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import * as Location from "expo-location";
 import BottomNav from "../../components/BottomNav";
 import MenuButton from "../../components/MenuButton";
@@ -18,6 +19,7 @@ import { MSGS } from "../../shared/prompts";
 import { chatCompletionJSON, fetchSaved, fetchDailyDates } from "../../services/api";
 import { haptics } from "../../utils/haptics";
 import { EMOJIS } from "../../utils/emojis";
+import { useCredits } from "../../hooks/useCredits";
 import { SUB_TABS, iso } from "./constants";
 import { makeStyles } from "./styles";
 import KundaliTab from "./sections/KundaliTab";
@@ -25,13 +27,53 @@ import PlanetsTab from "./sections/PlanetsTab";
 import TimelineTab from "./sections/TimelineTab";
 import ReadingTab from "./sections/ReadingTab";
 
+// The 4 in-screen sub-tabs that swipe cycles through (palm/chat/profile are
+// separate screens reached from the bottom nav, not swipeable).
+const SWIPE_TABS = ["kundali", "planets", "timeline", "reading"];
+
 export default function ReadingScreen({ navigation, route }) {
   const { form, chart, currentLoc, setCurrentLoc } = useForm();
   const { interp, setInterp } = useReading();
   const color = useColors();
   const s = useStyles(makeStyles);
   const [tab, setTab]             = useState(route.params?.tab || "kundali");
+  // Direction of the last tab change (+1 next, -1 prev) → drives the slide-in
+  // side so a swipe feels like the content follows the finger.
+  const [dir, setDir]             = useState(1);
   const [chartStyle, setChartStyle] = useState("north");
+  const credits = useCredits(); // wallet balance for the header badge
+
+  // ── Swipe-between-tabs ──────────────────────────────────────────────────────
+  // Step ±1 with a functional updater so the gesture never reads a stale `tab`.
+  // Clamped at the ends (no wrap-around into palm). Declared before any early
+  // return so hook order stays stable (rules-of-hooks).
+  const goTab = useCallback((delta) => {
+    setTab((cur) => {
+      const i = SWIPE_TABS.indexOf(cur);
+      if (i === -1) return cur; // not a swipeable tab → ignore
+      const next = Math.min(SWIPE_TABS.length - 1, Math.max(0, i + delta));
+      if (next === i) return cur; // already at the edge
+      setDir(delta);
+      haptics.select();
+      return SWIPE_TABS[next];
+    });
+  }, []);
+
+  // Horizontal pan that yields to the vertical ScrollView: activeOffsetX waits
+  // for clear horizontal intent; failOffsetY cancels the moment the finger moves
+  // vertically, so normal scrolling is untouched.
+  const swipe = useMemo(
+    () =>
+      Gesture.Pan()
+        .runOnJS(true) // onEnd runs on the JS thread → call goTab directly
+        .activeOffsetX([-24, 24])
+        .failOffsetY([-16, 16])
+        .onEnd((e) => {
+          if (e.translationX <= -55) goTab(1);
+          else if (e.translationX >= 55) goTab(-1);
+        }),
+    [goTab],
+  );
   const [loading, setLoading]     = useState(false);
   const [loadMsg, setLoadMsg]     = useState("Reading your chart…");
   const [error, setError]         = useState("");
@@ -239,7 +281,14 @@ Running period: ${d.dasha}`;
                   {form.date} • {form.time} • {form.city}
                 </Text>
               </View>
-            <View style={{ width: 40 }} />
+            {/* Wallet badge → Profile. Shows the live credit balance. */}
+            <Pressable
+              onPress={() => { haptics.tap(); navigation.navigate("Profile"); }}
+              hitSlop={8}
+              style={({ pressed }) => [s.walletBadge, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={s.walletText}>{EMOJIS.SPARKLES} {credits ?? "—"}</Text>
+            </Pressable>
           </View>
 
           {error ? (
@@ -248,9 +297,14 @@ Running period: ${d.dasha}`;
             </CosmicCard>
           ) : null}
 
-          {/* key={tab} remounts on every switch so the section cross-fades in
-              instead of hard-cutting. */}
-          <Animated.View key={tab} entering={FadeInRight.duration(300).springify()}>
+          {/* Swipe left/right to move between the 4 in-screen tabs. key={tab}
+              remounts on switch so the section slides in from the side the swipe
+              came from (dir): next → from right, prev → from left. */}
+          <GestureDetector gesture={swipe}>
+          <Animated.View
+            key={tab}
+            entering={(dir >= 0 ? FadeInRight : FadeInLeft).duration(280).springify()}
+          >
             {tab === "kundali" && (
               <KundaliTab
                 chart={chart}
@@ -266,7 +320,7 @@ Running period: ${d.dasha}`;
 
             {tab === "planets" && <PlanetsTab chart={chart} now={now} />}
 
-            {tab === "timeline" && <TimelineTab chart={chart} />}
+            {tab === "timeline" && <TimelineTab chart={chart} navigation={navigation} />}
 
             {tab === "reading" && (
               <ReadingTab
@@ -283,6 +337,7 @@ Running period: ${d.dasha}`;
               />
             )}
           </Animated.View>
+          </GestureDetector>
         </ScrollView>
       </SafeAreaView>
 

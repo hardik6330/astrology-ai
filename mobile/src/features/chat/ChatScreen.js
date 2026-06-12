@@ -6,6 +6,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import MenuButton from "@/components/MenuButton";
+import CosmicBackdrop from "@/components/CosmicBackdrop";
 import { useForm, useReading } from "@/context/ChartContext";
 import { chatCompletion, fetchChatHistory } from "@/services/api";
 import { buildFactSheet } from "@/shared/astrology";
@@ -52,7 +53,7 @@ const ChatBubble = React.memo(function ChatBubble({ role, content }) {
   );
 });
 
-export default function ChatScreen({ navigation }) {
+export default function ChatScreen({ navigation, route }) {
   const { form, chart } = useForm();
   const { chatMsgs, setChatMsgs } = useReading();
   useBackToKundali(navigation);
@@ -141,8 +142,27 @@ export default function ChatScreen({ navigation }) {
     setTimeout(() => listRef.current?.scrollToEnd?.({ animated: true }), 50);
   }, [chatMsgs]);
 
-  async function ask() {
-    const q = input.trim();
+  // Deep-link: arriving with route.params.ask = "<question>" (e.g. the bi-wheel
+  // alignment "Ask" button) auto-sends it once the chart is ready, then clears
+  // the param so re-focusing the screen never resends the same question.
+  const askedRef = useRef(null);
+  useEffect(() => {
+    const preset = route?.params?.ask;
+    // Param cleared (or screen re-focused without one) → reset so the SAME
+    // alignment can be asked again on a later tap.
+    if (!preset) { askedRef.current = null; return; }
+    if (askedRef.current === preset) return;
+    if (!chart || !form?.name) return; // wait until the chart can answer
+    askedRef.current = preset;
+    navigation.setParams?.({ ask: undefined });
+    ask(preset);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route?.params?.ask, chart, form?.name]);
+
+  async function ask(preset) {
+    // `preset` lets callers (e.g. a deep-link from the bi-wheel "Ask" button)
+    // send a question without it living in the input box first.
+    const q = (typeof preset === "string" ? preset : input).trim();
     if (!q || busy || !chart || cannotAfford) return;
     logEvent("chat_question_asked", { user_name: form.name });
     setInput("");
@@ -184,6 +204,7 @@ export default function ChatScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
+      <CosmicBackdrop />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
         <Animated.View 
           entering={FadeInDown.duration(400).springify()}

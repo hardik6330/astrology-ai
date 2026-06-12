@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useChart } from "@/context/ChartContext";
 import { useChatHistory, useSendChatMessage } from "@/features/chat/hooks";
 import Card from "@/common/Card";
@@ -20,6 +20,7 @@ const SUGGESTIONS = [
 // Fixed-height layout: only the message list scrolls, header and input stay put.
 export default function ChatPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { form, chart, chatMsgs, setChatMsgs } = useChart();
   const [chatInput, setChatInput] = useState("");
   const [phIdx, setPhIdx] = useState(0);
@@ -95,9 +96,29 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedHistory]);
 
-  async function askChat(e) {
-    if (e) e.preventDefault();
-    const q = chatInput.trim();
+  // Deep-link: arriving with location.state.ask = "<question>" (the bi-wheel
+  // alignment "Ask" button) auto-sends it once the chart is ready, then clears
+  // the router state so a refresh/back won't resend the same question.
+  const askedRef = useRef(null);
+  useEffect(() => {
+    const preset = location.state?.ask;
+    if (!preset) {
+      askedRef.current = null;
+      return;
+    }
+    if (askedRef.current === preset || !chart) return;
+    askedRef.current = preset;
+    navigate(".", { replace: true, state: {} }); // clear so it fires once
+    askChat(preset);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, chart]);
+
+  async function askChat(presetOrEvent) {
+    // `preset` (a string) lets callers send a question without it living in the
+    // input box first — e.g. the bi-wheel alignment "Ask" deep-link below.
+    if (presetOrEvent && typeof presetOrEvent.preventDefault === "function") presetOrEvent.preventDefault();
+    const preset = typeof presetOrEvent === "string" ? presetOrEvent : null;
+    const q = (preset ?? chatInput).trim();
     if (!q || chatBusy || !chart || cannotAfford) return;
     setChatInput("");
     setLowCredits(false);

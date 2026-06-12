@@ -87,7 +87,7 @@ function ForecastItem({ p, tc, s, color }) {
 
 // Timeline tab: dasha + ashtakvarga wheels, the dasha-window forecast,
 // prediction-confidence breakdown, and the current sky (gochar) transits.
-export default function TimelineTab({ chart }) {
+export default function TimelineTab({ chart, navigation }) {
   const color = useColors();
   const s = useStyles(makeStyles);
 
@@ -100,7 +100,7 @@ export default function TimelineTab({ chart }) {
       <AshtakvargaWheel ashtakvarga={chart.ashtakvarga} />
 
       {/* New: Live Transit (Gochar) Map — real-time sky over the natal chart */}
-      <GocharMap chart={chart} />
+      <GocharMap chart={chart} navigation={navigation} />
 
       <CosmicCard>
         <Text style={s.cardTitle}>Timeline Forecast</Text>

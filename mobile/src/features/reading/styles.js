@@ -32,6 +32,22 @@ export const makeStyles = (c) => StyleSheet.create({
   },
   headerTitleWrap: { flex: 1 },
 
+  // Wallet badge in the header (credit balance → Profile). minWidth keeps it the
+  // same footprint as the old 40px spacer so the title stays centered.
+  walletBadge: {
+    minWidth: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: c.primaryBorder,
+    backgroundColor: c.primarySoft,
+  },
+  walletText: { color: c.primaryLight, fontSize: 13, fontWeight: "700", includeFontPadding: false },
+
   row3:    { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   bigThree: {
     flex: 1,

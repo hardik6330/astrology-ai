@@ -1,25 +1,33 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useEffect } from "react";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
+import Animated, { useSharedValue, useAnimatedProps, withRepeat, withTiming, Easing } from "react-native-reanimated";
 import CosmicCard from "../../components/CosmicCard";
 import { useStyles } from "../../theme/useStyles";
 import { useColors } from "../../theme/ThemeContext";
-import { spacing, fontSize } from "../../theme/tokens";
-import { SIGNS, ZE } from "../../shared/astrology";
+import { spacing, fontSize, radius } from "../../theme/tokens";
+import { SIGNS, ZE, nm } from "../../shared/astrology";
+import { haptics } from "../../utils/haptics";
 
-// Live Transit (Gochar) Map — a sidereal zodiac wheel showing where every graha
-// is in the sky RIGHT NOW (chart.transits.gochar), with the natal lagna marked
-// so the user sees the transit landing on their own chart. Below the wheel, an
-// impact list maps each planet to the house it transits from the lagna.
+// Bi-Wheel Chart (Birth vs Live Sky). A sidereal zodiac wheel with TWO planet
+// rings over the same signs:
+//   • inner ring  = NATAL planets (chart.planets, by sidereal longitude) — small
+//                   solid dots, fixed at birth.
+//   • outer ring  = LIVE transits (chart.transits.gochar) — outlined glyphs with
+//                   a pulsing halo, moving in the sky now.
+// A dashed line connects a live planet to a birth planet when they're within ~7°
+// (a transit conjunction — e.g. live Saturn over birth Moon = Sade Sati). Both
+// datasets are already computed client-side, so this needs no API call.
 
 const SIZE = 300;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
 const R_OUTER = 142;   // sign ring outer edge
 const R_SIGN = 124;    // sign glyph radius
-const R_INNER = 84;    // inner hub edge (sign dividers stop here)
-const R_PLANET = 108;  // base planet-glyph radius
-const R_LAGNA = R_OUTER; // lagna tick reaches the rim
+const R_TRANSIT = 110; // LIVE planet ring (outer)
+const R_NATAL = 72;    // NATAL planet ring (inner)
+const R_HUB = 44;      // inner hub edge (sign dividers stop here)
+const CONJ_ORB = 7;    // degrees within which a transit "conjuncts" a natal planet
 
 // Single-char astro glyphs render crisper in SVG than the emoji set.
 const GLYPH = {
@@ -36,49 +44,80 @@ function polar(lon, r) {
   return { x: CX + r * Math.cos(a), y: CY + r * Math.sin(a) };
 }
 
-export default function GocharMap({ chart }) {
-  const styles = useStyles(makeStyles);
-  const c = useColors();
-  const gochar = chart?.transits?.gochar;
-  if (!Array.isArray(gochar) || !gochar.length) return null;
-
-  const ascLon = chart.angles?.ascSid ?? 0;
-
-  // Stagger planets that sit close together so glyphs don't overlap: each planet
-  // is pushed inward by how many earlier planets fall within 11° of it.
-  const sorted = [...gochar].sort((a, b) => a.lon - b.lon);
-  const placed = sorted.map((p, i) => {
+// Stagger glyphs that sit close together so they don't overlap: each is pushed
+// toward the hub by how many earlier planets fall within 11° of it.
+function stagger(list, baseR, step) {
+  const sorted = [...list].sort((a, b) => a.lon - b.lon);
+  return sorted.map((p, i) => {
     let crowd = 0;
     for (let j = 0; j < i; j++) {
       const d = Math.abs(sorted[j].lon - p.lon);
       if (Math.min(d, 360 - d) < 11) crowd++;
     }
-    return { ...p, r: R_PLANET - crowd * 17 };
+    return { ...p, r: baseR - crowd * step };
+  });
+}
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+export default function GocharMap({ chart, navigation }) {
+  const styles = useStyles(makeStyles);
+  const c = useColors();
+
+  // Pulsing halo on the live planets (hooks must run before any early return).
+  const pulse = useSharedValue(0.16);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(0.42, { duration: 1300, easing: Easing.inOut(Easing.quad) }), -1, true);
+  }, [pulse]);
+  const haloProps = useAnimatedProps(() => ({ fillOpacity: pulse.value }));
+
+  const gochar = chart?.transits?.gochar;
+  if (!Array.isArray(gochar) || !gochar.length) return null;
+
+  const ascLon = nm(chart.angles?.ascSid ?? 0);
+
+  // Natal planets → {name, lon, retro}, only those we have a glyph for.
+  const natalRaw = (chart.planets || [])
+    .map((p) => ({ name: p.base || String(p.name || "").split(" ")[0], lon: nm(p.sid), retro: p.retro }))
+    .filter((p) => GLYPH[p.name]);
+
+  const liveP = stagger(gochar.map((p) => ({ ...p, lon: nm(p.lon) })), R_TRANSIT, 17);
+  const natalP = stagger(natalRaw, R_NATAL, 14);
+
+  // Transit↔natal conjunctions (within orb) → dashed connectors + a list.
+  const conjunctions = [];
+  liveP.forEach((t) => {
+    natalP.forEach((n) => {
+      let d = Math.abs(t.lon - n.lon);
+      d = Math.min(d, 360 - d);
+      if (d <= CONJ_ORB) conjunctions.push({ t, n, orb: Math.round(d) });
+    });
   });
 
   return (
     <CosmicCard>
-      <Text style={styles.title}>Live Transit Map (Gochar)</Text>
-      <Text style={styles.sub}>Where the planets sit in the sky right now, over your birth chart.</Text>
+      <Text style={styles.title}>Bi-Wheel · Birth vs Live Sky</Text>
+      <Text style={styles.sub}>Inner ring = where planets were at your birth. Outer ring = where they are right now.</Text>
 
       <View style={{ alignItems: "center", marginTop: 6 }}>
         <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
           {/* Rings */}
           <Circle cx={CX} cy={CY} r={R_OUTER} stroke={c.cardBorder} strokeWidth={1} fill="none" />
-          <Circle cx={CX} cy={CY} r={R_INNER} stroke={c.cardBorder} strokeWidth={1} fill="none" />
+          <Circle cx={CX} cy={CY} r={(R_TRANSIT + R_NATAL) / 2} stroke={c.cardBorder} strokeWidth={1} fill="none" opacity={0.5} />
+          <Circle cx={CX} cy={CY} r={R_HUB} stroke={c.cardBorder} strokeWidth={1} fill="none" />
 
           {/* 12 sign sectors: dividers + glyphs */}
           {SIGNS.map((sign, i) => {
             const boundary = i * 30;
             const o = polar(boundary, R_OUTER);
-            const inn = polar(boundary, R_INNER);
+            const inn = polar(boundary, R_HUB);
             const g = polar(i * 30 + 15, R_SIGN);
-            const isLagnaSign = Math.floor((ascLon % 360) / 30) === i;
+            const isLagnaSign = Math.floor(ascLon / 30) === i;
             return (
               <React.Fragment key={sign}>
                 <Line x1={inn.x} y1={inn.y} x2={o.x} y2={o.y} stroke={c.cardBorder} strokeWidth={1} />
                 <SvgText
-                  x={g.x} y={g.y + 5} fontSize="15" textAnchor="middle"
+                  x={g.x} y={g.y + 5} fontSize="14" textAnchor="middle"
                   fill={isLagnaSign ? c.primaryLight : c.textMuted}
                   fontWeight={isLagnaSign ? "700" : "400"}
                 >
@@ -88,11 +127,21 @@ export default function GocharMap({ chart }) {
             );
           })}
 
+          {/* Conjunction connectors (drawn under the glyphs). */}
+          {conjunctions.map(({ t, n }, i) => {
+            const a = polar(n.lon, n.r);
+            const b = polar(t.lon, t.r);
+            return (
+              <Line key={`c-${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                stroke={c.warning} strokeWidth={1.2} strokeDasharray="3,3" opacity={0.8} />
+            );
+          })}
+
           {/* Natal lagna (ascendant) marker — a tick + ASC label at the rim. */}
           {(() => {
-            const tip = polar(ascLon, R_LAGNA + 7);
+            const tip = polar(ascLon, R_OUTER + 7);
             const base = polar(ascLon, R_OUTER - 6);
-            const lbl = polar(ascLon, R_LAGNA + 18);
+            const lbl = polar(ascLon, R_OUTER + 18);
             return (
               <>
                 <Line x1={base.x} y1={base.y} x2={tip.x} y2={tip.y} stroke={c.primaryLight} strokeWidth={2.5} />
@@ -101,13 +150,28 @@ export default function GocharMap({ chart }) {
             );
           })()}
 
-          {/* Transiting planets */}
-          {placed.map((p) => {
+          {/* NATAL planets (inner) — small solid dots, fixed at birth. */}
+          {natalP.map((p) => {
             const pt = polar(p.lon, p.r);
             const tint = MALEFIC.has(p.name) ? c.danger : c.success;
             return (
-              <React.Fragment key={p.name}>
-                <Circle cx={pt.x} cy={pt.y} r={11} fill={c.bg} stroke={tint} strokeWidth={1.5} opacity={0.95} />
+              <React.Fragment key={`n-${p.name}`}>
+                <Circle cx={pt.x} cy={pt.y} r={8.5} fill={tint} opacity={0.92} />
+                <SvgText x={pt.x} y={pt.y + 3.5} fontSize="10" fontWeight="800" fill="#0b0a1f" textAnchor="middle">
+                  {GLYPH[p.name] || p.name[0]}
+                </SvgText>
+              </React.Fragment>
+            );
+          })}
+
+          {/* LIVE transits (outer) — pulsing halo + outlined glyph. */}
+          {liveP.map((p) => {
+            const pt = polar(p.lon, p.r);
+            const tint = MALEFIC.has(p.name) ? c.danger : c.success;
+            return (
+              <React.Fragment key={`t-${p.name}`}>
+                <AnimatedCircle cx={pt.x} cy={pt.y} r={16} fill={tint} animatedProps={haloProps} />
+                <Circle cx={pt.x} cy={pt.y} r={11} fill={c.bg} stroke={tint} strokeWidth={1.5} />
                 <SvgText x={pt.x} y={pt.y + 5} fontSize="13" fontWeight="700" fill={tint} textAnchor="middle">
                   {GLYPH[p.name] || p.name[0]}
                 </SvgText>
@@ -116,19 +180,52 @@ export default function GocharMap({ chart }) {
           })}
 
           {/* Hub label */}
-          <SvgText x={CX} y={CY - 6} fontSize="10" fill={c.textMuted} textAnchor="middle">LIVE SKY</SvgText>
-          <SvgText x={CX} y={CY + 12} fontSize="12" fontWeight="700" fill={c.text} textAnchor="middle">
-            {chart.transits.ascSign || ""} rising
+          <SvgText x={CX} y={CY - 4} fontSize="9" fill={c.textMuted} textAnchor="middle">RISING</SvgText>
+          <SvgText x={CX} y={CY + 11} fontSize="12" fontWeight="700" fill={c.text} textAnchor="middle">
+            {chart.transits.ascSign || ""}
           </SvgText>
         </Svg>
       </View>
 
       {/* Legend */}
       <View style={styles.legendRow}>
-        <View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: c.success }]} /><Text style={styles.legendLabel}>Benefic</Text></View>
-        <View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: c.danger }]} /><Text style={styles.legendLabel}>Malefic</Text></View>
-        <View style={styles.legendItem}><View style={[styles.dot, { backgroundColor: c.primaryLight }]} /><Text style={styles.legendLabel}>Your Lagna</Text></View>
+        <View style={styles.legendItem}><View style={[styles.dotSolid, { backgroundColor: c.textBody }]} /><Text style={styles.legendLabel}>Birth (inner)</Text></View>
+        <View style={styles.legendItem}><View style={[styles.dotRing, { borderColor: c.textBody }]} /><Text style={styles.legendLabel}>Live (outer)</Text></View>
+        <View style={styles.legendItem}><View style={[styles.dash, { backgroundColor: c.warning }]} /><Text style={styles.legendLabel}>Alignment</Text></View>
       </View>
+
+      {/* Active alignments — the "wow" payoff: transit-over-natal conjunctions. */}
+      {conjunctions.length > 0 && (
+        <View style={styles.conjWrap}>
+          <Text style={styles.conjTitle}>Active Alignments Right Now</Text>
+          {conjunctions.map(({ t, n, orb }, i) => {
+            // One-tap deep link → chat auto-asks this exact alignment.
+            const question =
+              `Right now transiting ${t.name} is conjunct my natal ${n.name} ` +
+              `(within ${orb}°). What does this alignment mean for me, and what should I focus on?`;
+            const askChat = () => {
+              haptics.tap();
+              navigation?.navigate("Chat", { ask: question });
+            };
+            return (
+              <View key={i} style={styles.conjItem}>
+                <Text style={styles.conjRow}>
+                  <Text style={{ color: c.warning, fontWeight: "800" }}>{GLYPH[t.name]} Live {t.name}</Text>
+                  {"  ≈  "}
+                  <Text style={{ color: c.textBody, fontWeight: "700" }}>{GLYPH[n.name]} Birth {n.name}</Text>
+                  <Text style={styles.conjOrb}>  · {orb}° orb</Text>
+                </Text>
+                {navigation && (
+                  <Pressable onPress={askChat} hitSlop={6} style={({ pressed }) => [styles.askBtn, pressed && { opacity: 0.75 }]}>
+                    <Text style={styles.askBtnText}>Ask ›</Text>
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
+          <Text style={styles.conjFoot}>Tap “Ask” to have the AI explain what an alignment means for you.</Text>
+        </View>
+      )}
 
       {/* Impact list — each transit → the house it activates from your lagna. */}
       <View style={styles.impactWrap}>
@@ -140,7 +237,7 @@ export default function GocharMap({ chart }) {
             <Text style={styles.impHouse}>H{p.houseLagna}</Text>
           </View>
         ))}
-        <Text style={styles.impFoot}>House counted from your ascendant ({chart.transits.ascSign}). Tap the Planets tab for what each planet means.</Text>
+        <Text style={styles.impFoot}>House counted from your ascendant ({chart.transits.ascSign}).</Text>
       </View>
     </CosmicCard>
   );
@@ -149,12 +246,23 @@ export default function GocharMap({ chart }) {
 const makeStyles = (c) =>
   StyleSheet.create({
     title: { color: c.text, fontSize: fontSize.md, lineHeight: 22, fontWeight: "700", marginBottom: 4 },
-    sub:   { color: c.textMuted, fontSize: 11, marginBottom: spacing.md },
+    sub:   { color: c.textMuted, fontSize: 11, marginBottom: spacing.md, lineHeight: 16 },
 
     legendRow:   { flexDirection: "row", justifyContent: "center", gap: spacing.lg, marginTop: spacing.md, flexWrap: "wrap" },
     legendItem:  { flexDirection: "row", alignItems: "center", gap: 6 },
-    dot:         { width: 10, height: 10, borderRadius: 5 },
+    dotSolid:    { width: 10, height: 10, borderRadius: 5 },
+    dotRing:     { width: 11, height: 11, borderRadius: 6, borderWidth: 2, backgroundColor: "transparent" },
+    dash:        { width: 14, height: 2 },
     legendLabel: { color: c.textBody, fontSize: 11.5, fontWeight: "600" },
+
+    conjWrap:    { marginTop: spacing.md, borderWidth: 1, borderColor: "rgba(251,191,36,0.25)", backgroundColor: "rgba(251,191,36,0.06)", borderRadius: 12, padding: 12, gap: 5 },
+    conjTitle:   { color: c.warning, fontSize: 12, fontWeight: "800", letterSpacing: 0.5, marginBottom: 2 },
+    conjItem:    { flexDirection: "row", alignItems: "center", gap: 8 },
+    conjRow:     { flex: 1, fontSize: 12.5, lineHeight: 19, includeFontPadding: false },
+    conjOrb:     { color: c.textMuted, fontSize: 11 },
+    askBtn:      { borderWidth: 1, borderColor: c.warning, backgroundColor: "rgba(251,191,36,0.14)", borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 4 },
+    askBtnText:  { color: c.warning, fontSize: 11.5, fontWeight: "800" },
+    conjFoot:    { color: c.textMuted, fontSize: 10.5, lineHeight: 15, marginTop: 3 },
 
     impactWrap:  { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: c.cardBorder, paddingTop: spacing.md, gap: 7 },
     impactRow:   { flexDirection: "row", alignItems: "center", gap: 8 },

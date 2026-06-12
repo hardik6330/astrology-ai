@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ZE, fmtDate, fmtDay } from "@/shared/astrology";
 import DashaWheel from "@/features/kundali/DashaWheel";
 import AshtakvargaWheel from "@/features/kundali/AshtakvargaWheel";
+import GocharMap from "@/features/kundali/GocharMap";
 import Card from "@/common/Card";
 import { EMOJIS } from "@/utils/emojis";
 import { dashaGuidanceFor } from "./planetInfo";
@@ -163,6 +164,9 @@ export default function TimelineTab({ chart }) {
 
       {/* Ashtakvarga Wheel */}
       <AshtakvargaWheel ashtakvarga={chart.ashtakvarga} />
+
+      {/* Bi-Wheel (Gochar) Map — real-time sky over the natal chart */}
+      <GocharMap chart={chart} />
 
       {/* Timeline Forecast */}
       <Card>
