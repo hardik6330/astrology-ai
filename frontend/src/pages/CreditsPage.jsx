@@ -97,7 +97,7 @@ export default function CreditsPage() {
           <p className="text-[15px] text-dim">No cosmic plans available right now.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-6 max-w-100 mx-auto">
+        <div className="flex flex-col gap-6 max-w-120 mx-auto">
           {plans.map((p) => {
             const isPopular = p.bonusLabel?.toLowerCase().includes("popular");
             const isBestValue = p.bonusLabel?.toLowerCase().includes("value");
