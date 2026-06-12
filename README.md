@@ -1,7 +1,8 @@
 <div align="center">
   <img src="frontend/src/assets/main/main-kundali.png" width="180" alt="Astrology AI Pro" />
   <h1>✨ Astrology AI Pro</h1>
-  <p><strong>A Next-Generation AI-Powered Vedic Astrology & Palmistry Platform</strong></p>
+  <p><strong>Precision Vedic astrology and AI palmistry — on web and mobile.</strong></p>
+  <p><em>Real ephemeris math, not guesswork.</em></p>
 
   [![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=black)](https://react.dev/)
   [![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?logo=react&logoColor=black)](https://reactnative.dev/)
@@ -14,22 +15,39 @@
 
 <br />
 
-> **Astrology AI Pro** turns the exact sky at your birth into clear, personal guidance. It computes a **Vedic Kundali (birth chart)** to sub-degree precision *on-device*, derives the deterministic Vedic facts (dignities, Dashas, Doshas, Ashtakvarga, Yogas), then hands those facts — never your raw data — to **Google Gemini 2.5** for interpretation. On top of the chart it adds **AI-vision palm reading**, **transit-based daily guidance**, and a **context-aware astrologer chat** — all behind one secure Express API, delivered through a **PWA web app** and a **native iOS/Android app**.
+> **Astrology AI Pro** turns the exact sky at your birth into clear, personal guidance. It computes a **Vedic Kundali (birth chart)** to sub-degree precision *on-device*, derives the deterministic Vedic facts (dignities, Dashas, Doshas, Ashtakvarga, Yogas), then sends those facts — never your raw data — to **Google Gemini 2.5** for interpretation. On top of the chart it adds **AI-vision palm reading**, **transit-based daily guidance**, and a **context-aware astrologer chat** — all behind one secure Express API, delivered as a **web app (PWA)** and a **native iOS/Android app**.
+
+### Why it's different
+
+Most astrology apps either hard-code a few canned horoscopes, or send your birth data straight to an LLM and let it invent the math. This one does neither.
+
+- **Real ephemeris, real math.** Planetary longitudes come from [`astronomy-engine`](https://github.com/cosinekitty/astronomy) (NASA JPL-grade), computed **on-device** for zero latency and privacy. The Vedic layer — Lahiri ayanamsha, Whole-Sign houses, Vimshottari Dasha, Ashtakvarga, Shadbala-lite strength, Dosha/Yoga detection — runs as deterministic code, not as a prompt.
+- **The AI sees facts, not you.** The model receives a structured **fact sheet** ("9th lord exalted in the 5th, ruling fortune through higher learning") and is told to reason cause → effect. It never gets your name plus a vague vibe.
+- **Honest by design.** A **Prediction Confidence** layer shows how many independent chart signatures back each theme, so "High" means several factors agree — not that the AI sounded sure. The palm reading shows its **measured** geometry, never invented numbers.
+- **Genuinely cross-platform.** One backend, two first-class clients (web + native), and an offline astrology engine so charts compute without a network on both.
+
+### The four core features
+
+| | | |
+|---|---|---|
+| **🪐 Kundali** | **✋ Palmistry** | **📅 Daily guidance** |
+| A sub-degree birth chart with Destiny Matrix scores and planetary strength meters. | On-device vision reads the left hand (inborn potential) against the right (lived reality). | A personal **Gochar** transit map — pick any date and see the live sky against your chart. |
+
+> Plus a **context-aware AI astrologer** that remembers prior turns and folds in your palm reading and live transits when it answers.
 
 ---
 
 ## 📑 Table of Contents
 
 - [Features at a Glance](#-features-at-a-glance)
-- [Why this project is different](#-why-this-project-is-different)
 - [The Four Pillars (Features in depth)](#-the-four-pillars-features-in-depth)
 - [Core Features in Action](#core-features-in-action)
-- [Deep Dive: The Science & Soul of the App](#deep-dive-the-science--soul-of-the-app)
-- [The AI Strategy: Right Model for the Right Job](#-the-ai-strategy-right-model-for-the-right-job)
+- [How It Works](#how-it-works)
+- [The AI Strategy](#-the-ai-strategy-right-model-for-the-right-job)
 - [Architecture & Data Flow](#-architecture--data-flow)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
-- [Quick Start](#quick-start)
+- [Quick Start](#-quick-start)
 - [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
 - [Data Model](#-data-model)
@@ -63,17 +81,6 @@ A quick brief on everything the app does — each item is expanded further down.
 **Platform & system**
 - **🔐 Phone-OTP auth** (Firebase) with backend-issued JWTs; **💳 credits + payments** (Razorpay web, native IAP mobile) with an append-only ledger; **🛠 admin back-office** for users, plans, feature costs, and pushes.
 - **🔔 Randomised engagement pushes** with a bundled custom notification sound; **🌍 geocoding + IANA timezone** cache; **🎨 dark/light theming** and polished haptics/animations across both clients.
-
----
-
-## 🌟 Why this project is different
-
-Most astrology apps either (a) hard-code a handful of canned horoscopes, or (b) send your birth data straight to an LLM and let it hallucinate the math. This project does neither.
-
-- **🧮 Real ephemeris, real math.** Planetary longitudes come from [`astronomy-engine`](https://github.com/cosinekitty/astronomy) (NASA JPL-grade), computed **client-side** for zero latency and maximum privacy. The Vedic layer — Lahiri ayanamsha, Whole-Sign houses, Vimshottari Dasha, Ashtakvarga, Shadbala-lite strength, Dosha/Yoga detection — runs as deterministic code, not as a prompt.
-- **🔒 The AI sees facts, not you.** The LLM never receives your name plus a vague vibe. It receives a structured **fact sheet** ("9th lord exalted in the 5th, ruling fortune through higher learning") and is instructed to reason in cause → effect.
-- **🪞 Honest by design.** A **Prediction Confidence** layer shows how many independent chart signatures support each theme, so "High confidence" means three factors agree — not that the AI sounded sure.
-- **📱 Genuinely cross-platform.** One backend, two first-class clients (PWA + native), and an **intentionally duplicated** offline astrology engine so charts compute without a network on both.
 
 ---
 
@@ -147,34 +154,15 @@ A conversational astrologer that stays anchored to *your* chart:
 
 ---
 
-## Deep Dive: The Science & Soul of the App
+## How It Works
 
-This app isn't just a "horoscope generator"; it's a high-precision calculation engine that bridges ancient Vedic wisdom with modern technology. Here is how the data flows from the stars to your screen.
+How the data flows from the sky to your screen, in three stages.
 
-### 1. The Mathematical Foundation (Astronomy Engine)
-The journey starts with the `astronomy-engine` library, which provides sub-degree precision for planetary longitudes.
-- **Tropical to Sidereal**: We apply the **Lahiri Ayanamsha** (the most accepted standard in Vedic astrology) to shift Western tropical coordinates to the Sidereal (Vedic) zodiac.
-- **Whole-Sign Houses**: We use the **Lagna (Ascendant)** as the 1st house. Every subsequent 30-degree sign becomes a full house. This provides a clear, consistent structure for analyzing life areas.
+**1. Astronomy.** The `astronomy-engine` library gives sub-degree planetary longitudes. We apply the **Lahiri Ayanamsha** to convert tropical coordinates to the sidereal (Vedic) zodiac, and use **Whole-Sign houses** with the Lagna (Ascendant) as the 1st house.
 
-### 2. The Logic Layer (Vedic Math)
-Once positions are fixed, the app runs several deterministic algorithms:
-- **Planetary Strength (Shadbala-lite)**: Each planet is rated on a 0-100 scale. We look at its **Dignity** (is it exalted, in its own sign, or debilitated?) and its **Angular Strength** (planets in the 1st, 4th, 7th, and 10th houses are naturally more powerful).
-  - <img src="frontend/src/assets/main/palnetry-strength.png" width="400" />
-- **Destiny Matrix Scoring**: We calculate scores for 6 life areas (Career, Wealth, etc.) by analyzing the strength of the **House Lord**, the **Karaka** (natural significator), and the presence of any **Benefics** or **Malefics**.
-  - <img src="frontend/src/assets/main/destini-matrix.png" width="400" />
-- **Dasha Timeline**: Using the Moon's exact position at birth, we calculate the **Vimshottari Dasha**—a 120-year planetary cycle that determines the "timing" of your life events.
-  - <img src="frontend/src/assets/main/dasha-timiline.png" width="400" />
+**2. Vedic math.** Deterministic algorithms run on those positions: **Planetary Strength** (Shadbala-lite — dignity + angular placement on a 0–100 scale), **Destiny Matrix** scoring (house-lord, Karaka, and benefic/malefic influence across six life areas), and the **Vimshottari Dasha** timeline (the 120-year planetary cycle that times life events).
 
-### 3. The AI Bridge (Gemini 2.5 Pro)
-This is where the math turns into wisdom. We don't send your personal data to the AI; we send the **Calculated Facts** (e.g., "Mars is in the 10th house, strong, ruling the 5th house").
-- **The Prompt**: A specialized [Master Astrologer Prompt](backend/src/ai/prompts.js) instructs the AI to use "Cause -> Effect" logic. It doesn't just say "you are lucky"; it says "Because your 9th Lord is exalted, fortune follows your higher learning."
-- **Prediction Confidence**: To ensure transparency, the system tracks how many independent "signatures" support a prediction. If three different factors point to a career shift, the confidence is **High**.
-  - <img src="frontend/src/assets/main/prediction-confidence.png" width="400" />
-
-### 4. How to use this in your Life?
-- **Planning**: Use the **Dasha Timeline** and **Gochar (Transits)** to know when to push for career growth and when to focus on inner peace.
-- **Self-Awareness**: The **Core Identity** and **Personality Matrix** help you understand your natural drives—why you react emotionally or why you are so ambitious.
-- **Guidance**: The **Remedies** section provides modern, behavioral actions (like meditation or journaling) to balance planetary energies.
+**3. AI interpretation.** We send Gemini the **calculated facts** ("Mars in the 10th house, strong, ruling the 5th"), never your personal data. The [Master Astrologer prompt](backend/src/ai/prompts.js) instructs cause → effect reasoning, and a **Prediction Confidence** layer tracks how many independent signatures support each prediction.
 
 ---
 
@@ -298,7 +286,9 @@ astrology-ai/
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
+
+Get all three apps running locally in a few minutes.
 
 ### Prerequisites
 
@@ -495,7 +485,7 @@ eas env:list --environment preview                   # view EAS env vars
 
 ## 🏗️ Deployment Architecture
 
-The application uses a modern, decoupled architecture designed for scale and security.
+A decoupled setup: API, web, and mobile each deploy independently.
 
 ### Backend (API Layer) → Vercel + Railway
 - **Compute:** Deployed as serverless functions on **Vercel**. *Root Directory must be set to `backend`* in project settings, and `mysql2` is force-imported in `dbConfig.js` so Vercel's tracer bundles it.
@@ -541,6 +531,24 @@ The application uses a modern, decoupled architecture designed for scale and sec
 **`UnableToResolveError` in Metro after moving files** — Stale bundler cache. Restart with `npx expo start --clear`.
 
 **New native module doesn't appear in the installed APK** — Native modules can't ship over OTA. Run a fresh `eas build`, not `eas update`.
+
+---
+
+## 🤝 Contributing
+
+This project combines Vedic logic, astronomy, and AI — there's room to contribute in any of them:
+
+- **Astrology** — refine the Vedic logic (Dashas, Yogas, Dosha rules) in the shared engine.
+- **AI** — improve the multi-model Gemini routing, prompts, and in-flight dedupe.
+- **Frontend** — polish the SVG charts and the bi-wheel transit map.
+
+**Before you start:**
+
+1. Read [CLAUDE.md](CLAUDE.md) — it documents the architecture, the **intentional duplication** rule (edit both `astrology.js` engines + `prompts.js`), and known gotchas.
+2. Run `npm run lint` and `npm run format` in the package you touched; keep comments terse and explain *why*, not *what*.
+3. Open a focused PR — small, well-scoped changes are reviewed fastest.
+
+> 💡 Good first issues: add a screenshot for the Bi-Wheel Gochar map, extend a Dosha rule, or tighten a Gemini prompt.
 
 ---
 
