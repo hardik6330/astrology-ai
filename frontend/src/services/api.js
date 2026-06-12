@@ -194,14 +194,7 @@ export async function fetchPalmById(id, form) {
 
 // Send a palm photo (base64 data URL or raw base64) for AI analysis.
 // Returns the parsed palm reading object.
-export async function analyzePalm(
-  imageBase64,
-  form,
-  claimedHand,
-  skipGate = true,
-  landmarks = null,
-  detectedHand = null
-) {
+export async function analyzePalm(imageBase64, form, claimedHand, skipGate = true, landmarks = null) {
   const res = await authFetch(`${API_URL}/palm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -209,16 +202,7 @@ export async function analyzePalm(
     // backend can skip its own Flash gate. If the local gate hung/failed, we
     // pass skipGate:false so the backend gates instead (never blocks the read).
     // landmarks: the 21 MediaPipe points (when the gate ran) for the biometric match.
-    // detectedHand: what MediaPipe actually saw — the backend enforces it
-    // against claimedHand (defence in depth if this gate was bypassed).
-    body: JSON.stringify({
-      image: imageBase64,
-      form: attachPhone(form),
-      claimedHand,
-      skipGate,
-      landmarks,
-      detectedHand,
-    }),
+    body: JSON.stringify({ image: imageBase64, form: attachPhone(form), claimedHand, skipGate, landmarks }),
   });
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));

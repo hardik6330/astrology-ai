@@ -187,11 +187,7 @@ export async function gatePalmImage(asset, claimedHand) {
       { key: "spread", ok: true, label: "Fingers spread open" },
       { key: "straight", ok: true, label: "Hand straight and flat" },
     ];
-    // detectedHand: native MediaPipe handedness (already actual, non-mirrored),
-    // sent to the backend so it can enforce claimed-vs-detected even if this
-    // gate is bypassed (e.g. tampered client). Null when the detector returned
-    // no handedness → backend can't enforce on a guess.
-    return { ok: true, landmarks, imgW: width, imgH: height, checks, detectedHand: handedness || null };
+    return { ok: true, landmarks, imgW: width, imgH: height, checks };
   } catch (err) {
     // Fail OPEN so a detector crash never blocks a reading — but carry the error
     // out so the caller can surface WHY no landmarks were produced.

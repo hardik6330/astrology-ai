@@ -172,7 +172,7 @@ export default function PalmPage() {
     }
   }
 
-  async function runAnalyze(dataUrl, hand, skipGate = true, landmarks = null, detectedHand = null) {
+  async function runAnalyze(dataUrl, hand, skipGate = true, landmarks = null) {
     setError("");
     setLowCredits(false);
     setOverloaded(false);
@@ -192,7 +192,7 @@ export default function PalmPage() {
         skipGate,
         landmarks: landmarks?.length || 0,
       });
-      const result = await analyzePalm(dataUrl, form, hand ?? claimedHand, skipGate, landmarks, detectedHand);
+      const result = await analyzePalm(dataUrl, form, hand ?? claimedHand, skipGate, landmarks);
       console.log("[palm] reading received");
       setPalm(result);
       setRescan(false);
@@ -266,13 +266,7 @@ export default function PalmPage() {
       // gateResult present → client already gated (skipGate:true). Null → gate
       // didn't run; let the backend gate (skipGate:false). Pass the 21 landmarks
       // (when present) for the biometric match.
-      await runAnalyze(
-        dataUrl,
-        claimedHand,
-        !!gateResult,
-        gateResult?.landmarks || null,
-        gateResult?.detectedHand || null
-      );
+      await runAnalyze(dataUrl, claimedHand, !!gateResult, gateResult?.landmarks || null);
     } catch (err) {
       console.error("[palm] onPick failed", err);
       setError("Could not read the image — try a different photo.");

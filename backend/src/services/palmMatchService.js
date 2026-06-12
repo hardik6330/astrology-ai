@@ -16,6 +16,8 @@ import { asContent } from '../utils/asContent.js';
 import { PALM_MATCH_THRESHOLD_AUTO, PALM_MATCH_THRESHOLD_ASK } from '../config/constants.js';
 import { logger } from '../config/logger.js';
 
+const log = logger.child({ mod: 'palm-match' });
+
 // Helper to compare two perceptual hashes (Texture)
 function textureSim(h1, h2) {
   if (!h1 || !h2) return 0;
@@ -38,19 +40,14 @@ function lineSim(l1, l2) {
 }
 
 // 1:N biometric search — uses 4-layer verification (Geometry, Texture, Lines)
-async function findBiometricMatch({ handType, embedding, textureSignature, lineSignature, scanId, deviceId }) {
+async function findBiometricMatch({ handType, embedding, textureSignature, lineSignature, scanId }) {
   const t = Date.now();
-  
-  // Layer 4: Device Filtering - Search only for this device's history first
-  // to ensure 0% waste and high speed.
   const rows = await PalmEmbedding.findAll({
-    where: { handType, deviceId },
+    where: { handType },
     attributes: ['userId', 'palmReadingId', 'embedding', 'textureSignature', 'lineSignature', 'reading'],
   });
   
   let best = null;
-  let secondBest = null;
-
   for (const r of rows) {
     if (!r.reading) continue;
     
@@ -67,7 +64,6 @@ async function findBiometricMatch({ handType, embedding, textureSignature, lineS
     const totalSim = (gSim * 0.25) + (tSim * 0.50) + (lSim * 0.25);
     
     if (!best || totalSim > best.sim) {
-      secondBest = best;
       best = { 
         userId: r.userId, 
         palmReadingId: r.palmReadingId, 
@@ -75,28 +71,22 @@ async function findBiometricMatch({ handType, embedding, textureSignature, lineS
         reading: r.reading,
         breakdown: { gSim, tSim, lSim }
       };
-    } else if (!secondBest || totalSim > secondBest.sim) {
-      secondBest = { sim: totalSim };
     }
   }
 
-  // Layer 4: Strict Matching Logic (97% Threshold)
-  const isOldUser = !!best && best.sim >= 0.97;
-  // If we have a second match, check the gap (optional but recommended in the flow)
-  const hasGap = !secondBest || (best.sim - secondBest.sim) >= 0.05;
+  const matchedAuto = !!best && best.sim >= PALM_MATCH_THRESHOLD_AUTO;
+  const matchedAsk  = !!best && best.sim >= PALM_MATCH_THRESHOLD_ASK;
 
-  const matchedAuto = isOldUser && hasGap;
-  const matchedAsk  = !!best && best.sim >= 0.85; // Lower threshold for "Ask User"
-
-  logger.info(
+  log.info(
     { 
-      scanId, stage: 'match', handType, deviceId,
+      scanId, stage: 'match', handType, 
       candidates: rows.length, 
       topSim: best ? Number(best.sim.toFixed(4)) : null, 
+      breakdown: best ? best.breakdown : null,
       matchedAuto, matchedAsk,
       ms: Date.now() - t 
     },
-    'palm scan: biometric search (strict 97%)',
+    'palm scan: biometric search (4-layer)',
   );
 
   if (matchedAuto) return { ...best, matchType: 'auto' };
@@ -106,11 +96,10 @@ async function findBiometricMatch({ handType, embedding, textureSignature, lineS
 
 // Persist a reading row for this user and (for clear readings) its embedding,
 // so future photos of the same hand can match it. Best-effort — logs, doesn't throw.
-export async function persistReadingWithEmbedding({ user, parsed, imageHash, embedding, textureSignature, lineSignature, deviceId }) {
+export async function persistReadingWithEmbedding({ user, parsed, imageHash, embedding, textureSignature, lineSignature }) {
   try {
     const row = await PalmReading.create({
       userId: user.id,
-      deviceId,
       handType: parsed.handType,
       imageQuality: parsed.imageQuality,
       imageHash,
@@ -119,18 +108,17 @@ export async function persistReadingWithEmbedding({ user, parsed, imageHash, emb
     if (embedding && parsed.imageQuality === 'clear') {
       await PalmEmbedding.create({
         userId: user.id, 
-        deviceId,
         palmReadingId: row.id, 
         handType: parsed.handType, 
         embedding,
         textureSignature,
         lineSignature,
         reading: parsed, 
-      }).catch((e) => logger.warn({ err: e.message }, 'Palm embedding save failed'));
+      }).catch((e) => log.warn({ err: e.message }, 'Palm embedding save failed'));
     }
     return row.id;
   } catch (saveError) {
-    logger.error({ err: saveError }, 'Palm save failed');
+    log.error({ err: saveError }, 'Palm save failed');
     return null;
   }
 }
@@ -145,7 +133,7 @@ export async function persistReadingWithEmbedding({ user, parsed, imageHash, emb
 //   embedding — the computed landmark embedding (null on failure), which the
 //               caller persists alongside a fresh reading so future photos of
 //               this hand can match it
-export async function tryBiometricReuse({ user, claimedHand, landmarks, imageHash, scanId, t0, fireInsightPush, textureSignature, lineSignature, deviceId }) {
+export async function tryBiometricReuse({ user, claimedHand, landmarks, imageHash, scanId, t0, fireInsightPush, textureSignature, lineSignature }) {
   let embedding = null;
   const handType = claimedHand || null;
   // Matching is ALWAYS on now — no DB flag.
@@ -155,9 +143,9 @@ export async function tryBiometricReuse({ user, claimedHand, landmarks, imageHas
     const tEmb = Date.now();
     embedding = landmarkEmbedding(landmarks);
     if (!embedding) throw new Error('landmark embedding unavailable');
-    logger.info({ scanId, stage: 'embedding', dim: embedding.length, ms: Date.now() - tEmb }, 'palm scan: landmark embedding computed');
+    log.info({ scanId, stage: 'embedding', dim: embedding.length, ms: Date.now() - tEmb }, 'palm scan: landmark embedding computed');
     
-    const match = await findBiometricMatch({ handType, embedding, textureSignature, lineSignature, scanId, deviceId });
+    const match = await findBiometricMatch({ handType, embedding, textureSignature, lineSignature, scanId });
     if (match) {
       const baseReading = typeof match.reading === 'string'
         ? JSON.parse(match.reading) : match.reading;
@@ -178,10 +166,9 @@ export async function tryBiometricReuse({ user, claimedHand, landmarks, imageHas
             imageHash, 
             embedding, 
             textureSignature, 
-            lineSignature,
-            deviceId
+            lineSignature 
           });
-          logger.info(
+          log.info(
             { scanId, path: 'biometric-match-auto', matchedFrom: match.userId, sameUser: match.userId === user.id, sim: Number(match.sim.toFixed(4)), charged: match.userId !== user.id, totalMs: Date.now() - t0 },
             'palm scan: complete (reused — no AI call)',
           );
@@ -189,7 +176,7 @@ export async function tryBiometricReuse({ user, claimedHand, landmarks, imageHas
           return { result: { content: asContent(parsed), balance }, embedding };
         } else if (match.matchType === 'ask') {
           // Return a special flag to frontend to ask the user
-          logger.info({ scanId, stage: 'match', matchType: 'ask', sim: Number(match.sim.toFixed(4)) }, 'palm scan: probably same hand, returning ask_user flag');
+          log.info({ scanId, stage: 'match', matchType: 'ask', sim: Number(match.sim.toFixed(4)) }, 'palm scan: probably same hand, returning ask_user flag');
           return { 
             result: { 
               action: 'ask_user', 
@@ -202,7 +189,7 @@ export async function tryBiometricReuse({ user, claimedHand, landmarks, imageHas
       }
     }
   } catch (e) {
-    logger.warn({ err: e.message }, 'Palm embedding/match failed — fresh analysis');
+    log.warn({ err: e.message }, 'Palm embedding/match failed — fresh analysis');
   }
   return { result: null, embedding };
 }

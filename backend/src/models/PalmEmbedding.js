@@ -11,7 +11,6 @@ import { genId } from '../utils/genId.js';
 const PalmEmbedding = sequelize.define('PalmEmbedding', {
   id:            { type: DataTypes.STRING(24), primaryKey: true, defaultValue: () => genId() }, //new
   userId:        { type: DataTypes.STRING(24), allowNull: false },
-  deviceId:      { type: DataTypes.STRING, allowNull: true },     // Filter by device for Layer 4
   palmReadingId: { type: DataTypes.STRING(24), allowNull: false },
   handType:      { type: DataTypes.STRING, allowNull: true },     // 'Left' | 'Right' — match within the same hand
   embedding:     { type: DataTypes.JSON, allowNull: false },      // number[] (Geometry/Landmarks)
@@ -22,10 +21,7 @@ const PalmEmbedding = sequelize.define('PalmEmbedding', {
   reading:       { type: DataTypes.JSON, allowNull: true },
 }, {
   timestamps: true,
-  indexes: [
-    { fields: ['handType'] },
-    { fields: ['deviceId'] }
-  ], // narrow the 1:N scan to one hand/device
+  indexes: [{ fields: ['handType'] }], // narrow the 1:N scan to one hand
 });
 
 export default PalmEmbedding;

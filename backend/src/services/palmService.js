@@ -216,29 +216,10 @@ async function persistGateRejection(_form, _imageHash, _rejection) {
   /* intentionally a no-op — see comment above */
 }
 
-export async function analyzePalm({ image, form, claimedHand, detectedHand, skipGate, landmarks, deviceId }) {
+export async function analyzePalm({ image, form, claimedHand, skipGate, landmarks, deviceId }) {
   // Short id to correlate every log line of one scan. Grep `scanId=xxxxxxxx`.
   const scanId = crypto.randomBytes(4).toString('hex');
-  log.info({ scanId, hand: claimedHand || null, detected: detectedHand || null, skipGate: !!skipGate, landmarks: Array.isArray(landmarks) ? landmarks.length : 0, deviceId }, 'palm scan: received');
-
-  // Hand-type enforcement (server-side, defence in depth). The client gate
-  // already rejects a wrong hand locally, but a bypassed/Expo-Go/tampered
-  // client could skip that. When the client reports what MediaPipe actually
-  // saw and it disagrees with the user's claim, reject here — free, before any
-  // Flash/Pro token is spent, and regardless of skipGate. Absent detection
-  // (e.g. Expo Go has no native model) can't be enforced.
-  if (claimedHand && detectedHand && detectedHand !== claimedHand) {
-    log.info({ scanId, path: 'rejected', claimed: claimedHand, detected: detectedHand }, 'palm scan: wrong hand (no charge)');
-    return {
-      content: JSON.stringify({
-        handType: 'Unclear',
-        imageQuality: 'unusable',
-        rejectReason: 'wrong_hand',
-        retakeReason: `The photo looks like your ${detectedHand} hand — please retake with the ${claimedHand} hand you selected.`,
-      }),
-      balance: null,
-    };
-  }
+  log.info({ scanId, hand: claimedHand || null, skipGate: !!skipGate, landmarks: Array.isArray(landmarks) ? landmarks.length : 0, deviceId }, 'palm scan: received');
 
   // Stage 1 — gate. We need the image hash to build the dedupe key, so the
   // gate runs before dedupe. The Flash call is cheap and we'd hit cache for

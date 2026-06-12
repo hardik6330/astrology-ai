@@ -48,14 +48,8 @@ export const palmBody = z.object({
   form: formSchema,
   image: z.string().min(100).max(7_000_000),
   // Optional — the hand the user picked on the UI, stamped onto the
-  // response for display.
+  // response for display. Backend does not validate it against the photo.
   claimedHand: z.enum(['Left', 'Right']).optional(),
-  // The hand MediaPipe actually detected on the client (already mirror-
-  // normalised by the gate, so it's directly comparable to claimedHand).
-  // The backend rejects when this disagrees with claimedHand — defence in
-  // depth so a bypassed/Expo-Go/tampered client can't slip the wrong hand
-  // past. Absent when detection wasn't available; then it can't be enforced.
-  detectedHand: z.enum(['Left', 'Right']).nullish(),
   // Set by the web client when it has already gated the photo locally
   // (via MediaPipe). Tells the backend to skip its own Flash gate to
   // avoid duplicate work. Mobile leaves this off and uses the Flash gate.
