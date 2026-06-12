@@ -121,7 +121,10 @@ export default function PalmCompareScreen({ navigation }) {
       left.keypoints,
       right.keypoints,
     )
-      .then((result) => setPalmComparison(result))
+      // comparePalms returns { content: {left,right,comparison}, balance } —
+      // unwrap to the bare object CompareView reads (palmComparison.comparison),
+      // matching the restore path (fetchPalmById returns it unwrapped).
+      .then((result) => setPalmComparison(result?.content || null))
       .catch((err) => {
         if (err?.code === 'AI_OVERLOADED') setPalmOverloaded(true);
         // Out of credits — PalmScreen reads palmLowCredits and shows the card.
