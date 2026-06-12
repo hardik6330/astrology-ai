@@ -260,7 +260,15 @@ export function usePalmReading() {
       }
       setGateReport(gateResult?.checks || null);
       if (gateResult && !gateResult.ok) {
-        setError(gateResult.retakeReason);
+        // Render the client-gate rejection through the SAME reject card as a
+        // backend rejection (palm.imageQuality === "unusable" → RejectView),
+        // so library errors and API errors look identical to the user.
+        setPalm({
+          handType: "Unclear",
+          imageQuality: "unusable",
+          rejectReason: gateResult.rejectReason,
+          retakeReason: gateResult.retakeReason,
+        });
         haptics.warning();
         return;
       }

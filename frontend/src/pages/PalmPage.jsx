@@ -153,6 +153,16 @@ const REJECT_INFO = {
     title: "Wrong hand uploaded",
     tip: "The photo shows your other hand. Please retake using the hand you selected.",
   },
+  fingers_closed: {
+    icon: EMOJIS.HAND,
+    title: "Spread your fingers",
+    tip: "Open your hand and spread your fingers slightly so the full palm is visible.",
+  },
+  tilted_hand: {
+    icon: EMOJIS.REFRESH,
+    title: "Keep your hand straight",
+    tip: "Hold your hand flat and upright (fingers pointing up), facing the camera.",
+  },
   obstructed: {
     icon: EMOJIS.PROHIBITED,
     title: "Palm is blocked",
@@ -463,9 +473,15 @@ export default function PalmPage() {
       }
 
       if (gateResult && !gateResult.ok) {
-        setError(gateResult.retakeReason);
-        setPreview(null);
-        setPalmPhoto(null);
+        // Render the client-gate rejection through the SAME reject card as a
+        // backend rejection (palm.imageQuality === "unusable"), so library
+        // errors and API errors look identical to the user.
+        setPalm({
+          handType: "Unclear",
+          imageQuality: "unusable",
+          rejectReason: gateResult.rejectReason,
+          retakeReason: gateResult.retakeReason,
+        });
         setPalmAnalyzing(false);
         return;
       }

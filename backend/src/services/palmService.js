@@ -157,7 +157,23 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
     return { content: asContent(dup.reading), balance: await getBalance(user.id) };
   }
 
-  // Fresh analysis → charge once (a same-image re-view above is free).
+  // Per-[account, hand] cache: this account already has a CLEAR reading for this
+  // hand → return it instead of calling Gemini. The account is the phone
+  // (Firebase auth), so the SAME reading serves cross-platform (mobile ↔ web)
+  // and across reinstalls. Free — it's the user's own saved reading. One reading
+  // per hand per account; re-scanning the same hand always returns this one.
+  if (claimedHand) {
+    const cachedHand = await PalmReading.findOne({
+      where: { userId: user.id, handType: claimedHand, imageQuality: 'clear' },
+      order: [['createdAt', 'DESC']],
+    });
+    if (cachedHand) {
+      log.info({ scanId, path: 'cache-hit', reason: 'saved hand reading', hand: claimedHand, totalMs: Date.now() - t0 }, 'palm scan: complete (cached hand, no AI)');
+      return { content: asContent(cachedHand.reading), balance: await getBalance(user.id) };
+    }
+  }
+
+  // Fresh analysis → charge once (a same-image re-view or cached hand above is free).
   // Throws 402 INSUFFICIENT_CREDITS if the balance is short.
   const { charged, balance } = await charge({ userId: user.id, costKey: 'palm_cost', reason: 'palm' });
 
@@ -173,12 +189,16 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
       const userPrompt =
         `NAME: ${form.name}\n` +
         `GENDER: ${form.gender || 'NOT SPECIFIED'}\n` +
-        `PALM_GEOMETRY (measured from hand landmarks — use as hints, not gospel): ${geometryData}\n` +
-        `  ratio=palmWidth/height; element=approx hand element from shape+finger length; ` +
-        `fingers=length as fraction of palm height; jupiterVsApollo=index vs ring finger length; ` +
-        `thumbAngle=thumb openness in degrees; mercuryReachesRing=pinky reaches ring's top joint.\n\n` +
-        `Analyze this palm photograph. Ground the reading in the visible lines and mounts; ` +
-        `use the geometry only to sharpen finger-length and palm-shape observations.`;
+        `PALM_GEOMETRY (FIXED measured facts about this hand — identical across photos): ${geometryData}\n` +
+        `  palmShape=square|rectangular; element=hand element; fingerLength=long|short; ` +
+        `dominantFinger=Jupiter(leadership)|Apollo(creativity)|balanced; thumb=flexible|balanced|reserved; ` +
+        `mercury=pinky long|short.\n\n` +
+        `RULES:\n` +
+        `- The element, palmShape, fingerLength, dominantFinger and thumb traits are MEASURED — state the ` +
+        `personality reading for those STRICTLY from the buckets above. Do NOT contradict them or re-estimate ` +
+        `them from the photo. Same buckets → same wording.\n` +
+        `- Read the LINES (life/head/heart/fate) and MOUNTS from the PHOTO — geometry can't see those.\n` +
+        `Analyze this palm photograph accordingly.`;
 
       // Lightly normalize + contrast the photo (Jimp) so creases read clearer for
       // the model. Best-effort — falls back to the original on any failure.
