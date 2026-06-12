@@ -436,6 +436,12 @@ export async function gatePalmImage(file, claimedHand) {
     landmarks: hasHand ? hand.keypoints : undefined,
     imgW: img.width,
     imgH: img.height,
+    // The detected hand, but only when MediaPipe is confident enough to trust
+    // it (same bar as the wrong_hand reject above). Sent to the backend so it
+    // can enforce claimed-vs-detected even if this gate is bypassed. Null when
+    // unsure → backend can't (and shouldn't) enforce on a guess.
+    detectedHand:
+      hasHand && hand.handedness && hand.score >= HAND_REJECT_MIN_CONFIDENCE ? hand.handedness : null,
   };
   if (rejectReason) {
     return { ok: false, rejectReason, retakeReason: retakeFor(rejectReason), ...base };

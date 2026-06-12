@@ -351,11 +351,14 @@ export async function fetchPalmById(id, form) {
   return parseContent(data.content);
 }
 
-export async function analyzePalm(imageBase64, form, claimedHand, skipGate = true, landmarks = null) {
+export async function analyzePalm(imageBase64, form, claimedHand, skipGate = true, landmarks = null, detectedHand = null) {
   const body = {
     image: imageBase64,
     form: attachPhone(form),
     claimedHand,
+    // What MediaPipe actually detected — backend enforces it against
+    // claimedHand (defence in depth if the local gate was bypassed).
+    detectedHand,
     skipGate,
     landmarks,
     deviceId: DEVICE_ID,

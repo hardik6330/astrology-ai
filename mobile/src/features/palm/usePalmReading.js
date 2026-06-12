@@ -264,13 +264,13 @@ export function usePalmReading() {
       // gateResult present → client gated (skipGate:true). Null → gate didn't
       // run; let the backend gate (skipGate:false). Pass the 21 landmarks (when
       // present) for the biometric match.
-      runAnalyze(img, hand, !!gateResult, gateResult?.landmarks || null);
+      runAnalyze(img, hand, !!gateResult, gateResult?.landmarks || null, gateResult?.detectedHand || null);
     } finally {
       setGating(false);
     }
   }
 
-  async function runAnalyze(img, hand, skipGate = true, landmarks = null) {
+  async function runAnalyze(img, hand, skipGate = true, landmarks = null, detectedHand = null) {
     setError("");
     setLowCredits(false);
     setOverloaded(false);
@@ -281,7 +281,7 @@ export function usePalmReading() {
     setScanMsg("Analyzing with Gemini Pro...");
     const iv = setInterval(() => { i++; setScanMsg(SCAN_MSGS[i % SCAN_MSGS.length]); }, 1800);
     try {
-      const data = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand, skipGate, landmarks);
+      const data = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand, skipGate, landmarks, detectedHand);
       
       // Handle "ask_user" action if biometric match is high but not auto-confirmable
       if (data.action === "ask_user") {
