@@ -1,14 +1,83 @@
-import React from "react";
-import { View, Text } from "react-native";
+import React, { useState } from "react";
+import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from "react-native";
 import CosmicCard from "../../../components/CosmicCard";
 import DashaWheel from "../../kundali/DashaWheel";
 import AshtakvargaWheel from "../../kundali/AshtakvargaWheel";
+import GocharMap from "../../kundali/GocharMap";
 import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { fontSize } from "../../../theme/tokens";
 import { ZE, fmtDate } from "../../../shared/astrology";
 import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
+import { dashaGuidanceFor } from "../planetInfo";
+
+// Android needs this flag for LayoutAnimation to animate the expand.
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// One forecast window — tap to expand the reasoning (why) + behavioral
+// Do's / Don'ts for that dasha lord. Guidance is static per planet (free).
+function ForecastItem({ p, tc, s, color }) {
+  const [open, setOpen] = useState(false);
+  const guide = dashaGuidanceFor(p.period);
+  const why = Array.isArray(p.why) ? p.why : [];
+  const expandable = why.length > 0 || !!guide;
+
+  function toggle() {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpen((v) => !v);
+  }
+
+  return (
+    <Pressable onPress={expandable ? toggle : undefined} style={[s.timelineItem, { borderLeftColor: tc }]}>
+      <View style={s.tlHeader}>
+        <Text style={s.tlPeriod}>
+          {p.period}
+          {p.current ? <Text style={s.tlNow}>  NOW</Text> : null}
+        </Text>
+        <Text style={[s.tlPhase, { color: tc, borderColor: tc + "55" }]}>{p.phase}</Text>
+      </View>
+      <Text style={s.tlDates}>{fmtDate(p.start)} – {fmtDate(p.end)}</Text>
+      <Text style={s.tlSummary}>{p.summary}</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+        {p.areas.map((a, j) => (
+          <Text key={j} style={s.tlHouse}>H{a.house}</Text>
+        ))}
+      </View>
+
+      {expandable && (
+        <Text style={[s.tlToggle, { color: tc }]}>{open ? "Hide details ▲" : "Tap for Do's & Don'ts ▼"}</Text>
+      )}
+
+      {open && (
+        <View style={s.tlDetail}>
+          {why.length > 0 && (
+            <>
+              <Text style={s.tlDetailLabel}>WHY THIS PERIOD</Text>
+              {why.map((w, k) => (
+                <Text key={k} style={s.tlWhy}>{EMOJIS.SPARKLES} {w}</Text>
+              ))}
+            </>
+          )}
+          {guide && (
+            <View style={s.tlGuideSplit}>
+              <View style={[s.tlGuideCol, { borderColor: "rgba(34,197,94,0.25)", backgroundColor: "rgba(34,197,94,0.06)" }]}>
+                <Text style={[s.tlGuideTitle, { color: color.success }]}>{EMOJIS.CHECK} Do</Text>
+                {guide.dos.map((d, k) => <Text key={k} style={s.tlGuideItem}>• {d}</Text>)}
+              </View>
+              <View style={[s.tlGuideCol, { borderColor: "rgba(248,113,113,0.25)", backgroundColor: "rgba(248,113,113,0.06)" }]}>
+                <Text style={[s.tlGuideTitle, { color: color.danger }]}>{"✕ Don't"}</Text>
+                {guide.donts.map((d, k) => <Text key={k} style={s.tlGuideItem}>• {d}</Text>)}
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+    </Pressable>
+  );
+}
 
 // Timeline tab: dasha + ashtakvarga wheels, the dasha-window forecast,
 // prediction-confidence breakdown, and the current sky (gochar) transits.
@@ -24,31 +93,15 @@ export default function TimelineTab({ chart }) {
       {/* New: Ashtakvarga Wheel */}
       <AshtakvargaWheel ashtakvarga={chart.ashtakvarga} />
 
+      {/* New: Live Transit (Gochar) Map — real-time sky over the natal chart */}
+      <GocharMap chart={chart} />
+
       <CosmicCard>
         <Text style={s.cardTitle}>Timeline Forecast</Text>
-        <Text style={s.cardSub}>Upcoming dasha windows with the reasoning.</Text>
+        <Text style={s.cardSub}>{"Upcoming dasha windows — tap one for its Do's & Don'ts."}</Text>
         {chart.predictions.map((p, i) => {
           const tc = p.tone === "supportive" ? color.success : p.tone === "testing" ? color.danger : color.warning;
-          return (
-            <View key={i} style={[s.timelineItem, { borderLeftColor: tc }]}>
-              <View style={s.tlHeader}>
-                <Text style={s.tlPeriod}>
-                  {p.period}
-                  {p.current ? (
-                    <Text style={s.tlNow}>  NOW</Text>
-                  ) : null}
-                </Text>
-                <Text style={[s.tlPhase, { color: tc, borderColor: tc + "55" }]}>{p.phase}</Text>
-              </View>
-              <Text style={s.tlDates}>{fmtDate(p.start)} – {fmtDate(p.end)}</Text>
-              <Text style={s.tlSummary}>{p.summary}</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
-                {p.areas.map((a, j) => (
-                  <Text key={j} style={s.tlHouse}>H{a.house}</Text>
-                ))}
-              </View>
-            </View>
-          );
+          return <ForecastItem key={i} p={p} tc={tc} s={s} color={color} />;
         })}
       </CosmicCard>
 

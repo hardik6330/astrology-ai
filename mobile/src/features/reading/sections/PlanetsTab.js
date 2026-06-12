@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text } from "react-native";
+import React, { useState } from "react";
+import { View, Text, Pressable } from "react-native";
 import CosmicCard from "../../../components/CosmicCard";
 import PlanetaryStrengthCard from "../../kundali/PlanetaryStrengthCard";
 import { useColors } from "../../../theme/ThemeContext";
@@ -7,12 +7,16 @@ import { useStyles } from "../../../theme/useStyles";
 import { signOf, ZE, fmtDate } from "../../../shared/astrology";
 import { makeStyles } from "../styles";
 import ProgressBar from "./ProgressBar";
+import PlanetDetailSheet from "./PlanetDetailSheet";
+import { planetInfoFor } from "../planetInfo";
 
 // Planets tab: strength meter, full planetary position table, and the
 // current/upcoming dasha (planetary-timing) breakdown.
 export default function PlanetsTab({ chart, now }) {
   const color = useColors();
   const s = useStyles(makeStyles);
+  // Tapped planet → opens the detail bottom sheet. null = closed.
+  const [selected, setSelected] = useState(null);
 
   return (
     <>
@@ -22,7 +26,7 @@ export default function PlanetsTab({ chart, now }) {
       <CosmicCard>
         <Text style={s.cardTitle}>Planetary Positions</Text>
         <Text style={s.cardSub}>
-          Whole-sign house system — each sign is one full house.
+          Whole-sign house system — tap any planet to learn what it means for you.
         </Text>
         <View style={s.tableHeader}>
           <Text style={[s.thCell, { flex: 1.2 }]}>PLANET</Text>
@@ -30,16 +34,25 @@ export default function PlanetsTab({ chart, now }) {
           <Text style={[s.thCell, { flex: 1.5 }]}>WESTERN</Text>
           <Text style={[s.thCell, { flex: 0.6, textAlign: "center" }]}>H</Text>
         </View>
-        {chart.planets.map((p) => (
-          <View key={p.name} style={s.tableRow}>
-            <Text style={[s.tdCell, { flex: 1.2, color: color.textBody }]} numberOfLines={1}>
-              {p.name}{p.retro ? <Text style={{ color: color.danger }}>  ℞</Text> : ""}
-            </Text>
-            <Text style={[s.tdCell, { flex: 1.5 }]}>{ZE[signOf(p.sid)]} {signOf(p.sid)}</Text>
-            <Text style={[s.tdCell, { flex: 1.5 }]}>{ZE[signOf(p.trop)]} {signOf(p.trop)}</Text>
-            <Text style={[s.tdCell, { flex: 0.6, textAlign: "center", color: color.textMuted }]}>{p.houseSid}</Text>
-          </View>
-        ))}
+        {chart.planets.map((p) => {
+          const tappable = !!planetInfoFor(p);
+          return (
+            <Pressable
+              key={p.name}
+              onPress={() => tappable && setSelected(p)}
+              disabled={!tappable}
+              style={({ pressed }) => [s.tableRow, pressed && tappable && { backgroundColor: "rgba(168,85,247,0.08)" }]}
+            >
+              <Text style={[s.tdCell, { flex: 1.2, color: color.textBody }]} numberOfLines={1}>
+                {p.name}{p.retro ? <Text style={{ color: color.danger }}>  ℞</Text> : ""}
+                {tappable ? <Text style={{ color: color.primaryLight }}>  ›</Text> : ""}
+              </Text>
+              <Text style={[s.tdCell, { flex: 1.5 }]}>{ZE[signOf(p.sid)]} {signOf(p.sid)}</Text>
+              <Text style={[s.tdCell, { flex: 1.5 }]}>{ZE[signOf(p.trop)]} {signOf(p.trop)}</Text>
+              <Text style={[s.tdCell, { flex: 0.6, textAlign: "center", color: color.textMuted }]}>{p.houseSid}</Text>
+            </Pressable>
+          );
+        })}
       </CosmicCard>
 
       <CosmicCard>
@@ -72,6 +85,8 @@ export default function PlanetsTab({ chart, now }) {
           </View>
         ))}
       </CosmicCard>
+
+      <PlanetDetailSheet planet={selected} onClose={() => setSelected(null)} />
     </>
   );
 }

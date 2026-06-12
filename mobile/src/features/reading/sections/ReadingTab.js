@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, Pressable } from "react-native";
 import CosmicCard from "../../../components/CosmicCard";
 import MagicButton from "../../../components/MagicButton";
@@ -12,6 +12,7 @@ import { signOf } from "../../../shared/astrology";
 import { EMOJIS } from "../../../utils/emojis";
 import { asText } from "../constants";
 import { makeStyles } from "../styles";
+import { getItem, setItem } from "../../../utils/storage";
 
 const COLLAPSED_LINES = 6;
 
@@ -64,7 +65,27 @@ function NarrativeCard({ sec, s }) {
 // TimelineCheck in frontend/src/features/reading/InsightsTab.jsx.
 function TimelineCheck({ pastCheck, s }) {
   const [answer, setAnswer] = useState(null);
-  if (!pastCheck?.question) return null;
+  const [loaded, setLoaded] = useState(false);
+  // Persist the user's answer (keyed by the question) so it's remembered across
+  // reloads/restarts — we never re-ask once they've responded.
+  const key = pastCheck?.question ? `timelineCheck:${pastCheck.question}` : null;
+  useEffect(() => {
+    let alive = true;
+    if (!key) { setLoaded(true); return; }
+    getItem(key).then((v) => {
+      if (!alive) return;
+      if (v === "yes" || v === "no") setAnswer(v);
+      setLoaded(true);
+    });
+    return () => { alive = false; };
+  }, [key]);
+
+  function choose(v) {
+    setAnswer(v);
+    if (key) setItem(key, v);
+  }
+
+  if (!pastCheck?.question || !loaded) return null;
 
   if (answer) {
     const msg =
@@ -83,10 +104,10 @@ function TimelineCheck({ pastCheck, s }) {
       <Text style={s.timelineLabel}>{EMOJIS.SPARKLES} TIMELINE CHECK</Text>
       <Text style={s.timelineQuestion}>{pastCheck.question}</Text>
       <View style={{ flexDirection: "row", gap: 12 }}>
-        <Pressable onPress={() => setAnswer("yes")} style={[s.timelineBtn, s.timelineBtnYes]}>
+        <Pressable onPress={() => choose("yes")} style={[s.timelineBtn, s.timelineBtnYes]}>
           <Text style={s.timelineBtnYesText}>{"Yes, that's true"}</Text>
         </Pressable>
-        <Pressable onPress={() => setAnswer("no")} style={[s.timelineBtn, s.timelineBtnNo]}>
+        <Pressable onPress={() => choose("no")} style={[s.timelineBtn, s.timelineBtnNo]}>
           <Text style={s.timelineBtnNoText}>No, not really</Text>
         </Pressable>
       </View>
@@ -168,6 +189,28 @@ export default function ReadingTab({
           </View>
 
           {interp.pastCheck?.question ? <TimelineCheck pastCheck={interp.pastCheck} s={s} /> : null}
+
+          {/* ── Prediction confidence — surfaced next to the analysis so the
+              user sees how many independent chart signatures back each theme
+              (the full breakdown also lives in the Timeline tab). ─────────── */}
+          {chart?.confidence?.length > 0 && (
+            <CosmicCard style={{ borderColor: "rgba(168,85,247,0.25)" }}>
+              <Text style={[s.cardTitle, { color: color.primaryLight }]}>{EMOJIS.SPARKLES} Backed by Your Chart</Text>
+              <Text style={s.cardSub}>How many independent chart signatures support each theme.</Text>
+              {chart.confidence.map((c, i) => {
+                const lc = c.level === "High" ? color.success : c.level === "Moderate" ? color.warning : color.danger;
+                return (
+                  <View key={i} style={s.confRow}>
+                    <Text style={s.confTheme}>{c.theme}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Text style={s.confCount}>{c.count}/{c.total}</Text>
+                      <Text style={[s.confLevel, { color: lc, borderColor: lc + "55" }]}>{c.level}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </CosmicCard>
+          )}
 
           {/* ── Numbered narrative sections ───────────────────── */}
           {[

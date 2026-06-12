@@ -221,8 +221,24 @@ export default function InsightsTab({
 // window, computed — not a cold read). HONEST by design: the acknowledgement
 // reflects the user's ACTUAL answer instead of "confirmed" no matter what.
 function TimelineCheck({ pastCheck }) {
-  const [answer, setAnswer] = useState(null);
+  // Persist the answer (keyed by the question) so it's remembered across reloads
+  // — once the user responds we never re-ask. Read synchronously on first render.
+  const key = pastCheck?.question ? `timelineCheck:${pastCheck.question}` : null;
+  const [answer, setAnswer] = useState(() => {
+    if (!key || typeof localStorage === "undefined") return null;
+    const v = localStorage.getItem(key);
+    return v === "yes" || v === "no" ? v : null;
+  });
   if (!pastCheck?.question) return null;
+
+  function choose(v) {
+    setAnswer(v);
+    try {
+      localStorage.setItem(key, v);
+    } catch {
+      /* best-effort */
+    }
+  }
 
   if (answer) {
     const msg =
@@ -246,13 +262,13 @@ function TimelineCheck({ pastCheck }) {
       <p className="mx-0 mt-0 mb-4 text-[14px] leading-[1.6] font-semibold text-ink">{pastCheck.question}</p>
       <div className="flex gap-3">
         <button
-          onClick={() => setAnswer("yes")}
+          onClick={() => choose("yes")}
           className="flex-1 cursor-pointer rounded-[10px] border border-[rgba(34,197,94,0.4)] bg-[rgba(34,197,94,0.12)] p-2.5 text-[13px] font-semibold text-[#4ade80]"
         >
           Yes, that's true
         </button>
         <button
-          onClick={() => setAnswer("no")}
+          onClick={() => choose("no")}
           className="flex-1 cursor-pointer rounded-[10px] border border-[rgba(255,255,255,0.15)] bg-white/5 p-2.5 text-[13px] font-semibold text-subtle"
         >
           No, not really

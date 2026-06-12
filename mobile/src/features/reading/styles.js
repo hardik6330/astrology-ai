@@ -104,6 +104,16 @@ export const makeStyles = (c) => StyleSheet.create({
   tlSummary:     { fontSize: 11.5, color: c.textDim, marginBottom: 7, lineHeight: 17 },
   tlHouse:       { fontSize: 9.5, color: c.textMuted, backgroundColor: c.inputBg, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 2 },
 
+  // Expandable forecast detail (reasoning + Do's/Don'ts).
+  tlToggle:      { fontSize: 11.5, fontWeight: "700", marginTop: 8 },
+  tlDetail:      { marginTop: 10, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)", paddingTop: 10 },
+  tlDetailLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1, color: c.textMuted, marginBottom: 5 },
+  tlWhy:         { fontSize: 11.5, color: c.textBody, lineHeight: 17, marginBottom: 3 },
+  tlGuideSplit:  { flexDirection: "row", gap: 8, marginTop: 10 },
+  tlGuideCol:    { flex: 1, borderWidth: 1, borderRadius: 10, padding: 9 },
+  tlGuideTitle:  { fontSize: 11.5, fontWeight: "800", marginBottom: 5 },
+  tlGuideItem:   { fontSize: 11, color: c.textBody, lineHeight: 16, marginBottom: 2 },
+
   confRow:    { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   confTheme:  { color: c.text, fontSize: 12.5 },
   confCount:  { color: c.textMuted, fontSize: 10 },
@@ -185,6 +195,25 @@ export const makeStyles = (c) => StyleSheet.create({
   timelineBtnNoText:  { color: c.textMuted, fontSize: 13, fontWeight: "700" },
   timelineAck:      { borderWidth: 1, borderColor: "rgba(168,85,247,0.3)", backgroundColor: "rgba(30,20,45,0.45)", borderRadius: 12, padding: 14, marginBottom: spacing.md },
   timelineAckText:  { color: "#c4b5fd", fontSize: 13, lineHeight: 21 },
+
+  // PlanetDetail bottom sheet.
+  sheetBackdrop:    { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  sheetCard:        { backgroundColor: c.cardBgSolid, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28, maxHeight: "85%", borderWidth: 1, borderColor: "rgba(168,85,247,0.3)" },
+  sheetHandle:      { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.2)", marginBottom: 16 },
+  sheetHeader:      { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 16 },
+  sheetGlyph:       { fontSize: 40, lineHeight: 52, includeFontPadding: false },
+  sheetTitle:       { color: c.text, fontSize: 18, fontWeight: "800" },
+  sheetEpithet:     { color: c.primaryLight, fontSize: 13, fontWeight: "600", marginTop: 2 },
+  sheetPlacement:   { borderWidth: 1, borderColor: "rgba(168,85,247,0.3)", backgroundColor: "rgba(168,85,247,0.08)", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 18 },
+  sheetPlacementText: { color: "#c4b5fd", fontSize: 14, lineHeight: 20, includeFontPadding: false, fontWeight: "700", textAlign: "center" },
+  sheetLabel:       { color: c.textMuted, fontSize: 11, fontWeight: "800", letterSpacing: 1.5, marginBottom: 6 },
+  sheetBody:        { color: c.textBody, fontSize: 14, lineHeight: 22, marginBottom: 18 },
+  sheetSplit:       { flexDirection: "row", gap: 10, marginBottom: 20 },
+  sheetHalf:        { flex: 1, borderWidth: 1, borderRadius: 12, padding: 12 },
+  sheetHalfTitle:   { fontSize: 12, fontWeight: "800", marginBottom: 6 },
+  sheetHalfBody:    { color: c.textBody, fontSize: 12.5, lineHeight: 18 },
+  sheetClose:       { borderWidth: 1, borderColor: "rgba(168,85,247,0.4)", backgroundColor: "rgba(168,85,247,0.12)", borderRadius: 12, paddingVertical: 13, alignItems: "center" },
+  sheetCloseText:   { color: c.primaryLight, fontSize: 14, fontWeight: "700" },
 
   // ── Strengths / Growth panel cards ───────────────────────────────
   panelCard: {

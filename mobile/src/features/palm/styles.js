@@ -29,6 +29,11 @@ export const makeStyles = (c) => StyleSheet.create({
   geoChip:     { borderWidth: 1, borderColor: "rgba(168,85,247,0.35)", backgroundColor: "rgba(168,85,247,0.1)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   geoChipText: { color: "#c4b5fd", fontSize: 11.5, fontWeight: "600" },
 
+  // Privacy assurance row on the palm picker (truthful: image never stored).
+  privacyRow:  { flexDirection: "row", alignItems: "center", gap: 8, marginTop: spacing.md, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: "rgba(34,197,94,0.25)", backgroundColor: "rgba(34,197,94,0.06)" },
+  privacyIcon: { fontSize: 14, lineHeight: 20, includeFontPadding: false },
+  privacyText: { flex: 1, color: "#86efac", fontSize: 11.5, lineHeight: 16 },
+
   aiBusyCard: {
     backgroundColor: c.cardBgSolid,
     borderWidth: 1.5,

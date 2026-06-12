@@ -691,6 +691,38 @@ export function computeChart(dateStr, timeStr, city) {
     console.warn("Eclipse computation skipped:", e.message);
   }
 
+  // Full live sky (gochar) — EVERY graha's current sidereal position + the house
+  // it transits relative to the NATAL lagna (drives the visual transit map). The
+  // 4 slow planets above feed Sade Sati / notes; this adds the fast ones too.
+  // Keep in sync with mobile/src/shared/astrology.js.
+  const tSun = nm(bodyLon(B.Sun, tTime) - tAy),
+    tMoonNow = nm(bodyLon(B.Moon, tTime) - tAy),
+    tMer = nm(bodyLon(B.Mercury, tTime) - tAy),
+    tVen = nm(bodyLon(B.Venus, tTime) - tAy),
+    tMar = nm(bodyLon(B.Mars, tTime) - tAy);
+  const ascIdxNow = Math.floor(nm(angles.ascSid) / 30);
+  const hFromLagna = (lon) => ((Math.floor(nm(lon) / 30) - ascIdxNow + 12) % 12) + 1;
+  const gochar = [
+    ["Sun", tSun],
+    ["Moon", tMoonNow],
+    ["Mercury", tMer],
+    ["Venus", tVen],
+    ["Mars", tMar],
+    ["Jupiter", tJup],
+    ["Saturn", tSat],
+    ["Rahu", tRahu],
+    ["Ketu", nm(tRahu + 180)],
+  ].map(([name, lon]) => ({
+    name,
+    lon: nm(lon),
+    sign: signOf(lon),
+    deg: +(nm(lon) % 30).toFixed(1),
+    houseLagna: hFromLagna(lon),
+    houseMoon: hFromMoon(lon),
+    area: HOUSE_AREA[hFromLagna(lon)],
+    retro: name === "Rahu" || name === "Ketu",
+  }));
+
   const chart = {
     planets,
     angles,
@@ -735,6 +767,8 @@ export function computeChart(dateStr, timeStr, city) {
         { name: "Rahu", sign: signOf(tRahu), houseMoon: rahuH },
         { name: "Ketu", sign: signOf(tRahu + 180), houseMoon: hFromMoon(tRahu + 180) },
       ],
+      gochar,
+      ascSign: signOf(angles.ascSid),
       sadeSati: { active: !!sSati, phase: sSati },
       tnAspects: [],
     },

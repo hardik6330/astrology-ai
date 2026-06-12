@@ -25,6 +25,7 @@ Every paid feature spends **credits**; users top up via Razorpay (web) with a mo
 
 ### Duplicated astrology engine
 `frontend/src/shared/astrology.js` and `mobile/src/shared/astrology.js` are ~950-line **intentional duplicates**. Both clients compute charts locally via `astronomy-engine`, then POST the facts to the backend for Gemini interpretation. **When changing chart logic, edit both files** until a shared package is extracted. Same goes for `shared/prompts.js` (and the palm-gate files — see below).
+- `chart.transits.gochar` is the **live-sky** array (all 9 grahas' current sidereal position + `houseLagna` — house transited from the natal ascendant — plus `sign`, `deg`, `houseMoon`, `area`, `retro`). It drives the mobile Gochar map (below) and is computed in BOTH engine files — keep it in sync. It reflects `now` at chart-build time (per session), not a live tick.
 
 ### Serverless/Sequelize mismatch
 Backend is deployed on Vercel (serverless), but uses Sequelize + persistent MySQL. Two implications:
@@ -59,6 +60,17 @@ Separate from user auth: a username/password `Admin` account (scrypt-hashed), se
 
 ### Client-side palm gate
 Before any palm photo reaches the backend, both clients run a local quality gate (`frontend/src/utils/palmGate.js`, `mobile/src/features/palm/palmGate.js`) using MediaPipe Hands + pixel heuristics (luminance, Laplacian blur, palm coverage, edge score, lighting variance, claimed-hand check). It rejects bad photos locally — saving Gemini tokens — and returns an ordered `checks` array plus 21 hand landmarks (drawn by `PalmSkeletonOverlay.jsx`). The scored `checks` are rendered as a pill checklist: web in `PalmGateChecklist.jsx`, mobile in `mobile/src/features/palm/sections/GateChecklist.js`. **Keep the check labels identical across both gate files** (they carry the measured scores, e.g. `Palm lines visible (edge score 411)`) and **keep thresholds + logic in sync like the astrology engine.** On mobile the checklist is shown **only on the scanning screen** (`UploadView.js`, scanning state) — the pre-scan picker shows just a plain "Reading photo…" spinner, no numbers. Mobile must pre-resize via `expo-image-manipulator` before decoding (full-res decode takes 40–50s).
+- On a **passing** photo the gate also returns `confidence` (0–100) via `confidenceScore()` — a blend of brightness/sharpness/coverage with an identical formula in both gate files. The checklist shows it as an "AI Confidence" header (green/amber/red). Not shown on rejects (the reject card shows instead).
+- The pre-scan picker carries a **truthful privacy badge** — the backend persists only a SHA-256 hash + the text reading, never the image bytes, so the copy says "never saved." **Don't claim "encrypted"** (no at-rest DB encryption).
+
+### Reading trust & interactivity (the "Show Your Work" layer)
+Cross-cutting features that make the reading feel computed and credible rather than generated. Most are mobile-first; the web twins are noted.
+- **Show-Your-Work badges.** The kundali prompt (`backend/src/ai/prompts.js`) returns an `evidence` object (personality/career/relationships → the exact placements behind each section); rendered as an "Astrology logic" badge in `InsightsTab.jsx` (web) + `ReadingTab.js` (mobile). The palm reading attaches the **measured** geometry buckets (`backend/src/utils/palmGeometry.js` → `parsed.geometry`) — the "Palmistry Math" chips render from that real data, **never model-invented numbers**.
+- **Timeline Check.** The kundali prompt returns `pastCheck` `{question, basis}` — a grounded yes/no tied to a real dasha window. The card (`ReadingTab.js` / `InsightsTab.jsx`) is **honest by design**: the acknowledgement reflects the user's actual Yes/No, never a fake "confirmed." The answer is **persisted** keyed by `timelineCheck:<question>` (mobile `utils/storage` AsyncStorage; web `localStorage`) so it's never re-asked. Persistence is on-device, not synced to the account.
+- **Prediction Confidence** ("Backed by Your Chart"): reuses `chart.confidence` (count of independent chart signatures per theme), surfaced in `ReadingTab.js` next to the analysis (full breakdown lives in `TimelineTab.js`).
+- **Interactive planets**: `PlanetsTab.js` rows are tappable → `PlanetDetailSheet.js` (RN `Modal`, Expo-Go-safe) using the static `features/reading/planetInfo.js` dictionary; the placement line is pulled live from the chart.
+- **Expandable dasha forecast**: `TimelineTab.js` forecast cards expand (`LayoutAnimation`, no reanimated dep) to show the `why` reasoning + static per-lord Do's/Don'ts (`DASHA_GUIDANCE` in `planetInfo.js`).
+- **Gochar map**: `mobile/src/features/kundali/GocharMap.js` — an SVG sidereal zodiac wheel (matches `DashaWheel`/`AshtakvargaWheel` style) plotting `chart.transits.gochar` with the natal lagna marked, plus an impact list. Mobile-only UI; the `gochar` data exists in both engines.
 
 ## Build and deployment
 
@@ -102,7 +114,7 @@ Before any palm photo reaches the backend, both clients run a local quality gate
 - **Razorpay signature must be verified server-side** — never trust a client-reported "paid" status; `purchaseService` recomputes the HMAC and constant-time compares.
 - **Engagement-push double-sends** — the engage job relies on an atomic compare-and-set of `notif_next_at`. If you refactor scheduling, preserve that guard or overlapping cron hits will fan out twice.
 - **IAP mock-fallback grants free credits** — when `APPLE_IAP_SECRET` / `GOOGLE_IAP_SERVICE_ACCOUNT_JSON` are unset, `verifyAppleReceipt`/`verifyGooglePurchase` return a fake `mock_*_<timestamp>` txn id and credits are granted. Fine for dev, but in production this lets any authed client farm credits via `/credits/verify-iap` (the mock id is unique each call, so the `providerTxnId` guard doesn't stop it). Before shipping real IAP, make missing secrets fail closed in production. Also: the iOS path doesn't yet verify the receipt's product matches the requested `planId` (the Android path does) — bind it before relying on it.
-- **Android emoji clipping** — emoji in a `Text` get their top/bottom cut when `lineHeight` is tight and the default `includeFontPadding: true` applies. For any icon glyph, set a generous `lineHeight` (≈1.4× fontSize) **and** `includeFontPadding: false` (see the palm reading styles).
+- **Android emoji/glyph clipping** — emoji AND unicode astro glyphs (zodiac `ZE[sign]` ♏, planet symbols ♀/♄) in a `Text` get their top/bottom cut when `lineHeight` is tight and the default `includeFontPadding: true` applies. For any icon glyph, set a generous `lineHeight` (≈1.4× fontSize) **and** `includeFontPadding: false` (see the palm reading styles, `sheetPlacementText`, and `GocharMap` `impSign`).
 
 ## Quick command reference
 
@@ -134,7 +146,10 @@ curl -H "x-cron-secret: <secret>" "http://localhost:5000/api/cron/run?job=engage
 - API entry point + route mounts: `backend/src/server.js`
 - Models + associations: `backend/src/models/` (`index.js` for associations)
 - AI prompts (canonical) / Gemini wrapper: `backend/src/ai/prompts.js`, `backend/src/ai/gemini.js`
-- Chart math (web + mobile): `frontend/src/shared/astrology.js` + `mobile/src/shared/astrology.js`
+- Chart math (web + mobile): `frontend/src/shared/astrology.js` + `mobile/src/shared/astrology.js` (incl. `transits.gochar` live-sky array — keep in sync)
+- Reading UI (mobile): `mobile/src/features/reading/sections/` (`ReadingTab.js`, `PlanetsTab.js`, `TimelineTab.js`, `PlanetDetailSheet.js`) + `planetInfo.js`; web reading: `frontend/src/features/reading/InsightsTab.jsx`
+- Gochar map (mobile): `mobile/src/features/kundali/GocharMap.js` (alongside `DashaWheel.js`, `AshtakvargaWheel.js`)
+- Palm geometry / "Palmistry Math": `backend/src/utils/palmGeometry.js` → attached as `reading.geometry`; rendered in palm `ReadingResult` (web `pages/PalmPage.jsx`, mobile `sections/ReadingResult.js`)
 - Credits & payments: `backend/src/services/creditService.js`, `purchaseService.js`, `config/razorpay.js`
 - Engagement pushes: `backend/src/services/engageService.js`, `notificationService.js`, `config/scheduler.js`, `backend/NOTIFICATIONS_SETUP.txt`
 - DB-backed settings: `backend/src/services/settingsService.js` (+ `settingsSeed.js`)

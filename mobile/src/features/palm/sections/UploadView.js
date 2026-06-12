@@ -80,6 +80,16 @@ export default function UploadView({
             <Text style={[s.chev, { color: color.primaryLight }]}>›</Text>
           </PressableScale>
 
+          {/* Privacy assurance — TRUE to the backend: palmService persists only a
+              hash + the text reading, never the image bytes. Worded to match
+              reality (no "encrypted at rest" claim). */}
+          <View style={s.privacyRow}>
+            <Text style={s.privacyIcon}>{EMOJIS.LOCK || "🔒"}</Text>
+            <Text style={s.privacyText}>
+              Analyzed in real time · your photo is never saved — only the reading is kept.
+            </Text>
+          </View>
+
           {/* While the gate runs: a plain spinner only — the scored checklist
               lives on the scanning screen, never here. */}
           {gating && (
