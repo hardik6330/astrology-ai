@@ -58,7 +58,10 @@ function geometricHand(landmarks) {
   const palmWidth = Math.abs(landmarks[5].x - landmarks[17].x) || 1;
   const dx = thumbTip.x - pinkyMcp.x;
   if (Math.abs(dx) < palmWidth * 0.15) return null; // too ambiguous to call
-  return dx < 0 ? "Right" : "Left";
+  // Calibrated from live testing: thumb on the image-RIGHT of the pinky (dx > 0)
+  // = a RIGHT hand. (If a device's camera mirrors the other way and this inverts,
+  // flip this one line — and keep it in sync with the web gate + backend guard.)
+  return dx > 0 ? "Right" : "Left";
 }
 
 function reject(rejectReason, debugInfo = "", duration = 0) {

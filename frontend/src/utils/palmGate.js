@@ -228,7 +228,9 @@ function geometricHand(keypoints) {
   const palmWidth = Math.abs(keypoints[5].x - keypoints[17].x) || 1;
   const dx = thumbTip.x - pinkyMcp.x;
   if (Math.abs(dx) < palmWidth * 0.15) return null;
-  return dx < 0 ? "Right" : "Left";
+  // Calibrated from live testing: thumb on the image-RIGHT of the pinky (dx > 0)
+  // = a RIGHT hand. Keep in sync with the mobile gate + backend guard.
+  return dx > 0 ? "Right" : "Left";
 }
 
 function checkFingerSpread(landmarks) {
