@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { signOf, ZE, fmtDate } from "@/shared/astrology";
 import PlanetaryStrengthCard from "@/features/kundali/PlanetaryStrengthCard";
 import Card from "@/common/Card";
-import { EMOJIS } from "@/utils/emojis";
+import { planetInfoFor } from "./planetInfo";
+import PlanetDetailModal from "./PlanetDetailModal";
 
 // Planets tab: strength meter, the full planetary-position table, and the
 // Vimshottari dasha timeline with progress bars. `now` is the page's frozen
 // "current instant" so dasha progress is stable across re-renders.
 export default function PlanetsTab({ chart, now }) {
+  // Tapped planet → opens the detail modal. null = closed.
+  const [selected, setSelected] = useState(null);
   return (
     <>
       {/* Planetary Strength meter */}
@@ -18,8 +22,7 @@ export default function PlanetsTab({ chart, now }) {
           Planetary Positions
         </p>
         <p className="mx-0 mt-0 mb-4 text-[10.5px] text-muted">
-          Whole-sign house system — each sign is one full house, so a planet's house does not depend on its
-          degree.
+          Whole-sign house system — tap any planet to learn what it means for you.
         </p>
         <div
           className="planet-row"
@@ -39,32 +42,43 @@ export default function PlanetsTab({ chart, now }) {
           <span>Western</span>
           <span>House</span>
         </div>
-        {chart.planets.map((p) => (
-          <div
-            key={p.name}
-            className="planet-row"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1.2fr 1.5fr 1.5fr 0.6fr",
-              fontSize: 13,
-              padding: "10px 0",
-              borderBottom: "1px solid rgba(255,255,255,0.05)",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ color: "#aaa", fontWeight: 500 }}>
-              {p.name}
-              {p.retro && <span style={{ color: "#f87171", fontSize: 11, marginLeft: 4 }}>℞</span>}
-            </span>
-            <span style={{ color: "#ddd" }}>
-              {ZE[signOf(p.sid)]} {signOf(p.sid)}
-            </span>
-            <span style={{ color: "#ddd" }}>
-              {ZE[signOf(p.trop)]} {signOf(p.trop)}
-            </span>
-            <span style={{ color: "#888", textAlign: "center" }}>{p.houseSid}</span>
-          </div>
-        ))}
+        {chart.planets.map((p) => {
+          const tappable = !!planetInfoFor(p);
+          return (
+            <div
+              key={p.name}
+              onClick={() => tappable && setSelected(p)}
+              className="planet-row group"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.2fr 1.5fr 1.5fr 0.6fr",
+                fontSize: 13,
+                padding: "10px 8px",
+                margin: "0 -8px",
+                borderRadius: 8,
+                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                alignItems: "center",
+                cursor: tappable ? "pointer" : "default",
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => tappable && (e.currentTarget.style.background = "rgba(168,85,247,0.08)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <span style={{ color: "#aaa", fontWeight: 500 }}>
+                {p.name}
+                {p.retro && <span style={{ color: "#f87171", fontSize: 11, marginLeft: 4 }}>℞</span>}
+                {tappable && <span style={{ color: "#a855f7", fontSize: 12, marginLeft: 5 }}>›</span>}
+              </span>
+              <span style={{ color: "#ddd" }}>
+                {ZE[signOf(p.sid)]} {signOf(p.sid)}
+              </span>
+              <span style={{ color: "#ddd" }}>
+                {ZE[signOf(p.trop)]} {signOf(p.trop)}
+              </span>
+              <span style={{ color: "#888", textAlign: "center" }}>{p.houseSid}</span>
+            </div>
+          );
+        })}
       </Card>
 
       {/* Vimshottari Dasha */}
@@ -162,6 +176,8 @@ export default function PlanetsTab({ chart, now }) {
             </div>
           ))}
       </Card>
+
+      <PlanetDetailModal planet={selected} onClose={() => setSelected(null)} />
     </>
   );
 }

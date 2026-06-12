@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import CosmicCard from "../../../components/CosmicCard";
 import DashaWheel from "../../kundali/DashaWheel";
 import AshtakvargaWheel from "../../kundali/AshtakvargaWheel";
@@ -11,6 +12,7 @@ import { ZE, fmtDate } from "../../../shared/astrology";
 import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 import { dashaGuidanceFor } from "../planetInfo";
+import { haptics } from "../../../utils/haptics";
 
 // Android needs this flag for LayoutAnimation to animate the expand.
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -26,12 +28,16 @@ function ForecastItem({ p, tc, s, color }) {
   const expandable = why.length > 0 || !!guide;
 
   function toggle() {
+    haptics.select();
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setOpen((v) => !v);
   }
 
   return (
-    <Pressable onPress={expandable ? toggle : undefined} style={[s.timelineItem, { borderLeftColor: tc }]}>
+    <Pressable
+      onPress={expandable ? toggle : undefined}
+      style={({ pressed }) => [s.timelineItem, { borderLeftColor: tc }, pressed && expandable && { opacity: 0.85 }]}
+    >
       <View style={s.tlHeader}>
         <Text style={s.tlPeriod}>
           {p.period}
@@ -52,7 +58,7 @@ function ForecastItem({ p, tc, s, color }) {
       )}
 
       {open && (
-        <View style={s.tlDetail}>
+        <Animated.View entering={FadeIn.duration(220)} style={s.tlDetail}>
           {why.length > 0 && (
             <>
               <Text style={s.tlDetailLabel}>WHY THIS PERIOD</Text>
@@ -73,7 +79,7 @@ function ForecastItem({ p, tc, s, color }) {
               </View>
             </View>
           )}
-        </View>
+        </Animated.View>
       )}
     </Pressable>
   );

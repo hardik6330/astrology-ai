@@ -1,5 +1,6 @@
 import React from "react";
 import { Modal, View, Text, Pressable, ScrollView } from "react-native";
+import Animated, { SlideInDown } from "react-native-reanimated";
 import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { signOf, ZE } from "../../../shared/astrology";
@@ -7,9 +8,10 @@ import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 import { planetInfoFor } from "../planetInfo";
 
-// Bottom-sheet detail for a tapped planet. RN Modal (slide-up) — works in Expo
-// Go, no native module. Meaning is static (planetInfo.js); the placement line is
-// pulled live from the chart so it's specific to this user without inventing.
+// Bottom-sheet detail for a tapped planet. RN Modal (backdrop fade) + a
+// reanimated spring slide-up on the card for a high-end feel. Works in Expo Go.
+// Meaning is static (planetInfo.js); the placement line is pulled live from the
+// chart so it's specific to this user without inventing.
 export default function PlanetDetailSheet({ planet, onClose }) {
   const color = useColors();
   const s = useStyles(makeStyles);
@@ -17,9 +19,11 @@ export default function PlanetDetailSheet({ planet, onClose }) {
   const visible = !!planet;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.sheetBackdrop} onPress={onClose}>
-        {/* Inner press is swallowed so taps on the card don't dismiss. */}
+        {/* Card springs up via reanimated; inner press is swallowed so taps on
+            the card don't dismiss. */}
+        <Animated.View entering={SlideInDown.springify().damping(18).mass(0.85)} style={{ width: "100%" }}>
         <Pressable style={s.sheetCard} onPress={() => {}}>
           {planet && info && (
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -62,6 +66,7 @@ export default function PlanetDetailSheet({ planet, onClose }) {
             </ScrollView>
           )}
         </Pressable>
+        </Animated.View>
       </Pressable>
     </Modal>
   );

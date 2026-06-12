@@ -9,6 +9,7 @@ import { makeStyles } from "../styles";
 import ProgressBar from "./ProgressBar";
 import PlanetDetailSheet from "./PlanetDetailSheet";
 import { planetInfoFor } from "../planetInfo";
+import { haptics } from "../../../utils/haptics";
 
 // Planets tab: strength meter, full planetary position table, and the
 // current/upcoming dasha (planetary-timing) breakdown.
@@ -39,9 +40,9 @@ export default function PlanetsTab({ chart, now }) {
           return (
             <Pressable
               key={p.name}
-              onPress={() => tappable && setSelected(p)}
+              onPress={() => { if (tappable) { haptics.tap(); setSelected(p); } }}
               disabled={!tappable}
-              style={({ pressed }) => [s.tableRow, pressed && tappable && { backgroundColor: "rgba(168,85,247,0.08)" }]}
+              style={({ pressed }) => [s.tableRow, pressed && tappable && { backgroundColor: "rgba(168,85,247,0.08)", transform: [{ scale: 0.99 }] }]}
             >
               <Text style={[s.tdCell, { flex: 1.2, color: color.textBody }]} numberOfLines={1}>
                 {p.name}{p.retro ? <Text style={{ color: color.danger }}>  ℞</Text> : ""}

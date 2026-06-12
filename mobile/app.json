@@ -1,14 +1,15 @@
 {
   "expo": {
-    "name": "Astrology AI",
+    "name": "Astro AI",
     "slug": "astrology-ai",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "astrologyai",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "icon": "./assets/logo-removebg-preview.png",
+    "icon": "./assets/homescreen-logo.png",
     "splash": {
+      "image": "./assets/homescreen-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#f8fafc",
       "dark": {
@@ -29,7 +30,7 @@
       "googleServicesFile": "./google-services.json",
       "allowBackup": false,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo-removebg-preview.png",
+        "foregroundImage": "./assets/homescreen-logo.png",
         "backgroundColor": "#0b0a1f"
       },
       "permissions": [
