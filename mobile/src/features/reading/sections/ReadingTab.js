@@ -9,6 +9,7 @@ import { useStyles } from "../../../theme/useStyles";
 import { useCosts } from "../../../hooks/useCosts";
 import { spacing } from "../../../theme/tokens";
 import { signOf } from "../../../shared/astrology";
+import { STRINGS } from "../../../shared/uiStrings";
 import { EMOJIS } from "../../../utils/emojis";
 import { asText } from "../constants";
 import { makeStyles } from "../styles";
@@ -184,7 +185,7 @@ export default function ReadingTab({
             <View style={s.blueprintDivider} />
             <Text style={s.blueprintText}>"{asText(interp.lifeTheme)}"</Text>
             <Text style={s.blueprintFooter}>
-              Generated for {form.name || "you"} · {signOf(chart.angles.ascSid)} Lagna
+              Generated for {form.name || "you"} · {signOf(chart.angles.ascSid)} {STRINGS.LABELS.ASCENDANT}
             </Text>
           </View>
 

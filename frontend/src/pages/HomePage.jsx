@@ -135,7 +135,7 @@ export default function HomePage() {
       {/* cosmic-card's bottom margin (unlayered) is overridden inline. */}
       <Card className="text-center" style={{ marginBottom: "2.5rem" }}>
         <h2 className="m-0 mb-2 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-[28px] font-bold text-transparent">
-          {EMOJIS.SPARKLES} AI Kundali Insights {EMOJIS.SPARKLES}
+          {EMOJIS.SPARKLES} AI Birth Chart Insights {EMOJIS.SPARKLES}
         </h2>
         <p className="m-0 text-sm tracking-[0.5px] text-[#aaa]">
           Precision Astronomy + Celestial Intelligence

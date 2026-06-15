@@ -186,7 +186,7 @@ export default function PalmStepScreen({ navigation }) {
       <View style={{ alignItems: "center", marginBottom: spacing.md }}>
         <Text style={s.title}>Add a Palm Reading?</Text>
         <Text style={s.subtitle}>
-          Optional — we&apos;ll analyse your palm while your kundali is being built.
+          Optional — we&apos;ll analyze your palm while your kundali is being built.
         </Text>
       </View>
 

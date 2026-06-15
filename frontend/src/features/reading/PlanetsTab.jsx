@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { signOf, ZE, fmtDate } from "@/shared/astrology";
+import { planetEnglish } from "@/shared/planetText";
 import PlanetaryStrengthCard from "@/features/kundali/PlanetaryStrengthCard";
 import Card from "@/common/Card";
 import { planetInfoFor } from "./planetInfo";
@@ -83,9 +84,7 @@ export default function PlanetsTab({ chart, now }) {
 
       {/* Vimshottari Dasha */}
       <Card>
-        <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 16px", color: "#fff" }}>
-          Planetary Timing (Dasha)
-        </p>
+        <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 16px", color: "#fff" }}>Planetary Timing</p>
         <div
           style={{
             background: "rgba(99, 102, 241, 0.1)",
@@ -96,8 +95,10 @@ export default function PlanetsTab({ chart, now }) {
           }}
         >
           <p style={{ fontSize: 14, color: "#fff", fontWeight: 600, margin: 0 }}>
-            {chart.curMaha.lord} Mahadasha
-            {chart.curAntar && <span style={{ color: "#a855f7" }}> · {chart.curAntar.lord} Antardasha</span>}
+            {planetEnglish(chart.curMaha.lord)} Major Period
+            {chart.curAntar && (
+              <span style={{ color: "#a855f7" }}> · {planetEnglish(chart.curAntar.lord)} Sub-Period</span>
+            )}
           </p>
           <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 16px" }}>
             {fmtDate(chart.curMaha.start)} – {fmtDate(chart.curMaha.end)}
@@ -141,9 +142,14 @@ export default function PlanetsTab({ chart, now }) {
             };
             return (
               <div>
-                {bar(chart.curMaha.lord, +chart.curMaha.start, +chart.curMaha.end, "#6366f1")}
+                {bar(planetEnglish(chart.curMaha.lord), +chart.curMaha.start, +chart.curMaha.end, "#6366f1")}
                 {chart.curAntar &&
-                  bar(chart.curAntar.lord, +chart.curAntar.start, +chart.curAntar.end, "#a855f7")}
+                  bar(
+                    planetEnglish(chart.curAntar.lord),
+                    +chart.curAntar.start,
+                    +chart.curAntar.end,
+                    "#a855f7"
+                  )}
               </div>
             );
           })()}
@@ -168,7 +174,7 @@ export default function PlanetsTab({ chart, now }) {
                   fontWeight: m === chart.curMaha ? 600 : 400,
                 }}
               >
-                {m.lord} Mahadasha
+                {planetEnglish(m.lord)} Major Period
               </span>
               <span style={{ color: "#666", fontSize: 12 }}>
                 {fmtDate(m.start)} – {fmtDate(m.end)}

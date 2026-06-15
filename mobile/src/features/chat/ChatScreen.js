@@ -24,7 +24,7 @@ import { EMOJIS } from "@/utils/emojis";
 const SUGGESTIONS = [
   "When will I marry?",
   "How is my career future?",
-  "What does my current dasha mean?",
+  "What does my current planetary period mean?",
   "Will I settle abroad?",
 ];
 
@@ -32,7 +32,7 @@ const PLACEHOLDERS = [
   "Ask about your future…",
   "When will I marry?",
   "How is my career going?",
-  "What does my dasha say?",
+  "What does my planetary period say?",
   "Is this a good time for change?",
 ];
 
@@ -119,7 +119,7 @@ export default function ChatScreen({ navigation, route }) {
   const welcomeMsg =
     `Namaste ${form.name || "there"} ${EMOJIS.NAMASTE} I'm your personal Vedic astrologer. ` +
     `Ask me anything about your life — career, marriage, money, health, timing — and ` +
-    `I'll answer from your kundali. What would you like to know?`;
+    `I'll answer from your birth chart. What would you like to know?`;
 
   // Restore saved history when the screen mounts AND once the form is ready.
   // The form may still be hydrating from AsyncStorage / login on first mount,

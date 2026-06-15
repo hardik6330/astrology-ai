@@ -195,7 +195,7 @@ export default function HomeScreen({ navigation, route }) {
           </Text>
           <Text style={styles.subTitle}>
             {step === 1 
-              ? "So Nummi can personalize your experience." 
+              ? "So we can personalize your experience."
               : `The moment the stars aligned for you, ${form.name.split(' ')[0]}.`}
           </Text>
         </View>

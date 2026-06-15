@@ -5,6 +5,7 @@ import PlanetaryStrengthCard from "../../kundali/PlanetaryStrengthCard";
 import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { signOf, ZE, fmtDate } from "../../../shared/astrology";
+import { planetEnglish } from "../../../shared/planetText";
 import { makeStyles } from "../styles";
 import ProgressBar from "./ProgressBar";
 import PlanetDetailSheet from "./PlanetDetailSheet";
@@ -57,22 +58,22 @@ export default function PlanetsTab({ chart, now }) {
       </CosmicCard>
 
       <CosmicCard>
-        <Text style={s.cardTitle}>Planetary Timing (Dasha)</Text>
+        <Text style={s.cardTitle}>Planetary Timing</Text>
         <View style={s.dashaCurrent}>
           <Text style={s.dashaTitle}>
-            {chart.curMaha.lord} Mahadasha
-            {chart.curAntar ? <Text style={{ color: color.primary }}> · {chart.curAntar.lord} Antardasha</Text> : null}
+            {planetEnglish(chart.curMaha.lord)} Major Period
+            {chart.curAntar ? <Text style={{ color: color.primary }}> · {planetEnglish(chart.curAntar.lord)} Sub-Period</Text> : null}
           </Text>
           <Text style={s.dashaDates}>
             {fmtDate(chart.curMaha.start)} – {fmtDate(chart.curMaha.end)}
           </Text>
           <ProgressBar
-            label={chart.curMaha.lord}
+            label={planetEnglish(chart.curMaha.lord)}
             s={+chart.curMaha.start} e={+chart.curMaha.end} now={now} col={color.accent}
           />
           {chart.curAntar && (
             <ProgressBar
-              label={chart.curAntar.lord}
+              label={planetEnglish(chart.curAntar.lord)}
               s={+chart.curAntar.start} e={+chart.curAntar.end} now={now} col={color.primary}
             />
           )}
@@ -80,7 +81,7 @@ export default function PlanetsTab({ chart, now }) {
         {chart.dasha.filter((m) => m.end > new Date()).slice(0, 5).map((m, i) => (
           <View key={i} style={s.dashaRow}>
             <Text style={[s.dashaRowLabel, m === chart.curMaha && { color: color.text, fontWeight: "700" }]}>
-              {m.lord} Mahadasha
+              {planetEnglish(m.lord)} Major Period
             </Text>
             <Text style={s.dashaRowDate}>{fmtDate(m.start)} – {fmtDate(m.end)}</Text>
           </View>

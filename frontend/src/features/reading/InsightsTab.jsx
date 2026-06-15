@@ -5,6 +5,7 @@ import { asText } from "./asText";
 import { useCosts } from "@/common/useCosts";
 import LowCreditsCard from "@/common/LowCreditsCard";
 import { EMOJIS } from "@/utils/emojis";
+import { STRINGS } from "@/shared/uiStrings";
 
 // Insights tab: the AI-generated reading — blueprint, core cards, strengths /
 // challenges, key placements, remedies, and the chat CTA. Locked by default
@@ -34,17 +35,14 @@ export default function InsightsTab({
       {!interp && !loading && !overloaded && !lowCredits && (
         <Card className="text-center" style={{ padding: "2.5rem 1.5rem" }}>
           <div className="mb-3 text-5xl">{EMOJIS.SPARKLES || "✨"}</div>
-          <p className="mx-0 mt-0 mb-1.5 text-[17px] font-bold text-ink">Unlock Your Cosmic Blueprint</p>
+          <p className="mx-0 mt-0 mb-1.5 text-[17px] font-bold text-ink">{STRINGS.INSIGHTS.UNLOCK_TITLE}</p>
           <p className="mx-auto mt-0 mb-5 max-w-95 text-[13px] leading-[1.6] text-subtle">
-            A deep, personalised AI reading of your chart — core identity, career, relationships, strengths,
-            remedies and more.
+            {STRINGS.INSIGHTS.UNLOCK_SUBTITLE}
           </p>
           <Button variant="magic" onClick={onUnlock} fullWidth>
-            Unlock Detailed AI Analysis · {cost} Credits
+            {STRINGS.INSIGHTS.UNLOCK_BUTTON} · {cost} Credits
           </Button>
-          <p className="mx-0 mt-3 mb-0 text-[11px] text-muted">
-            One-time charge per chart. Re-viewing is always free.
-          </p>
+          <p className="mx-0 mt-3 mb-0 text-[11px] text-muted">{STRINGS.INSIGHTS.UNLOCK_FOOTNOTE}</p>
         </Card>
       )}
       {overloaded && !interp && (
@@ -75,7 +73,7 @@ export default function InsightsTab({
             {EMOJIS.CRYSTAL_BALL}
           </div>
           <p className="mb-2 text-base font-medium text-ink">{loadMsg}</p>
-          <p className="text-xs text-[#666]">The stars are aligning for you...</p>
+          <p className="text-xs text-[#666]">{STRINGS.INSIGHTS.LOADING_MSG}</p>
         </Card>
       )}
 
@@ -83,7 +81,7 @@ export default function InsightsTab({
         <div className="animate-[slideUp_0.8s_ease-out]">
           <div className="mb-6 rounded-[20px] border border-[rgba(168,85,247,0.3)] bg-[linear-gradient(135deg,rgba(99,102,241,0.2)_0%,rgba(168,85,247,0.2)_100%)] p-[clamp(1.25rem,5vw,2rem)] text-center shadow-[0_0_30px_rgba(168,85,247,0.15)]">
             <p className="mx-0 mt-0 mb-3 text-xs font-bold tracking-[3px] text-[#a855f7] uppercase">
-              Cosmic Blueprint
+              {STRINGS.INSIGHTS.LIFE_THEME_TITLE}
             </p>
             <p className="m-0 text-[clamp(15px,4.2vw,20px)] font-semibold leading-[1.6] text-ink italic">
               "{asText(interp.lifeTheme)}"
@@ -183,7 +181,7 @@ export default function InsightsTab({
           {interp.remedies && (
             <Card style={{ borderColor: "rgba(168, 85, 247, 0.2)", background: "rgba(30, 20, 30, 0.4)" }}>
               <p className="m-0 mb-4 text-base font-bold text-[#c084fc]">
-                {EMOJIS.DIYA} Cosmic Guidance & Remedies
+                {EMOJIS.DIYA} Karmic Harmonization & Remedies
               </p>
               <div className="grid gap-2.5">
                 {interp.remedies.map((r, i) => (
@@ -197,7 +195,9 @@ export default function InsightsTab({
 
           {/* Follow-up chat lives on its own route */}
           <Card className="text-center" style={{ marginTop: 24 }}>
-            <p className="m-0 mb-1 text-base font-bold text-[#c084fc]">{EMOJIS.CHAT} Ask About Your Kundli</p>
+            <p className="m-0 mb-1 text-base font-bold text-[#c084fc]">
+              {EMOJIS.CHAT} Ask About Your Birth Chart
+            </p>
             <p className="m-0 mb-4 text-xs text-muted">
               Ask anything about your future, career, marriage or timing — answered from your chart only.
             </p>

@@ -44,13 +44,13 @@ export default function DoshaCard({ doshas, colors }) {
 
   return (
     <CosmicCard>
-      <Text style={styles.title}>Dosha & Yoga Status</Text>
+      <Text style={styles.title}>Afflictions & Combinations</Text>
       <Text style={styles.sub}>Live readings of major astrological conditions.</Text>
 
-      <Row title="Mangal Dosha"     badge={doshas.mangal.level}                state={mangalState}   detail={doshas.mangal.detail}    styles={styles} colors={colors} />
-      <Row title="Kaal Sarp Dosha"  badge={doshas.kaalSarp.present ? "Active" : "Free"} state={kaalSarpState} detail={doshas.kaalSarp.detail} styles={styles} colors={colors} />
-      <Row title="Pitra Dosha"      badge={doshas.pitra.present    ? "Active" : "Free"} state={pitraState}    detail={doshas.pitra.detail}    styles={styles} colors={colors} />
-      <Row title="Sade Sati"        badge={doshas.sadeSati.active  ? doshas.sadeSati.phase.split(" ")[0] : "Free"} state={sadeState} detail={doshas.sadeSati.detail} styles={styles} colors={colors} />
+      <Row title="Mars Affliction"  badge={doshas.mangal.level}                state={mangalState}   detail={doshas.mangal.detail}    styles={styles} colors={colors} />
+      <Row title="Nodal Affliction" badge={doshas.kaalSarp.present ? "Active" : "Free"} state={kaalSarpState} detail={doshas.kaalSarp.detail} styles={styles} colors={colors} />
+      <Row title="Ancestral Affliction" badge={doshas.pitra.present    ? "Active" : "Free"} state={pitraState}    detail={doshas.pitra.detail}    styles={styles} colors={colors} />
+      <Row title="Saturn Cycle"     badge={doshas.sadeSati.active  ? doshas.sadeSati.phase.split(" ")[0] : "Free"} state={sadeState} detail={doshas.sadeSati.detail} styles={styles} colors={colors} />
     </CosmicCard>
   );
 }

@@ -9,6 +9,7 @@ import { useStyles } from "../../../theme/useStyles";
 import { radius, spacing } from "../../../theme/tokens";
 import { signOf, ZE } from "../../../shared/astrology";
 import { EMOJIS } from "../../../utils/emojis";
+import { STRINGS } from "../../../shared/uiStrings";
 import { makeStyles } from "../styles";
 import DailyCard from "./DailyCard";
 
@@ -25,7 +26,7 @@ export default function KundaliTab({ chart, chartStyle, setChartStyle, daily }) 
   return (
     <>
       <View style={s.row3}>
-        {[["Sun Sign", sunV, EMOJIS.SUN_FACE, null], ["Moon Sign", moonV, EMOJIS.MOON, null], ["Lagna", ascV, EMOJIS.ARROW_UP, color.primaryLight]].map(([l, v, ic, tint]) => (
+        {[[STRINGS.LABELS.SUN_SIGN, sunV, EMOJIS.SUN_FACE, null], [STRINGS.LABELS.MOON_SIGN, moonV, EMOJIS.MOON, null], [STRINGS.LABELS.ASCENDANT, ascV, EMOJIS.ARROW_UP, color.primaryLight]].map(([l, v, ic, tint]) => (
           <View key={l} style={s.bigThree}>
             <Text style={{ fontSize: 22, lineHeight: 30, marginBottom: 4, color: tint || undefined }}>{ic}</Text>
             <Text style={s.bigThreeLabel}>{l}</Text>
@@ -37,7 +38,7 @@ export default function KundaliTab({ chart, chartStyle, setChartStyle, daily }) 
 
       <CosmicCard style={{ alignItems: "center", paddingVertical: spacing.md }}>
         <Text style={{ fontSize: 13, lineHeight: 20, color: color.warning, fontWeight: "500" }}>
-          🌙 Janma Nakshatra:{" "}
+          🌙 {STRINGS.LABELS.BIRTH_STAR}:{" "}
           <Text style={{ fontSize: 15, fontWeight: "700" }}>{chart.nakshatra}</Text>
         </Text>
       </CosmicCard>

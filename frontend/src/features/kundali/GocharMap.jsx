@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import Card from "@/common/Card";
 import { SIGNS, ZE, nm } from "@/shared/astrology";
+import { STRINGS } from "@/shared/uiStrings";
 
 // Bi-Wheel Chart (Birth vs Live Sky) — web twin of mobile GocharMap.js.
 // A sidereal zodiac wheel with TWO planet rings over the same signs:
@@ -71,6 +73,27 @@ function stagger(list, baseR, step) {
 
 export default function GocharMap({ chart }) {
   const navigate = useNavigate();
+  const [asked, setAsked] = useState({});
+
+  // Load asked state from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("asked_alignments");
+      if (stored) setAsked(JSON.parse(stored));
+    } catch (e) {
+      console.error("Failed to load asked alignments", e);
+    }
+  }, []);
+
+  const markAsAsked = (key) => {
+    const next = { ...asked, [key]: true };
+    setAsked(next);
+    try {
+      localStorage.setItem("asked_alignments", JSON.stringify(next));
+    } catch (e) {
+      console.error("Failed to save asked alignments", e);
+    }
+  };
 
   const gochar = chart?.transits?.gochar;
   if (!Array.isArray(gochar) || !gochar.length) return null;
@@ -100,11 +123,9 @@ export default function GocharMap({ chart }) {
 
   return (
     <Card>
-      <p style={{ fontSize: 14, fontWeight: 700, margin: "0 0 4px", color: "#fff" }}>
-        Bi-Wheel · Birth vs Live Sky
-      </p>
+      <p style={{ fontSize: 14, fontWeight: 700, margin: "0 0 4px", color: "#fff" }}>{STRINGS.CHART.TITLE}</p>
       <p style={{ fontSize: 11, color: C.textMuted, margin: "0 0 12px", lineHeight: 1.45 }}>
-        Inner ring = where planets were at your birth. Outer ring = where they are right now.
+        {STRINGS.CHART.SUBTITLE}
       </p>
 
       <div style={{ display: "flex", justifyContent: "center", marginTop: 6 }}>
@@ -139,6 +160,7 @@ export default function GocharMap({ chart }) {
                   textAnchor="middle"
                   fill={isLagnaSign ? C.primaryLight : C.textMuted}
                   fontWeight={isLagnaSign ? 700 : 400}
+                  opacity={isLagnaSign ? 0.85 : 0.4}
                 >
                   {ZE[sign]}
                 </text>
@@ -240,7 +262,7 @@ export default function GocharMap({ chart }) {
 
           {/* Hub label */}
           <text x={CX} y={CY - 4} fontSize="9" fill={C.textMuted} textAnchor="middle">
-            RISING
+            {STRINGS.CHART.RISING}
           </text>
           <text x={CX} y={CY + 11} fontSize="12" fontWeight="700" fill="#fff" textAnchor="middle">
             {chart.transits.ascSign || ""}
@@ -260,7 +282,8 @@ export default function GocharMap({ chart }) {
             fontWeight: 600,
           }}
         >
-          <span style={{ width: 10, height: 10, borderRadius: 5, background: C.textBody }} /> Birth (inner)
+          <span style={{ width: 10, height: 10, borderRadius: 5, background: C.textBody }} />{" "}
+          {STRINGS.CHART.NATAL_LABEL} (inner)
         </span>
         <span
           style={{
@@ -272,8 +295,8 @@ export default function GocharMap({ chart }) {
             fontWeight: 600,
           }}
         >
-          <span style={{ width: 11, height: 11, borderRadius: 6, border: `2px solid ${C.textBody}` }} /> Live
-          (outer)
+          <span style={{ width: 11, height: 11, borderRadius: 6, border: `2px solid ${C.textBody}` }} />{" "}
+          {STRINGS.CHART.TRANSIT_LABEL} (outer)
         </span>
         <span
           style={{
@@ -304,45 +327,55 @@ export default function GocharMap({ chart }) {
           <p
             style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.5, color: C.warning, margin: "0 0 6px" }}
           >
-            Active Alignments Right Now
+            {STRINGS.CHART.CONJUNCTION_TITLE}
           </p>
           {conjunctions.map(({ t, n, orb }, i) => {
+            const key = `${t.name}-${n.name}`;
+            const isAsked = asked[key];
             const question =
               `Right now transiting ${t.name} is conjunct my natal ${n.name} ` +
               `(within ${orb}°). What does this alignment mean for me, and what should I focus on?`;
+
+            const onAsk = () => {
+              markAsAsked(key);
+              navigate("/chat", { state: { ask: question } });
+            };
+
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                 <span style={{ flex: 1, fontSize: 12.5, lineHeight: 1.5 }}>
                   <span style={{ color: C.warning, fontWeight: 800 }}>
-                    {GLYPH[t.name]} Live {t.name}
+                    {GLYPH[t.name]} {STRINGS.CHART.TRANSIT_LABEL}ing {t.name}
                   </span>
                   {"  ≈  "}
                   <span style={{ color: C.textBody, fontWeight: 700 }}>
-                    {GLYPH[n.name]} Birth {n.name}
+                    {GLYPH[n.name]} {STRINGS.CHART.NATAL_LABEL} {n.name}
                   </span>
                   <span style={{ color: C.textMuted, fontSize: 11 }}> · {orb}° orb</span>
                 </span>
                 <button
-                  onClick={() => navigate("/chat", { state: { ask: question } })}
+                  onClick={onAsk}
+                  disabled={isAsked}
                   style={{
-                    cursor: "pointer",
-                    border: `1px solid ${C.warning}`,
-                    background: "rgba(251,191,36,0.14)",
+                    cursor: isAsked ? "default" : "pointer",
+                    border: `1px solid ${isAsked ? C.textMuted : C.warning}`,
+                    background: isAsked ? "rgba(255,255,255,0.04)" : "rgba(251,191,36,0.14)",
                     borderRadius: 9999,
                     padding: "4px 11px",
-                    color: C.warning,
+                    color: isAsked ? C.textMuted : C.warning,
                     fontSize: 11.5,
                     fontWeight: 800,
                     whiteSpace: "nowrap",
+                    opacity: isAsked ? 0.6 : 1,
                   }}
                 >
-                  Ask ›
+                  {isAsked ? STRINGS.ACTIONS.ANALYZED : STRINGS.ACTIONS.INTERPRET + " ›"}
                 </button>
               </div>
             );
           })}
           <p style={{ fontSize: 10.5, color: C.textMuted, margin: "3px 0 0", lineHeight: 1.4 }}>
-            Tap “Ask” to have the AI explain what an alignment means for you.
+            {STRINGS.CHART.CONJUNCTION_FOOTNOTE}
           </p>
         </div>
       )}
@@ -384,7 +417,7 @@ export default function GocharMap({ chart }) {
           </div>
         ))}
         <p style={{ fontSize: 10.5, color: C.textMuted, margin: "4px 0 0" }}>
-          House counted from your ascendant ({chart.transits.ascSign}).
+          House counted from your {STRINGS.CHART.ASCENDANT.toLowerCase()} ({chart.transits.ascSign}).
         </p>
       </div>
     </Card>

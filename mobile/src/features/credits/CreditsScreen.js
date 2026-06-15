@@ -32,7 +32,7 @@ import Constants, { ExecutionEnvironment } from "expo-constants";
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 const PLAN_FEATURES = [
-  "AI Kundali Interpretation",
+  "AI Birth Chart Interpretation",
   "Daily Personalized Guidance",
   "AI Astrologer Chat Access",
   "Palm Reading Analysis",

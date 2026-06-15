@@ -9,6 +9,7 @@ import { useColors } from "../../../theme/ThemeContext";
 import { useStyles } from "../../../theme/useStyles";
 import { fontSize } from "../../../theme/tokens";
 import { ZE, fmtDate } from "../../../shared/astrology";
+import { periodEnglish } from "../../../shared/planetText";
 import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 import { dashaGuidanceFor } from "../planetInfo";
@@ -40,7 +41,7 @@ function ForecastItem({ p, tc, s, color }) {
     >
       <View style={s.tlHeader}>
         <Text style={s.tlPeriod}>
-          {p.period}
+          {periodEnglish(p.period)}
           {p.current ? <Text style={s.tlNow}>  NOW</Text> : null}
         </Text>
         <Text style={[s.tlPhase, { color: tc, borderColor: tc + "55" }]}>{p.phase}</Text>
@@ -104,7 +105,7 @@ export default function TimelineTab({ chart, navigation }) {
 
       <CosmicCard>
         <Text style={s.cardTitle}>Timeline Forecast</Text>
-        <Text style={s.cardSub}>{"Upcoming dasha windows — tap one for its Do's & Don'ts."}</Text>
+        <Text style={s.cardSub}>{"Upcoming period windows — tap one for its Do's & Don'ts."}</Text>
         {chart.predictions.map((p, i) => {
           const tc = p.tone === "supportive" ? color.success : p.tone === "testing" ? color.danger : color.warning;
           return <ForecastItem key={i} p={p} tc={tc} s={s} color={color} />;
@@ -134,16 +135,16 @@ export default function TimelineTab({ chart, navigation }) {
       </CosmicCard>
 
       <CosmicCard>
-        <Text style={s.cardTitle}>Current Sky (Gochar)</Text>
+        <Text style={s.cardTitle}>Current Sky (Transits)</Text>
         {chart.transits.sadeSati.active ? (
           <View style={s.sadeBad}>
             <Text style={{ color: color.danger, fontWeight: "700" }}>
-              ⚠ Sade Sati Phase: {chart.transits.sadeSati.phase}
+              ⚠ Saturn Cycle Phase: {chart.transits.sadeSati.phase}
             </Text>
           </View>
         ) : (
           <View style={s.sadeGood}>
-            <Text style={{ color: color.success, fontWeight: "600" }}>{EMOJIS.CHECK} Free from Sade Sati</Text>
+            <Text style={{ color: color.success, fontWeight: "600" }}>{EMOJIS.CHECK} Free from Saturn Cycle</Text>
           </View>
         )}
         {chart.transits.positions.map((p) => (

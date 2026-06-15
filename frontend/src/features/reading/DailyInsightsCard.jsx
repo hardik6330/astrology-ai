@@ -231,12 +231,12 @@ Running period: ${d.dasha}`;
             ? [["AUSPICIOUS", dailyTransit.auspicious.start + " – " + dailyTransit.auspicious.end]]
             : []),
           ...(dailyTransit.rahuKaal
-            ? [["RAHU KAAL", dailyTransit.rahuKaal.start + " – " + dailyTransit.rahuKaal.end]]
+            ? [["INAUSPICIOUS", dailyTransit.rahuKaal.start + " – " + dailyTransit.rahuKaal.end]]
             : []),
         ].map(([l, v]) => (
           <div key={l} className="flex-[1_1_120px] rounded-[10px] bg-white/4 px-3 py-2.25">
             <p
-              className={`m-0 text-[9px] tracking-[1px] ${l === "RAHU KAAL" ? "text-danger" : "text-muted"}`}
+              className={`m-0 text-[9px] tracking-[1px] ${l === "INAUSPICIOUS" ? "text-danger" : "text-muted"}`}
             >
               {l}
             </p>

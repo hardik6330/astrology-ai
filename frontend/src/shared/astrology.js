@@ -839,7 +839,7 @@ function computeDoshas(ch) {
       ? mangalLevel === "None"
         ? "Mars sits outside the malefic houses."
         : marsCancel
-          ? `Mars in ${signOf(mars.sid)} (${mars.dignity}) — dosha is largely cancelled.`
+          ? `Mars in ${signOf(mars.sid)} (${mars.dignity}) — its affliction is largely neutralised.`
           : `Mars in House ${mars.houseSid}${marsFromMoon ? ` (${marsFromMoon}th from Moon)` : ""} — affects partnership karma.`
       : "Mars position unknown.",
   };
@@ -865,10 +865,13 @@ function computeDoshas(ch) {
     if (allInRahuKetu || allInKetuRahu) {
       kaalSarp = {
         present: true,
-        detail: `All 7 grahas hemmed between ${allInRahuKetu ? "Rahu→Ketu" : "Ketu→Rahu"} axis — karmic ambition lessons.`,
+        detail: `All 7 planets hemmed between the ${allInRahuKetu ? "North Node→South Node" : "South Node→North Node"} axis — karmic ambition lessons.`,
       };
     } else {
-      kaalSarp = { present: false, detail: "Free from Kaal Sarp — planets straddle the nodal axis." };
+      kaalSarp = {
+        present: false,
+        detail: "No nodal alignment — your planets fall on both sides of the North–South Node axis.",
+      };
     }
   }
 
@@ -883,16 +886,17 @@ function computeDoshas(ch) {
     if (sunRahuConj) {
       pitra = {
         present: true,
-        detail: `Sun-Rahu conjunction in House ${sun.houseSid} — ancestral karma activation.`,
+        detail: `Sun–North Node conjunction in House ${sun.houseSid} — ancestral karma activation.`,
       };
     } else if (malefIn9) {
       const which = ["Saturn", "Rahu", "Ketu"].find((b) => P[b] && P[b].houseSid === ninthH);
+      const whichEn = which === "Rahu" ? "North Node" : which === "Ketu" ? "South Node" : which;
       pitra = {
         present: true,
-        detail: `${which} in the 9th house — paternal/ancestral themes need attention.`,
+        detail: `${whichEn} in the 9th house — paternal/ancestral themes need attention.`,
       };
     } else {
-      pitra = { present: false, detail: "No Sun-Rahu affliction; ancestral house is clear." };
+      pitra = { present: false, detail: "No Sun–North Node affliction; the ancestral house is clear." };
     }
   }
 
@@ -902,7 +906,7 @@ function computeDoshas(ch) {
     phase: ch.transits?.sadeSati?.phase || "",
     detail: ch.transits?.sadeSati?.active
       ? `Saturn ${ch.transits.sadeSati.phase} — discipline, lessons, reorientation.`
-      : "Saturn is currently outside the Sade Sati window.",
+      : "Saturn is currently outside its challenging 7½-year cycle.",
   };
 
   return { mangal, kaalSarp, pitra, sadeSati };

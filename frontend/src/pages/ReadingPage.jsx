@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { buildFactSheet } from "@/shared/astrology";
 import { MSGS } from "@/shared/prompts";
-import { chatCompletionJSON, fetchSaved } from "../services/api";
+import { fetchSaved } from "../services/api";
 import { useChart } from "../context/ChartContext";
 import BottomNav from "../components/BottomNav";
 import Card from "@/common/Card";
@@ -18,7 +17,21 @@ import { EMOJIS } from "@/utils/emojis";
 export default function ReadingPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { form, chart, interp, setInterp } = useChart();
+  // The insight generation lifecycle is owned by ChartContext so it survives
+  // navigating away from the reading tab mid-generation (it keeps running and
+  // the result lands in `interp` whenever it resolves).
+  const {
+    form,
+    chart,
+    interp,
+    setInterp,
+    insightLoading,
+    insightOverloaded,
+    insightLowCredits,
+    insightError,
+    setInsightLowCredits,
+    generateInsight,
+  } = useChart();
 
   // Default to the tab passed via navigation state (e.g. from BottomNav on /palm).
   const [tab, setTab] = useState(() => location.state?.tab || "kundali");
@@ -28,12 +41,9 @@ export default function ReadingPage() {
     if (location.state?.tab) setTab(location.state.tab);
   }, [location.state]);
 
-  const [loading, setLoading] = useState(false);
   const [loadMsg, setLoadMsg] = useState(MSGS[0]);
-  const [error, setError] = useState("");
-  const [overloaded, setOverloaded] = useState(false); // AI tried 3× and gave up
+  const [error, setError] = useState(""); // local errors (e.g. KundaliTab)
   const [cooldown, setCooldown] = useState(0); // seconds until retry is allowed
-  const [lowCredits, setLowCredits] = useState(false); // 402 on unlock
   const fetched = useRef(false);
 
   // Frozen "current instant" so dasha progress bars are stable across renders.
@@ -41,9 +51,9 @@ export default function ReadingPage() {
 
   // On mount, load ONLY a previously-unlocked interpretation (a free GET).
   // We never auto-generate: generating costs credits, so it must be triggered
-  // explicitly via the Unlock button below.
+  // explicitly via the Unlock button below. Skip while a generation is in flight.
   useEffect(() => {
-    if (!chart || interp || fetched.current) return;
+    if (!chart || interp || insightLoading || fetched.current) return;
     fetched.current = true;
     fetchSaved("interpret", form)
       .then((saved) => {
@@ -51,40 +61,25 @@ export default function ReadingPage() {
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chart, interp, form]);
+  }, [chart, interp, insightLoading, form]);
 
-  // Generate (and pay for) the AI interpretation — user-initiated via the
-  // "Unlock" button, and reused by the retry button after an AI overload.
-  async function unlockInsight() {
-    if (!chart) return;
-    setError("");
-    setLowCredits(false);
-    setOverloaded(false);
-    let mi = 0;
-    setLoading(true);
+  // Rotate the loading messages while a generation is in flight. Runs off the
+  // context flag so re-entering the page mid-generation restarts the rotation.
+  useEffect(() => {
+    if (!insightLoading) return;
     setLoadMsg(MSGS[0]);
+    let mi = 0;
     const iv = setInterval(() => {
       mi++;
       setLoadMsg(MSGS[mi % MSGS.length]);
     }, 2000);
-    try {
-      // Already unlocked for this chart? The GET returns it for free.
-      const saved = await fetchSaved("interpret", form);
-      setInterp(
-        saved || (await chatCompletionJSON([], "interpret", { factSheet: buildFactSheet(chart, form), form }))
-      );
-    } catch (e) {
-      if (e.code === "AI_OVERLOADED") {
-        setOverloaded(true);
-        setCooldown(40);
-      } else if (e.code === "INSUFFICIENT_CREDITS") {
-        setLowCredits(true);
-      } else setError(e.message);
-    } finally {
-      clearInterval(iv);
-      setLoading(false);
-    }
-  }
+    return () => clearInterval(iv);
+  }, [insightLoading]);
+
+  // Start the retry cooldown whenever the AI reports overloaded.
+  useEffect(() => {
+    if (insightOverloaded) setCooldown(40);
+  }, [insightOverloaded]);
 
   // Cooldown tick — disables the retry button so users can't spam Pro
   // while it's overloaded.
@@ -97,10 +92,10 @@ export default function ReadingPage() {
   // After a 402, show the "not enough credits" card for 5s, then fall back to
   // the unlock card so the user can try again once they've topped up.
   useEffect(() => {
-    if (!lowCredits) return;
-    const id = setTimeout(() => setLowCredits(false), 5000);
+    if (!insightLowCredits) return;
+    const id = setTimeout(() => setInsightLowCredits(false), 5000);
     return () => clearTimeout(id);
-  }, [lowCredits]);
+  }, [insightLowCredits, setInsightLowCredits]);
 
   return (
     <div className="relative mx-auto max-w-180 px-4 pt-8 pb-30">
@@ -108,10 +103,10 @@ export default function ReadingPage() {
       <div className="stars"></div>
       <div className="shooting-star"></div>
 
-      {error && (
+      {(error || insightError) && (
         <Card style={{ borderColor: "#ef4444", background: "rgba(239, 68, 68, 0.1)" }}>
           <p className="m-0 text-sm text-danger">
-            {EMOJIS.WARNING} {error}
+            {EMOJIS.WARNING} {error || insightError}
           </p>
         </Card>
       )}
@@ -132,13 +127,13 @@ export default function ReadingPage() {
         {tab === "reading" && (
           <InsightsTab
             interp={interp}
-            loading={loading}
+            loading={insightLoading}
             loadMsg={loadMsg}
-            overloaded={overloaded}
+            overloaded={insightOverloaded}
             cooldown={cooldown}
-            lowCredits={lowCredits}
-            onUnlock={unlockInsight}
-            onRetry={unlockInsight}
+            lowCredits={insightLowCredits}
+            onUnlock={generateInsight}
+            onRetry={generateInsight}
             onOpenChat={() => navigate("/chat")}
           />
         )}

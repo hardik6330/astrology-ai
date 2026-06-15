@@ -5,6 +5,7 @@ import DoshaCard from "@/features/kundali/DoshaCard";
 import PanchangCard from "@/features/kundali/PanchangCard";
 import Card from "@/common/Card";
 import { EMOJIS } from "@/utils/emojis";
+import { STRINGS } from "@/shared/uiStrings";
 import DailyInsightsCard from "./DailyInsightsCard";
 
 // Birth Chart tab: Big Three + Nakshatra header, daily guidance, the
@@ -20,9 +21,9 @@ export default function KundaliTab({ chart, form, onError }) {
     <>
       <div className="grid-3" style={{ marginBottom: 20 }}>
         {[
-          ["Sun Sign", sunV, EMOJIS.SUN],
-          ["Moon Sign", moonV, EMOJIS.MOON],
-          ["Lagna", ascV, EMOJIS.ARROW_UP],
+          [STRINGS.LABELS.SUN_SIGN, sunV, EMOJIS.SUN],
+          [STRINGS.LABELS.MOON_SIGN, moonV, EMOJIS.MOON],
+          [STRINGS.LABELS.ASCENDANT, ascV, EMOJIS.ARROW_UP],
         ].map(([l, v, ic]) => (
           <div key={l} className="big-three-card">
             <span className="astrology-icon">{ic}</span>
@@ -36,7 +37,8 @@ export default function KundaliTab({ chart, form, onError }) {
 
       <Card className="text-center" style={{ padding: "12px" }}>
         <p className="m-0 text-[13px] font-medium text-warning">
-          {EMOJIS.MOON} Janma Nakshatra: <span className="text-[15px] font-bold">{chart.nakshatra}</span>
+          {EMOJIS.MOON} {STRINGS.LABELS.BIRTH_STAR}:{" "}
+          <span className="text-[15px] font-bold">{chart.nakshatra}</span>
         </p>
       </Card>
 

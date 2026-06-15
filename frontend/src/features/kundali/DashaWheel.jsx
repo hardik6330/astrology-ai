@@ -1,4 +1,5 @@
 import { fmtDate } from "@/shared/astrology";
+import { planetEnglish } from "@/shared/planetText";
 import Card from "@/common/Card";
 
 const SIZE = 240,
@@ -32,8 +33,8 @@ export default function DashaWheel({ chart }) {
 
   return (
     <Card>
-      <p className="m-0 mb-1 text-sm font-semibold text-ink">Dasha Timeline Wheel</p>
-      <p className="m-0 mb-3 text-[11px] text-muted">Outer ring = Mahadasha. Inner ring = Antardasha.</p>
+      <p className="m-0 mb-1 text-sm font-semibold text-ink">Planetary Period Timeline</p>
+      <p className="m-0 mb-3 text-[11px] text-muted">Outer ring = Major Period. Inner ring = Sub-Period.</p>
       <div className="flex justify-center">
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
           <circle
@@ -58,22 +59,22 @@ export default function DashaWheel({ chart }) {
             CURRENT
           </text>
           <text x={CX} y={CY + 10} fontSize="18" fontWeight="700" fill="#fff" textAnchor="middle">
-            {m.lord}
+            {planetEnglish(m.lord)}
           </text>
           {a && (
             <text x={CX} y={CY + 28} fontSize="11" fill="#c084fc" textAnchor="middle">
-              / {a.lord}
+              / {planetEnglish(a.lord)}
             </text>
           )}
         </svg>
       </div>
       <div className="mt-3 flex justify-center gap-5">
         <span className={legend}>
-          <span className="h-3 w-3 rounded-full bg-[#a855f7]" /> Mahadasha · {Math.round(mPct)}%
+          <span className="h-3 w-3 rounded-full bg-[#a855f7]" /> Major Period · {Math.round(mPct)}%
         </span>
         {a && (
           <span className={legend}>
-            <span className="h-3 w-3 rounded-full bg-accent" /> Antardasha · {Math.round(aPct)}%
+            <span className="h-3 w-3 rounded-full bg-accent" /> Sub-Period · {Math.round(aPct)}%
           </span>
         )}
       </div>
@@ -83,7 +84,7 @@ export default function DashaWheel({ chart }) {
         </p>
         {a && (
           <p className="m-0 text-[11px] text-muted">
-            Antar: {fmtDate(a.start)} – {fmtDate(a.end)}
+            Sub-Period: {fmtDate(a.start)} – {fmtDate(a.end)}
           </p>
         )}
       </div>

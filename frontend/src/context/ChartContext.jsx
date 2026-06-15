@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { computeChart } from "@/shared/astrology";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { computeChart, buildFactSheet } from "@/shared/astrology";
 import { creditsStore } from "@/common/creditsStore";
 import { tokenStore } from "@/common/tokenStore";
-import { getMe } from "@/services/api";
+import { getMe, chatCompletionJSON, fetchSaved } from "@/services/api";
 
 const ChartContext = createContext(null);
 
@@ -56,6 +56,15 @@ export function ChartProvider({ children }) {
   const [form, setForm] = useState(loadForm);
   const [chart, setChart] = useState(() => chartFromForm(loadForm()));
   const [interp, setInterp] = useState(null);
+  // Insight (detailed reading) generation lifecycle lives in context — not in
+  // ReadingPage — so an in-flight generation keeps running and its loading /
+  // result state survives the user navigating to another tab/page and back
+  // (same pattern as the palm `palmAnalyzing` flag below).
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightOverloaded, setInsightOverloaded] = useState(false); // AI tried 3× and gave up
+  const [insightLowCredits, setInsightLowCredits] = useState(false); // 402 on unlock
+  const [insightError, setInsightError] = useState("");
+  const insightInFlight = useRef(false); // hard guard against a double-trigger
   const [daily, setDaily] = useState(null);
   const [chatMsgs, setChatMsgs] = useState([]);
   const [palm, setPalm] = useState(null);
@@ -138,6 +147,11 @@ export function ChartProvider({ children }) {
     setForm(next);
     setChart(chartFromForm(next));
     setInterp(null);
+    insightInFlight.current = false;
+    setInsightLoading(false);
+    setInsightOverloaded(false);
+    setInsightLowCredits(false);
+    setInsightError("");
     setDaily(null);
     setChatMsgs([]);
     setPalm(null);
@@ -153,12 +167,45 @@ export function ChartProvider({ children }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
+  // Generate (and pay for) the detailed AI interpretation. User-initiated via
+  // the "Unlock" button on ReadingPage, but owned here so it survives navigation
+  // — if the user leaves the reading tab mid-generation, the request keeps
+  // running and the result lands in `interp` whenever it resolves. The in-flight
+  // ref makes a repeat trigger (e.g. re-clicking after coming back) a no-op.
+  async function generateInsight() {
+    if (!chart || insightInFlight.current) return;
+    insightInFlight.current = true;
+    setInsightError("");
+    setInsightLowCredits(false);
+    setInsightOverloaded(false);
+    setInsightLoading(true);
+    try {
+      // Already unlocked for this chart? The GET returns it for free.
+      const saved = await fetchSaved("interpret", form);
+      setInterp(
+        saved || (await chatCompletionJSON([], "interpret", { factSheet: buildFactSheet(chart, form), form }))
+      );
+    } catch (e) {
+      if (e.code === "AI_OVERLOADED") setInsightOverloaded(true);
+      else if (e.code === "INSUFFICIENT_CREDITS") setInsightLowCredits(true);
+      else setInsightError(e.message);
+    } finally {
+      setInsightLoading(false);
+      insightInFlight.current = false;
+    }
+  }
+
   // Wipe everything — used on logout so a different phone number doesn't
   // inherit the previous user's chart, readings or palm result.
   function clearAll() {
     setForm(EMPTY_FORM);
     setChart(null);
     setInterp(null);
+    insightInFlight.current = false;
+    setInsightLoading(false);
+    setInsightOverloaded(false);
+    setInsightLowCredits(false);
+    setInsightError("");
     setDaily(null);
     setChatMsgs([]);
     setPalm(null);
@@ -183,6 +230,13 @@ export function ChartProvider({ children }) {
     setChart,
     interp,
     setInterp,
+    insightLoading,
+    insightOverloaded,
+    insightLowCredits,
+    insightError,
+    setInsightError,
+    setInsightLowCredits,
+    generateInsight,
     daily,
     setDaily,
     chatMsgs,

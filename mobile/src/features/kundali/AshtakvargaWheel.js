@@ -50,7 +50,7 @@ export default function AshtakvargaWheel({ ashtakvarga }) {
 
   return (
     <CosmicCard>
-      <Text style={styles.title}>Ashtakvarga (Sarva)</Text>
+      <Text style={styles.title}>Planetary Strength Grid</Text>
       <Text style={styles.sub}>
         Total Bindus per sign · max 56 · 28+ counts as fortunate ({luckyCount}/12 lucky · sum {totalSum})
       </Text>

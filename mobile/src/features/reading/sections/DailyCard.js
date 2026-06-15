@@ -103,10 +103,10 @@ export default function DailyCard({
           ["WEAR", dailyTransit.luckyColor],
           ["MANIFEST", "◆ " + dailyTransit.luckyNumber],
           ...(dailyTransit.auspicious ? [["AUSPICIOUS", `${dailyTransit.auspicious.start} – ${dailyTransit.auspicious.end}`]] : []),
-          ...(dailyTransit.rahuKaal ? [["RAHU KAAL", `${dailyTransit.rahuKaal.start} – ${dailyTransit.rahuKaal.end}`]] : []),
+          ...(dailyTransit.rahuKaal ? [["INAUSPICIOUS", `${dailyTransit.rahuKaal.start} – ${dailyTransit.rahuKaal.end}`]] : []),
         ].map(([l, v]) => (
           <View key={l} style={s.chip}>
-            <Text style={[s.chipLabel, l === "RAHU KAAL" && { color: color.danger }]}>{l}</Text>
+            <Text style={[s.chipLabel, l === "INAUSPICIOUS" && { color: color.danger }]}>{l}</Text>
             <Text style={s.chipValue}>{v}</Text>
           </View>
         ))}

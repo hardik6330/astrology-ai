@@ -6,6 +6,7 @@ import { useStyles } from "../../theme/useStyles";
 import { useColors } from "../../theme/ThemeContext";
 import { radius, spacing, fontSize } from "../../theme/tokens";
 import { fmtDate } from "../../shared/astrology";
+import { planetEnglish } from "../../shared/planetText";
 
 const SIZE   = 240;
 const CX = SIZE / 2;
@@ -53,8 +54,8 @@ export default function DashaWheel({ chart }) {
 
   return (
     <CosmicCard>
-      <Text style={styles.title}>Dasha Timeline Wheel</Text>
-      <Text style={styles.sub}>Outer ring = Mahadasha. Inner ring = Antardasha.</Text>
+      <Text style={styles.title}>Planetary Period Timeline</Text>
+      <Text style={styles.sub}>Outer ring = Major Period. Inner ring = Sub-Period.</Text>
 
       <View style={{ alignItems: "center", marginTop: 6 }}>
         <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
@@ -68,9 +69,9 @@ export default function DashaWheel({ chart }) {
 
           {/* Center text */}
           <SvgText x={CX} y={CY - 8} fontSize="11" fill={c.textMuted} textAnchor="middle">CURRENT</SvgText>
-          <SvgText x={CX} y={CY + 10} fontSize="18" fontWeight="700" fill={c.text} textAnchor="middle">{maha.lord}</SvgText>
+          <SvgText x={CX} y={CY + 10} fontSize="18" fontWeight="700" fill={c.text} textAnchor="middle">{planetEnglish(maha.lord)}</SvgText>
           {antar && (
-            <SvgText x={CX} y={CY + 28} fontSize="11" fill={c.primaryLight} textAnchor="middle">/ {antar.lord}</SvgText>
+            <SvgText x={CX} y={CY + 28} fontSize="11" fill={c.primaryLight} textAnchor="middle">/ {planetEnglish(antar.lord)}</SvgText>
           )}
         </Svg>
       </View>
@@ -79,12 +80,12 @@ export default function DashaWheel({ chart }) {
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
           <View style={[styles.swatch, { backgroundColor: c.primary }]} />
-          <Text style={styles.legendLabel}>Mahadasha · {Math.round(mahaPct)}%</Text>
+          <Text style={styles.legendLabel}>Major Period · {Math.round(mahaPct)}%</Text>
         </View>
         {antar && (
           <View style={styles.legendItem}>
             <View style={[styles.swatch, { backgroundColor: c.accent }]} />
-            <Text style={styles.legendLabel}>Antardasha · {Math.round(antarPct)}%</Text>
+            <Text style={styles.legendLabel}>Sub-Period · {Math.round(antarPct)}%</Text>
           </View>
         )}
       </View>
@@ -95,7 +96,7 @@ export default function DashaWheel({ chart }) {
         </Text>
         {antar && (
           <Text style={styles.metaText}>
-            Antar: {fmtDate(antar.start)} – {fmtDate(antar.end)}
+            Sub-Period: {fmtDate(antar.start)} – {fmtDate(antar.end)}
           </Text>
         )}
       </View>

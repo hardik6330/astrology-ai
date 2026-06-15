@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
 import Animated, { useSharedValue, useAnimatedProps, withRepeat, withTiming, Easing } from "react-native-reanimated";
@@ -8,6 +8,8 @@ import { useColors } from "../../theme/ThemeContext";
 import { spacing, fontSize, radius } from "../../theme/tokens";
 import { SIGNS, ZE, nm } from "../../shared/astrology";
 import { haptics } from "../../utils/haptics";
+import { getItem, setItem } from "../../utils/storage";
+import { STRINGS } from "../../shared/uiStrings";
 
 // Bi-Wheel Chart (Birth vs Live Sky). A sidereal zodiac wheel with TWO planet
 // rings over the same signs:
@@ -63,6 +65,18 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export default function GocharMap({ chart, navigation }) {
   const styles = useStyles(makeStyles);
   const c = useColors();
+  const [asked, setAsked] = useState({});
+
+  // Load asked state from storage on mount
+  useEffect(() => {
+    getItem("asked_alignments", {}).then(setAsked);
+  }, []);
+
+  const markAsAsked = async (key) => {
+    const next = { ...asked, [key]: true };
+    setAsked(next);
+    await setItem("asked_alignments", next);
+  };
 
   // Pulsing halo on the live planets (hooks must run before any early return).
   const pulse = useSharedValue(0.16);
@@ -96,8 +110,8 @@ export default function GocharMap({ chart, navigation }) {
 
   return (
     <CosmicCard>
-      <Text style={styles.title}>Bi-Wheel · Birth vs Live Sky</Text>
-      <Text style={styles.sub}>Inner ring = where planets were at your birth. Outer ring = where they are right now.</Text>
+      <Text style={styles.title}>{STRINGS.CHART.TITLE}</Text>
+      <Text style={styles.sub}>{STRINGS.CHART.SUBTITLE}</Text>
 
       <View style={{ alignItems: "center", marginTop: 6 }}>
         <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
@@ -120,6 +134,7 @@ export default function GocharMap({ chart, navigation }) {
                   x={g.x} y={g.y + 5} fontSize="14" textAnchor="middle"
                   fill={isLagnaSign ? c.primaryLight : c.textMuted}
                   fontWeight={isLagnaSign ? "700" : "400"}
+                  opacity={isLagnaSign ? 0.85 : 0.4}
                 >
                   {ZE[sign]}
                 </SvgText>
@@ -180,7 +195,7 @@ export default function GocharMap({ chart, navigation }) {
           })}
 
           {/* Hub label */}
-          <SvgText x={CX} y={CY - 4} fontSize="9" fill={c.textMuted} textAnchor="middle">RISING</SvgText>
+          <SvgText x={CX} y={CY - 4} fontSize="9" fill={c.textMuted} textAnchor="middle">{STRINGS.CHART.RISING}</SvgText>
           <SvgText x={CX} y={CY + 11} fontSize="12" fontWeight="700" fill={c.text} textAnchor="middle">
             {chart.transits.ascSign || ""}
           </SvgText>
@@ -189,41 +204,57 @@ export default function GocharMap({ chart, navigation }) {
 
       {/* Legend */}
       <View style={styles.legendRow}>
-        <View style={styles.legendItem}><View style={[styles.dotSolid, { backgroundColor: c.textBody }]} /><Text style={styles.legendLabel}>Birth (inner)</Text></View>
-        <View style={styles.legendItem}><View style={[styles.dotRing, { borderColor: c.textBody }]} /><Text style={styles.legendLabel}>Live (outer)</Text></View>
+        <View style={styles.legendItem}><View style={[styles.dotSolid, { backgroundColor: c.textBody }]} /><Text style={styles.legendLabel}>{STRINGS.CHART.NATAL_LABEL} (inner)</Text></View>
+        <View style={styles.legendItem}><View style={[styles.dotRing, { borderColor: c.textBody }]} /><Text style={styles.legendLabel}>{STRINGS.CHART.TRANSIT_LABEL} (outer)</Text></View>
         <View style={styles.legendItem}><View style={[styles.dash, { backgroundColor: c.warning }]} /><Text style={styles.legendLabel}>Alignment</Text></View>
       </View>
 
       {/* Active alignments — the "wow" payoff: transit-over-natal conjunctions. */}
       {conjunctions.length > 0 && (
         <View style={styles.conjWrap}>
-          <Text style={styles.conjTitle}>Active Alignments Right Now</Text>
+          <Text style={styles.conjTitle}>{STRINGS.CHART.CONJUNCTION_TITLE}</Text>
           {conjunctions.map(({ t, n, orb }, i) => {
+            const key = `${t.name}-${n.name}`;
+            const isAsked = asked[key];
+
             // One-tap deep link → chat auto-asks this exact alignment.
             const question =
               `Right now transiting ${t.name} is conjunct my natal ${n.name} ` +
               `(within ${orb}°). What does this alignment mean for me, and what should I focus on?`;
             const askChat = () => {
+              if (isAsked) return;
               haptics.tap();
+              markAsAsked(key);
               navigation?.navigate("Chat", { ask: question });
             };
             return (
               <View key={i} style={styles.conjItem}>
                 <Text style={styles.conjRow}>
-                  <Text style={{ color: c.warning, fontWeight: "800" }}>{GLYPH[t.name]} Live {t.name}</Text>
+                  <Text style={{ color: c.warning, fontWeight: "800" }}>{GLYPH[t.name]} {STRINGS.CHART.TRANSIT_LABEL}ing {t.name}</Text>
                   {"  ≈  "}
-                  <Text style={{ color: c.textBody, fontWeight: "700" }}>{GLYPH[n.name]} Birth {n.name}</Text>
+                  <Text style={{ color: c.textBody, fontWeight: "700" }}>{GLYPH[n.name]} {STRINGS.CHART.NATAL_LABEL} {n.name}</Text>
                   <Text style={styles.conjOrb}>  · {orb}° orb</Text>
                 </Text>
                 {navigation && (
-                  <Pressable onPress={askChat} hitSlop={6} style={({ pressed }) => [styles.askBtn, pressed && { opacity: 0.75 }]}>
-                    <Text style={styles.askBtnText}>Ask ›</Text>
+                  <Pressable
+                    onPress={askChat}
+                    hitSlop={6}
+                    disabled={isAsked}
+                    style={({ pressed }) => [
+                      styles.askBtn,
+                      isAsked && { borderColor: c.textMuted, backgroundColor: "rgba(255,255,255,0.04)", opacity: 0.6 },
+                      pressed && !isAsked && { opacity: 0.75 }
+                    ]}
+                  >
+                    <Text style={[styles.askBtnText, isAsked && { color: c.textMuted }]}>
+                      {isAsked ? STRINGS.ACTIONS.ANALYZED : STRINGS.ACTIONS.INTERPRET + " ›"}
+                    </Text>
                   </Pressable>
                 )}
               </View>
             );
           })}
-          <Text style={styles.conjFoot}>Tap “Ask” to have the AI explain what an alignment means for you.</Text>
+          <Text style={styles.conjFoot}>{STRINGS.CHART.CONJUNCTION_FOOTNOTE}</Text>
         </View>
       )}
 
@@ -237,7 +268,7 @@ export default function GocharMap({ chart, navigation }) {
             <Text style={styles.impHouse}>H{p.houseLagna}</Text>
           </View>
         ))}
-        <Text style={styles.impFoot}>House counted from your ascendant ({chart.transits.ascSign}).</Text>
+        <Text style={styles.impFoot}>House counted from your {STRINGS.CHART.ASCENDANT.toLowerCase()} ({chart.transits.ascSign}).</Text>
       </View>
     </CosmicCard>
   );

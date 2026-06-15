@@ -190,7 +190,7 @@ export default function PalmStepPage() {
         setPalm(result);
         goToPalm();
       } catch {
-        setError("Couldn't analyse that photo — please try again.");
+        setError("Couldn't analyze that photo — please try again.");
         setAnalyzing(false);
         setRejected(true);
       } finally {
@@ -256,7 +256,7 @@ export default function PalmStepPage() {
           <Card className="text-center" style={{ marginBottom: "1.5rem" }}>
             <h2 className="m-0 mb-2 text-2xl font-bold">{EMOJIS.HAND} Add a Palm Reading?</h2>
             <p className="m-0 text-[13px] leading-normal text-dim">
-              Optional — we'll analyse your palm while your kundali is being built.
+              Optional — we'll analyze your palm while your kundali is being built.
             </p>
           </Card>
 

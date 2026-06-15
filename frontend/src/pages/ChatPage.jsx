@@ -12,7 +12,7 @@ import { EMOJIS } from "@/utils/emojis";
 const SUGGESTIONS = [
   "When will I marry?",
   "How is my career future?",
-  "What does my current dasha mean?",
+  "What does my current planetary period mean?",
   "Will I settle abroad?",
 ];
 
@@ -41,7 +41,7 @@ export default function ChatPage() {
     "Ask about your future…",
     "When will I marry?",
     "How is my career going?",
-    "What does my dasha say?",
+    "What does my planetary period say?",
     "Is this a good time for change?",
   ];
 
@@ -80,7 +80,7 @@ export default function ChatPage() {
   const welcomeMsg =
     `Namaste ${form.name || "there"} ${EMOJIS.NAMASTE} I'm your personal Vedic astrologer. ` +
     `Ask me anything about your life — career, marriage, money, health, timing — and ` +
-    `I'll answer from your kundali. What would you like to know?`;
+    `I'll answer from your birth chart. What would you like to know?`;
 
   // keep the message list pinned to the latest message
   useEffect(() => {
@@ -168,7 +168,7 @@ export default function ChatPage() {
           {/* cosmic-card padding/margin overridden inline (unlayered). */}
           <Card className="text-center" style={{ marginBottom: 12, padding: "1rem" }}>
             <h2 className="m-0 mb-1 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-[22px] font-bold text-transparent">
-              {EMOJIS.CHAT} Ask About Your Kundli
+              {EMOJIS.CHAT} Ask About Your Birth Chart
             </h2>
             <p className="m-0 text-xs text-[#aaa]">
               {form.name ? `${form.name}'s chart` : "Your chart"} · answered from your birth chart only

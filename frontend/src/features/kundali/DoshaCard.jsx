@@ -49,28 +49,28 @@ export default function DoshaCard({ doshas }) {
 
   return (
     <Card>
-      <p className="m-0 mb-1 text-sm font-semibold text-ink">Dosha & Yoga Status</p>
+      <p className="m-0 mb-1 text-sm font-semibold text-ink">Afflictions & Combinations</p>
       <p className="m-0 mb-3 text-[11px] text-muted">Live readings of major astrological conditions.</p>
       <Row
-        title="Mangal Dosha"
+        title="Mars Affliction"
         badge={doshas.mangal.level}
         state={mangalState}
         detail={doshas.mangal.detail}
       />
       <Row
-        title="Kaal Sarp Dosha"
+        title="Nodal Affliction"
         badge={doshas.kaalSarp.present ? "Active" : "Free"}
         state={kaalSarpState}
         detail={doshas.kaalSarp.detail}
       />
       <Row
-        title="Pitra Dosha"
+        title="Ancestral Affliction"
         badge={doshas.pitra.present ? "Active" : "Free"}
         state={pitraState}
         detail={doshas.pitra.detail}
       />
       <Row
-        title="Sade Sati"
+        title="Saturn Cycle"
         badge={doshas.sadeSati.active ? doshas.sadeSati.phase.split(" ")[0] : "Free"}
         state={sadeState}
         detail={doshas.sadeSati.detail}

@@ -3,23 +3,25 @@ import { View, Text, StyleSheet } from "react-native";
 import CosmicCard from "../../components/CosmicCard";
 import { useStyles } from "../../theme/useStyles";
 import { radius, spacing, fontSize } from "../../theme/tokens";
+import { STRINGS } from "../../shared/uiStrings";
+import { tithiEnglish } from "../../shared/panchangText";
 
 export default function PanchangCard({ panchang }) {
   const styles = useStyles(makeStyles);
   if (!panchang) return null;
 
   const items = [
-    ["Tithi",     panchang.tithi],
-    ["Nakshatra", `${panchang.nakshatra} · Pada ${panchang.pada}`],
-    ["Yoga",      panchang.yoga],
-    ["Karana",    panchang.karana],
-    ["Vaara",     panchang.vaara],
+    [STRINGS.PANCHANG.TITHI,     tithiEnglish(panchang.tithi)],
+    [STRINGS.PANCHANG.NAKSHATRA, `${panchang.nakshatra} · Quarter ${panchang.pada}`],
+    [STRINGS.PANCHANG.YOGA,      panchang.yoga],
+    [STRINGS.PANCHANG.KARANA,    panchang.karana],
+    [STRINGS.PANCHANG.VAARA,     panchang.vaara],
   ];
 
   return (
     <CosmicCard>
-      <Text style={styles.title}>Panchang Snapshot</Text>
-      <Text style={styles.sub}>Five vedic time-elements at the moment of birth.</Text>
+      <Text style={styles.title}>{STRINGS.PANCHANG.TITLE}</Text>
+      <Text style={styles.sub}>{STRINGS.PANCHANG.SUBTITLE}</Text>
 
       <View style={styles.grid}>
         {items.map(([k, v]) => (

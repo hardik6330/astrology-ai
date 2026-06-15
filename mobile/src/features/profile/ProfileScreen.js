@@ -10,6 +10,8 @@ import { useColors } from "@/theme/ThemeContext";
 import { useForm } from "@/context/ChartContext";
 import { useAuth } from "@/features/auth/AuthContext";
 import { signOf, ZE } from "@/shared/astrology";
+import { planetEnglish } from "@/shared/planetText";
+import { STRINGS } from "@/shared/uiStrings";
 import { EMOJIS } from "@/utils/emojis";
 import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
@@ -75,7 +77,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle} numberOfLines={1}>Your Profile</Text>
           <Text style={s.headerSub} numberOfLines={1}>
-            {chart?.nakshatra ? `${chart.nakshatra} Nakshatra` : "Your cosmic identity"}
+            {chart?.nakshatra ? `${chart.nakshatra} Birth Star` : "Your cosmic identity"}
           </Text>
         </View>
         <View style={{ width: 40 }} />
@@ -130,7 +132,7 @@ export default function ProfileScreen({ navigation }) {
           {[
             ["Sun",   sunV,  EMOJIS.SUN_FACE, null],
             ["Moon",  moonV, EMOJIS.MOON,     null],
-            ["Lagna", ascV,  EMOJIS.ARROW_UP, color.primaryLight],
+            ["Ascendant", ascV,  EMOJIS.ARROW_UP, color.primaryLight],
           ].map(([l, v, ic, tint]) => (
             <View key={l} style={s.miniCard}>
               <Text style={{ fontSize: 22, lineHeight: 30, color: tint || undefined }}>{ic}</Text>
@@ -156,17 +158,17 @@ export default function ProfileScreen({ navigation }) {
         <CosmicCard>
           <Text style={s.cardTitle}>Vedic Highlights</Text>
           <View style={s.detailRow}>
-            <Text style={s.detailKey}>Nakshatra</Text>
+            <Text style={s.detailKey}>{STRINGS.LABELS.BIRTH_STAR}</Text>
             <Text style={s.detailVal}>{chart.nakshatra}</Text>
           </View>
           <View style={s.detailRow}>
-            <Text style={s.detailKey}>Current Mahadasha</Text>
-            <Text style={s.detailVal}>{chart.curMaha.lord}</Text>
+            <Text style={s.detailKey}>Current Major Period</Text>
+            <Text style={s.detailVal}>{planetEnglish(chart.curMaha.lord)}</Text>
           </View>
           {chart.curAntar && (
             <View style={s.detailRow}>
-              <Text style={s.detailKey}>Antardasha</Text>
-              <Text style={s.detailVal}>{chart.curAntar.lord}</Text>
+              <Text style={s.detailKey}>Sub-Period</Text>
+              <Text style={s.detailVal}>{planetEnglish(chart.curAntar.lord)}</Text>
             </View>
           )}
           <View style={s.detailRow}>

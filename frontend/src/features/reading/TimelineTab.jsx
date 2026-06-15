@@ -5,6 +5,7 @@ import AshtakvargaWheel from "@/features/kundali/AshtakvargaWheel";
 import GocharMap from "@/features/kundali/GocharMap";
 import Card from "@/common/Card";
 import { EMOJIS } from "@/utils/emojis";
+import { periodEnglish } from "@/shared/planetText";
 import { dashaGuidanceFor } from "./planetInfo";
 
 // One forecast window — click to expand the reasoning (why) + behavioral Do's /
@@ -24,7 +25,7 @@ function ForecastItem({ p, tc }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: "#e2e8f0" }}>
-            {p.period}
+            {periodEnglish(p.period)}
             {p.current && (
               <span
                 style={{
@@ -172,7 +173,7 @@ export default function TimelineTab({ chart }) {
       <Card>
         <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: "#fff" }}>Timeline Forecast</p>
         <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 16px" }}>
-          Upcoming dasha windows — click one for its Do&apos;s &amp; Don&apos;ts
+          Upcoming period windows — click one for its Do&apos;s &amp; Don&apos;ts
         </p>
         {chart.predictions.map((p, i) => {
           const tc = p.tone === "supportive" ? "#4ade80" : p.tone === "testing" ? "#f87171" : "#fbbf24";
@@ -240,7 +241,7 @@ export default function TimelineTab({ chart }) {
       {/* Transits */}
       <Card>
         <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 16px", color: "#fff" }}>
-          Current Sky (Gochar)
+          Current Sky (Transits)
         </p>
         {chart.transits.sadeSati.active ? (
           <div
@@ -253,7 +254,7 @@ export default function TimelineTab({ chart }) {
             }}
           >
             <p style={{ fontSize: 13, color: "#f87171", fontWeight: 700, margin: 0 }}>
-              {EMOJIS.WARNING} Sade Sati Phase: {chart.transits.sadeSati.phase}
+              {EMOJIS.WARNING} Saturn Cycle Phase: {chart.transits.sadeSati.phase}
             </p>
             <p style={{ fontSize: 11, color: "#fca5a5", margin: "4px 0 0" }}>
               Ends: {chart.transits.sadeSati.end ? fmtDay(chart.transits.sadeSati.end) : "ongoing"}
@@ -270,7 +271,7 @@ export default function TimelineTab({ chart }) {
             }}
           >
             <p style={{ fontSize: 13, color: "#4ade80", fontWeight: 600, margin: 0 }}>
-              ✓ Free from Sade Sati
+              ✓ Free from Saturn Cycle
             </p>
           </div>
         )}

@@ -33,7 +33,7 @@ export default function AshtakvargaWheel({ ashtakvarga }) {
 
   return (
     <Card>
-      <p className="m-0 mb-1 text-sm font-semibold text-ink">Ashtakvarga (Sarva)</p>
+      <p className="m-0 mb-1 text-sm font-semibold text-ink">Planetary Strength Grid</p>
       <p className="m-0 mb-3 text-[11px] text-muted">
         Total Bindus per sign · max 56 · 28+ counts as fortunate ({lucky}/12 lucky · sum {total})
       </p>
