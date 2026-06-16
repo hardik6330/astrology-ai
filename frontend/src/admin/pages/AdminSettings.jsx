@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LuSave } from "react-icons/lu";
+import { LuSave, LuInbox } from "react-icons/lu";
 import Card from "@/common/Card";
 import Field from "@/common/Field";
 import AdminSelect from "@/admin/components/AdminSelect";
@@ -229,6 +229,19 @@ export default function AdminSettings() {
             </Card>
           ))}
         </div>
+      ) : settings.length === 0 ? (
+        // Empty response (e.g. settings never seeded on this DB) — don't render
+        // blank cards; show a clear "nothing here" state instead.
+        <Card className="py-16">
+          <div className="flex flex-col items-center justify-center text-center">
+            <LuInbox size={40} className="mb-3 text-muted" />
+            <p className="m-0 text-base font-semibold text-ink">No settings found</p>
+            <p className="mx-0 mt-1.5 mb-0 max-w-md text-[13px] text-muted leading-relaxed">
+              There are no configurable settings on this server yet. They are seeded on boot — if this
+              persists, the backend may not have run its settings seed.
+            </p>
+          </div>
+        </Card>
       ) : (
         <form onSubmit={save} className="space-y-6">
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
