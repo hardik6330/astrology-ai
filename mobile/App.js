@@ -1,6 +1,6 @@
 import "./src/theme/textScale"; // global ~1.1× text scale — must run before any UI mounts
 import React, { useEffect, useState } from "react";
-import { View, Linking } from "react-native";
+import { View, Linking, Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -17,12 +17,24 @@ import { isOutdated } from "./src/utils/version";
 import { getItem, setItem } from "./src/utils/storage";
 
 import Constants, { ExecutionEnvironment } from "expo-constants";
+import * as ExpoSplash from "expo-splash-screen";
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+// Hold the OS native splash up until our animated SplashScreen has painted its
+// first frame — otherwise the native splash auto-hides whenever React mounts,
+// flashing a gap before the animation. We hide it via onReady (below).
+ExpoSplash.preventAutoHideAsync().catch(() => {});
 
 // Remembers which version the user dismissed an OPTIONAL update prompt for, so
 // we don't re-show it every launch. A newer latestVersion won't match → re-shows.
 const UPDATE_SKIP_KEY = "update_skip_version";
+
+// Store-listing redirect for the update prompt. No admin-configured URL — the
+// link is derived from this app's own package id, so it always points at the
+// right listing. iOS needs the numeric App Store id (fill once it exists).
+const ANDROID_PKG = Constants.expoConfig?.android?.package || "com.astrologyai.app";
+const IOS_APP_ID  = ""; // e.g. "1234567890" once the App Store listing is live
 
 function ThemedStatusBar() {
   const { theme } = useTheme();
@@ -54,7 +66,7 @@ function AuthLifecycle() {
 function AppShell() {
   const [splashing, setSplashing] = useState(true);
   const { hydrated, colors } = useTheme();
-  // { latestVersion, updateUrl, mandatory } when an update prompt should show.
+  // { latestVersion, mandatory } when an update prompt should show.
   const [update, setUpdate] = useState(null);
 
   // Wake the Vercel serverless backend in the background while the
@@ -73,17 +85,25 @@ function AppShell() {
       if (!isOutdated(current, cfg.latestVersion)) return;
 
       if (cfg.forceUpdate) {
-        setUpdate({ latestVersion: cfg.latestVersion, updateUrl: cfg.updateUrl, mandatory: true });
+        setUpdate({ latestVersion: cfg.latestVersion, mandatory: true });
         return;
       }
       const skipped = await getItem(UPDATE_SKIP_KEY, null);
       if (skipped === cfg.latestVersion) return; // dismissed this version already
-      setUpdate({ latestVersion: cfg.latestVersion, updateUrl: cfg.updateUrl, mandatory: false });
+      setUpdate({ latestVersion: cfg.latestVersion, mandatory: false });
     });
   }, []);
 
+  // Redirect straight to this app's store listing. market:// / itms-apps://
+  // open the native store app; fall back to the https listing if it can't.
   const onUpdatePress = () => {
-    if (update?.updateUrl) Linking.openURL(update.updateUrl).catch(() => {});
+    const deep = Platform.OS === "ios"
+      ? `itms-apps://apps.apple.com/app/id${IOS_APP_ID}`
+      : `market://details?id=${ANDROID_PKG}`;
+    const web = Platform.OS === "ios"
+      ? `https://apps.apple.com/app/id${IOS_APP_ID}`
+      : `https://play.google.com/store/apps/details?id=${ANDROID_PKG}`;
+    Linking.openURL(deep).catch(() => Linking.openURL(web).catch(() => {}));
   };
   // "Later" only exists on the optional prompt — remember the skip + dismiss.
   const onUpdateLater = () => {
@@ -109,7 +129,10 @@ function AppShell() {
       <AuthLifecycle />
       {!splashing && <RootNavigator />}
       {splashing && hydrated && (
-        <SplashScreen onDone={() => setSplashing(false)} />
+        <SplashScreen
+          onReady={() => ExpoSplash.hideAsync().catch(() => {})}
+          onDone={() => setSplashing(false)}
+        />
       )}
       <UpdateModal
         visible={!!update}

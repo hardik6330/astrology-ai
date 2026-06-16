@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import React, { useState } from "react";
+import { useState } from "react";
 import Card from "@/common/Card";
 import { SIGNS, ZE, nm } from "@/shared/astrology";
 import { STRINGS } from "@/shared/uiStrings";
+import { useAuth } from "@/features/auth/AuthContext";
 
 // Bi-Wheel Chart (Birth vs Live Sky) — web twin of mobile GocharMap.js.
 // A sidereal zodiac wheel with TWO planet rings over the same signs:
@@ -73,9 +74,15 @@ function stagger(list, baseR, step) {
 
 export default function GocharMap({ chart }) {
   const navigate = useNavigate();
+  const { account } = useAuth();
+
+  // Scope the asked-alignment state to the signed-in user so one account's
+  // "Analyzed" rows don't leak to the next user on the same browser. The auth
+  // tree remounts on login/logout, so reading the per-user key at init is enough.
+  const storageKey = `asked_alignments:${account?.id ?? "anon"}`;
   const [asked, setAsked] = useState(() => {
     try {
-      const stored = localStorage.getItem("asked_alignments");
+      const stored = localStorage.getItem(storageKey);
       return stored ? JSON.parse(stored) : {};
     } catch (e) {
       console.error("Failed to load asked alignments", e);
@@ -87,7 +94,7 @@ export default function GocharMap({ chart }) {
     const next = { ...asked, [key]: true };
     setAsked(next);
     try {
-      localStorage.setItem("asked_alignments", JSON.stringify(next));
+      localStorage.setItem(storageKey, JSON.stringify(next));
     } catch (e) {
       console.error("Failed to save asked alignments", e);
     }
@@ -151,6 +158,8 @@ export default function GocharMap({ chart }) {
             return (
               <g key={sign}>
                 <line x1={inn.x} y1={inn.y} x2={o.x} y2={o.y} stroke={C.cardBorder} strokeWidth={1.5} />
+                {/* ZE glyphs render as colored emoji; opacity is the only dimmer.
+                    Keep the rising/lagna sign brighter so it still stands out. */}
                 <text
                   x={g.x}
                   y={g.y + 6}
@@ -158,7 +167,7 @@ export default function GocharMap({ chart }) {
                   textAnchor="middle"
                   fill={isLagnaSign ? C.primaryLight : C.textMain}
                   fontWeight={900}
-                  opacity={1}
+                  opacity={isLagnaSign ? 0.85 : 0.4}
                 >
                   {ZE[sign]}
                 </text>

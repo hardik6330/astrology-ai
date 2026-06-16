@@ -10,6 +10,7 @@ import { SIGNS, ZE, nm } from "../../shared/astrology";
 import { haptics } from "../../utils/haptics";
 import { getItem, setItem } from "../../utils/storage";
 import { STRINGS } from "../../shared/uiStrings";
+import { useAuth } from "../auth/AuthContext";
 
 // Bi-Wheel Chart (Birth vs Live Sky). A sidereal zodiac wheel with TWO planet
 // rings over the same signs:
@@ -65,17 +66,22 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export default function GocharMap({ chart, navigation }) {
   const styles = useStyles(makeStyles);
   const c = useColors();
+  const { account } = useAuth();
   const [asked, setAsked] = useState({});
 
-  // Load asked state from storage on mount
+  // Scope the asked-alignment state to the signed-in user so one account's
+  // "Analyzed" rows don't leak to the next user on the same device.
+  const storageKey = `asked_alignments:${account?.id ?? "anon"}`;
+
+  // Load asked state from storage on mount (and when the user changes).
   useEffect(() => {
-    getItem("asked_alignments", {}).then(setAsked);
-  }, []);
+    getItem(storageKey, {}).then(setAsked);
+  }, [storageKey]);
 
   const markAsAsked = async (key) => {
     const next = { ...asked, [key]: true };
     setAsked(next);
-    await setItem("asked_alignments", next);
+    await setItem(storageKey, next);
   };
 
   // Pulsing halo on the live planets (hooks must run before any early return).
@@ -130,11 +136,13 @@ export default function GocharMap({ chart, navigation }) {
             return (
               <React.Fragment key={sign}>
                 <Line x1={inn.x} y1={inn.y} x2={o.x} y2={o.y} stroke={c.cardBorder} strokeWidth={1.5} />
+                {/* ZE glyphs render as colored emoji; opacity is the only dimmer.
+                    Keep the rising/lagna sign brighter so it still stands out. */}
                 <SvgText
                   x={g.x} y={g.y + 6} fontSize="20" textAnchor="middle"
                   fill={isLagnaSign ? c.primaryLight : c.textMain}
                   fontWeight="900"
-                  opacity={1}
+                  opacity={isLagnaSign ? 0.85 : 0.4}
                 >
                   {ZE[sign]}
                 </SvgText>

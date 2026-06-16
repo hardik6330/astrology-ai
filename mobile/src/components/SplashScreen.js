@@ -145,11 +145,12 @@ function AstroLogo({ size = 240, zodiacRotation, planetScale }) {
  * Splash screen with custom-drawn Astro-AI logo (planet + Saturn rings +
  * rotating zodiac wheel) over a twinkling starfield.
  */
-export default function SplashScreen({ onDone, duration = 2800 }) {
+export default function SplashScreen({ onDone, onReady, duration = 2800 }) {
   const { setCurrentLoc } = useForm();
   const colors = useColors();
   const styles = useStyles(makeStyles);
   const [lineIdx, setLineIdx] = useState(0);
+  const readyFired = useRef(false);
 
   const pulse = useRef(new Animated.Value(0)).current;
   const fade  = useRef(new Animated.Value(0)).current;
@@ -223,7 +224,16 @@ export default function SplashScreen({ onDone, duration = 2800 }) {
   const zodiacRotation = rot.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
-    <Animated.View style={[styles.wrap, { opacity: fade }]}>
+    <Animated.View
+      style={[styles.wrap, { opacity: fade }]}
+      // First layout = our splash has painted. Hide the OS native splash now so
+      // the handoff is seamless (same bg color, no flash). Fires once.
+      onLayout={() => {
+        if (readyFired.current) return;
+        readyFired.current = true;
+        onReady?.();
+      }}
+    >
       {/* Starfield */}
       {stars.map((s, i) => (
         <Star key={i} x={s.x} y={s.y} size={s.size}

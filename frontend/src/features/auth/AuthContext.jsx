@@ -58,8 +58,17 @@ export function AuthProvider({ children }) {
 
   function logout() {
     teardownWebPush();
-    appToken.remove();
-    appAccount.remove();
+    // Wipe ALL local data so the next user starts completely clean — keeps only
+    // the separate admin back-office session. Catches dynamic per-user keys too
+    // (asked_alignments:*, timelineCheck:*) without enumerating them.
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k !== "admin_token")
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {
+      appToken.remove();
+      appAccount.remove(); // fallback: at least clear the session
+    }
     setToken(null);
     setAccount(null);
   }

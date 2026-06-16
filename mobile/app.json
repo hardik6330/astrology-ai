@@ -76,15 +76,15 @@
     "extra": {
       "apiUrl": {},
       "eas": {
-        "projectId": "a80e7499-8a42-41c7-b3c1-85bf9af8b1ac"
+        "projectId": "4ee7d7a9-7d80-4a71-acf1-750b8073823e"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "owner": "hugging001322",
+    "owner": "hugging001fceeeee",
     "updates": {
-      "url": "https://u.expo.dev/a80e7499-8a42-41c7-b3c1-85bf9af8b1ac"
+      "url": "https://u.expo.dev/4ee7d7a9-7d80-4a71-acf1-750b8073823e"
     }
   }
 }

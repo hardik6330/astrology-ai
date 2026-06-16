@@ -1,31 +1,24 @@
 // Real Firebase Phone Auth gate. The SMS send + code verification happen on the
 // client (see otp.js); this exchanges the resulting Firebase ID token for our
 // server-issued JWT via /api/auth/verify-otp.
+//
+// Note: the force-update gate lives in App.js (AppShell), NOT here.
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { Linking, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Constants from "expo-constants";
-import { verifyOtp, dummyLogin, primeAuthPhone, onUnauthorized, getAuthConfig } from "@/services/api";
+import { verifyOtp, dummyLogin, primeAuthPhone, onUnauthorized } from "@/services/api";
 import { registerForPush, unregisterForPush } from "@/features/notifications/push";
 import { logEvent } from "@/features/notifications/analytics";
-import UpdateModal from "@/components/UpdateModal";
 
-const KEY     = "app_token";
-const ACC_KEY = "app_account";
+const KEY       = "app_token";
+const ACC_KEY   = "app_account";
+const THEME_KEY = "astro_theme_v1"; // device preference — preserved across logout
 const AuthContext = createContext(null);
-
-// Store-listing redirect for force-update. No admin-configured URL anymore — the
-// link is derived from this app's own package id, so it always points at the
-// correct listing. iOS needs the numeric App Store id (fill once it exists).
-const ANDROID_PKG = Constants.expoConfig?.android?.package || "com.astrologyai.app";
-const IOS_APP_ID  = ""; // e.g. "1234567890" once the App Store listing is live
 
 export function AuthProvider({ children }) {
   const [token, setToken]     = useState(null);
   const [account, setAccount] = useState(null);
   const [hydrating, setHydrating] = useState(true);
-  const [updateRequired, setUpdateRequired] = useState(null); // { latestVersion }
 
   // Global 401 listener: if any API call returns Unauthorized (token expired),
   // trigger a local logout to bounce the user back to Login.
@@ -35,24 +28,10 @@ export function AuthProvider({ children }) {
     });
   }, [token]);
 
+  // Restore a saved session from disk on boot.
   useEffect(() => {
     (async () => {
       try {
-        // 1. Check for Force Update first
-        const config = await getAuthConfig();
-        const currentVersion = Constants.expoConfig?.version || "1.0.0";
-        
-        if (config.appConfig?.forceUpdate && config.appConfig?.latestVersion) {
-          if (isVersionOlder(currentVersion, config.appConfig.latestVersion)) {
-            setUpdateRequired({
-              latestVersion: config.appConfig.latestVersion,
-            });
-            // If it's a force update, we stop hydrating and show the modal
-            return;
-          }
-        }
-
-        // 2. Normal hydration
         const [t, a] = await Promise.all([
           AsyncStorage.getItem(KEY),
           AsyncStorage.getItem(ACC_KEY),
@@ -68,30 +47,6 @@ export function AuthProvider({ children }) {
       finally { setHydrating(false); }
     })();
   }, []);
-
-  // Simple semantic version comparison (e.g., "1.0.0" < "1.0.1")
-  function isVersionOlder(current, latest) {
-    const c = current.split(".").map(Number);
-    const l = latest.split(".").map(Number);
-    for (let i = 0; i < 3; i++) {
-      if ((l[i] || 0) > (c[i] || 0)) return true;
-      if ((l[i] || 0) < (c[i] || 0)) return false;
-    }
-    return false;
-  }
-
-  // Open this app's store listing directly. The market:// / itms-apps:// scheme
-  // launches the native store app; if it can't resolve (e.g. Play Store app
-  // missing) we fall back to the https listing in a browser.
-  const openStore = () => {
-    const deep = Platform.OS === "ios"
-      ? `itms-apps://apps.apple.com/app/id${IOS_APP_ID}`
-      : `market://details?id=${ANDROID_PKG}`;
-    const web = Platform.OS === "ios"
-      ? `https://apps.apple.com/app/id${IOS_APP_ID}`
-      : `https://play.google.com/store/apps/details?id=${ANDROID_PKG}`;
-    Linking.openURL(deep).catch(() => Linking.openURL(web));
-  };
 
   // Exchange a verified Firebase ID token for our session JWT (real OTP mode).
   async function completeOtpLogin(idToken) {
@@ -129,7 +84,16 @@ export function AuthProvider({ children }) {
     // Disable the push token server-side BEFORE clearing the JWT — the
     // unregister call needs the token to authenticate.
     await unregisterForPush();
-    await AsyncStorage.multiRemove([KEY, ACC_KEY]);
+    // Wipe ALL local data so the next user starts completely clean — keeps only
+    // the device theme preference. Using getAllKeys catches dynamic per-user
+    // keys too (asked_alignments:*, timelineCheck:*) without enumerating them.
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const keep = new Set([THEME_KEY]);
+      await AsyncStorage.multiRemove(keys.filter((k) => !keep.has(k)));
+    } catch {
+      await AsyncStorage.multiRemove([KEY, ACC_KEY]); // fallback: at least the session
+    }
     primeAuthPhone(null);
     setToken(null);
     setAccount(null);
@@ -138,15 +102,6 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{ token, account, hydrating, completeOtpLogin, loginDummy, logout }}>
       {children}
-      {/* Force-update gate: when the backend flags forceUpdate and this client is
-          older than app_latest_version, show a non-dismissible modal whose only
-          action redirects straight to this app's store listing. */}
-      <UpdateModal
-        visible={!!updateRequired}
-        mandatory
-        latestVersion={updateRequired?.latestVersion}
-        onUpdate={openStore}
-      />
     </AuthContext.Provider>
   );
 }
