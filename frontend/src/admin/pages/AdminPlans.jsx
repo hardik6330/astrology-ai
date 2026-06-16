@@ -13,6 +13,7 @@ import Button from "@/common/Button";
 import PageHeader from "@/common/PageHeader";
 import ErrorText from "@/common/ErrorText";
 import { Skeleton } from "@/common/Skeleton";
+import AdminEmptyState from "@/admin/components/AdminEmptyState";
 import { useAdminPlans } from "@/admin/api/queries";
 import { adminCreatePlan, adminUpdatePlan } from "@/admin/api/adminApi";
 
@@ -31,7 +32,6 @@ export default function AdminPlans() {
         title="Credit Plans"
         subtitle="Packages users can buy. Disabling a plan hides it from clients without deleting it."
       />
-      <ErrorText>{error?.message}</ErrorText>
 
       <div className="mt-2 flex w-full flex-col gap-5">
         <NewPlanForm onSaved={() => qc.invalidateQueries({ queryKey: ["admin", "plans"] })} />
@@ -47,8 +47,14 @@ export default function AdminPlans() {
               </Card>
             ))}
           </div>
+        ) : error ? (
+          <Card style={{ marginBottom: 0 }}>
+            <AdminEmptyState variant="error" message={error.message} />
+          </Card>
         ) : plans.length === 0 ? (
-          <p className="text-[13px] text-dim">No plans yet — add one above.</p>
+          <Card style={{ marginBottom: 0 }}>
+            <AdminEmptyState title="No plans yet" message="Add a credit plan using the form above." />
+          </Card>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {plans.map((p) => (

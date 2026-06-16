@@ -92,13 +92,14 @@ export async function generateDailyGuidance({ form, ctx, targetDate }) {
     }
 
     const cleaned = cleanJson(generated);
+    let parsed = cleaned; // fallback to the cleaned string if JSON.parse fails
     try {
-      const parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
+      parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
       await DailyData.create({ userId: user.id, date, guidance: parsed });
     } catch (saveError) {
       log.error({ err: saveError }, 'Daily save failed');
     }
 
-    return { content: cleaned, balance };
+    return { content: parsed, balance };
   });
 }

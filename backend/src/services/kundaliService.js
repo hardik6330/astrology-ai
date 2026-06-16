@@ -63,47 +63,59 @@ export async function generateInterpretation({ form, factSheet }) {
     }
 
     try {
-      // 2. Same birth data already interpreted for ANOTHER user (different
-      //    phone)? Reuse the existing chart + interpretation — chart math is
-      //    deterministic from birth data, so the answer is identical and a
-      //    fresh Gemini call would just burn tokens. We still create a new
-      //    Kundali row owned by THIS user so per-user lifecycle (delete,
-      //    re-interpret) stays clean.
-      const sibling = await User.findOne({
-        where: {
-          name: form.name,
-          birthDate: form.date,
-          birthTime: form.time,
-          birthCity: form.city,
-          gender: form.gender || null,
-          id: { [Op.ne]: user.id },
-        },
-      });
-      if (sibling) {
-        const siblingKundali = await Kundali.findOne({ where: { userId: sibling.id } });
-        if (siblingKundali) {
-          try {
-            await Kundali.create({
-              userId: user.id,
-              locationId: siblingKundali.locationId,
-              chartData: siblingKundali.chartData,
-              interpretation: siblingKundali.interpretation,
-            });
-            log.info({ userId: user.id, copiedFrom: sibling.id }, 'Kundali copied from sibling user');
-          } catch (saveError) {
-            log.error({ err: saveError }, 'Kundali sibling-copy save failed');
-          }
-          fireInsightPush();
-          return { content: asContent(siblingKundali.interpretation), balance };
-        }
-      }
-
-      // 3. Fetch the latest palm reading for this user to synthesize with the chart.
+      // 2. This user's own latest clear palm reading (if any). Fetched up-front
+      //    because it also gates whether a sibling's saved interpretation is
+      //    safe to reuse below.
       const latestPalm = await PalmReading.findOne({
         where: { userId: user.id, imageQuality: 'clear' },
         order: [['createdAt', 'DESC']],
       });
 
+      // 3. Same birth data already interpreted for ANOTHER user (different
+      //    phone)? Reuse their chart + interpretation — chart math is
+      //    deterministic from birth data, so a fresh Gemini call would just burn
+      //    tokens. BUT a saved interpretation bakes in ITS OWN user's palm
+      //    lines, so copying it to someone with a different (or no) palm would
+      //    leak the wrong hand. Reuse only when the reading is palm-neutral on
+      //    BOTH sides (neither user has a palm); otherwise fall through and
+      //    generate fresh from THIS user's chart + their own palm (or none).
+      if (!latestPalm) {
+        const sibling = await User.findOne({
+          where: {
+            name: form.name,
+            birthDate: form.date,
+            birthTime: form.time,
+            birthCity: form.city,
+            gender: form.gender || null,
+            id: { [Op.ne]: user.id },
+          },
+        });
+        if (sibling) {
+          const siblingKundali = await Kundali.findOne({ where: { userId: sibling.id } });
+          const siblingPalm = await PalmReading.findOne({
+            where: { userId: sibling.id, imageQuality: 'clear' },
+          });
+          // Only copy when the sibling's reading is chart-only too — else its
+          // palm sentences would surface for a user who never uploaded a palm.
+          if (siblingKundali && !siblingPalm) {
+            try {
+              await Kundali.create({
+                userId: user.id,
+                locationId: siblingKundali.locationId,
+                chartData: siblingKundali.chartData,
+                interpretation: siblingKundali.interpretation,
+              });
+              log.info({ userId: user.id, copiedFrom: sibling.id }, 'Kundali copied from sibling user');
+            } catch (saveError) {
+              log.error({ err: saveError }, 'Kundali sibling-copy save failed');
+            }
+            fireInsightPush();
+            return { content: asContent(siblingKundali.interpretation), balance };
+          }
+        }
+      }
+
+      // 4. Build the palm block from THIS user's own reading (empty if none).
       let palmSnippet = '';
       if (latestPalm) {
         const p = latestPalm.reading;
@@ -123,14 +135,19 @@ export async function generateInterpretation({ form, factSheet }) {
         }
       }
 
-      // 4. Call Gemini with the compact fact sheet + palm data (token-light).
-      const userPrompt = `${factSheet}${palmSnippet}\n\nInterpret this birth chart and palm data into a single master reading.`;
+      // 5. Call Gemini with the compact fact sheet (+ palm data when present).
+      //    With no palm, instruct chart-only explicitly so the model never
+      //    invents hand/line features despite the palm-aware system prompt.
+      const userPrompt = palmSnippet
+        ? `${factSheet}${palmSnippet}\n\nInterpret this birth chart and palm data into a single master reading.`
+        : `${factSheet}\n\nNo palm reading is available for this user. Interpret the birth chart ALONE into a master reading — base every statement on the chart only, and do NOT mention, reference, or invent any palm, hand, line, or mount features.`;
       const generated = await callGemini(INTERP_SYSTEM, userPrompt, true, KUNDLI_MODELS, THINK_BUDGET.KUNDLI);
 
-      // 5. Sanitize + parse + persist (best-effort — log but don't block the response).
+      // 6. Sanitize + parse + persist (best-effort — log but don't block the response).
       const cleaned = cleanJson(generated);
+      let parsed = cleaned; // fallback to the cleaned string if JSON.parse fails
       try {
-        const parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
+        parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
         await Kundali.create({
           userId: user.id,
           locationId,
@@ -142,7 +159,7 @@ export async function generateInterpretation({ form, factSheet }) {
       }
 
       fireInsightPush();
-      return { content: cleaned, balance };
+      return { content: parsed, balance };
     } catch (e) {
       // Generation failed after we charged — refund so the user isn't billed
       // for an insight they didn't get.

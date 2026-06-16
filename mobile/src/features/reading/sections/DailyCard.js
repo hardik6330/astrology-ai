@@ -11,7 +11,7 @@ import { EMOJIS } from "../../../utils/emojis";
 import { makeStyles } from "../styles";
 
 export default function DailyCard({
-  form, dailyTransit, guide, monthDays, selDate, todayIso, savedDates, selectDay, loadDaily, dailyBusy,
+  form, dailyTransit, guide, monthDays, selDate, todayIso, savedDates, selectDay, generateDaily, dailyBusy,
   dailyLowCredits, activeLoc, locError, getGpsLocation,
 }) {
   const color = useColors();
@@ -121,7 +121,7 @@ export default function DailyCard({
 
       {!guide && (
         <Pressable
-          onPress={() => loadDaily(selDate)}
+          onPress={() => generateDaily(selDate)}
           disabled={dailyBusy || cannotAfford}
           style={[s.revealBtn, (dailyBusy || cannotAfford) && { opacity: 0.5 }]}
         >
@@ -130,7 +130,7 @@ export default function DailyCard({
               ? "Reading the sky…"
               : cannotAfford
                 ? `Not enough credits · ${dailyCost} needed`
-                : `✨ Reveal This Day's Full Guidance · ${dailyCost} Credits`}
+                : `${EMOJIS.SPARKLES} Reveal ${MONTHS[selDate.getMonth()]} ${selDate.getDate()}'s Guidance · ${dailyCost} Credits`}
           </Text>
         </Pressable>
       )}

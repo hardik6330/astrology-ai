@@ -149,7 +149,10 @@ function formParams(form) {
 }
 
 function parseContent(content) {
-  let parsed = JSON.parse((content || "").replace(/```json|```/g, "").trim());
+  if (content == null) return null;
+  if (typeof content === "object") return content; // API now returns a real object
+  // Legacy: content was a JSON string (possibly double-encoded). Parse to object.
+  let parsed = JSON.parse(content.replace(/```json|```/g, "").trim());
   if (typeof parsed === "string") parsed = JSON.parse(parsed);
   return parsed;
 }
@@ -256,7 +259,8 @@ export async function chatCompletion(messages, type = "chat", extra = {}) {
   }
   const data = await postJSON(endpoint, body);
   noteBalance(data.balance); // refresh the credit badge after a charge
-  return (data.content || "").trim();
+  // content is a real object (interpret/daily JSON) or a plain string (chat text).
+  return typeof data.content === "string" ? data.content.trim() : data.content;
 }
 
 // Current credit balance for the logged-in user — populates the credit badge.
@@ -309,8 +313,8 @@ export async function verifyIapPayment({ planId, platform, receipt, purchaseToke
 }
 
 export async function chatCompletionJSON(messages, type, extra) {
-  const txt = await chatCompletion(messages, type, extra);
-  return JSON.parse(txt.replace(/```json|```/g, "").trim());
+  const result = await chatCompletion(messages, type, extra);
+  return parseContent(result); // tolerant: object passthrough or parse legacy string
 }
 
 export async function fetchSaved(type, form, targetDate) {

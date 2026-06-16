@@ -11,6 +11,7 @@ import Field from "@/common/Field";
 import PageHeader from "@/common/PageHeader";
 import ErrorText from "@/common/ErrorText";
 import { SkeletonRows } from "@/common/Skeleton";
+import AdminEmptyState from "@/admin/components/AdminEmptyState";
 import { useAdminUsers } from "@/admin/api/queries";
 import { adminPushUser } from "@/admin/api/adminApi";
 
@@ -27,7 +28,7 @@ export default function AdminUsers() {
   const [target, setTarget] = useState(null);
 
   const {
-    data = { rows: [], count: 0 },
+    data = { rows: [], pagination: { page: 1, totalPages: 1, total: 0, hasPrev: false, hasNext: false } },
     isPending,
     error,
   } = useAdminUsers({
@@ -36,7 +37,13 @@ export default function AdminUsers() {
     pageSize: PAGE,
   });
 
-  const pages = Math.ceil(data.count / PAGE) || 1;
+  const pg = data.pagination ?? {
+    page: page + 1,
+    totalPages: 1,
+    total: 0,
+    hasPrev: page > 0,
+    hasNext: false,
+  };
 
   function openMenu(e, u) {
     const r = e.currentTarget.getBoundingClientRect();
@@ -65,8 +72,7 @@ export default function AdminUsers() {
 
   return (
     <div>
-      <PageHeader title="Users" count={data.count} action={searchBox} />
-      <ErrorText>{error?.message}</ErrorText>
+      <PageHeader title="Users" count={pg.total} action={searchBox} />
 
       {/* cosmic-card supplies bg/border/radius; override its padding (the table
           draws its own cell padding) + bottom margin inline; overflow utility. */}
@@ -90,10 +96,16 @@ export default function AdminUsers() {
           <tbody>
             {isPending ? (
               <SkeletonRows rows={8} cols={7} />
+            ) : error ? (
+              <tr>
+                <td colSpan={7}>
+                  <AdminEmptyState variant="error" message={error.message} />
+                </td>
+              </tr>
             ) : data.rows.length === 0 ? (
               <tr>
-                <td className={tdClass} colSpan={7}>
-                  No users found.
+                <td colSpan={7}>
+                  <AdminEmptyState title="No users found" message="No users match your search yet." />
                 </td>
               </tr>
             ) : (
@@ -128,21 +140,16 @@ export default function AdminUsers() {
         <Button
           variant="ghost"
           icon={LuChevronLeft}
-          disabled={page === 0}
+          disabled={!pg.hasPrev}
           onClick={() => setPage((p) => p - 1)}
           style={pagerBtn}
         >
           Prev
         </Button>
         <span className="text-[13px] text-dim">
-          Page {page + 1} of {pages}
+          Page {pg.page} of {pg.totalPages} · {pg.total} total
         </span>
-        <Button
-          variant="ghost"
-          disabled={page + 1 >= pages}
-          onClick={() => setPage((p) => p + 1)}
-          style={pagerBtn}
-        >
+        <Button variant="ghost" disabled={!pg.hasNext} onClick={() => setPage((p) => p + 1)} style={pagerBtn}>
           Next <LuChevronRight size={15} />
         </Button>
       </div>

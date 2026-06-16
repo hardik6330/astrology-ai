@@ -30,6 +30,13 @@ export function useDailyDates(form) {
     enabled: formComplete(form),
     // Empty array if backend has nothing yet — easier consumer code.
     placeholderData: [],
+    // Fetch once when the dashboard loads (for the green dots); never auto-
+    // refetch on focus/remount/reconnect. The dot list only changes when the
+    // user generates a new day, which busts this cache via invalidateQueries.
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   });
 }
 

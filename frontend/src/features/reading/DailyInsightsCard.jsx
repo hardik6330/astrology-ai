@@ -99,7 +99,8 @@ export default function DailyInsightsCard({ chart, form, onError }) {
   const todayBtnRef = useRef(null);
 
   // Dates with saved guidance — drives the "dot under date" indicator.
-  // React Query caches per-form and refetches on form change automatically.
+  // Fetched once on load (cached per-form); only refetched after a new daily is
+  // generated (loadDaily invalidates it). No focus/remount refetch — see hook.
   const { data: savedDatesArr = [] } = useDailyDates(form);
   const savedDates = useMemo(() => new Set(savedDatesArr), [savedDatesArr]);
   const qc = useQueryClient();
@@ -112,8 +113,25 @@ export default function DailyInsightsCard({ chart, form, onError }) {
   const dailyTransit = useMemo(() => computeDaily(chart, activeLoc, selDate), [chart, activeLoc, selDate]);
   const guide = guideMap[iso(selDate)] || null;
 
-  // Fetch (or generate) the AI guidance for a given day.
-  async function loadDaily(date) {
+  // Load already-saved guidance for a day — free, no generation/charge. Used
+  // when selecting a day that already has a reading (green dot).
+  async function viewSaved(date) {
+    const key = iso(date);
+    if (dailyBusy || !chart || guideMap[key]) return;
+    setDailyBusy(true);
+    setLowCredits(false);
+    try {
+      const saved = await fetchSaved("daily", form, key);
+      if (saved) setGuideMap((m) => ({ ...m, [key]: saved }));
+    } catch (e) {
+      onError?.("Daily guidance failed: " + e.message);
+    }
+    setDailyBusy(false);
+  }
+
+  // Generate (and CHARGE) guidance for a day — only ever triggered by the user
+  // tapping the "Reveal" button, so credits are never spent without consent.
+  async function generateDaily(date) {
     const key = iso(date);
     if (dailyBusy || !chart || guideMap[key]) return;
     setDailyBusy(true);
@@ -126,11 +144,12 @@ Moon transits ${d.moonSign} — the ${d.moonHouseFromNatal}th house from the nat
 Day alignment score: ${d.alignment}% (higher = smoother day)
 Running period: ${d.dasha}`;
     try {
-      // Try the saved guidance for this date first; generate only if none exists.
+      // Saved-first guard: if it was generated elsewhere meanwhile, reuse it free.
       const saved = await fetchSaved("daily", form, key);
       const result = saved || (await chatCompletionJSON([], "daily", { ctx, form, date: key }));
       setGuideMap((m) => ({ ...m, [key]: result }));
-      qc.invalidateQueries({ queryKey: kundaliKeys.dailyDates(form) });
+      // Refresh the green-dot list only when we generated a NEW day.
+      if (!saved) qc.invalidateQueries({ queryKey: kundaliKeys.dailyDates(form) });
     } catch (e) {
       if (e.code === "INSUFFICIENT_CREDITS") setLowCredits(true);
       else onError?.("Daily guidance failed: " + e.message);
@@ -138,10 +157,12 @@ Running period: ${d.dasha}`;
     setDailyBusy(false);
   }
 
-  // Selecting a day shows it and loads its guidance (cached after first load).
+  // Selecting a day shows it. If it already has saved guidance (green dot), load
+  // it for free; otherwise leave it blank so the Reveal button prompts the user
+  // to spend credits — never auto-generate on a date tap.
   function selectDay(date) {
     setSelDate(date);
-    loadDaily(date);
+    if (savedDates.has(iso(date))) viewSaved(date);
   }
 
   return (
@@ -247,7 +268,7 @@ Running period: ${d.dasha}`;
 
       {!guide && (
         <button
-          onClick={() => loadDaily(selDate)}
+          onClick={() => generateDaily(selDate)}
           disabled={dailyBusy || cannotAfford}
           className="w-full cursor-pointer rounded-[10px] border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] p-2.75 text-[13px] font-semibold text-[#c084fc] disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -255,7 +276,7 @@ Running period: ${d.dasha}`;
             ? "Reading the sky…"
             : cannotAfford
               ? `Not enough credits · ${dailyCost} needed`
-              : `${EMOJIS.SPARKLES} Reveal This Day's Full Guidance · ${dailyCost} Credits`}
+              : `${EMOJIS.SPARKLES} Reveal ${MONTHS[selDate.getMonth()]} ${selDate.getDate()}'s Guidance · ${dailyCost} Credits`}
         </button>
       )}
       {guide && (

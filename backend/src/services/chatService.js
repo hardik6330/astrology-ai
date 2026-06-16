@@ -1,4 +1,4 @@
-import { ChatMessage, PalmReading } from '../models/index.js';
+import { ChatMessage, PalmReading, Kundali } from '../models/index.js';
 import { callGemini } from '../ai/gemini.js';
 import { CHAT_SYSTEM, GUARD_SYSTEM } from '../ai/prompts.js';
 import { CHAT_ANSWER_MODELS, THINK_BUDGET } from '../config/constants.js';
@@ -86,6 +86,31 @@ Use this as supporting context when emotional, character, or growth questions co
   return `\n\n=== WHAT THIS PERSON'S HANDS SHOWED (recent palm reading) ===\n${sections.join('\n')}\nUse this as supporting context when emotional, character, or growth questions come up — never invent palm features.`;
 }
 
+// Pull the user's already-unlocked master reading (insight) and render a
+// compact block so chat answers stay consistent with what they've already
+// read. Returns "" when the user hasn't unlocked an insight yet, so the prompt
+// stays clean (chart-only) for those users.
+async function buildInsightBlock(userId) {
+  if (!userId) return '';
+  const kundali = await Kundali.findOne({ where: { userId } }).catch(() => null);
+  if (!kundali) return '';
+  let r = kundali.interpretation;
+  try {
+    r = typeof r === 'string' ? JSON.parse(r) : r;
+  } catch {
+    return '';
+  }
+  if (!r || typeof r !== 'object') return '';
+  const sections = [
+    r.lifeTheme     && `Core theme: ${r.lifeTheme}`,
+    r.personality   && `Personality: ${r.personality}`,
+    r.career        && `Career & purpose: ${r.career}`,
+    r.relationships && `Relationships: ${r.relationships}`,
+  ].filter(Boolean);
+  if (!sections.length) return '';
+  return `\n\n=== THIS PERSON'S UNLOCKED READING (already shown to them) ===\n${sections.join('\n')}\nStay consistent with this reading; never contradict it or invent new placements.`;
+}
+
 // GET chat history for a user — used to restore the conversation on refresh.
 export async function getChatHistory(form) {
   const user = await findUserByForm(form);
@@ -123,7 +148,7 @@ export async function answerAndPersist({ messages, factSheet, form }) {
 
     // Pull persisted history so a revisited topic can be answered with
     // awareness of what was already said. Reuse the already-resolved user.
-    const [priorHistory, palmBlock] = await Promise.all([
+    const [priorHistory, palmBlock, insightBlock] = await Promise.all([
       user
         ? ChatMessage.findAll({
             where: { userId: user.id },
@@ -132,6 +157,7 @@ export async function answerAndPersist({ messages, factSheet, form }) {
           }).then(rows => rows.map(r => ({ role: r.role, content: r.content }))).catch(() => [])
         : Promise.resolve([]),
       user ? buildPalmBlock(user.id) : Promise.resolve(''),
+      user ? buildInsightBlock(user.id) : Promise.resolve(''),
     ]);
     const topic = detectTopic(lastMsg);
     const topicBlock = buildTopicHistoryBlock(priorHistory, topic, lastMsg);
@@ -140,7 +166,7 @@ export async function answerAndPersist({ messages, factSheet, form }) {
     const reframeNote = isOffChart
       ? `\n\nNOTE: This user's question is technically outside what a birth chart can literally name (e.g. a brand, a person's name, a specific number). DO NOT refuse. Find the chart angle behind what they're really asking and answer that. One acknowledging sentence, then 2-3 sentences of useful chart-grounded insight.`
       : '';
-    const systemWithChart = `${CHAT_SYSTEM}\n\n=== THIS PERSON'S BIRTH CHART ===\n${factSheet || '(chart not provided)'}${palmBlock}\n\nTODAY'S DATE: ${today}.${topicBlock}${reframeNote}`;
+    const systemWithChart = `${CHAT_SYSTEM}\n\n=== THIS PERSON'S BIRTH CHART ===\n${factSheet || '(chart not provided)'}${insightBlock}${palmBlock}\n\nTODAY'S DATE: ${today}.${topicBlock}${reframeNote}`;
     result = await callGemini(systemWithChart, lastMsg, false, CHAT_ANSWER_MODELS, THINK_BUDGET.CHAT);
   } catch (e) {
     // AI failed after we charged — refund so the user isn't billed for a

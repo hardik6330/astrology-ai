@@ -66,30 +66,55 @@ export async function getStats() {
   };
 }
 
+// Wrap a findAndCountAll result in a consistent paginated envelope: `rows` plus
+// a `pagination` block with 1-based page, page size, totals and has-next/prev
+// (total record count lives in pagination.total). When `fetchAll` is set the
+// query ran unpaginated, so it's a single page covering every row.
+function paginated(rows, count, pageSize, offset, fetchAll = false) {
+  const page = fetchAll ? 1 : Math.floor(offset / pageSize) + 1;
+  const totalPages = fetchAll ? 1 : Math.max(1, Math.ceil(count / pageSize));
+  return {
+    rows,
+    pagination: {
+      page,
+      pageSize: fetchAll ? count : pageSize,
+      total: count,
+      totalPages,
+      hasPrev: !fetchAll && page > 1,
+      hasNext: !fetchAll && page < totalPages,
+      fetchAll,
+    },
+  };
+}
+
 // Paginated user list with an optional name/phone/city search.
-export async function listUsers({ limit = 25, offset = 0, search = '' } = {}) {
+export async function listUsers({ limit = 25, offset = 0, search = '', fetchAll = false } = {}) {
   const where = {};
   if (search) {
     const like = { [Op.like]: `%${search}%` };
     where[Op.or] = [{ name: like }, { phone: like }, { birthCity: like }];
   }
+  const pageSize = Math.min(Number(limit) || 25, 100);
+  const off = Number(offset) || 0;
   const { rows, count } = await User.findAndCountAll({
     where,
     attributes: ['id', 'name', 'phone', 'gender', 'birthDate', 'birthCity', 'createdAt'],
     order: [['createdAt', 'DESC']],
-    limit: Math.min(Number(limit) || 25, 100),
-    offset: Number(offset) || 0,
+    // fetchAll bypasses pagination — return every matching row.
+    ...(fetchAll ? {} : { limit: pageSize, offset: off }),
   });
-  return { rows, count };
+  return paginated(rows, count, pageSize, off, fetchAll);
 }
 
 // Order list: one row per Purchase (all statuses — paid, created, failed —
 // each row carries its status), newest first, with the buyer + plan joined in.
 // Optional name/phone search; paginated like listUsers.
-export async function listOrders({ limit = 25, offset = 0, search = '' } = {}) {
+export async function listOrders({ limit = 25, offset = 0, search = '', fetchAll = false } = {}) {
   // NB: Op.or is a Symbol key — Object.keys() can't see it, so gate on
   // `search` itself, not on the object's (always-empty) string keys.
   const like = { [Op.like]: `%${search}%` };
+  const pageSize = Math.min(Number(limit) || 25, 100);
+  const off = Number(offset) || 0;
   const { rows, count } = await Purchase.findAndCountAll({
     attributes: ['id', 'credits', 'priceInr', 'status', 'provider', 'createdAt', 'updatedAt'],
     include: [
@@ -104,25 +129,23 @@ export async function listOrders({ limit = 25, offset = 0, search = '' } = {}) {
       { model: CreditPlan, attributes: ['name'], required: false },
     ],
     order: [['createdAt', 'DESC']],
-    limit: Math.min(Number(limit) || 25, 100),
-    offset: Number(offset) || 0,
+    // fetchAll bypasses pagination — return every matching row.
+    ...(fetchAll ? {} : { limit: pageSize, offset: off }),
   });
 
-  return {
-    count,
-    rows: rows.map((p) => ({
-      id: p.id,
-      userId: p.User?.id,
-      name: p.User?.name || '—',
-      phone: p.User?.phone || null,
-      plan: p.CreditPlan?.name || '—',
-      credits: p.credits,
-      pricePaise: p.priceInr,
-      status: p.status,
-      provider: p.provider,
-      createdAt: p.createdAt,
-    })),
-  };
+  const mapped = rows.map((p) => ({
+    id: p.id,
+    userId: p.User?.id,
+    name: p.User?.name || '—',
+    phone: p.User?.phone || null,
+    plan: p.CreditPlan?.name || '—',
+    credits: p.credits,
+    pricePaise: p.priceInr,
+    status: p.status,
+    provider: p.provider,
+    createdAt: p.createdAt,
+  }));
+  return paginated(mapped, count, pageSize, off, fetchAll);
 }
 
 // Broadcast a custom push to every enabled device. Returns the FCM fan-out

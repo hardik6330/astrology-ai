@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import Loading from "@/common/Loading";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "@/features/auth/AuthContext";
 
 // Top-level auth gate. While we're validating a stored token, render a
 // neutral splash; if no/expired token, bounce to /login; otherwise render.

@@ -18,14 +18,14 @@ export const stats = asyncHandler(async (_req, res) => {
 });
 
 export const users = asyncHandler(async (req, res) => {
-  const { limit, offset, search } = req.query;
-  res.json(await adminSvc.listUsers({ limit, offset, search }));
+  const { limit, offset, search, all } = req.query;
+  res.json(await adminSvc.listUsers({ limit, offset, search, fetchAll: all === 'true' }));
 });
 
 // Order history — one row per Purchase, buyer + plan joined in.
 export const orders = asyncHandler(async (req, res) => {
-  const { limit, offset, search } = req.query;
-  res.json(await adminSvc.listOrders({ limit, offset, search }));
+  const { limit, offset, search, all } = req.query;
+  res.json(await adminSvc.listOrders({ limit, offset, search, fetchAll: all === 'true' }));
 });
 
 export const broadcast = asyncHandler(async (req, res) => {

@@ -7,8 +7,8 @@ import { LuSearch, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import Card from "@/common/Card";
 import Button from "@/common/Button";
 import PageHeader from "@/common/PageHeader";
-import ErrorText from "@/common/ErrorText";
 import { SkeletonRows } from "@/common/Skeleton";
+import AdminEmptyState from "@/admin/components/AdminEmptyState";
 import { useAdminPurchases } from "@/admin/api/queries";
 
 const PAGE = 25;
@@ -28,12 +28,18 @@ export default function AdminPurchases() {
   const [page, setPage] = useState(0);
 
   const {
-    data = { rows: [], count: 0 },
+    data = { rows: [], pagination: { page: 1, totalPages: 1, total: 0, hasPrev: false, hasNext: false } },
     isPending,
     error,
   } = useAdminPurchases({ page, search, pageSize: PAGE });
 
-  const pages = Math.ceil(data.count / PAGE) || 1;
+  const pg = data.pagination ?? {
+    page: page + 1,
+    totalPages: 1,
+    total: 0,
+    hasPrev: page > 0,
+    hasNext: false,
+  };
 
   const searchBox = (
     <div className="relative">
@@ -52,8 +58,7 @@ export default function AdminPurchases() {
 
   return (
     <div>
-      <PageHeader title="Purchases" count={data.count} action={searchBox} />
-      <ErrorText>{error?.message}</ErrorText>
+      <PageHeader title="Purchases" count={pg.total} action={searchBox} />
 
       {/* cosmic-card supplies bg/border/radius; override its padding (the table
           draws its own cell padding) + bottom margin inline; overflow utility. */}
@@ -74,10 +79,16 @@ export default function AdminPurchases() {
           <tbody>
             {isPending ? (
               <SkeletonRows rows={8} cols={8} />
+            ) : error ? (
+              <tr>
+                <td colSpan={8}>
+                  <AdminEmptyState variant="error" message={error.message} />
+                </td>
+              </tr>
             ) : data.rows.length === 0 ? (
               <tr>
-                <td className={tdClass} colSpan={8}>
-                  No purchases yet.
+                <td colSpan={8}>
+                  <AdminEmptyState title="No purchases yet" message="No purchases match your search yet." />
                 </td>
               </tr>
             ) : (
@@ -111,21 +122,16 @@ export default function AdminPurchases() {
         <Button
           variant="ghost"
           icon={LuChevronLeft}
-          disabled={page === 0}
+          disabled={!pg.hasPrev}
           onClick={() => setPage((p) => p - 1)}
           style={pagerBtn}
         >
           Prev
         </Button>
         <span className="text-[13px] text-dim">
-          Page {page + 1} of {pages}
+          Page {pg.page} of {pg.totalPages} · {pg.total} total
         </span>
-        <Button
-          variant="ghost"
-          disabled={page + 1 >= pages}
-          onClick={() => setPage((p) => p + 1)}
-          style={pagerBtn}
-        >
+        <Button variant="ghost" disabled={!pg.hasNext} onClick={() => setPage((p) => p + 1)} style={pagerBtn}>
           Next <LuChevronRight size={15} />
         </Button>
       </div>

@@ -255,7 +255,7 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
     { scanId, path: 'fresh-ai', quality: parsed.imageQuality, refunded: parsed.imageQuality === 'unusable' && !!charged, totalMs: Date.now() - t0 },
     'palm scan: complete (fresh reading)',
   );
-  return { content: JSON.stringify(parsed), balance: finalBalance };
+  return { content: parsed, balance: finalBalance };
 }
 
 // Gate rejections are NO LONGER persisted. They're cheap to re-compute and
@@ -278,7 +278,7 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
   if (!gateResult.ok) {
     await persistGateRejection(form, gateResult.imageHash, gateResult.rejection);
     log.info({ scanId, path: 'rejected', reject: gateResult.rejection.rejectReason }, 'palm scan: complete (rejected, no charge)');
-    return { content: JSON.stringify(gateResult.rejection), balance: null };
+    return { content: gateResult.rejection, balance: null };
   }
 
   // Server-side handedness guard. The client gate also checks this, but it fails
@@ -288,12 +288,12 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
   if (claimedHand && detectedHand && detectedHand !== claimedHand) {
     log.info({ scanId, path: 'rejected', reject: 'wrong_hand', detectedHand, claimedHand }, 'palm scan: complete (wrong hand, server geometry)');
     return {
-      content: JSON.stringify({
+      content: {
         handType: 'Unclear',
         imageQuality: 'unusable',
         rejectReason: 'wrong_hand',
         retakeReason: 'The photo looks like your other hand — please retake with the hand you selected.',
-      }),
+      },
       balance: null,
     };
   }
@@ -334,11 +334,11 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate, left
     // A failed gate never reaches Pro → no charge. balance:null leaves the
     // client's known balance unchanged.
     return {
-      content: JSON.stringify({
+      content: {
         left:  leftGate.ok  ? { imageQuality: 'clear' } : leftGate.rejection,
         right: rightGate.ok ? { imageQuality: 'clear' } : rightGate.rejection,
         comparison: null,
-      }),
+      },
       balance: null,
     };
   }
@@ -352,7 +352,7 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate, left
   const rightWrong = rightDetected && rightDetected !== 'Right';
   if (leftWrong || rightWrong) {
     return {
-      content: JSON.stringify({
+      content: {
         left: leftWrong
           ? { imageQuality: 'unusable', rejectReason: 'wrong_hand', retakeReason: 'This looks like your right hand — retake your LEFT hand.' }
           : { imageQuality: 'clear' },
@@ -360,7 +360,7 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate, left
           ? { imageQuality: 'unusable', rejectReason: 'wrong_hand', retakeReason: 'This looks like your left hand — retake your RIGHT hand.' }
           : { imageQuality: 'clear' },
         comparison: null,
-      }),
+      },
       balance: null,
     };
   }
@@ -447,6 +447,6 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate, left
       response.left  = { imageQuality: 'unusable', retakeReason: parsed.retakeReason };
       response.right = { imageQuality: 'unusable', retakeReason: parsed.retakeReason };
     }
-    return { content: JSON.stringify(response), balance: finalBalance };
+    return { content: response, balance: finalBalance };
   });
 }

@@ -236,7 +236,25 @@ export default function ReadingScreen({ navigation, route }) {
     return () => clearTimeout(id);
   }, [cooldown]);
 
-  async function loadDaily(date) {
+  // Load already-saved guidance for a day — free, no generation/charge. Used
+  // when selecting a day that already has a reading (green dot).
+  async function viewSaved(date) {
+    const key = iso(date);
+    if (dailyBusy || !chart || guideMap[key]) return;
+    setDailyBusy(true);
+    setDailyLowCredits(false);
+    try {
+      const saved = await fetchSaved("daily", form, key);
+      if (saved) setGuideMap((m) => ({ ...m, [key]: saved }));
+    } catch (e) {
+      setError("Daily guidance failed: " + e.message);
+    }
+    setDailyBusy(false);
+  }
+
+  // Generate (and CHARGE) guidance for a day — only ever triggered by the user
+  // tapping the "Reveal" button, so credits are never spent without consent.
+  async function generateDaily(date) {
     const key = iso(date);
     if (dailyBusy || !chart || guideMap[key]) return;
     setDailyBusy(true);
@@ -249,6 +267,7 @@ Moon transits ${d.moonSign} — the ${d.moonHouseFromNatal}th house from the nat
 Day alignment score: ${d.alignment}% (higher = smoother day)
 Running period: ${d.dasha}`;
     try {
+      // Saved-first guard: if it was generated elsewhere meanwhile, reuse it free.
       const saved = await fetchSaved("daily", form, key);
       const result = saved || (await chatCompletionJSON([], "daily", { ctx, form, date: key }));
       setGuideMap((m) => ({ ...m, [key]: result }));
@@ -260,9 +279,12 @@ Running period: ${d.dasha}`;
     setDailyBusy(false);
   }
 
+  // Selecting a day shows it. If it already has saved guidance (green dot), load
+  // it for free; otherwise leave it blank so the Reveal button prompts the user
+  // to spend credits — never auto-generate on a date tap.
   function selectDay(date) {
     setSelDate(date);
-    loadDaily(date);
+    if (savedDates.has(iso(date))) viewSaved(date);
   }
 
   if (!chart) {
@@ -324,7 +346,7 @@ Running period: ${d.dasha}`;
                 setChartStyle={setChartStyle}
                 daily={{
                   form, dailyTransit, guide, monthDays, selDate, todayIso,
-                  savedDates, selectDay, loadDaily, dailyBusy, dailyLowCredits,
+                  savedDates, selectDay, generateDaily, dailyBusy, dailyLowCredits,
                   activeLoc, locError, getGpsLocation, navigation,
                 }}
               />

@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ErrorText from "@/common/ErrorText";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "@/features/auth/AuthContext";
 import { useChart } from "@/context/ChartContext";
 import { sendOtp as fbSendOtp, confirmOtp, clearRecaptcha } from "./webOtp";
 import { EMOJIS } from "@/utils/emojis";

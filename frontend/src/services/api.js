@@ -97,6 +97,17 @@ function trimChatHistory(messages) {
   return messages.slice(-CHAT_HISTORY_MAX);
 }
 
+// Normalize an API `content` payload to a real object. The API now returns a
+// parsed object; this stays tolerant of legacy (possibly double-encoded) JSON
+// strings and plain text so old data / chat replies don't break.
+export function parseContent(content) {
+  if (content == null) return null;
+  if (typeof content === "object") return content;
+  let parsed = JSON.parse(content.replace(/```json|```/g, "").trim());
+  if (typeof parsed === "string") parsed = JSON.parse(parsed);
+  return parsed;
+}
+
 // Low-level POST to the chat-completion endpoint.
 export async function chatCompletion(messages, type = "chat", extraData = {}) {
   const form = attachPhone(extraData.form);
@@ -127,12 +138,13 @@ export async function chatCompletion(messages, type = "chat", extraData = {}) {
   }
   const data = unwrap(await res.json());
   noteBalance(data.balance); // refresh the credit badge after a charge
-  return (data.content || "").trim();
+  // content is a real object (interpret/daily JSON) or a plain string (chat text).
+  return typeof data.content === "string" ? data.content.trim() : data.content;
 }
 
 export async function chatCompletionJSON(messages, type, extraData) {
-  const txt = await chatCompletion(messages, type, extraData);
-  return JSON.parse(txt.replace(/```json|```/g, "").trim());
+  const result = await chatCompletion(messages, type, extraData);
+  return parseContent(result); // tolerant: object passthrough or parse legacy string
 }
 
 // GET previously saved data ('interpret' or 'daily') for a person, identified
@@ -148,8 +160,7 @@ export async function fetchSaved(type, form, targetDate) {
 
   // Parse once; if the payload was double-encoded (a JSON string of a JSON
   // string) the first parse yields a string — parse again to reach the object.
-  let parsed = JSON.parse((data.content || "").replace(/```json|```/g, "").trim());
-  if (typeof parsed === "string") parsed = JSON.parse(parsed);
+  let parsed = parseContent(data.content);
   return parsed;
 }
 
@@ -187,8 +198,7 @@ export async function fetchPalmById(id, form) {
   const res = await authFetch(`${API_URL}/palm/${id}?${params}`);
   if (!res.ok) return null;
   const data = unwrap(await res.json());
-  let parsed = JSON.parse((data.content || "").replace(/```json|```/g, "").trim());
-  if (typeof parsed === "string") parsed = JSON.parse(parsed);
+  let parsed = parseContent(data.content);
   return parsed;
 }
 
@@ -212,8 +222,7 @@ export async function analyzePalm(imageBase64, form, claimedHand, skipGate = tru
   }
   const data = unwrap(await res.json());
   noteBalance(data.balance);
-  let parsed = JSON.parse((data.content || "").replace(/```json|```/g, "").trim());
-  if (typeof parsed === "string") parsed = JSON.parse(parsed);
+  let parsed = parseContent(data.content);
   return parsed;
 }
 
@@ -247,8 +256,7 @@ export async function comparePalms(
   }
   const data = unwrap(await res.json());
   noteBalance(data.balance);
-  let parsed = JSON.parse((data.content || "").replace(/```json|```/g, "").trim());
-  if (typeof parsed === "string") parsed = JSON.parse(parsed);
+  let parsed = parseContent(data.content);
   return parsed;
 }
 
