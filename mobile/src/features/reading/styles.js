@@ -65,7 +65,7 @@ export const makeStyles = (c) => StyleSheet.create({
   bigThreeValue: { fontSize: 16, lineHeight: 22, fontWeight: "700", color: c.text, textAlign: "center", alignSelf: "stretch" },
 
   cardTitle: { color: c.text, fontSize: fontSize.md, lineHeight: 22, fontWeight: "700", marginBottom: 4 },
-  cardSub:   { color: c.textMuted, fontSize: 13, marginBottom: spacing.md },
+  cardSub:   { color: c.textMuted, fontSize: 13, lineHeight: 18, marginBottom: spacing.md },
   body:      { color: c.textBody, fontSize: fontSize.sm, lineHeight: 22 },
 
   chartHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
@@ -90,12 +90,12 @@ export const makeStyles = (c) => StyleSheet.create({
     flexDirection: "row", paddingBottom: 8,
     borderBottomWidth: 1, borderBottomColor: c.cardBorder,
   },
-  thCell: { fontSize: 13, color: c.textMuted, letterSpacing: 0.5 },
+  thCell: { fontSize: 12, color: c.textMuted, letterSpacing: 0.5 },
   tableRow: {
     flexDirection: "row", paddingVertical: 12, alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.cardBorder,
   },
-  tdCell: { fontSize: 15, lineHeight: 22, color: c.textBody },
+  tdCell: { fontSize: 14, lineHeight: 22, color: c.textBody },
 
   dashaCurrent: {
     backgroundColor: c.accentSoft,
@@ -108,8 +108,8 @@ export const makeStyles = (c) => StyleSheet.create({
     flexDirection: "row", justifyContent: "space-between",
     paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.cardBorder,
   },
-  dashaRowLabel: { color: c.textDim, fontSize: 15 },
-  dashaRowDate:  { color: c.textMuted, fontSize: 14 },
+  dashaRowLabel: { color: c.textDim, fontSize: 14 },
+  dashaRowDate:  { color: c.textMuted, fontSize: 13 },
 
   timelineItem:  { borderLeftWidth: 2, paddingLeft: 12, marginBottom: 16 },
   tlHeader:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -242,7 +242,7 @@ export const makeStyles = (c) => StyleSheet.create({
   panelHead:   { flexDirection: "row", alignItems: "center", marginBottom: 12, gap: 8 },
   panelDot:    { width: 8, height: 8, borderRadius: 4 },
   panelTitle:  { fontSize: 13, fontWeight: "700", letterSpacing: 0.5 },
-  chip: {
+  logicChip: {
     flexDirection: "row", alignItems: "flex-start",
     paddingHorizontal: spacing.md, paddingVertical: 10,
     borderRadius: radius.md, borderWidth: 1,

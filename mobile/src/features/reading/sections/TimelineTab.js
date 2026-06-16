@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, Pressable, LayoutAnimation, Platform, UIManager, InteractionManager } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import CosmicCard from "../../../components/CosmicCard";
 import DashaWheel from "../../kundali/DashaWheel";
@@ -92,16 +92,29 @@ export default function TimelineTab({ chart, navigation }) {
   const color = useColors();
   const s = useStyles(makeStyles);
 
+  // The three SVG wheels are expensive to mount; rendering them synchronously
+  // on tab-switch janks the slide-in. Defer them until the transition's
+  // interactions settle, then fade them in — keeps the slide buttery smooth.
+  const [showWheels, setShowWheels] = useState(false);
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setShowWheels(true));
+    return () => task.cancel();
+  }, []);
+
   return (
     <>
-      {/* New: Dasha Timeline Wheel */}
-      <DashaWheel chart={chart} />
+      {showWheels ? (
+        <Animated.View entering={FadeIn.duration(220)}>
+          {/* Dasha Timeline Wheel */}
+          <DashaWheel chart={chart} />
 
-      {/* New: Ashtakvarga Wheel */}
-      <AshtakvargaWheel ashtakvarga={chart.ashtakvarga} />
+          {/* Ashtakvarga Wheel */}
+          <AshtakvargaWheel ashtakvarga={chart.ashtakvarga} />
 
-      {/* New: Live Transit (Gochar) Map — real-time sky over the natal chart */}
-      <GocharMap chart={chart} navigation={navigation} />
+          {/* Live Transit (Gochar) Map — real-time sky over the natal chart */}
+          <GocharMap chart={chart} navigation={navigation} />
+        </Animated.View>
+      ) : null}
 
       <CosmicCard>
         <Text style={s.cardTitle}>Timeline Forecast</Text>

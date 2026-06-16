@@ -158,12 +158,13 @@ function parseContent(content) {
 }
 
 // Startup config from the backend.
-// → { latestVersion, forceUpdate, updateUrl } — drive the force-update gate.
+// → { latestVersion, forceUpdate } — drive the force-update gate. The store
+// redirect is built client-side from the package id, so there's no URL here.
 // (Auth mode is decided client-side via EXPO_PUBLIC_OTP_SERVICE, not here.)
 // Fails OPEN: on any error we return safe defaults (no force-update) so a
 // flaky network never locks the user out of the app.
 export async function getAuthConfig() {
-  const fallback = { latestVersion: null, forceUpdate: false, updateUrl: "" };
+  const fallback = { latestVersion: null, forceUpdate: false };
   try {
     const data = await getJSON("/auth/config");
     return { ...fallback, ...(data || {}) };

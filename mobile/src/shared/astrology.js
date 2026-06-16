@@ -3,6 +3,7 @@
    The math layer. astronomy-engine = browser-grade ephemeris.
    ==================================================================== */
 import * as Astronomy from "astronomy-engine";
+import { STRINGS } from "./uiStrings";
 
 const D2R = Math.PI / 180, R2D = 180 / Math.PI, YEAR_MS = 31557600000;
 
@@ -878,37 +879,60 @@ export function computeDaily(ch,city,target){
 
 // Full deterministic fact sheet — used by both the reading and the chat
 export function buildFactSheet(ch,form){
-  const ascS=signOf(ch.angles.ascSid);
-  const pBase=b=>ch.planets.find(p=>p.base===b);
-  const mahaP=pBase(ch.curMaha.lord), antarP=ch.curAntar&&pBase(ch.curAntar.lord);
-  const dashaPos=`${ch.curMaha.lord} sits in House ${mahaP?mahaP.houseSid:"?"} (${mahaP?signOf(mahaP.sid):"?"}) [${mahaP?HOUSE_AREA[mahaP.houseSid]:""}]`+
-    (antarP?`; ${ch.curAntar.lord} sits in House ${antarP.houseSid} (${signOf(antarP.sid)}) [${HOUSE_AREA[antarP.houseSid]}]`:"");
+  const ascS = signOf(ch.angles.ascSid);
+  const pBase = b => ch.planets.find(p=>p.base===b);
+  
+  // Translate node names to professional English via the shared label
+  // dictionary (STRINGS) so the fact sheet — and the AI reading built from it —
+  // never carries Sanskrit. en() maps exact lord names; enText() scrubs prose.
+  const NN = STRINGS.LABELS.NORTH_NODE, SN = STRINGS.LABELS.SOUTH_NODE;
+  const en = b => b === "Rahu" ? NN : b === "Ketu" ? SN : b;
+  const enText = s => s.replace(/Rahu/g, NN).replace(/Ketu/g, SN);
+
+  // Birth star as its ruling planet (English) instead of the Sanskrit nakshatra
+  // name, and a scrubber that drops the Sanskrit yoga proper-noun while keeping
+  // its plain-English meaning — so the AI reading carries zero Sanskrit.
+  // NOTE: never mutate ch.yogas — engine scoring greps it for "Mahapurusha"/"Gajakesari".
+  const moonP = pBase("Moon");
+  const nakLordEn = moonP ? en(DASHA_ORDER[Math.floor(moonP.sid / (13 + 1 / 3)) % 9]) : "";
+  const scrubYoga = y => {
+    const m = y.match(/^(.*?)\bYoga\b\s*—\s*(.*)$/);
+    return enText(m ? `auspicious combination — ${m[2]}` : y);
+  };
+
+  const curMahaLordEn = en(ch.curMaha.lord);
+  const curAntarLordEn = ch.curAntar ? en(ch.curAntar.lord) : null;
+
+  const mahaP = pBase(ch.curMaha.lord), antarP = ch.curAntar && pBase(ch.curAntar.lord);
+  const dashaPos = `${curMahaLordEn} sits in House ${mahaP?mahaP.houseSid:"?"} (${mahaP?signOf(mahaP.sid):"?"}) [${mahaP?HOUSE_AREA[mahaP.houseSid]:""}]`+
+    (antarP?`; ${curAntarLordEn} sits in House ${antarP.houseSid} (${signOf(antarP.sid)}) [${HOUSE_AREA[antarP.houseSid]}]`:"");
+    
   return `BIRTH: ${form.name||"Unknown"}, ${form.date} ${form.time} (${form.city})
 GENDER: ${form.gender||"NOT SPECIFIED — use the name or 'they/them', never assume"}
 SYSTEM: Vedic sidereal, Lahiri ayanamsha ${ch.ayanamsha.toFixed(2)}°, whole-sign houses.
 
-ASCENDANT (Lagna): ${ascS} [${SIGN_QUALITY[ascS]}]
-MOON NAKSHATRA: ${ch.nakshatra}
+${STRINGS.LABELS.ASCENDANT.toUpperCase()}: ${ascS} [${SIGN_QUALITY[ascS]}]
+${STRINGS.LABELS.BIRTH_STAR.toUpperCase()}: ruled by ${nakLordEn}
 
 === RULE-DERIVED CHART FACTS ===
 PLANETS:
-${ch.planets.map(p=>"- "+p.rule).join("\n")}
+${ch.planets.map(p=>"- "+enText(p.rule)).join("\n")}
 
 ASPECTS:
 ${ch.aspects.map(a=>"- "+a.rule).join("\n")||"- none within orb"}
 
 YOGAS:
-${ch.yogas.map(y=>"- "+y).join("\n")||"- none"}
+${ch.yogas.map(y=>"- "+scrubYoga(y)).join("\n")||"- none"}
 
-DASHA: ${ch.curMaha.lord} Mahadasha (${fmtDate(ch.curMaha.start)} – ${fmtDate(ch.curMaha.end)})${ch.curAntar?`, sub-period ${ch.curAntar.lord}`:""}
+${STRINGS.LABELS.MAJOR_PERIOD.toUpperCase()}: ${curMahaLordEn} (${fmtDate(ch.curMaha.start)} – ${fmtDate(ch.curMaha.end)})${curAntarLordEn?`, ${STRINGS.LABELS.SUB_PERIOD.toLowerCase()} ${curAntarLordEn}`:""}
 
 D9 NAVAMSA:
-${ch.planets.slice(0,9).map(p=>`- ${p.name}: ${p.nav}`).join("\n")}
+${ch.planets.slice(0,9).map(p=>`- ${en(p.name)}: ${p.nav}`).join("\n")}
 
 HOUSE LORDS (a house lord's placement LINKS the two life-areas — this is the core of the reading):
-${ch.houseLords.map(l=>`- ${ordinal(l.house)} lord ${l.lord} sits in House ${l.inHouse} → links ${ordinal(l.house)}-house [${HOUSE_AREA[l.house]}] with ${ordinal(l.inHouse)}-house [${HOUSE_AREA[l.inHouse]}]`).join("\n")}
+${ch.houseLords.map(l=>`- ${ordinal(l.house)} lord ${en(l.lord)} sits in House ${l.inHouse} → links ${ordinal(l.house)}-house [${HOUSE_AREA[l.house]}] with ${ordinal(l.inHouse)}-house [${HOUSE_AREA[l.inHouse]}]`).join("\n")}
 
-DASHA LORD POSITIONS: ${dashaPos}
+${STRINGS.LABELS.MAJOR_PERIOD.toUpperCase()} LORD POSITIONS: ${dashaPos}
 
 SCORES (already final — describe in words, never write the number):
 ${ch.scores.map(s=>`- ${s.key}: ${s.score}/100  [drivers: ${(s.factors||[]).join(", ")}]`).join("\n")}
@@ -916,32 +940,25 @@ ${ch.scores.map(s=>`- ${s.key}: ${s.score}/100  [drivers: ${(s.factors||[]).join
 CONFIDENCE ENGINE (independent chart signatures counted per theme — reflect these levels honestly):
 ${ch.confidence.map(c=>`- ${c.theme}: ${c.level} confidence (${c.count}/${c.total} signatures). Supporting: ${c.supporting.join("; ")||"none"}`).join("\n")}
 
-TIMELINE FORECAST (deterministic antardasha windows — word these into predictions; never change the dates or houses):
-${ch.predictions.map(p=>`- ${p.period} (${fmtDate(p.start)}–${fmtDate(p.end)})${p.current?" [CURRENT]":""}: ${p.phase}. ${p.summary} WHY: ${p.why.join("; ")}`).join("\n")}
+TIMELINE FORECAST (deterministic sub-period windows — word these into predictions; never change the dates or houses):
+${ch.predictions.map(p=>`- ${enText(p.period)} (${fmtDate(p.start)}–${fmtDate(p.end)})${p.current?" [CURRENT]":""}: ${p.phase}. ${p.summary} WHY: ${enText(p.why.join("; "))}`).join("\n")}
 ${ch.doshas?`
-DOSHAS (already computed — reflect honestly; do not invent new doshas):
-- Mangal: ${ch.doshas.mangal.level} — ${ch.doshas.mangal.detail}
-- Kaal Sarp: ${ch.doshas.kaalSarp.present?"ACTIVE":"absent"} — ${ch.doshas.kaalSarp.detail}
-- Pitra: ${ch.doshas.pitra.present?"ACTIVE":"absent"} — ${ch.doshas.pitra.detail}
-- Sade Sati: ${ch.doshas.sadeSati.active?ch.doshas.sadeSati.phase:"inactive"} — ${ch.doshas.sadeSati.detail}`:""}
-${ch.panchang?`
-PANCHANG AT BIRTH (vedic time-elements):
-- Tithi: ${ch.panchang.tithi}
-- Nakshatra Pada: ${ch.panchang.nakshatra} (Pada ${ch.panchang.pada})
-- Yoga: ${ch.panchang.yoga}
-- Karana: ${ch.panchang.karana}
-- Vaara: ${ch.panchang.vaara}`:""}
-${ch.strengths?`
+CHART AFFLICTIONS (already computed — reflect honestly; do not invent new ones):
+- Mars Affliction: ${ch.doshas.mangal.level} — ${ch.doshas.mangal.detail}
+- Nodal Axis Alignment: ${ch.doshas.kaalSarp.present?"ACTIVE":"absent"} — ${enText(ch.doshas.kaalSarp.detail)}
+- Ancestral Karma: ${ch.doshas.pitra.present?"ACTIVE":"absent"} — ${enText(ch.doshas.pitra.detail)}
+- ${STRINGS.LABELS.SATURN_CYCLE}: ${ch.doshas.sadeSati.active?ch.doshas.sadeSati.phase:"inactive"} — ${ch.doshas.sadeSati.detail}`:""}
+
 PLANETARY STRENGTH (0–100; treat 75+ as strong, 30 or below as weak):
-${ch.strengths.map(s=>`- ${s.planet}: ${s.score} (${s.label}${s.house?", H"+s.house:""}${s.retro?", retrograde":""})`).join("\n")}`:""}
-${ch.ashtakvarga?`
+${ch.strengths.map(s=>`- ${en(s.planet)}: ${s.score} (${s.label}${s.house?", H"+s.house:""}${s.retro?", retrograde":""})`).join("\n")}
+
 ASHTAKVARGA SARVA (max 56 per sign; 28+ = lucky):
-${ch.ashtakvarga.perSign.map(s=>`- ${s.sign}: ${s.total} bindus${s.lucky?" [lucky]":""}`).join("\n")}`:""}
-${ch.transits?`
-TODAY'S TRANSITS (gochar — current sky vs. natal Moon; weave into answers when timing matters):
+${ch.ashtakvarga.perSign.map(s=>`- ${s.sign}: ${s.total} points${s.lucky?" [lucky]":""}`).join("\n")}
+
+TODAY'S TRANSITS (current sky vs. natal Moon; weave into answers when timing matters):
 - Saturn: ${ch.transits.saturn.sign}, House ${ch.transits.saturn.houseMoon} from Moon${ch.transits.saturn.note?" — "+ch.transits.saturn.note:""}
 - Jupiter: ${ch.transits.jupiter.sign}, House ${ch.transits.jupiter.houseMoon} from Moon${ch.transits.jupiter.note?" — "+ch.transits.jupiter.note:""}
-${(ch.transits.positions||[]).filter(p=>p.name==="Rahu"||p.name==="Ketu").map(p=>`- ${p.name}: ${p.sign}, House ${p.houseMoon} from Moon`).join("\n")}
-${ch.transits.sadeSati?.active?`- Sade Sati ACTIVE — ${ch.transits.sadeSati.phase}`:"- Sade Sati: inactive"}
-${ch.transits.tnAspects?.length?`Transit-to-natal aspects: ${ch.transits.tnAspects.map(a=>`${a.t} ${a.type} natal ${a.n} (orb ${a.orb}°)`).join("; ")}`:""}`:""}`;
+${(ch.transits.positions||[]).filter(p=>p.name==="Rahu"||p.name==="Ketu").map(p=>`- ${en(p.name)}: ${p.sign}, House ${p.houseMoon} from Moon`).join("\n")}
+${ch.transits.sadeSati?.active?`- Saturn's 7.5-year cycle ACTIVE — ${ch.transits.sadeSati.phase}`:"- Saturn's 7.5-year cycle: inactive"}
+${ch.transits.tnAspects?.length?`Transit-to-natal aspects: ${ch.transits.tnAspects.map(a=>`${en(a.t)} ${a.type} natal ${en(a.n)} (orb ${a.orb}°)`).join("; ")}`:""}`;
 }

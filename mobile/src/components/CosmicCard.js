@@ -19,7 +19,7 @@ const makeStyles = (c) =>
       borderWidth: 1,
       borderColor: c.cardBorder,
       borderRadius: radius.lg,
-      padding: spacing.lg,
+      padding: spacing.md,
       marginBottom: spacing.md,
       ...shadow.card,
     },

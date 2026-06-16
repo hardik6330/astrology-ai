@@ -8,6 +8,7 @@ import { SkeletonPalm } from "../../components/Skeleton";
 import { useBackToKundali } from "../../utils/useBackToKundali";
 import { useColors } from "../../theme/ThemeContext";
 import { useStyles } from "../../theme/useStyles";
+import { spacing } from "../../theme/tokens";
 import { makeStyles } from "./styles";
 import { usePalmReading } from "./usePalmReading";
 import CompareView from "./sections/CompareView";
@@ -37,7 +38,7 @@ export default function PalmScreen({ navigation }) {
   if (vm.inCompareMode) {
     return (
       <View style={{ flex: 1, backgroundColor: color.bg }}>
-        <ScreenContainer showMenu={false}>
+        <ScreenContainer showMenu={false} padH={spacing.sm}>
           <View style={s.headerRow}>
             <MenuButton />
             <View style={{ flex: 1 }}>
@@ -73,7 +74,7 @@ export default function PalmScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <ScreenContainer showMenu={false}>
+      <ScreenContainer showMenu={false} padH={spacing.sm}>
         <View style={s.headerRow}>
           <MenuButton />
           <View style={{ flex: 1 }}>

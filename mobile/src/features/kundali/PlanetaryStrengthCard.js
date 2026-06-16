@@ -48,13 +48,13 @@ export default function PlanetaryStrengthCard({ strengths }) {
 const makeStyles = (c) =>
   StyleSheet.create({
     title: { color: c.text, fontSize: fontSize.md, lineHeight: 22, fontWeight: "700", marginBottom: 4 },
-    sub:   { color: c.textMuted, fontSize: 11, marginBottom: spacing.md },
+    sub:   { color: c.textMuted, fontSize: 13, lineHeight: 18, marginBottom: spacing.md },
 
     row:     { marginBottom: 12 },
     rowHead: { flexDirection: "row", alignItems: "center", marginBottom: 5 },
-    planet:  { color: c.textBody, fontSize: 12.5, fontWeight: "600", width: 80 },
-    retro:   { color: c.danger, fontSize: 11 },
-    meta:    { flex: 1, color: c.textMuted, fontSize: 10.5 },
-    score:   { fontSize: 12, fontWeight: "700" },
-    track:   { height: 7, backgroundColor: c.inputBg, borderRadius: radius.pill, overflow: "hidden" },
+    planet:  { color: c.textBody, fontSize: 14, fontWeight: "600", width: 88 },
+    retro:   { color: c.danger, fontSize: 12 },
+    meta:    { flex: 1, color: c.textMuted, fontSize: 12 },
+    score:   { fontSize: 14, fontWeight: "700" },
+    track:   { height: 8, backgroundColor: c.inputBg, borderRadius: radius.pill, overflow: "hidden" },
   });

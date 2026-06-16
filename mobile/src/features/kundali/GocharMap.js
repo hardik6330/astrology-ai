@@ -116,9 +116,9 @@ export default function GocharMap({ chart, navigation }) {
       <View style={{ alignItems: "center", marginTop: 6 }}>
         <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
           {/* Rings */}
-          <Circle cx={CX} cy={CY} r={R_OUTER} stroke={c.cardBorder} strokeWidth={1} fill="none" />
-          <Circle cx={CX} cy={CY} r={(R_TRANSIT + R_NATAL) / 2} stroke={c.cardBorder} strokeWidth={1} fill="none" opacity={0.5} />
-          <Circle cx={CX} cy={CY} r={R_HUB} stroke={c.cardBorder} strokeWidth={1} fill="none" />
+          <Circle cx={CX} cy={CY} r={R_OUTER} stroke={c.cardBorder} strokeWidth={1.5} fill="none" />
+          <Circle cx={CX} cy={CY} r={(R_TRANSIT + R_NATAL) / 2} stroke={c.cardBorder} strokeWidth={1.2} fill="none" opacity={0.8} />
+          <Circle cx={CX} cy={CY} r={R_HUB} stroke={c.cardBorder} strokeWidth={1.5} fill="none" />
 
           {/* 12 sign sectors: dividers + glyphs */}
           {SIGNS.map((sign, i) => {
@@ -129,12 +129,12 @@ export default function GocharMap({ chart, navigation }) {
             const isLagnaSign = Math.floor(ascLon / 30) === i;
             return (
               <React.Fragment key={sign}>
-                <Line x1={inn.x} y1={inn.y} x2={o.x} y2={o.y} stroke={c.cardBorder} strokeWidth={1} />
+                <Line x1={inn.x} y1={inn.y} x2={o.x} y2={o.y} stroke={c.cardBorder} strokeWidth={1.5} />
                 <SvgText
-                  x={g.x} y={g.y + 5} fontSize="14" textAnchor="middle"
-                  fill={isLagnaSign ? c.primaryLight : c.textMuted}
-                  fontWeight={isLagnaSign ? "700" : "400"}
-                  opacity={isLagnaSign ? 0.85 : 0.4}
+                  x={g.x} y={g.y + 6} fontSize="20" textAnchor="middle"
+                  fill={isLagnaSign ? c.primaryLight : c.textMain}
+                  fontWeight="900"
+                  opacity={1}
                 >
                   {ZE[sign]}
                 </SvgText>

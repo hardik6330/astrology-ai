@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Card from "@/common/Card";
 import { SIGNS, ZE, nm } from "@/shared/astrology";
 import { STRINGS } from "@/shared/uiStrings";
@@ -73,17 +73,15 @@ function stagger(list, baseR, step) {
 
 export default function GocharMap({ chart }) {
   const navigate = useNavigate();
-  const [asked, setAsked] = useState({});
-
-  // Load asked state from localStorage on mount
-  useEffect(() => {
+  const [asked, setAsked] = useState(() => {
     try {
       const stored = localStorage.getItem("asked_alignments");
-      if (stored) setAsked(JSON.parse(stored));
+      return stored ? JSON.parse(stored) : {};
     } catch (e) {
       console.error("Failed to load asked alignments", e);
+      return {};
     }
-  }, []);
+  });
 
   const markAsAsked = (key) => {
     const next = { ...asked, [key]: true };
@@ -131,17 +129,17 @@ export default function GocharMap({ chart }) {
       <div style={{ display: "flex", justifyContent: "center", marginTop: 6 }}>
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
           {/* Rings */}
-          <circle cx={CX} cy={CY} r={R_OUTER} stroke={C.cardBorder} strokeWidth={1} fill="none" />
+          <circle cx={CX} cy={CY} r={R_OUTER} stroke={C.cardBorder} strokeWidth={1.5} fill="none" />
           <circle
             cx={CX}
             cy={CY}
             r={(R_TRANSIT + R_NATAL) / 2}
             stroke={C.cardBorder}
-            strokeWidth={1}
+            strokeWidth={1.2}
             fill="none"
-            opacity={0.5}
+            opacity={0.8}
           />
-          <circle cx={CX} cy={CY} r={R_HUB} stroke={C.cardBorder} strokeWidth={1} fill="none" />
+          <circle cx={CX} cy={CY} r={R_HUB} stroke={C.cardBorder} strokeWidth={1.5} fill="none" />
 
           {/* 12 sign sectors: dividers + glyphs */}
           {SIGNS.map((sign, i) => {
@@ -152,15 +150,15 @@ export default function GocharMap({ chart }) {
             const isLagnaSign = Math.floor(ascLon / 30) === i;
             return (
               <g key={sign}>
-                <line x1={inn.x} y1={inn.y} x2={o.x} y2={o.y} stroke={C.cardBorder} strokeWidth={1} />
+                <line x1={inn.x} y1={inn.y} x2={o.x} y2={o.y} stroke={C.cardBorder} strokeWidth={1.5} />
                 <text
                   x={g.x}
-                  y={g.y + 5}
-                  fontSize="14"
+                  y={g.y + 6}
+                  fontSize="20"
                   textAnchor="middle"
-                  fill={isLagnaSign ? C.primaryLight : C.textMuted}
-                  fontWeight={isLagnaSign ? 700 : 400}
-                  opacity={isLagnaSign ? 0.85 : 0.4}
+                  fill={isLagnaSign ? C.primaryLight : C.textMain}
+                  fontWeight={900}
+                  opacity={1}
                 >
                   {ZE[sign]}
                 </text>

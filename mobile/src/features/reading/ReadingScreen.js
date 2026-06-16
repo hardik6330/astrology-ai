@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View, Text, ScrollView, BackHandler, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import Animated, { FadeIn, FadeInRight, FadeInLeft } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInRight, FadeInLeft, Easing } from "react-native-reanimated";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import * as Location from "expo-location";
 import BottomNav from "../../components/BottomNav";
@@ -56,6 +56,19 @@ export default function ReadingScreen({ navigation, route }) {
       setDir(delta);
       haptics.select();
       return SWIPE_TABS[next];
+    });
+  }, []);
+
+  // Tab-bar tap: set the slide direction from WHERE the tapped tab sits relative
+  // to the current one (right of it → slide right, left → slide left) so the
+  // content enters from the tapped side, matching the pill's glide.
+  const selectTab = useCallback((key) => {
+    setTab((cur) => {
+      if (key === cur) return cur;
+      const to = SWIPE_TABS.indexOf(key);
+      const from = SWIPE_TABS.indexOf(cur);
+      if (to !== -1 && from !== -1) setDir(to > from ? 1 : -1);
+      return key;
     });
   }, []);
 
@@ -292,7 +305,7 @@ Running period: ${d.dasha}`;
       <View style={{ flex: 1, backgroundColor: color.bg }}>
         <CosmicBackdrop />
         <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
-          <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 95 }} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.sm, paddingTop: spacing.lg, paddingBottom: 95 }} showsVerticalScrollIndicator={false}>
             <SkeletonReading />
           </ScrollView>
         </SafeAreaView>
@@ -304,7 +317,7 @@ Running period: ${d.dasha}`;
     <View style={{ flex: 1, backgroundColor: color.bg }}>
       <CosmicBackdrop />
       <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 95 }} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.sm, paddingTop: spacing.lg, paddingBottom: 95 }} showsVerticalScrollIndicator={false}>
           <View style={s.headerRow}>
             <MenuButton />
             <View style={s.headerTitleWrap}>
@@ -337,7 +350,7 @@ Running period: ${d.dasha}`;
           <GestureDetector gesture={swipe}>
           <Animated.View
             key={tab}
-            entering={(dir >= 0 ? FadeInRight : FadeInLeft).duration(280).springify()}
+            entering={(dir >= 0 ? FadeInRight : FadeInLeft).duration(180).easing(Easing.out(Easing.quad))}
           >
             {tab === "kundali" && (
               <KundaliTab
@@ -375,7 +388,7 @@ Running period: ${d.dasha}`;
         </ScrollView>
       </SafeAreaView>
 
-      <BottomNav activeKey={tab} navigation={navigation} onLocalTab={setTab} />
+      <BottomNav activeKey={tab} navigation={navigation} onLocalTab={selectTab} />
     </View>
   );
 }

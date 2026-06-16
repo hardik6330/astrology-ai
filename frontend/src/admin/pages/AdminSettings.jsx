@@ -79,13 +79,12 @@ const FIELD_INFO = {
   app_latest_version:
     "The latest app version you've published (e.g. 1.2.0). The mobile app compares its own version to this on startup.",
   app_force_update:
-    "When ON, users on a version older than the one above are blocked by a non-dismissible 'Update Required' popup until they update.",
-  app_update_url: "The store link the Update button opens — your Play Store (or App Store) listing URL.",
+    "When ON, users on a version older than the one above are blocked by a non-dismissible 'Update Required' popup until they update. The app redirects straight to its store listing.",
 };
 
-// Free-text settings (version string, URL) — rendered as text inputs, NOT
+// Free-text settings (version string) — rendered as text inputs, NOT
 // number inputs (which would blank a value like "1.2.0" on save).
-const TEXT_FIELDS = new Set(["app_latest_version", "app_update_url"]);
+const TEXT_FIELDS = new Set(["app_latest_version"]);
 
 // Settings whose value is an enum/boolean string, not a number. Rendered as a
 // <select> so admins pick a valid value instead of typing into a number input

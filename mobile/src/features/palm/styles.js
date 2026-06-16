@@ -32,7 +32,7 @@ export const makeStyles = (c) => StyleSheet.create({
   // Privacy assurance row on the palm picker (truthful: image never stored).
   privacyRow:  { flexDirection: "row", alignItems: "center", gap: 8, marginTop: spacing.md, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: "rgba(34,197,94,0.25)", backgroundColor: "rgba(34,197,94,0.06)" },
   privacyIcon: { fontSize: 14, lineHeight: 20, includeFontPadding: false },
-  privacyText: { flex: 1, color: "#86efac", fontSize: 11.5, lineHeight: 16 },
+  privacyText: { flex: 1, color: c.success, fontSize: 11.5, lineHeight: 16 },
 
   aiBusyCard: {
     backgroundColor: c.cardBgSolid,
@@ -69,7 +69,7 @@ export const makeStyles = (c) => StyleSheet.create({
 
   uploadHandBtn: {
     flexDirection: "row", alignItems: "center", gap: spacing.md,
-    paddingVertical: 16, paddingHorizontal: spacing.md,
+    paddingVertical: 13, paddingHorizontal: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1, borderColor: c.primaryBorder,
     backgroundColor: c.primarySoft,
@@ -79,7 +79,7 @@ export const makeStyles = (c) => StyleSheet.create({
   // it reads as the headline card. Mirrors PalmStepScreen.bothBtn.
   uploadBothBtn: {
     flexDirection: "row", alignItems: "center", gap: spacing.md,
-    paddingVertical: 18, paddingHorizontal: spacing.md,
+    paddingVertical: 15, paddingHorizontal: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1.5, borderColor: c.primaryLight,
     backgroundColor: c.primarySoft,
@@ -171,7 +171,7 @@ export const makeStyles = (c) => StyleSheet.create({
   summary: {
     backgroundColor: "rgba(99,102,241,0.15)",
     borderWidth: 1, borderColor: "rgba(168,85,247,0.3)",
-    borderRadius: radius.xl, padding: spacing.xl,
+    borderRadius: radius.xl, padding: spacing.lg,
     marginBottom: spacing.md,
     alignItems: "center",
   },

@@ -7,12 +7,12 @@ import CosmicBackdrop from "./CosmicBackdrop";
 import { useColors } from "../theme/ThemeContext";
 import { spacing } from "../theme/tokens";
 
-export default function ScreenContainer({ children, scroll = true, scrollEnabled = true, padded = true, showMenu = true }) {
+export default function ScreenContainer({ children, scroll = true, scrollEnabled = true, padded = true, showMenu = true, padH }) {
   const colors = useColors();
   const inner = (
-    <Animated.View 
+    <Animated.View
       entering={FadeInDown.duration(400).springify()}
-      style={[padded && styles.padded, { paddingBottom: spacing.xl }]}
+      style={[padded && styles.padded, padded && padH != null && { paddingHorizontal: padH }, { paddingBottom: spacing.xl }]}
     >
       {showMenu && (
         <View style={styles.headerRow}>
@@ -49,6 +49,6 @@ export default function ScreenContainer({ children, scroll = true, scrollEnabled
 
 const styles = StyleSheet.create({
   safe:      { flex: 1 },
-  padded:    { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  padded:    { paddingHorizontal: spacing.sm, paddingTop: spacing.md },
   headerRow: { marginBottom: spacing.md },
 });

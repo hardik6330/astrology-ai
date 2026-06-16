@@ -9,16 +9,23 @@ import Constants from "expo-constants";
 import { verifyOtp, dummyLogin, primeAuthPhone, onUnauthorized, getAuthConfig } from "@/services/api";
 import { registerForPush, unregisterForPush } from "@/features/notifications/push";
 import { logEvent } from "@/features/notifications/analytics";
+import UpdateModal from "@/components/UpdateModal";
 
 const KEY     = "app_token";
 const ACC_KEY = "app_account";
 const AuthContext = createContext(null);
 
+// Store-listing redirect for force-update. No admin-configured URL anymore — the
+// link is derived from this app's own package id, so it always points at the
+// correct listing. iOS needs the numeric App Store id (fill once it exists).
+const ANDROID_PKG = Constants.expoConfig?.android?.package || "com.astrologyai.app";
+const IOS_APP_ID  = ""; // e.g. "1234567890" once the App Store listing is live
+
 export function AuthProvider({ children }) {
   const [token, setToken]     = useState(null);
   const [account, setAccount] = useState(null);
   const [hydrating, setHydrating] = useState(true);
-  const [updateRequired, setUpdateRequired] = useState(null); // { latestVersion, updateUrl }
+  const [updateRequired, setUpdateRequired] = useState(null); // { latestVersion }
 
   // Global 401 listener: if any API call returns Unauthorized (token expired),
   // trigger a local logout to bounce the user back to Login.
@@ -39,7 +46,6 @@ export function AuthProvider({ children }) {
           if (isVersionOlder(currentVersion, config.appConfig.latestVersion)) {
             setUpdateRequired({
               latestVersion: config.appConfig.latestVersion,
-              updateUrl: config.appConfig.updateUrl
             });
             // If it's a force update, we stop hydrating and show the modal
             return;
@@ -74,10 +80,17 @@ export function AuthProvider({ children }) {
     return false;
   }
 
+  // Open this app's store listing directly. The market:// / itms-apps:// scheme
+  // launches the native store app; if it can't resolve (e.g. Play Store app
+  // missing) we fall back to the https listing in a browser.
   const openStore = () => {
-    if (updateRequired?.updateUrl) {
-      Linking.openURL(updateRequired.updateUrl);
-    }
+    const deep = Platform.OS === "ios"
+      ? `itms-apps://apps.apple.com/app/id${IOS_APP_ID}`
+      : `market://details?id=${ANDROID_PKG}`;
+    const web = Platform.OS === "ios"
+      ? `https://apps.apple.com/app/id${IOS_APP_ID}`
+      : `https://play.google.com/store/apps/details?id=${ANDROID_PKG}`;
+    Linking.openURL(deep).catch(() => Linking.openURL(web));
   };
 
   // Exchange a verified Firebase ID token for our session JWT (real OTP mode).
@@ -125,6 +138,15 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{ token, account, hydrating, completeOtpLogin, loginDummy, logout }}>
       {children}
+      {/* Force-update gate: when the backend flags forceUpdate and this client is
+          older than app_latest_version, show a non-dismissible modal whose only
+          action redirects straight to this app's store listing. */}
+      <UpdateModal
+        visible={!!updateRequired}
+        mandatory
+        latestVersion={updateRequired?.latestVersion}
+        onUpdate={openStore}
+      />
     </AuthContext.Provider>
   );
 }

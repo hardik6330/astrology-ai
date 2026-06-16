@@ -1,3 +1,4 @@
+import "./src/theme/textScale"; // global ~1.1× text scale — must run before any UI mounts
 import React, { useEffect, useState } from "react";
 import { View, Linking } from "react-native";
 import { StatusBar } from "expo-status-bar";

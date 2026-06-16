@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, Pressable, Linking, StyleSheet } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
+import Constants from "expo-constants";
 import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
 import MenuButton from "@/components/MenuButton";
@@ -27,6 +28,10 @@ const FAQ = [
     a: "Use bright, even lighting and hold your dominant hand flat with fingers slightly spread. Make sure the palm fills most of the frame, and remove rings if possible.",
   },
 ];
+
+// App name + version pulled live from app.json (expo config) — single source.
+const APP_NAME = Constants.expoConfig?.name || "Astro AI";
+const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
 
 export default function HelpSupportScreen({ navigation }) {
   const [open, setOpen] = useState(-1);
@@ -90,6 +95,8 @@ export default function HelpSupportScreen({ navigation }) {
       <Text style={s.disclaimer}>
         Astrology is a tool for self-reflection. Insights here are interpretive, not predictive — always trust your own judgment.
       </Text>
+
+      <Text style={s.version}>{APP_NAME} · v{APP_VERSION}</Text>
       </Animated.View>
       )}
     </ScreenContainer>
@@ -149,5 +156,9 @@ const makeStyles = (c) =>
     disclaimer: {
       fontSize: 13, color: c.textFaint, textAlign: "center",
       marginTop: spacing.lg, lineHeight: 18,
+    },
+    version: {
+      fontSize: 12, color: c.textFaint, textAlign: "center",
+      marginTop: spacing.md,
     },
   });

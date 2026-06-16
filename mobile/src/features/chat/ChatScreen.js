@@ -210,22 +210,19 @@ export default function ChatScreen({ navigation, route }) {
           entering={FadeInDown.duration(400).springify()}
           style={{ flex: 1 }}
         >
-          {/* Keyboard handling differs per platform:
-              • Android uses adjustResize (softwareKeyboardLayoutMode: "resize"),
-                so the window ALREADY shrinks above the keyboard — adding kbHeight
-                here would double-compensate and leave a gap. Pad 0 when open.
-              • iOS doesn't resize, so we lift the input by the keyboard height.
-              When the keyboard is closed, pad by the bottom safe-area inset so the
-              input clears the gesture/nav bar (edge-to-edge). */}
+          {/* SDK 54 edge-to-edge breaks Android `adjustResize` (the window no
+              longer shrinks), so we lift the input ourselves on BOTH platforms by
+              padding the bottom with the tracked keyboard height. When the
+              keyboard is closed, fall back to the safe-area inset so the input
+              clears the gesture/nav bar. Math.max handles both cases in one. */}
           <View
             style={{
               flex: 1,
-              paddingBottom:
-                kbHeight > 0 ? (Platform.OS === "ios" ? kbHeight : 0) : insets.bottom,
+              paddingBottom: Math.max(kbHeight, insets.bottom),
             }}
           >
           {/* Header */}
-          <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+          <View style={{ paddingHorizontal: spacing.sm, paddingTop: spacing.md }}>
             <View style={s.headerRow}>
               <MenuButton />
               <View style={{ flex: 1, alignItems: "center" }}>
@@ -250,7 +247,7 @@ export default function ChatScreen({ navigation, route }) {
             style={{ flex: 1 }}
             data={data}
             keyExtractor={(_, i) => String(i)}
-            contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.md, gap: 10 }}
+            contentContainerStyle={{ paddingHorizontal: spacing.sm, paddingTop: spacing.md, paddingBottom: spacing.md, gap: 10 }}
             onContentSizeChange={() => listRef.current?.scrollToEnd?.({ animated: false })}
             renderItem={({ item }) => <ChatBubble role={item.role} content={item.content} />}
           />
@@ -341,7 +338,7 @@ const makeStyles = (c) => StyleSheet.create({
   bubbleText: { color: c.textBody, fontSize: 16, lineHeight: 24 },
 
   inputWrap: {
-    paddingHorizontal: spacing.lg, paddingTop: spacing.sm,
+    paddingHorizontal: spacing.sm, paddingTop: spacing.sm,
     borderTopWidth: 1, borderTopColor: c.cardBorder,
     backgroundColor: c.bg,
   },

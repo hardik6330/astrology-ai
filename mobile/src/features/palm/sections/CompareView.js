@@ -125,7 +125,7 @@ export default function CompareView({
           rightBad ? { side: "Right", info: REJECT_INFO[palmComparison.right.rejectReason] || REJECT_INFO.default, server: palmComparison.right.retakeReason } : null,
         ].filter(Boolean);
         return (
-          <CosmicCard style={{ borderColor: "rgba(248,113,113,0.4)", backgroundColor: "rgba(248,113,113,0.06)" }}>
+          <CosmicCard style={{ borderColor: "rgba(248,113,113,0.4)", backgroundColor: "rgba(248,113,113,0.06)", elevation: 0 }}>
             <Text style={[s.rejectTitle, { textAlign: "center", marginBottom: spacing.md }]}>
               {badHands.length === 2 ? "Both photos need a retake" : `${badHands[0].side} photo needs a retake`}
             </Text>

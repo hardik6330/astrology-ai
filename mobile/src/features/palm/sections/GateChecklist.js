@@ -10,9 +10,18 @@ import { EMOJIS } from "../../../utils/emojis";
 // below the checks. Colors are matched to the web (green pass / red fail /
 // purple analyzing) intentionally, so the two clients look identical.
 function Pill({ ok, children, tone }) {
+  const c = useColors();
+  // The translucent tint bg/border work on both themes, but the pale brand fg
+  // tones only read on dark; on light's white they wash out — swap to the
+  // darker theme tokens (primary/success/danger) in light mode.
+  const isLight = c.bg !== "#050508";
   const border = tone === "analyzing" ? "rgba(168,85,247,0.35)" : ok ? "rgba(34,197,94,0.35)" : "rgba(248,113,113,0.4)";
   const bg     = tone === "analyzing" ? "rgba(168,85,247,0.10)" : ok ? "rgba(34,197,94,0.08)" : "rgba(248,113,113,0.08)";
-  const fg     = tone === "analyzing" ? "#c084fc" : ok ? "#86efac" : "#fca5a5";
+  const fg     = tone === "analyzing"
+    ? (isLight ? c.primary : "#c084fc")
+    : ok
+      ? (isLight ? c.success : "#86efac")
+      : (isLight ? c.danger : "#fca5a5");
   return (
     <View
       style={{
@@ -33,16 +42,16 @@ function Pill({ ok, children, tone }) {
 
 // Tone the confidence number green / amber / red by score so a borderline-but-
 // passing photo reads honestly (mirrors the web checklist).
-function confColors(score) {
-  if (score >= 85) return { border: "rgba(34,197,94,0.4)",  bg: "rgba(34,197,94,0.10)",  fg: "#86efac" };
-  if (score >= 70) return { border: "rgba(251,191,36,0.4)", bg: "rgba(251,191,36,0.10)", fg: "#fcd34d" };
-  return { border: "rgba(248,113,113,0.4)", bg: "rgba(248,113,113,0.10)", fg: "#fca5a5" };
+function confColors(score, isLight) {
+  if (score >= 85) return { border: "rgba(34,197,94,0.4)",  bg: "rgba(34,197,94,0.10)",  fg: isLight ? "#15803d" : "#86efac" };
+  if (score >= 70) return { border: "rgba(251,191,36,0.4)", bg: "rgba(251,191,36,0.10)", fg: isLight ? "#b45309" : "#fcd34d" };
+  return { border: "rgba(248,113,113,0.4)", bg: "rgba(248,113,113,0.10)", fg: isLight ? "#dc2626" : "#fca5a5" };
 }
 
 export default function GateChecklist({ checks = [], analyzing = false, confidence = null, analyzingLabel = "Analyzing palm lines with AI…" }) {
-  useColors(); // re-render on theme change (pill colors are fixed brand tones)
+  const c = useColors(); // re-render on theme change; light mode darkens the pill text
   if (!checks.length && !analyzing) return null;
-  const conf = typeof confidence === "number" ? confColors(confidence) : null;
+  const conf = typeof confidence === "number" ? confColors(confidence, c.bg !== "#050508") : null;
   return (
     <View style={{ width: "100%", gap: 8, marginTop: spacing.md }}>
       {conf && (

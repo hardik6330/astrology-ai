@@ -23,6 +23,14 @@ export const STRINGS = {
     MOON_SIGN: "Moon Sign",
     ASCENDANT: "Ascendant",   // a.k.a. Lagna / Rising sign
     BIRTH_STAR: "Birth Star", // a.k.a. Janma Nakshatra
+    NORTH_NODE: "North Node", // a.k.a. Rahu
+    SOUTH_NODE: "South Node", // a.k.a. Ketu
+    MAJOR_PERIOD: "Major Period", // a.k.a. Mahadasha
+    SUB_PERIOD: "Sub-period",     // a.k.a. Antardasha
+    TRANSIT: "Planetary Transit", // a.k.a. Gochar
+    AFFLICTION: "Affliction",     // a.k.a. Dosha
+    COMBINATION: "Combination",   // a.k.a. Yoga
+    SATURN_CYCLE: "Saturn's 7.5-year cycle", // a.k.a. Sade Sati
   },
 
   // Panchang & Vedic Elements

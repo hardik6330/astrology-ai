@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet, ScrollView, Switch } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Constants from "expo-constants";
 import PressableScale from "./PressableScale";
 import { useForm } from "../context/ChartContext";
 import { useAuth } from "../features/auth/AuthContext";
@@ -144,8 +145,7 @@ export default function DrawerContent({ navigation, state }) {
         <View style={styles.divider} />
 
         <View style={{ padding: spacing.lg }}>
-          <Text style={styles.footerTitle}>Astrology AI</Text>
-          <Text style={styles.footerVersion}>v1.0.0</Text>
+          <Text style={styles.footerTitle}>{Constants.expoConfig?.name || "Astro AI"}</Text>
         </View>
       </View>
     </SafeAreaView>
@@ -165,9 +165,9 @@ const makeStyles = (c) =>
       alignItems: "center", justifyContent: "center",
     },
     avatarText: { color: c.primaryLight, fontSize: 24, fontWeight: "800" },
-    name:       { color: c.text, fontSize: 16, fontWeight: "700" },
-    birthLine:  { color: c.textBody, fontSize: 11, marginTop: 3 },
-    tagline:    { color: c.textMuted, fontSize: 11, marginTop: 2 },
+    name:       { color: c.text, fontSize: 18, fontWeight: "700" },
+    birthLine:  { color: c.textBody, fontSize: 13, marginTop: 3 },
+    tagline:    { color: c.textMuted, fontSize: 13, marginTop: 2 },
 
     divider: { height: 1, backgroundColor: c.cardBorder },
 
@@ -181,16 +181,16 @@ const makeStyles = (c) =>
       borderWidth: 1, borderColor: c.primaryBorder,
     },
     icon: { fontSize: 22, lineHeight: 32, width: 32, textAlign: "center", textAlignVertical: "center" },
-    label:       { color: c.textBody, fontSize: 14, fontWeight: "600" },
+    label:       { color: c.textBody, fontSize: 16, fontWeight: "600" },
     labelActive: { color: c.primaryLight },
-    itemDesc:    { color: c.textMuted, fontSize: 11, marginTop: 2 },
+    itemDesc:    { color: c.textMuted, fontSize: 12.5, marginTop: 2 },
 
     themeRow: {
       flexDirection: "row", alignItems: "center", gap: spacing.md,
       paddingHorizontal: spacing.lg, paddingVertical: 12,
     },
-    themeLabel: { color: c.text, fontSize: 14, fontWeight: "600" },
-    themeSub:   { color: c.textMuted, fontSize: 11, marginTop: 2 },
+    themeLabel: { color: c.text, fontSize: 16, fontWeight: "600" },
+    themeSub:   { color: c.textMuted, fontSize: 12.5, marginTop: 2 },
 
     logoutRow: {
       flexDirection: "row", alignItems: "center", gap: spacing.md,
@@ -199,7 +199,7 @@ const makeStyles = (c) =>
     // dangerStrong reads brighter in dark mode (#ef4444 vs the softer #f87171);
     // icon shares the same red so the row isn't half-white, half-red.
     logoutIcon:  { color: c.dangerStrong },
-    logoutLabel: { color: c.dangerStrong, fontSize: 14, fontWeight: "700" },
+    logoutLabel: { color: c.dangerStrong, fontSize: 16, fontWeight: "700" },
 
     footerTitle:   { color: c.textDim, fontSize: 12, fontWeight: "600" },
     footerVersion: { color: c.textFaint, fontSize: 11, marginTop: 4 },

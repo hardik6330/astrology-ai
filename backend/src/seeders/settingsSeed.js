@@ -16,8 +16,7 @@ export const SETTING_DEFAULTS = [
 
   // App force-update — served to mobile clients on startup via /auth/config.
   { key: 'app_latest_version', value: '1.0.0', description: 'Latest published app version (semver). Mobile compares its own version against this.' },
-  { key: 'app_force_update',   value: 'false', description: "When 'true', clients older than app_latest_version are blocked by a non-dismissible update modal." },
-  { key: 'app_update_url',     value: 'https://play.google.com/store/apps/details?id=com.astrologyai.app', description: 'Store URL the Update button opens (Play Store / App Store).' },
+  { key: 'app_force_update',   value: 'false', description: "When 'true', clients older than app_latest_version are blocked by a non-dismissible update modal. The client redirects straight to its own store listing." },
 
   // Engagement notifications (randomised "vibe" pushes). All times are IST.
   { key: 'notif_enabled',       value: 'true', description: 'Master switch for randomised engagement notifications' },

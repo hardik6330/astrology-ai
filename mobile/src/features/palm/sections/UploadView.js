@@ -21,7 +21,7 @@ export default function UploadView({
   const s = useStyles(makeStyles);
 
   return (
-    <CosmicCard style={{ alignItems: "center", padding: spacing.xl }}>
+    <CosmicCard style={{ alignItems: "center", padding: spacing.md }}>
       {!preview && !scanning && (
         <>
           <Text style={{ fontSize: 64, lineHeight: 84, marginBottom: 12, textAlign: "center" }}>{EMOJIS.HAND}</Text>

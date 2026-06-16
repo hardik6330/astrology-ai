@@ -6,11 +6,12 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 // knobs (latest version + whether to block older clients). Read live from
 // settings so the admin panel can flip them without a redeploy. The auth mode
 // (OTP vs dummy) is now decided client-side via each client's env, not here.
+// No store URL: the client redirects straight to its own store listing (built
+// from its package id), so there's no link to configure.
 export const config = asyncHandler(async (_req, res) => {
   res.json({
     latestVersion: (await settings.get('app_latest_version')) || null,
     forceUpdate: (await settings.get('app_force_update')) === 'true',
-    updateUrl: (await settings.get('app_update_url')) || '',
   });
 });
 

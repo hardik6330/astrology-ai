@@ -231,7 +231,7 @@ export default function ReadingTab({
                 <Text style={[s.panelTitle, { color: color.success }]}>What's working for you</Text>
               </View>
               {interp.strengths.map((sp, i) => (
-                <View key={i} style={[s.chip, { backgroundColor: "rgba(34,197,94,0.06)", borderColor: "rgba(34,197,94,0.25)" }]}>
+                <View key={i} style={[s.logicChip, { backgroundColor: "rgba(34,197,94,0.06)", borderColor: "rgba(34,197,94,0.25)" }]}>
                   <Text style={[s.chipMark, { color: color.success }]}>{EMOJIS.CHECK}</Text>
                   <Text style={s.chipText}>{asText(sp)}</Text>
                 </View>
@@ -247,7 +247,7 @@ export default function ReadingTab({
                 <Text style={[s.panelTitle, { color: color.warning }]}>Where you'll grow</Text>
               </View>
               {interp.challenges.map((cg, i) => (
-                <View key={i} style={[s.chip, { backgroundColor: "rgba(251,191,36,0.06)", borderColor: "rgba(251,191,36,0.25)" }]}>
+                <View key={i} style={[s.logicChip, { backgroundColor: "rgba(251,191,36,0.06)", borderColor: "rgba(251,191,36,0.25)" }]}>
                   <Text style={[s.chipMark, { color: color.warning }]}>↑</Text>
                   <Text style={s.chipText}>{asText(cg)}</Text>
                 </View>
