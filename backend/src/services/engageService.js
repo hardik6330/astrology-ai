@@ -97,20 +97,17 @@ async function pickTemplate() {
 
 // ── Audience ─────────────────────────────────────────────────────────────────
 
-async function resolveAudience(mode, pct, cap) {
+async function resolveAudience(mode) {
   if (mode === 'random_one') {
     const all = await PushToken.findAll({ where: { enabled: true }, attributes: ['id', 'token', 'accountId'] });
     if (!all.length) return [];
     const ids = [...new Set(all.map((r) => r.accountId))];
     const acc = pick(ids);
-    return all.filter((r) => r.accountId === acc).slice(0, cap);
+    return all.filter((r) => r.accountId === acc);
   }
-  if (mode === 'random_sample') {
-    const all = await PushToken.findAll({ where: { enabled: true }, attributes: ['id', 'token'] });
-    return all.filter(() => Math.random() < pct / 100).slice(0, cap);
-  }
-  // 'all' (default) — capped so a huge fan-out never trips the Vercel timeout.
-  return PushToken.findAll({ where: { enabled: true }, attributes: ['id', 'token'], limit: cap });
+  // 'all' (default) — every enabled device. notificationService fans out in
+  // batches of 500 (FCM's per-call max), so there's no recipient ceiling here.
+  return PushToken.findAll({ where: { enabled: true }, attributes: ['id', 'token'] });
 }
 
 // ── Entry point (called by the cron controller) ─────────────────────────────
@@ -126,9 +123,7 @@ export async function sendEngagement({ force = false } = {}) {
   const winEnd = await settings.getNumber('notif_window_end', 21);
   const minGap = await settings.getNumber('notif_min_gap_hours', 5);
   const maxGap = await settings.getNumber('notif_max_gap_hours', 12);
-  const cap = await settings.getNumber('notif_max_tokens', 500);
   const mode = (await settings.get('notif_audience')) || 'all';
-  const pct = await settings.getNumber('notif_sample_pct', 25);
   const source = (await settings.get('notif_source')) || 'pool';
 
   const now = Date.now();
@@ -170,7 +165,7 @@ export async function sendEngagement({ force = false } = {}) {
   }
 
   // 4. Audience + fan-out.
-  const rows = await resolveAudience(mode, pct, cap);
+  const rows = await resolveAudience(mode);
   if (!rows.length) return { skipped: 'no_audience', mode };
 
   const result = await sendToTokens(rows, { title, body, data: { type: 'engage', screen } });

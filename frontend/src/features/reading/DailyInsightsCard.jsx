@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { signOf, computeDaily } from "@/shared/astrology";
-import { chatCompletionJSON, fetchSaved } from "../../services/api";
+import { chatCompletionJSON, fetchSaved, reverseGeocode } from "../../services/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDailyDates, kundaliKeys } from "@/features/kundali/hooks";
 import Card from "@/common/Card";
@@ -40,46 +40,39 @@ export default function DailyInsightsCard({ chart, form, onError }) {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: lat, longitude: lon } = pos.coords;
-        const tz = -(new Date().getTimezoneOffset() / 60);
 
         console.log(`[GPS] Detected Coordinates: Lat ${lat}, Lon ${lon}`);
 
-        // Default label
-        setCurrentLoc({ n: "Current Location", lat, lon, tz, isGps: true });
+        // Default label while resolving
+        setCurrentLoc({ n: "Current Location", lat, lon, tz: 5.5, isGps: true });
         setLocError(false);
 
-        // Try to get the actual city name via Reverse Geocoding (Free OSM)
         try {
-          const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
-          console.log(`[OSM] Fetching city name from: ${url}`);
+          // Resolve city and accurate timezone via backend
+          const data = await reverseGeocode(lat, lon);
+          console.log("[GPS] Resolved Data:", data);
 
-          const res = await fetch(url, {
-            headers: { "User-Agent": "AstrologyAI/1.0" },
+          setCurrentLoc({
+            n: data.name,
+            lat: data.lat,
+            lon: data.lon,
+            tz: data.timezone.offset,
+            isGps: true,
           });
-          const data = await res.json();
-
-          console.log("[OSM] Received Data:", data);
-
-          const a = data.address || {};
-          const city =
-            a.city ||
-            a.town ||
-            a.village ||
-            a.municipality ||
-            a.suburb ||
-            a.neighbourhood ||
-            a.county ||
-            "Current Location";
-
-          console.log(`[OSM] Resolved City: ${city}`);
-          setCurrentLoc({ n: city, lat, lon, tz, isGps: true });
         } catch (e) {
-          console.error("[OSM] Reverse Geocoding failed:", e.message);
+          console.error("[GPS] Reverse Geocoding failed:", e.message);
+          // Fallback to browser timezone if backend fails
+          const browserTz = -(new Date().getTimezoneOffset() / 60);
+          setCurrentLoc({ n: "Current Location", lat, lon, tz: browserTz, isGps: true });
         }
       },
-      () => {
+      (err) => {
+        console.warn(`[GPS] Permission or detection failed: ${err.message} (Code: ${err.code})`);
         setLocError(true);
-      }
+      },
+      // High-accuracy GNSS fix, not coarse wifi/cell. maximumAge:0 forces a
+      // fresh reading instead of a cached (possibly stale, distant) one.
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 

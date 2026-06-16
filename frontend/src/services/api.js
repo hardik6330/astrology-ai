@@ -347,6 +347,14 @@ export function getCityDetails(placeId, token, birthTimestamp) {
   return request(`/locations/details?${params}`);
 }
 
+// Reverse geocode lat/lon to { name, lat, lon, timezone }.
+// Returns a coordinates-derived timezone which is more accurate for
+// astrological charts than the browser's system timezone.
+export function reverseGeocode(lat, lon) {
+  const params = new URLSearchParams({ lat, lon });
+  return request(`/locations/reverse?${params}`);
+}
+
 // Persist birth details onto the logged-in user's row the moment they're
 // entered — before any reading is generated, no credits charged. Best-effort:
 // a failure must never block the user from proceeding to their reading.

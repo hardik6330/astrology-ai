@@ -170,7 +170,56 @@ export async function searchCities(query, _sessionToken /* kept for API compat *
   return dedupePredictions(cachePredictions);
 }
 
-// Phase B + C — resolve placeId to {coordinates, timezone, ...}.
+// Phase B — Reverse geocoding (Lat/Lon -> City Name + Timezone).
+// Used by the web/mobile app's "Live Location" feature to get a clean
+// display name and a coordinates-derived timezone (more accurate than
+// the device's system clock).
+export async function reverseGeocode(lat, lon) {
+  if (lat == null || lon == null) throw AppError.http(400, 'lat and lon required');
+
+  const l = Number(lat);
+  const r = Number(lon);
+
+  // 1. Resolve Timezone first (offline/fast)
+  let tzId = null;
+  let tzOffset = 0;
+  try {
+    tzId = tzLookup(l, r);
+    tzOffset = offsetForTz(tzId);
+  } catch (err) {
+    log.warn({ err: err.message, lat, lon }, 'tz-lookup failed in reverse');
+  }
+
+  // 2. Resolve City Name via Nominatim
+  let name = 'Current Location';
+  try {
+    const qs = new URLSearchParams({
+      format: 'json',
+      lat: String(l),
+      lon: String(r),
+      zoom: '10',
+      addressdetails: '1',
+    });
+    const res = await fetch(`${NOMINATIM_SEARCH.replace('/search', '/reverse')}?${qs}`, {
+      headers: { 'User-Agent': USER_AGENT },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      name = shortName(data);
+    }
+  } catch (err) {
+    log.warn({ err: err.message, lat, lon }, 'Nominatim reverse failed');
+  }
+
+  return {
+    name,
+    lat: l,
+    lon: r,
+    timezone: { id: tzId, offset: tzOffset },
+  };
+}
+
+// Phase C — resolve placeId to {coordinates, timezone, ...}.
 // With Nominatim, /search already persisted the full record into the cache,
 // so this is just a DB read. `birthTimestamp` is accepted for API parity but
 // not used (the cached offset is "current"; for historical DST accuracy

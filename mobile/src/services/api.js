@@ -396,12 +396,22 @@ export async function searchCities(query, token) {
   }
 }
 
+// Resolve a Place ID to {coordinates, timezone, ...}. `birthTimestamp` is
+// seconds since epoch — sent so Google's Time Zone API returns the
+// DST-aware offset AT the user's birth moment.
 export async function getCityDetails(placeId, token, birthTimestamp) {
   const params = { placeId, token };
   if (birthTimestamp) params.ts = String(birthTimestamp);
   const data = await getJSON("/locations/details", params);
   if (!data) throw new Error("Location lookup failed");
   return data;
+}
+
+// Reverse geocode lat/lon to { name, lat, lon, timezone }.
+// Returns a coordinates-derived timezone which is more accurate for
+// astrological charts than the phone's system timezone.
+export function reverseGeocode(lat, lon) {
+  return getJSON("/locations/reverse", { lat, lon });
 }
 
 export async function fetchChatHistory(form) {

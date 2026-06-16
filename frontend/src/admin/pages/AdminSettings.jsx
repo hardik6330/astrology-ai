@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LuSave } from "react-icons/lu";
 import Card from "@/common/Card";
 import Field from "@/common/Field";
+import AdminSelect from "@/admin/components/AdminSelect";
 import Button from "@/common/Button";
 import PageHeader from "@/common/PageHeader";
 import ErrorText from "@/common/ErrorText";
@@ -36,6 +37,23 @@ function formatNextAt(value) {
   return `Next send in ${rel} · ${when} IST`;
 }
 
+// Absolute date + time for the read-only Notif Next At field (the raw epoch ms
+// is auto-managed, so admins see a readable IST datetime instead of a number).
+function formatNextAtAbsolute(value) {
+  const ms = Number(value);
+  if (!ms || Number.isNaN(ms)) return "Not scheduled";
+  const when = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(ms);
+  return `${when} IST`;
+}
+
 const FIELD_INFO = {
   initial_credits:
     "The amount of free credits a brand-new user gets on signup. Example: Set to 200 so users can try 10 daily readings for free.",
@@ -46,9 +64,7 @@ const FIELD_INFO = {
   palm_cost: "Cost for a palm reading analysis. Example: 30 credits due to higher AI processing needs.",
   notif_enabled: "Master switch to turn all automatic engagement notifications ON or OFF.",
   notif_audience:
-    "Who receives the notification. 'All' sends to everyone, 'Sample' sends to a random % of users to spread server load.",
-  notif_sample_pct:
-    "Percentage of users to target when audience is 'Random Sample'. Example: 25% means 1 in 4 users gets the message.",
+    "Who receives the notification. 'All' sends to everyone, 'One random user' sends to a single randomly-picked user.",
   notif_source:
     "Where the message text comes from. 'AI' uses Gemini to write fresh, unique messages every time.",
   notif_max_gap_hours:
@@ -57,8 +73,6 @@ const FIELD_INFO = {
     "Minimum waiting time before sending another notification. Example: 5 prevents spamming users too frequently.",
   notif_window_start: "The earliest hour (IST, 0-23) the system can send notifications. Example: 9 for 9 AM.",
   notif_window_end: "The latest hour (IST, 0-23) the system can send notifications. Example: 15 for 3 PM.",
-  notif_max_tokens:
-    "Maximum number of devices to notify in one batch. Prevents server timeouts on large user bases.",
   notif_next_at:
     "The exact timestamp (Unix Epoch) when the next notification is scheduled. Managed automatically by the system.",
   app_latest_version:
@@ -87,7 +101,6 @@ const SELECT_OPTIONS = {
   notif_audience: [
     ["all", "All devices"],
     ["random_one", "One random user"],
-    ["random_sample", "Random sample"],
   ],
   app_force_update: [
     ["false", "Off — optional update"],
@@ -120,21 +133,26 @@ export default function AdminSettings() {
   // number input. Shared by both groups so they render identically.
   const renderField = (s) => (
     <div key={s.key}>
-      {SELECT_OPTIONS[s.key] ? (
+      {s.key === "notif_next_at" ? (
+        // Auto-managed by the engage job — read-only, shown as a readable IST
+        // datetime instead of the raw epoch ms.
         <Field
-          as="select"
+          type="text"
+          label={labelFor(s.key)}
+          info={FIELD_INFO[s.key]}
+          value={formatNextAtAbsolute(valueOf(s))}
+          readOnly
+          disabled
+        />
+      ) : SELECT_OPTIONS[s.key] ? (
+        <AdminSelect
           label={labelFor(s.key)}
           info={FIELD_INFO[s.key]}
           value={valueOf(s)}
           onChange={(e) => onEdit(s.key, e.target.value)}
           disabled={busy}
-        >
-          {SELECT_OPTIONS[s.key].map(([val, text]) => (
-            <option key={val} value={val}>
-              {text}
-            </option>
-          ))}
-        </Field>
+          options={SELECT_OPTIONS[s.key].map(([value, label]) => ({ value, label }))}
+        />
       ) : TEXT_FIELDS.has(s.key) ? (
         <Field
           type="text"

@@ -163,7 +163,7 @@ export default function SplashScreen({ onDone, duration = 2800 }) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') return;
 
-        const loc = await Location.getCurrentPositionAsync({});
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
         const { latitude: lat, longitude: lon } = loc.coords;
         const tz = -(new Date().getTimezoneOffset() / 60);
 

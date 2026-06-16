@@ -13,3 +13,9 @@ export const details = asyncHandler(async (req, res) => {
   const data = await loc.getCityDetails(placeId, token, timestamp);
   res.json(data);
 });
+
+export const reverse = asyncHandler(async (req, res) => {
+  const { lat, lon } = req.query;
+  const data = await loc.reverseGeocode(lat, lon);
+  res.json(data);
+});

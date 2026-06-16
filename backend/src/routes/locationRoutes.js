@@ -9,5 +9,6 @@ const router = Router();
 // passing the SAME token to /search and /details makes autocomplete free.
 router.get('/locations/search',  readLimiter, loc.search);
 router.get('/locations/details', readLimiter, loc.details);
+router.get('/locations/reverse', readLimiter, loc.reverse);
 
 export default router;

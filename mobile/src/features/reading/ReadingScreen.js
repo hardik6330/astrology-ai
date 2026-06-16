@@ -16,7 +16,7 @@ import { useStyles } from "../../theme/useStyles";
 import { spacing, fontSize } from "../../theme/tokens";
 import { signOf, computeDaily, buildFactSheet } from "../../shared/astrology";
 import { MSGS } from "../../shared/prompts";
-import { chatCompletionJSON, fetchSaved, fetchDailyDates } from "../../services/api";
+import { chatCompletionJSON, fetchSaved, fetchDailyDates, reverseGeocode } from "../../services/api";
 import { haptics } from "../../utils/haptics";
 import { EMOJIS } from "../../utils/emojis";
 import { useCredits } from "../../hooks/useCredits";
@@ -93,16 +93,28 @@ export default function ReadingScreen({ navigation, route }) {
         setLocError(true);
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({});
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
       const { latitude: lat, longitude: lon } = loc.coords;
-      const tz = -(new Date().getTimezoneOffset() / 60);
-      setCurrentLoc({ n: "Current Location", lat, lon, tz, isGps: true });
+
+      // Default label while resolving
+      setCurrentLoc({ n: "Current Location", lat, lon, tz: 5.5, isGps: true });
       setLocError(false);
 
-      const [addr] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
-      if (addr) {
-        const city = addr.city || addr.district || addr.subregion || "Current Location";
-        setCurrentLoc({ n: city, lat, lon, tz, isGps: true });
+      try {
+        // Resolve city and accurate timezone via backend
+        const data = await reverseGeocode(lat, lon);
+        setCurrentLoc({
+          n: data.name,
+          lat: data.lat,
+          lon: data.lon,
+          tz: data.timezone.offset,
+          isGps: true,
+        });
+      } catch (e) {
+        console.warn("[GPS] Reverse geocode failed:", e.message);
+        // Fallback to phone timezone if backend fails
+        const phoneTz = -(new Date().getTimezoneOffset() / 60);
+        setCurrentLoc({ n: "Current Location", lat, lon, tz: phoneTz, isGps: true });
       }
     } catch (err) {
       setLocError(true);
@@ -275,7 +287,7 @@ Running period: ${d.dasha}`;
             <MenuButton />
             <View style={s.headerTitleWrap}>
                 <Text style={s.heroLabel} numberOfLines={1}>
-                  {form.name || "Your"}'s Cosmic Blueprint
+                  {form.name || "Your"}{form.name ? "'s" : ""} Cosmic Blueprint
                 </Text>
                 <Text style={s.heroSub} numberOfLines={1}>
                   {form.date} • {form.time} • {form.city}
