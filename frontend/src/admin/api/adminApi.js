@@ -14,8 +14,10 @@ function adminFetch(path, opts = {}) {
 }
 
 // POST /admin/login → { token, admin: { id, name, username } }. Public (no token).
+// redirectOn401:false — a wrong username/password 401s; keep the user on the
+// admin form to read the error instead of bouncing to the user /login page.
 export function adminLogin(username, password) {
-  return request("/admin/login", { method: "POST", body: { username, password } });
+  return request("/admin/login", { method: "POST", body: { username, password }, redirectOn401: false });
 }
 
 // GET /admin/me — validates the stored token; throws on 401/403.

@@ -56,7 +56,10 @@ export function handleUnauthorized() {
  * @returns the response `data` on 2xx
  * @throws Error with `.status` (HTTP code) and `.code` (backend error code)
  */
-export async function request(path, { method = "GET", body, token, headers = {}, base = API_BASE } = {}) {
+export async function request(
+  path,
+  { method = "GET", body, token, headers = {}, base = API_BASE, redirectOn401 = true } = {}
+) {
   const h = { ...headers };
   if (token) h.Authorization = `Bearer ${token}`;
   if (body !== undefined) h["Content-Type"] = "application/json";
@@ -70,8 +73,10 @@ export async function request(path, { method = "GET", body, token, headers = {},
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     // On 401 Unauthorized (expired or invalid token) we clear the stored
-    // credentials and bounce to /login.
-    if (res.status === 401) {
+    // credentials and bounce to /login. A login ATTEMPT that 401s means "bad
+    // credentials", not "session expired" — callers pass redirectOn401:false so
+    // the error surfaces on the form instead of redirecting away.
+    if (res.status === 401 && redirectOn401) {
       handleUnauthorized();
     }
 
