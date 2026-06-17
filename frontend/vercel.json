@@ -1,5 +1,4 @@
 {
-  "$comment": "Security headers for the static frontend. The full CSP (script-src/connect-src/etc.) is injected as a <meta> tag at build time (see vite.config.js) because connect-src must include the env-driven backend origin. frame-ancestors only works as an HTTP header, so it lives here alongside the other static, env-independent headers.",
   "headers": [
     {
       "source": "/(.*)",
