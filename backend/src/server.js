@@ -1,19 +1,57 @@
 // Process entry point: connects the DB, runs idempotent seeds, binds the port,
-// starts the in-process scheduler, and handles graceful shutdown. The Express
-// app itself is built in app.js (so tests/serverless can import it port-free).
+// starts the in-process scheduler, and handles graceful shutdown.
 
 import os from 'node:os';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
 
-import app from './app.js';
 import { env } from './config/envConfig.js';
 import { logger } from './config/logger.js';
 import sequelize from './config/dbConfig.js';
+import { corsOptions } from './config/cors.js';
+import './models/index.js';
+import routes from './routes/index.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import { responseWrapper } from './middleware/responseWrapper.js';
 import { seedAdmin } from './seeders/adminSeed.js';
 import { seedSettings } from './seeders/settingsSeed.js';
 import { seedNotificationTemplates } from './seeders/notificationSeed.js';
 import { seedCreditPlans } from './seeders/creditPlanSeed.js';
 import { startScheduler } from './config/scheduler.js';
 import { initFirebase } from './config/firebase.js';
+
+// ── Express App Setup ────────────────────────────────────────────────────────
+
+export function createApp() {
+  const app = express();
+
+  // Trust the first reverse proxy (nginx / Cloudflare / Render / Fly) so that
+  // rate-limiting + req.ip use the real client IP from X-Forwarded-For.
+  app.set('trust proxy', 1);
+
+  app.use(helmet());
+  app.use(cors(corsOptions));
+  app.use(express.json({ limit: '10mb' }));
+
+  app.get('/', (_req, res) => res.send('Server is running'));
+  app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+  // Envelope all /api JSON responses as { success, message, data }.
+  app.use('/api', responseWrapper, routes);
+
+  // Centralized error handler — must be mounted LAST.
+  app.use(errorHandler);
+
+  return app;
+}
+
+const app = createApp();
+
+// Default instance for serverless handlers (Vercel) and tests.
+export default app;
+
+// ── Server Startup ───────────────────────────────────────────────────────────
 
 // Print every non-internal IPv4 interface so the dev knows which LAN address
 // to hit from a phone / second device on the same Wi-Fi.
@@ -26,10 +64,7 @@ function logLanUrls(port) {
   });
 }
 
-// Verify the connection, create any missing tables, then seed defaults. sync()
-// with no options is non-destructive: it creates missing tables and never
-// alters or drops existing columns, so it's safe to run on every boot. Seeds
-// are idempotent + best-effort — they must never block startup.
+// Verify the connection, create any missing tables, then seed defaults.
 async function initDatabase() {
   await sequelize.authenticate();
   logger.info('Database connection verified');
@@ -45,12 +80,16 @@ async function initDatabase() {
 async function start() {
   try {
     await initDatabase();
-    // L1: prove Firebase creds are valid at boot so prod fails fast instead of
-    // serving an app where login is silently broken (throws in prod, warns in dev).
     initFirebase();
   } catch (err) {
     logger.fatal({ err }, 'Startup init failed');
     if (env.NODE_ENV === 'production') process.exit(1);
+  }
+
+  // On Vercel, the platform handles port binding.
+  if (process.env.VERCEL) {
+    logger.info('Vercel environment detected — DB initialized');
+    return;
   }
 
   const server = app.listen(env.PORT, '0.0.0.0', () => {
@@ -58,15 +97,10 @@ async function start() {
     logLanUrls(env.PORT);
   });
 
-  // Start the in-process push scheduler — but NOT on Vercel, where the function
-  // is ephemeral and the timers would never fire. Vercel sets process.env.VERCEL.
   if (!process.env.VERCEL) {
     startScheduler();
-  } else {
-    logger.warn('Vercel detected — in-process scheduler skipped (use external cron)');
   }
 
-  // Graceful shutdown — let in-flight requests finish before exiting.
   function shutdown(signal) {
     logger.info({ signal }, 'shutting down');
     server.close(() => {

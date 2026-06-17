@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import app from '../src/app.js';
+import app from '../src/server.js';
 import { signAppToken, signAdminToken, requireAuth, requireAdmin } from '../src/middleware/auth.js';
 
 // A minimal Express res double for unit-testing the middleware directly.

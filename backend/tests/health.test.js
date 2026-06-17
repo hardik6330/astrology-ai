@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import app from '../src/app.js';
+import app from '../src/server.js';
 
 // Proves the app.js/server.js split works: the app is importable and routable
 // without binding a port or touching the DB.
