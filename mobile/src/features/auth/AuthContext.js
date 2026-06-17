@@ -9,8 +9,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { verifyOtp, dummyLogin, primeAuthPhone, onUnauthorized } from "@/services/api";
 import { registerForPush, unregisterForPush } from "@/features/notifications/push";
 import { logEvent } from "@/features/notifications/analytics";
+import { getToken, setToken as secureSetToken, clearToken } from "@/utils/tokenStore";
 
-const KEY       = "app_token";
 const ACC_KEY   = "app_account";
 const THEME_KEY = "astro_theme_v1"; // device preference — preserved across logout
 const AuthContext = createContext(null);
@@ -33,7 +33,7 @@ export function AuthProvider({ children }) {
     (async () => {
       try {
         const [t, a] = await Promise.all([
-          AsyncStorage.getItem(KEY),
+          getToken(),
           AsyncStorage.getItem(ACC_KEY),
         ]);
         if (t) setToken(t);
@@ -64,7 +64,7 @@ export function AuthProvider({ children }) {
   // mounts already knowing whether to redirect a returning user.
   async function finishLogin(data) {
     const { token, account: acc, savedForm = null } = data;
-    await AsyncStorage.setItem(KEY, token);
+    await secureSetToken(token);
     await AsyncStorage.setItem(ACC_KEY, JSON.stringify(acc));
     primeAuthPhone(acc.phone);
     logEvent("login", { phone: acc.phone });
@@ -84,6 +84,9 @@ export function AuthProvider({ children }) {
     // Disable the push token server-side BEFORE clearing the JWT — the
     // unregister call needs the token to authenticate.
     await unregisterForPush();
+    // The session JWT lives in SecureStore now — clear it explicitly (the
+    // AsyncStorage sweep below won't touch it).
+    await clearToken();
     // Wipe ALL local data so the next user starts completely clean — keeps only
     // the device theme preference. Using getAllKeys catches dynamic per-user
     // keys too (asked_alignments:*, timelineCheck:*) without enumerating them.
@@ -92,7 +95,7 @@ export function AuthProvider({ children }) {
       const keep = new Set([THEME_KEY]);
       await AsyncStorage.multiRemove(keys.filter((k) => !keep.has(k)));
     } catch {
-      await AsyncStorage.multiRemove([KEY, ACC_KEY]); // fallback: at least the session
+      await AsyncStorage.multiRemove([ACC_KEY]); // fallback: at least the account blob
     }
     primeAuthPhone(null);
     setToken(null);

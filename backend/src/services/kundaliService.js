@@ -8,6 +8,7 @@ import { charge, grant, getBalance } from './creditService.js';
 import { notifyInsightReady } from './pushService.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
+import { fenceUntrusted, UNTRUSTED_DATA_GUARD } from '../utils/promptSafety.js';
 import { userKey } from '../utils/userKey.js';
 import { KUNDLI_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { logger } from '../config/logger.js';
@@ -138,10 +139,13 @@ export async function generateInterpretation({ form, factSheet }) {
       // 5. Call Gemini with the compact fact sheet (+ palm data when present).
       //    With no palm, instruct chart-only explicitly so the model never
       //    invents hand/line features despite the palm-aware system prompt.
+      // The fact sheet is client-supplied free text — fence it so an embedded
+      // "ignore previous instructions" can't hijack the reading (see promptSafety).
+      const fencedFacts = fenceUntrusted(factSheet);
       const userPrompt = palmSnippet
-        ? `${factSheet}${palmSnippet}\n\nInterpret this birth chart and palm data into a single master reading.`
-        : `${factSheet}\n\nNo palm reading is available for this user. Interpret the birth chart ALONE into a master reading — base every statement on the chart only, and do NOT mention, reference, or invent any palm, hand, line, or mount features.`;
-      const generated = await callGemini(INTERP_SYSTEM, userPrompt, true, KUNDLI_MODELS, THINK_BUDGET.KUNDLI);
+        ? `${fencedFacts}${palmSnippet}\n\nInterpret this birth chart and palm data into a single master reading.`
+        : `${fencedFacts}\n\nNo palm reading is available for this user. Interpret the birth chart ALONE into a master reading — base every statement on the chart only, and do NOT mention, reference, or invent any palm, hand, line, or mount features.`;
+      const generated = await callGemini(INTERP_SYSTEM + UNTRUSTED_DATA_GUARD, userPrompt, true, KUNDLI_MODELS, THINK_BUDGET.KUNDLI);
 
       // 6. Sanitize + parse + persist (best-effort — log but don't block the response).
       const cleaned = cleanJson(generated);

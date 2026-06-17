@@ -21,6 +21,9 @@
       }
     },
     "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://astrology-ai-pro-ez9t.vercel.app/api"
+      },
       "channel": "production",
       "autoIncrement": true
     }

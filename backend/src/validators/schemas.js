@@ -2,13 +2,18 @@ import { z } from 'zod';
 
 // Birth-detail form — the join key for every user.
 // Length caps keep an attacker from padding the Gemini prompt with megabytes.
+//
+// NOTE: `phone` is deliberately NOT a field here. The acting account is taken
+// from the verified token (req.auth.phone) in the controllers, never from the
+// client — a client-supplied phone is silently dropped by Zod. This is what
+// stops an authed caller reading/charging another account by passing its phone
+// (IDOR). See utils/authForm.js.
 const formSchema = z.object({
   name:   z.string().trim().min(1, 'name is required').max(80),
   gender: z.string().trim().max(20).optional().nullable(),
   date:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
   time:   z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'time must be HH:MM'),
   city:   z.string().trim().min(1, 'city is required').max(80),
-  phone:  z.string().trim().max(20).optional().nullable(),
 });
 
 // 20KB ceiling — a real natal chart's fact sheet runs ~6–15KB depending on
@@ -40,7 +45,9 @@ export const chatBody = z.object({
   // bounded — see chatCompletion() in services/api.js (web + mobile).
   messages: z.array(z.object({
     role: z.enum(['user', 'assistant']),
-    content: z.string().max(2_000),
+    // trim()+min(1) so a whitespace-only turn can't burn a credit on an empty
+    // Gemini call (M4). Cap unchanged at 2000 to bound prompt tokens.
+    content: z.string().trim().min(1, 'message cannot be empty').max(2_000),
   })).min(1).max(200),
 });
 
@@ -147,6 +154,36 @@ export const adminPlanCreateBody = z.object({
 
 // Admin: update a plan — every field optional (partial patch).
 export const adminPlanUpdateBody = adminPlanCreateBody.partial();
+
+// ── Location proxy query params (city picker during onboarding) ──
+// Tight caps so the upstream geocoder isn't hammered with oversized/garbage
+// input, and lat/lon are constrained to valid Earth coordinates (M3).
+export const locationSearchQuery = z.object({
+  q:     z.string().trim().min(1, 'q is required').max(120),
+  token: z.string().trim().max(64).optional(),
+});
+
+export const locationDetailsQuery = z.object({
+  placeId: z.string().trim().min(1, 'placeId is required').max(256),
+  token:   z.string().trim().max(64).optional(),
+  ts:      z.coerce.number().int().nonnegative().optional(),
+});
+
+export const locationReverseQuery = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lon: z.coerce.number().min(-180).max(180),
+});
+
+// ── Admin list pagination (users / purchases) ──
+// limit 1..100, offset >= 0 — bounds keep a malformed/hostile query from
+// passing a negative or huge page size to Sequelize (M3). `all=true` bypasses
+// paging server-side (used by the export buttons).
+export const adminListQuery = z.object({
+  limit:  z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+  search: z.string().trim().max(120).optional(),
+  all:    z.enum(['true', 'false']).optional(),
+});
 
 // Device push-token registration. Token length cap matches PushToken's column.
 export const pushRegisterBody = z.object({

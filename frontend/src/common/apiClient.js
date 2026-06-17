@@ -18,6 +18,19 @@ export const API_BASE =
     ? `${window.location.protocol}//${window.location.hostname}:5000/api`
     : RAW_API_URL || "http://localhost:5000/api";
 
+// L4: guard against shipping a cleartext API base. http:// is fine on localhost
+// / LAN dev, but in a production (https) page it both fails mixed-content and
+// would expose the bearer token — surface it loudly rather than failing silently.
+if (
+  typeof window !== "undefined" &&
+  API_BASE.startsWith("http://") &&
+  !/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.|10\.)/i.test(API_BASE)
+) {
+  console.error(
+    `[apiClient] Insecure API base ${API_BASE} on ${window.location.origin} — set VITE_API_URL to an https:// URL.`
+  );
+}
+
 // The backend wraps every success response as { success, message, data }.
 // Unwrap to the inner `data` so callers see the same payload as before. Bodies
 // without the envelope (legacy / non-/api endpoints) pass through untouched.

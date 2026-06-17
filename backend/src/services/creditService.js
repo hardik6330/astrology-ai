@@ -26,6 +26,12 @@ import { AppError } from '../errors/AppError.js';
 // own transaction as before.
 export async function charge({ userId, costKey, reason, meta = null, transaction = null }) {
   const cost = Math.max(0, Math.round(await settings.getNumber(costKey, 0)));
+  // M7: defense-in-depth. `cost` is built from a DB setting, then interpolated
+  // into a literal() below — assert it's a plain non-negative integer so a
+  // malformed setting can never inject SQL into the decrement.
+  if (!Number.isInteger(cost) || cost < 0) {
+    throw AppError.http(500, 'Invalid credit cost', 'INTERNAL');
+  }
 
   // Free / disabled feature — nothing to deduct, no ledger noise.
   if (cost === 0) {
@@ -63,6 +69,10 @@ export async function charge({ userId, costKey, reason, meta = null, transaction
 // Returns { granted, balance }.
 export async function grant({ userId, amount, reason, meta = null, transaction = null }) {
   const amt = Math.max(0, Math.round(Number(amount) || 0));
+  // M7: same guard as charge() — `amt` is interpolated into a literal() below.
+  if (!Number.isInteger(amt) || amt < 0) {
+    throw AppError.http(500, 'Invalid credit amount', 'INTERNAL');
+  }
   if (amt === 0) {
     const u = await User.findByPk(userId, { attributes: ['credits'], transaction });
     if (!u) throw AppError.http(404, 'User not found', 'NOT_FOUND');

@@ -1,5 +1,5 @@
 import { genAI } from '../config/aiConfig.js';
-import { CHAT_MODELS, MAX_RETRIES, RETRY_BASE_MS } from '../config/constants.js';
+import { CHAT_MODELS, MAX_RETRIES, RETRY_BASE_MS, MAX_OUTPUT_TOKENS } from '../config/constants.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'gemini' });
@@ -42,7 +42,7 @@ export function minimizeChart(chart) {
  *   thinkingBudget — caps Pro's internal reasoning tokens (cheaper = lower).
  *   Pass null to use Google's default dynamic behavior.
  */
-export async function callGemini(systemPrompt, userPrompt, jsonMode = false, models = CHAT_MODELS, thinkingBudget = null) {
+export async function callGemini(systemPrompt, userPrompt, jsonMode = false, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS) {
   let lastError;
 
   for (const modelName of models) {
@@ -51,6 +51,7 @@ export async function callGemini(systemPrompt, userPrompt, jsonMode = false, mod
         const startTime = Date.now();
         const generationConfig = {
           temperature: 1.0,
+          maxOutputTokens,
           ...(jsonMode && { responseMimeType: 'application/json' }),
           ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
         };
@@ -84,7 +85,7 @@ export async function callGemini(systemPrompt, userPrompt, jsonMode = false, mod
  * the Both-Hands palm comparison where Pro sees BOTH photos in one call.
  * Same retry/fallback semantics as callGeminiVision.
  */
-export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, jsonMode = true, models = CHAT_MODELS, thinkingBudget = null) {
+export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, jsonMode = true, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS) {
   let lastError;
   for (const modelName of models) {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -92,6 +93,7 @@ export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, js
         const startTime = Date.now();
         const generationConfig = {
           temperature: 1.0,
+          maxOutputTokens,
           ...(jsonMode && { responseMimeType: 'application/json' }),
           ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
         };
@@ -127,7 +129,7 @@ export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, js
  * Multimodal Gemini call — image + text. Same retry/fallback as callGemini.
  * imageBase64 must be raw base64 (no `data:` prefix).
  */
-export async function callGeminiVision(systemPrompt, userPrompt, imageBase64, mimeType = 'image/jpeg', jsonMode = true, models = CHAT_MODELS, thinkingBudget = null) {
+export async function callGeminiVision(systemPrompt, userPrompt, imageBase64, mimeType = 'image/jpeg', jsonMode = true, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS) {
   let lastError;
 
   for (const modelName of models) {
@@ -136,6 +138,7 @@ export async function callGeminiVision(systemPrompt, userPrompt, imageBase64, mi
         const startTime = Date.now();
         const generationConfig = {
           temperature: 1.0,
+          maxOutputTokens,
           ...(jsonMode && { responseMimeType: 'application/json' }),
           ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
         };

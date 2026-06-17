@@ -7,6 +7,7 @@ import { findOrCreateUser, findUserByForm } from './userService.js';
 import { charge, grant, getBalance } from './creditService.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
+import { fenceUntrusted, UNTRUSTED_DATA_GUARD } from '../utils/promptSafety.js';
 import { userKey } from '../utils/userKey.js';
 import { KUNDLI_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { logger } from '../config/logger.js';
@@ -81,7 +82,8 @@ export async function generateDailyGuidance({ form, ctx, targetDate }) {
 
     let generated;
     try {
-      generated = await callGemini(DAILY_SYSTEM, ctx + "\n\nGive today's guidance.", true, KUNDLI_MODELS, THINK_BUDGET.DAILY);
+      // ctx is client-supplied free text — fence it (see promptSafety).
+      generated = await callGemini(DAILY_SYSTEM + UNTRUSTED_DATA_GUARD, `${fenceUntrusted(ctx)}\n\nGive today's guidance.`, true, KUNDLI_MODELS, THINK_BUDGET.DAILY);
       if (!generated) throw new Error('AI returned empty guidance');
     } catch (e) {
       if (charged) {

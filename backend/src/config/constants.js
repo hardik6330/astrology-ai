@@ -21,6 +21,13 @@ export const PALM_MODELS         = ['gemini-2.5-pro'];
 export const MAX_RETRIES   = 3;
 export const RETRY_BASE_MS = 1000;       // exponential backoff: 1s, 2s, 4s
 
+// Hard ceiling on response length per Gemini call (M1) — bounds cost/latency so
+// a crafted prompt can't drive an unbounded generation. NOTE: on 2.5 "thinking"
+// models this budget covers thinking + visible output, so it must sit well above
+// the THINK_BUDGET values below. 8192 leaves ample room for our largest reading
+// (the kundli JSON) after thinking; callers can override per task if needed.
+export const MAX_OUTPUT_TOKENS = 8192;
+
 // Thinking-budget caps per task. Lower = cheaper, less internal reasoning.
 // Kundli synthesizes the most factors → highest budget. Daily is pre-computed
 // → lowest. Palm is descriptive vision → middle.

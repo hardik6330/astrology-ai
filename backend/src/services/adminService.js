@@ -94,8 +94,10 @@ export async function listUsers({ limit = 25, offset = 0, search = '', fetchAll 
     const like = { [Op.like]: `%${search}%` };
     where[Op.or] = [{ name: like }, { phone: like }, { birthCity: like }];
   }
-  const pageSize = Math.min(Number(limit) || 25, 100);
-  const off = Number(offset) || 0;
+  // Clamp to 1..100 / >=0 even though the route validates — keeps a negative or
+  // huge value from ever reaching Sequelize if called from elsewhere (M3).
+  const pageSize = Math.min(Math.max(Number(limit) || 25, 1), 100);
+  const off = Math.max(Number(offset) || 0, 0);
   const { rows, count } = await User.findAndCountAll({
     where,
     attributes: ['id', 'name', 'phone', 'gender', 'birthDate', 'birthCity', 'createdAt'],
@@ -113,8 +115,8 @@ export async function listOrders({ limit = 25, offset = 0, search = '', fetchAll
   // NB: Op.or is a Symbol key — Object.keys() can't see it, so gate on
   // `search` itself, not on the object's (always-empty) string keys.
   const like = { [Op.like]: `%${search}%` };
-  const pageSize = Math.min(Number(limit) || 25, 100);
-  const off = Number(offset) || 0;
+  const pageSize = Math.min(Math.max(Number(limit) || 25, 1), 100);
+  const off = Math.max(Number(offset) || 0, 0);
   const { rows, count } = await Purchase.findAndCountAll({
     attributes: ['id', 'credits', 'priceInr', 'status', 'provider', 'createdAt', 'updatedAt'],
     include: [

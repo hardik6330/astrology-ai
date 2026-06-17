@@ -12,6 +12,7 @@ import { enhancePalmImage } from '../utils/palmImage.js';
 import { validateImage } from '../utils/imageValidator.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
+import { sanitizeInline } from '../utils/promptSafety.js';
 import { userKey } from '../utils/userKey.js';
 import { PALM_MODELS, PALM_GATE_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { AppError } from '../errors/AppError.js';
@@ -36,6 +37,32 @@ function geometricHand(landmarks) {
   // Calibrated from live testing: thumb on the image-RIGHT of the pinky (dx > 0)
   // = a RIGHT hand. Keep in sync with the web + mobile gates.
   return dx > 0 ? 'Right' : 'Left';
+}
+
+// M2 — `skipGate` is a CLIENT flag, so it can't be trusted on its own: a
+// hand-rolled client could send skipGate=true with junk to push an ungated
+// image straight to the expensive Pro vision call. We honor the skip ONLY when
+// the request also carries CREDIBLE landmark evidence that the local MediaPipe
+// gate genuinely ran — 21 finite points in the normalized range, with real
+// 2-D spread, that buildPalmGeometry accepts. Fabricating that is far harder
+// than flipping a boolean; anything less falls through to the server Flash gate.
+export function landmarksCredible(landmarks) {
+  if (!Array.isArray(landmarks) || landmarks.length < 21) return false;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let i = 0; i < 21; i++) {
+    const p = landmarks[i];
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return false;
+    // MediaPipe normalizes to ~[0,1]; allow slack for points just off-frame.
+    if (p.x < -0.5 || p.x > 1.5 || p.y < -0.5 || p.y > 1.5) return false;
+    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+  }
+  // A real hand spans a meaningful fraction of the frame — reject a cluster of
+  // near-identical points (a trivial forgery that would still pass geometry).
+  if (maxX - minX < 0.05 || maxY - minY < 0.05) return false;
+  // Final gate: the same builder the reading uses must accept it (non-zero palm
+  // width AND height — i.e. a real, non-degenerate hand).
+  return buildPalmGeometry(landmarks) !== null;
 }
 
 // GET the latest saved USABLE palm reading. Unusable results are persisted
@@ -79,10 +106,11 @@ export async function getPalmById(id, form) {
 // cheaply before spending Pro tokens on either. Returns:
 //   { ok: true,  base64, mimeType, imageHash }   when the photo is usable
 //   { ok: false, rejection, base64, mimeType, imageHash }  otherwise
-// If `skipGate` is true, the Flash call is bypassed and the photo is
-// declared usable (used when the client already gated locally via
-// MediaPipe — the web flow does this).
-async function runGate({ image, claimedHand, skipGate = false, scanId }) {
+// If `skipGate` is true AND the client supplied credible landmark evidence that
+// its local MediaPipe gate actually ran, the Flash call is bypassed and the
+// photo is declared usable. A skip request WITHOUT credible landmarks is not
+// trusted (M2) — it falls through to the server Flash gate.
+async function runGate({ image, claimedHand, skipGate = false, landmarks = null, scanId }) {
   const t = Date.now();
   let mimeType, base64;
   try {
@@ -93,11 +121,14 @@ async function runGate({ image, claimedHand, skipGate = false, scanId }) {
   const imageHash = crypto.createHash('sha256').update(base64).digest('hex');
   const kb = Math.round((base64.length * 0.75) / 1024);
 
-  // Web has already gated this photo locally with MediaPipe — skip the
-  // duplicate Flash call to save the token.
+  // Honor the client skip ONLY with credible landmark proof the local gate ran
+  // (M2). Otherwise fall through to the Flash gate — never trust the bare flag.
   if (skipGate) {
-    log.info({ scanId, stage: 'gate', skipGate: true, kb, hash: imageHash.slice(0, 8), ms: Date.now() - t }, 'palm scan: gate skipped (client-gated)');
-    return { ok: true, base64, mimeType, imageHash };
+    if (landmarksCredible(landmarks)) {
+      log.info({ scanId, stage: 'gate', skipGate: true, trusted: true, kb, hash: imageHash.slice(0, 8), ms: Date.now() - t }, 'palm scan: gate skipped (client-gated, landmarks verified)');
+      return { ok: true, base64, mimeType, imageHash };
+    }
+    log.warn({ scanId, stage: 'gate', skipGate: true, trusted: false, kb, hash: imageHash.slice(0, 8) }, 'palm scan: skip requested without credible landmarks — running server gate');
   }
 
   // We used to pass the claimed hand here, but Flash isn't reliable at
@@ -189,8 +220,8 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
       const geometryData = geo ? JSON.stringify(geo) : 'N/A';
 
       const userPrompt =
-        `NAME: ${form.name}\n` +
-        `GENDER: ${form.gender || 'NOT SPECIFIED'}\n` +
+        `NAME: ${sanitizeInline(form.name)}\n` +
+        `GENDER: ${sanitizeInline(form.gender || 'NOT SPECIFIED')}\n` +
         `PALM_GEOMETRY (FIXED measured facts about this hand — identical across photos): ${geometryData}\n` +
         `  palmShape=square|rectangular; element=hand element; fingerLength=long|short; ` +
         `dominantFinger=Jupiter(leadership)|Apollo(creativity)|balanced; thumb=flexible|balanced|reserved; ` +
@@ -209,8 +240,7 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
       log.info({ scanId, stage: 'enhance', applied: enhanced.enhanced, ms: Date.now() - tEnh }, 'palm scan: image normalize');
 
       log.info({ scanId, stage: 'ai', models: PALM_MODELS }, 'palm scan: calling Gemini vision…');
-      // Temperature 0 for run-to-run consistency on the same photo.
-      const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, enhanced.base64, enhanced.mimeType, true, PALM_MODELS, THINK_BUDGET.PALM, 0.0);
+      const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, enhanced.base64, enhanced.mimeType, true, PALM_MODELS, THINK_BUDGET.PALM);
       const cleaned = cleanJson(raw);
       parsed = typeof raw === 'string' ? JSON.parse(cleaned) : raw;
       log.info({ scanId, stage: 'ai', quality: parsed.imageQuality, hand: parsed.handType, ms: Date.now() - tAI }, 'palm scan: Gemini reading done');
@@ -273,7 +303,7 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
   // Stage 1 — gate. We need the image hash to build the dedupe key, so the
   // gate runs before dedupe. The Flash call is cheap and we'd hit cache for
   // truly identical retries via the per-image PalmReading row inside Pro.
-  const gateResult = await runGate({ image, claimedHand, skipGate, scanId });
+  const gateResult = await runGate({ image, claimedHand, skipGate, landmarks, scanId });
 
   if (!gateResult.ok) {
     await persistGateRejection(form, gateResult.imageHash, gateResult.rejection);
@@ -324,8 +354,8 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
 export async function comparePalms({ form, leftImage, rightImage, skipGate, leftLandmarks, rightLandmarks }) {
   // Stage 1 — gate both photos. No Pro spend yet.
   const [leftGate, rightGate] = await Promise.all([
-    runGate({ image: leftImage,  claimedHand: 'Left',  skipGate }),
-    runGate({ image: rightImage, claimedHand: 'Right', skipGate }),
+    runGate({ image: leftImage,  claimedHand: 'Left',  skipGate, landmarks: leftLandmarks }),
+    runGate({ image: rightImage, claimedHand: 'Right', skipGate, landmarks: rightLandmarks }),
   ]);
 
   // Stage 2 — if EITHER hand failed the gate, return rejection without
@@ -390,8 +420,8 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate, left
     // Stage 3 — single Pro Vision call with BOTH images.
     // Layer 5: Temperature = 0 for consistency
     const userPrompt =
-      `NAME: ${form.name}\n` +
-      `GENDER: ${form.gender || 'NOT SPECIFIED'}\n\n` +
+      `NAME: ${sanitizeInline(form.name)}\n` +
+      `GENDER: ${sanitizeInline(form.gender || 'NOT SPECIFIED')}\n\n` +
       `Two palm photos follow. First image = LEFT hand (Potential). Second image = RIGHT hand (Reality). Read each and write the evolution story per the schema.`;
 
     let parsed;
@@ -402,7 +432,7 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate, left
           { base64: leftGate.base64,  mimeType: leftGate.mimeType  },
           { base64: rightGate.base64, mimeType: rightGate.mimeType },
         ],
-        true, PALM_MODELS, THINK_BUDGET.PALM, 0.0
+        true, PALM_MODELS, THINK_BUDGET.PALM
       );
       parsed = JSON.parse(cleanJson(raw));
     } catch (e) {

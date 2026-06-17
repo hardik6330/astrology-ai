@@ -47,5 +47,13 @@
     "sqlite3": "^6.0.1",
     "supertest": "^7.2.2",
     "vitest": "^4.1.8"
+  },
+  "comments": {
+    "overrides": "Pin transitive deps to patched versions WITHOUT semver-major bumps. form-data (HIGH, CRLF GHSA-hmw2-7cc7-3qxx) is patched in 2.5.6/4.0.6; protobufjs (GHSA-f38q-mgvj-vph7) in 7.6.4. NOT pinned here: file-type (ASF DoS) needs jimp 1.x (major API rewrite) and is already unreachable — imageValidator enforces JPEG/PNG/WEBP magic bytes before jimp runs; uuid (<11.1.1) only affects the v3/v5/v6+buf path this stack never uses, and forcing it breaks sequelize. Revisit both with a tested jimp→1.6 / firebase-admin→14 upgrade."
+  },
+  "overrides": {
+    "form-data": "^4.0.6",
+    "superagent": { "form-data": "^2.5.6" },
+    "protobufjs": "^7.6.4"
   }
 }

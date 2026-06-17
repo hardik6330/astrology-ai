@@ -9,6 +9,7 @@
 
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getToken } from "@/utils/tokenStore";
 import { noteBalance } from "./creditsStore";
 import { noteCosts } from "./costsStore";
 
@@ -84,10 +85,10 @@ async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, retries = 
 }
 
 // Bearer header for the session JWT (or {} when not logged in). The AI/credit
-// routes require it — read straight from AsyncStorage so callers don't thread
-// the token through.
+// routes require it — read from SecureStore (see utils/tokenStore) so callers
+// don't thread the token through.
 async function authHeaders() {
-  const token = await AsyncStorage.getItem("app_token");
+  const token = await getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -268,7 +269,7 @@ export async function chatCompletion(messages, type = "chat", extra = {}) {
 // The user is resolved server-side from the auth token, so no form is needed.
 // No-ops (returns null) without a token so it never bounces a logged-out user.
 export async function getCredits() {
-  const token = await AsyncStorage.getItem("app_token");
+  const token = await getToken();
   if (!token) return null;
   try {
     const data = await getJSON("/credits");
@@ -284,7 +285,7 @@ export async function getCredits() {
 // List the purchasable credit packages. → [{ id, name, credits, priceInr, bonusLabel }]
 // priceInr is in paise. Returns [] without a token / on error.
 export async function fetchCreditPlans() {
-  const token = await AsyncStorage.getItem("app_token");
+  const token = await getToken();
   if (!token) return [];
   try {
     const data = await getJSON("/credits/plans");

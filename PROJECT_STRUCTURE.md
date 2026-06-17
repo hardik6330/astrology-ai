@@ -166,4 +166,4 @@ Four main tabs:
 > ⚠️ **Secrets:** Never commit `firebase-admin.json` (gitignored). If any key appears in a screenshot/chat, rotate it immediately.
 
 ---
-जय श्री कृष्ण 🤍
+

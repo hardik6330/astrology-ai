@@ -4,9 +4,17 @@ import { CHAT_SYSTEM, GUARD_SYSTEM } from '../ai/prompts.js';
 import { CHAT_ANSWER_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
 import { charge, grant } from './creditService.js';
+import { fenceUntrusted, UNTRUSTED_DATA_GUARD } from '../utils/promptSafety.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'chat' });
+
+// Canned reply when the topic gate blocks an off-topic message (general
+// knowledge, coding, other named people, NSFW). Returned WITHOUT the expensive
+// answer call — the guard is lenient, so genuine life/astrology/personal and
+// sensitive questions are never blocked.
+const OFF_TOPIC_REPLY =
+  "I can only speak to what your birth chart can — your life, work, relationships, health, money, timing, and inner path. Ask me about any of those and I'll read it from your chart.";
 
 // Topic keywords across English / Hindi (romanised) / Gujarati (romanised + script).
 // Used to recognise when a follow-up question revisits an earlier topic so we
@@ -138,13 +146,30 @@ export async function answerAndPersist({ messages, factSheet, form }) {
   let balance = null;
   if (user) ({ charged, balance } = await charge({ userId: user.id, costKey: 'chat_cost', reason: 'chat' }));
 
+  // Refund the charge — used on an off-topic block and on an AI error, so the
+  // user is never billed for a message they got no real answer to.
+  const refund = async (why) => {
+    if (!user || !charged) return;
+    const r = await grant({ userId: user.id, amount: charged, reason: 'refund', meta: { for: 'chat', why } })
+      .catch((err) => { log.warn({ err: err.message }, 'chat refund failed'); return null; });
+    if (r) balance = r.balance;
+  };
+
   let result;
   try {
-    // 1. Topic guard — flags off-chart questions so we can ask Pro to REFRAME
-    // them through the chart angle instead of flatly refusing.
+    // 1. Topic gate — ENFORCED. Off-topic messages (general knowledge, coding,
+    // other named people, NSFW) are refused HERE, without the expensive Pro
+    // answer call. The guard is deliberately lenient (greetings, personal-data,
+    // and sensitive mortality/illness questions all ALLOW — see GUARD_SYSTEM),
+    // so only genuinely off-topic questions are blocked. Fence the message so an
+    // injection can't coerce the classifier into "ALLOW".
     const guardContext = messages.slice(-2).map(m => `${m.role}: ${m.content}`).join('\n');
-    const guardRes = await callGemini(GUARD_SYSTEM, guardContext);
-    const isOffChart = guardRes.trim().toUpperCase() === 'BLOCK';
+    const guardRes = await callGemini(GUARD_SYSTEM, fenceUntrusted(guardContext));
+    if (guardRes.trim().toUpperCase().startsWith('BLOCK')) {
+      await refund('off_topic');
+      log.info({ userId: user?.id }, 'chat blocked: off-topic');
+      return { content: OFF_TOPIC_REPLY, balance, blocked: true };
+    }
 
     // Pull persisted history so a revisited topic can be answered with
     // awareness of what was already said. Reuse the already-resolved user.
@@ -163,18 +188,16 @@ export async function answerAndPersist({ messages, factSheet, form }) {
     const topicBlock = buildTopicHistoryBlock(priorHistory, topic, lastMsg);
 
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-    const reframeNote = isOffChart
-      ? `\n\nNOTE: This user's question is technically outside what a birth chart can literally name (e.g. a brand, a person's name, a specific number). DO NOT refuse. Find the chart angle behind what they're really asking and answer that. One acknowledging sentence, then 2-3 sentences of useful chart-grounded insight.`
-      : '';
-    const systemWithChart = `${CHAT_SYSTEM}\n\n=== THIS PERSON'S BIRTH CHART ===\n${factSheet || '(chart not provided)'}${insightBlock}${palmBlock}\n\nTODAY'S DATE: ${today}.${topicBlock}${reframeNote}`;
+    // The fact sheet is client-supplied free text — fence it so it can't act as
+    // instructions inside the system prompt (see promptSafety). CHAT_SYSTEM
+    // already reframes questions the chart can't literally name (brand, number),
+    // so no separate reframe note is needed now that off-topic is blocked above.
+    const systemWithChart = `${CHAT_SYSTEM}${UNTRUSTED_DATA_GUARD}\n\n=== THIS PERSON'S BIRTH CHART ===\n${fenceUntrusted(factSheet || '(chart not provided)')}${insightBlock}${palmBlock}\n\nTODAY'S DATE: ${today}.${topicBlock}`;
     result = await callGemini(systemWithChart, lastMsg, false, CHAT_ANSWER_MODELS, THINK_BUDGET.CHAT);
   } catch (e) {
     // AI failed after we charged — refund so the user isn't billed for a
     // message they never received an answer to.
-    if (user && charged) {
-      await grant({ userId: user.id, amount: charged, reason: 'refund', meta: { for: 'chat' } })
-        .catch((err) => log.warn({ err: err.message }, 'chat refund failed'));
-    }
+    await refund('error');
     throw e;
   }
 

@@ -13,6 +13,7 @@ import { seedSettings } from './seeders/settingsSeed.js';
 import { seedNotificationTemplates } from './seeders/notificationSeed.js';
 import { seedCreditPlans } from './seeders/creditPlanSeed.js';
 import { startScheduler } from './config/scheduler.js';
+import { initFirebase } from './config/firebase.js';
 
 // Print every non-internal IPv4 interface so the dev knows which LAN address
 // to hit from a phone / second device on the same Wi-Fi.
@@ -44,8 +45,11 @@ async function initDatabase() {
 async function start() {
   try {
     await initDatabase();
+    // L1: prove Firebase creds are valid at boot so prod fails fast instead of
+    // serving an app where login is silently broken (throws in prod, warns in dev).
+    initFirebase();
   } catch (err) {
-    logger.fatal({ err }, 'Database init failed');
+    logger.fatal({ err }, 'Startup init failed');
     if (env.NODE_ENV === 'production') process.exit(1);
   }
 

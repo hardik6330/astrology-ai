@@ -175,10 +175,12 @@ export async function verifyIapPayment({
   const plan = await CreditPlan.findByPk(planId);
   if (!plan) throw AppError.http(404, 'Plan not found', 'PLAN_NOT_FOUND');
 
-  // 1. Verify with the store (Apple or Google).
+  // 1. Verify with the store (Apple or Google). BOTH paths bind the receipt to
+  // this plan's product (plan.productId), so a user can't pay for the cheapest
+  // SKU and claim an expensive plan's credits.
   let transactionId = null;
   if (platform === 'ios') {
-    transactionId = await verifyAppleReceipt(receipt);
+    transactionId = await verifyAppleReceipt(plan.productId, receipt);
   } else if (platform === 'android') {
     transactionId = await verifyGooglePurchase(plan.productId, purchaseToken);
   } else {
@@ -232,39 +234,60 @@ export async function verifyIapPayment({
   });
 }
 
-async function verifyAppleReceipt(receipt) {
+// Newest transaction_id in an Apple receipt's in_app array that matches
+// productId, or null if none. Apple lists EVERY non-consumed purchase in the
+// receipt, so we must (a) match the requested product — never trust in_app[0],
+// which lets a cheap-SKU receipt settle an expensive plan — and (b) take the
+// most recent matching transaction by purchase date.
+export function appleTxnForProduct(inApp, productId) {
+  if (!Array.isArray(inApp) || !productId) return null;
+  const matches = inApp.filter((e) => e.product_id === productId);
+  if (!matches.length) return null;
+  matches.sort((a, b) => Number(b.purchase_date_ms || 0) - Number(a.purchase_date_ms || 0));
+  return matches[0].transaction_id || null;
+}
+
+// Verify an Apple receipt for THIS plan's product. Returns the matching
+// transaction id (idempotency key), or null on any failure / product mismatch.
+async function verifyAppleReceipt(productId, receipt) {
   if (!env.APPLE_IAP_SECRET) {
     log.warn('APPLE_IAP_SECRET missing — using mock verification');
     return `mock_apple_${Date.now()}`;
   }
 
   const isProd = env.NODE_ENV === 'production';
-  const url = isProd
-    ? 'https://buy.itunes.apple.com/verifyReceipt'
-    : 'https://sandbox.itunes.apple.com/verifyReceipt';
-
-  try {
-    const res = await fetch(url, {
+  const verify = (url) =>
+    fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 'password': env.APPLE_IAP_SECRET, 'receipt-data': receipt }),
-    });
-    const data = await res.json();
+      body: JSON.stringify({ password: env.APPLE_IAP_SECRET, 'receipt-data': receipt }),
+    }).then((res) => res.json());
 
-    // If sandbox receipt sent to production, retry against sandbox
+  try {
+    let data = await verify(
+      isProd
+        ? 'https://buy.itunes.apple.com/verifyReceipt'
+        : 'https://sandbox.itunes.apple.com/verifyReceipt',
+    );
+
+    // A sandbox receipt sent to the production endpoint returns 21007 — retry
+    // against sandbox (Apple's prescribed flow).
     if (isProd && data.status === 21007) {
-      const sandboxRes = await fetch('https://sandbox.itunes.apple.com/verifyReceipt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 'password': env.APPLE_IAP_SECRET, 'receipt-data': receipt }),
-      });
-      const sandboxData = await sandboxRes.json();
-      if (sandboxData.status === 0) return sandboxData.receipt.in_app[0].transaction_id;
+      data = await verify('https://sandbox.itunes.apple.com/verifyReceipt');
     }
 
-    if (data.status === 0) return data.receipt.in_app[0].transaction_id;
-    log.error({ status: data.status }, 'Apple IAP verification failed');
-    return null;
+    if (data.status !== 0) {
+      log.error({ status: data.status }, 'Apple IAP verification failed');
+      return null;
+    }
+
+    // Bind the verified receipt to the requested plan's product.
+    const transactionId = appleTxnForProduct(data.receipt?.in_app, productId);
+    if (!transactionId) {
+      log.error({ productId }, 'Apple receipt has no transaction for the requested product');
+      return null;
+    }
+    return transactionId;
   } catch (err) {
     log.error({ err }, 'Apple IAP fetch failed');
     return null;

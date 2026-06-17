@@ -11,16 +11,6 @@ import { getMessaging, isSupported as messagingSupported } from "firebase/messag
 
 // Keep this config in sync with frontend/public/firebase-messaging-sw.js — the
 // background service worker can't import this module, so it hardcodes its own copy.
-// export const firebaseConfig = {
-//   apiKey: "AIzaSyDeP9lVD48v__XAi3w5PS-gR9Hl9Ou2_lg",
-//   authDomain: "astrology-ai-abc38.firebaseapp.com",
-//   projectId: "astrology-ai-abc38",
-//   storageBucket: "astrology-ai-abc38.firebasestorage.app",
-//   messagingSenderId: "160095118157",
-//   appId: "1:160095118157:web:1ddb20119df02911facd04",
-//   measurementId: "G-3QWLMK4B4S",
-// };
-
 const firebaseConfig = {
   apiKey: "AIzaSyDphpDaRfEPouJYcvHF8sh5QLh-Gt21P3A",
   authDomain: "future-ai-b05ad.firebaseapp.com",

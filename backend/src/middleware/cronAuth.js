@@ -3,14 +3,16 @@
 // `Authorization: Bearer <secret>` (Vercel Cron's native scheme). Uses a
 // constant-time compare so the secret can't be guessed by timing the response.
 
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, createHash } from 'node:crypto';
 import { env } from '../config/envConfig.js';
 
+// L2: compare SHA-256 digests (always 32 bytes) so the comparison never
+// short-circuits on a length mismatch — that early return would otherwise leak
+// the secret's length through response timing.
 function safeEqual(a, b) {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return timingSafeEqual(ab, bb);
+  const ah = createHash('sha256').update(String(a)).digest();
+  const bh = createHash('sha256').update(String(b)).digest();
+  return timingSafeEqual(ah, bh);
 }
 
 export function requireCronSecret(req, res, next) {

@@ -7,6 +7,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { logger } from './logger.js';
+import { env } from './envConfig.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const serviceAccountPath = join(__dirname, 'firebase-admin.json');
@@ -41,8 +42,14 @@ export function initFirebase() {
     initialized = true;
     logger.info('Firebase Admin initialised');
   } catch (err) {
+    // L1: in production, missing/invalid Firebase credentials mean ALL auth is
+    // broken — fail fast instead of silently serving an app where no one can log
+    // in. In dev we still warn-and-continue so the server boots without creds.
+    if (env.NODE_ENV === 'production') {
+      logger.error({ err }, 'Firebase Admin failed to initialize — refusing to boot');
+      throw err;
+    }
     logger.warn({ err }, 'Firebase Admin not initialized — auth will not work');
-    // Don't throw, just log a warning and continue
     return null;
   }
   return admin;

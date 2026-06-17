@@ -13,9 +13,21 @@ export const logger = pino({
       options: { colorize: true, translateTime: 'HH:MM:ss', ignore: 'pid,hostname' },
     },
   }),
-  // Strip secrets from logs.
+  // Strip secrets AND PII (M6: phone numbers were logged in the clear). pino
+  // redact matches by path, so cover both the top-level `{ phone }` / `{ digits }`
+  // shapes used across services and the one-level-nested `*.phone` form.
   redact: {
-    paths: ['req.headers.authorization', 'req.headers.cookie', 'env.GEMINI_API_KEY', 'env.DB_PASS'],
+    paths: [
+      'req.headers.authorization',
+      'req.headers.cookie',
+      'env.GEMINI_API_KEY',
+      'env.DB_PASS',
+      'phone',
+      'digits',
+      '*.phone',
+      '*.digits',
+      'req.body.phone',
+    ],
     censor: '[REDACTED]',
   },
 });

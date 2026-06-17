@@ -5,6 +5,7 @@
 import { Op } from 'sequelize';
 import { PushToken, AuthAccount } from '../models/index.js';
 import { sendToTokens } from './notificationService.js';
+import { phoneWhere } from '../utils/phone.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'push' });
@@ -40,27 +41,27 @@ function allEnabledTokens() {
 
 // Tokens for every device of the account(s) on a given phone. Push tokens hang
 // off AuthAccount, while charts hang off User — phone is the bridge between them.
-// Matched on the last 10 digits so "+919876543210" (real Firebase) and
-// "9876543210" (dummy login) resolve to the same account.
+// Full-number match (see utils/phone.js) so "+919876543210" (real Firebase) and
+// "919876543210" (dummy login) resolve to the same account, for any country.
 async function tokensForPhone(phone) {
-  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
-  if (digits.length !== 10) {
-    log.warn({ phone }, 'tokensForPhone: no usable 10-digit phone');
+  const phoneMatch = phoneWhere(phone);
+  if (!phoneMatch) {
+    log.warn({ phone }, 'tokensForPhone: no usable phone');
     return [];
   }
   const accounts = await AuthAccount.findAll({
-    where: { phone: { [Op.like]: `%${digits}` } },
+    where: { phone: phoneMatch },
     attributes: ['id'],
   });
   if (!accounts.length) {
-    log.info({ digits }, 'tokensForPhone: no account for phone');
+    log.info('tokensForPhone: no account for phone');
     return [];
   }
   const rows = await PushToken.findAll({
     where: { enabled: true, accountId: { [Op.in]: accounts.map((a) => a.id) } },
     attributes: ['id', 'token'],
   });
-  log.info({ digits, accounts: accounts.length, tokens: rows.length }, 'tokensForPhone resolved');
+  log.info({ accounts: accounts.length, tokens: rows.length }, 'tokensForPhone resolved');
   return rows;
 }
 

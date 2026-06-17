@@ -47,12 +47,17 @@ describe('requireAuth', () => {
 });
 
 describe('requireAdmin', () => {
-  it('rejects an ordinary user token → 403 (valid JWT, wrong role)', () => {
+  // M2: a user token is signed without the admin audience (and, in prod, with a
+  // different secret), so it fails admin VERIFICATION outright (401) rather than
+  // merely the role check — it can't even be parsed as an admin token.
+  it('rejects an ordinary user token → 401 (wrong audience)', () => {
     const token = signAppToken({ accountId: 'a1', firebaseUid: 'f1', phone: '+100' });
     const req = { headers: { authorization: `Bearer ${token}` } };
     const res = mockRes();
-    requireAdmin(req, res, () => {});
-    expect(res.statusCode).toBe(403);
+    let nexted = false;
+    requireAdmin(req, res, () => { nexted = true; });
+    expect(nexted).toBe(false);
+    expect(res.statusCode).toBe(401);
   });
 
   it('accepts an admin token', () => {

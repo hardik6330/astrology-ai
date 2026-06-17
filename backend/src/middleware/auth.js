@@ -29,25 +29,31 @@ export function signAppToken({ accountId, firebaseUid, phone, userId = null }) {
   );
 }
 
-// Admin session token. `role: 'admin'` distinguishes it from a user token so
-// requireAdmin can reject ordinary user JWTs even though both are signed with
-// the same secret.
+// M2: admin tokens are signed with a DEDICATED secret (falls back to JWT_SECRET
+// only in dev — prod requires a distinct ADMIN_JWT_SECRET, enforced in
+// envConfig). A user JWT therefore can't be verified as an admin token even if
+// the `role` claim were forged, and a leak of one secret can't mint the other.
+const ADMIN_SECRET = env.ADMIN_JWT_SECRET || env.JWT_SECRET;
+const ADMIN_AUD = 'astro-admin';
+
+// Admin session token. Signed with the admin secret + an `aud` claim so it's
+// only ever accepted by requireAdmin, never by requireAuth (different secret).
 export function signAdminToken({ adminId, username }) {
   return jwt.sign(
     { adminId, username, role: 'admin' },
-    env.JWT_SECRET,
-    { expiresIn: env.JWT_EXPIRES_IN },
+    ADMIN_SECRET,
+    { expiresIn: env.JWT_EXPIRES_IN, audience: ADMIN_AUD },
   );
 }
 
-// Guards back-office routes: valid JWT AND role === 'admin'.
-// On success: req.admin = { adminId, username, role }.
+// Guards back-office routes: token must verify against the admin secret+audience
+// AND carry role === 'admin'. On success: req.admin = { adminId, username, role }.
 export function requireAdmin(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'unauthorized' });
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET);
+    const payload = jwt.verify(token, ADMIN_SECRET, { audience: ADMIN_AUD });
     if (payload.role !== 'admin') return res.status(403).json({ error: 'forbidden' });
     req.admin = payload;
     next();

@@ -10,6 +10,7 @@ import { verifyIdToken } from '../config/firebase.js';
 import { AuthAccount, User, Location, Kundali } from '../models/index.js';
 import { ensureUserForPhone } from './userService.js';
 import { signAppToken } from '../middleware/auth.js';
+import { normalizePhone, phoneWhere } from '../utils/phone.js';
 import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
 
@@ -18,15 +19,14 @@ const log = logger.child({ mod: 'auth' });
 // Look up the most recently saved User row for this phone so a returning
 // user can skip the birth-details form and land straight on their kundali.
 export async function findSavedFormByPhone(phone) {
-  // Match on the last 10 digits (same as userIdForPhone) so a real-OTP account
-  // (E.164 "+917487998866") still finds a User row saved as "7487998866". An
-  // exact match here misses those and wrongly returns null for existing users.
-  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
-  if (digits.length !== 10) return null;
+  // Full-number match (see utils/phone.js) so a real-OTP account (E.164
+  // "+917487998866") finds its User row regardless of country code length.
+  const phoneMatch = phoneWhere(phone);
+  if (!phoneMatch) return null;
   // Skip placeholder rows missing a name — those were created by older flows
   // and would hydrate the client form with an empty name, breaking lookups.
   const user = await User.findOne({
-    where: { phone: { [Op.like]: `%${digits}` }, name: { [Op.ne]: '' } },
+    where: { phone: phoneMatch, name: { [Op.ne]: '' } },
     order: [['updatedAt', 'DESC']],
   });
   if (!user) return null;
@@ -58,10 +58,10 @@ export async function findSavedFormByPhone(phone) {
 // null when the phone has no profile yet (brand-new user) — the credit
 // endpoint then falls back to a phone lookup.
 async function userIdForPhone(phone) {
-  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
-  if (digits.length !== 10) return null;
+  const phoneMatch = phoneWhere(phone);
+  if (!phoneMatch) return null;
   const user = await User.findOne({
-    where: { phone: { [Op.like]: `%${digits}` }, name: { [Op.ne]: '' } },
+    where: { phone: phoneMatch, name: { [Op.ne]: '' } },
     order: [['updatedAt', 'DESC']],
     attributes: ['id'],
   });
@@ -114,11 +114,10 @@ export async function verifyOtp(idToken) {
 // real Firebase Phone Auth isn't wired up on the client. Returns the saved
 // birth form too, so a returning user skips the home form.
 export async function dummyLogin(rawPhone) {
-  // Normalise to the canonical 10-digit local number — strips +91, spaces,
-  // dashes, leading zeros, etc. Old rows saved as "+919876543210" and new
-  // clients sending "9876543210" both resolve to the same UID.
-  const digits = rawPhone.replace(/[^\d]/g, '').slice(-10);
-  if (digits.length !== 10) throw new AppError('invalid_phone', 400, 'INVALID_PHONE');
+  // Normalise to the full digit string (country code included), so dummy login
+  // works for any country — not just 10-digit Indian numbers. See utils/phone.js.
+  const digits = normalizePhone(rawPhone);
+  if (!digits) throw new AppError('invalid_phone', 400, 'INVALID_PHONE');
 
   // Synthetic firebaseUid keyed on phone so dummy and real Firebase accounts
   // can't collide. Real Firebase UIDs are 28 alphanumerics; ours are prefixed

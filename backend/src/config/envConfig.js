@@ -10,12 +10,23 @@ const schema = z.object({
   // Comma-separated list of allowed frontend origins in production.
   // In dev we use a permissive localhost/LAN allowlist regardless of this var.
   CORS_ORIGINS:    z.string().optional(),
+  // M1: opt-in only. When 'true', any *.vercel.app origin is allowed (handy for
+  // preview deploys). Defaults OFF so production trusts ONLY CORS_ORIGINS — a
+  // blanket *.vercel.app rule with credentials:true lets any Vercel-hosted site
+  // make authenticated cross-origin calls.
+  CORS_ALLOW_VERCEL_PREVIEWS: z.enum(['true', 'false']).default('false'),
   DB_HOST:         z.string().default('localhost'),
   DB_PORT:         z.coerce.number().default(3306),
   DB_USER:         z.string().default('root'),
   DB_PASS:         z.string().default(''),
   DB_NAME:         z.string().default('astrology_db'),
   JWT_SECRET:      z.string().min(16, 'JWT_SECRET must be at least 16 chars'),
+  // M2: dedicated secret for back-office admin tokens, kept separate from the
+  // user JWT secret so a leak of one can't forge the other (currently the only
+  // thing separating an admin token from a user token is the `role` claim).
+  // Optional in dev (falls back to JWT_SECRET); REQUIRED + distinct in prod
+  // (enforced in superRefine below).
+  ADMIN_JWT_SECRET: z.string().min(16).optional(),
   JWT_EXPIRES_IN:  z.string().default('30d'),
   // Server-side Google Maps key — OPTIONAL. Location lookup primarily uses
   // OpenStreetMap Nominatim (free, no key). Set this only if you want to
@@ -40,6 +51,30 @@ const schema = z.object({
   // Apple App Store / Google Play Store IAP — OPTIONAL.
   APPLE_IAP_SECRET:    z.string().optional(),
   GOOGLE_IAP_SERVICE_ACCOUNT_JSON: z.string().optional(), // Path to JSON file
+}).superRefine((cfg, ctx) => {
+  if (cfg.NODE_ENV !== 'production') return;
+  // M3: never accept the seed default admin password in production.
+  if (cfg.ADMIN_PASSWORD === 'changeme123') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ADMIN_PASSWORD'],
+      message: 'ADMIN_PASSWORD must be changed from the default in production',
+    });
+  }
+  // M2: admin token secret must exist and differ from the user JWT secret in prod.
+  if (!cfg.ADMIN_JWT_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ADMIN_JWT_SECRET'],
+      message: 'ADMIN_JWT_SECRET is required in production',
+    });
+  } else if (cfg.ADMIN_JWT_SECRET === cfg.JWT_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ADMIN_JWT_SECRET'],
+      message: 'ADMIN_JWT_SECRET must differ from JWT_SECRET',
+    });
+  }
 });
 
 const parsed = schema.safeParse(process.env);

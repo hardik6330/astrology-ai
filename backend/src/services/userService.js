@@ -4,42 +4,47 @@ import { AppError } from '../errors/AppError.js';
 import { notifyWelcome } from './pushService.js';
 import { grant } from './creditService.js';
 import * as settings from './settingsService.js';
+import { normalizePhone, phoneWhere } from '../utils/phone.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'user' });
 
-// Resolve a user by their birth-detail join key — scoped by phone when the
-// caller is authenticated. Two accounts on different phone numbers sharing
-// the exact same birth data MUST resolve to different User rows so they
-// don't inherit each other's kundali/palm/chat history. Returns null if
-// not found.
+// Resolve a user by their birth-detail join key, ALWAYS scoped to the caller's
+// own phone. The phone MUST be supplied (callers pass req.auth.phone — see
+// utils/authForm.js); without it we return null rather than fall back to a
+// name+birth-only lookup, which would let any authed caller read another
+// person's kundali/palm/chat by submitting their birth details (IDOR).
+// The phone is matched on its FULL number (country code included), so callers
+// from any country resolve correctly and can never collide with another
+// country's number — see utils/phone.js. Same matcher as findUserByPhone.
 export async function findUserByForm({ name, date, time, city, gender, phone }) {
   if (!name || !date || !time || !city) {
     throw AppError.http(400, 'name, date, time and city are required', 'BAD_REQUEST');
   }
-  const where = {
-    name,
-    birthDate: date,
-    birthTime: time,
-    birthCity: city,
-    gender: gender || null,
-  };
-  // Only scope by phone when the client passed one — unauthenticated calls
-  // (rare; legacy paths) keep the old name+birth-only lookup.
-  if (phone) where.phone = phone;
-  return User.findOne({ where });
+  const phoneMatch = phoneWhere(phone);
+  if (!phoneMatch) return null;
+  return User.findOne({
+    where: {
+      name,
+      birthDate: date,
+      birthTime: time,
+      birthCity: city,
+      gender: gender || null,
+      phone: phoneMatch,
+    },
+  });
 }
 
-// Resolve the User behind a logged-in token, by phone alone. Matches on the
-// last 10 digits so a token phone of "+918525361245" finds a row stored as
-// "8525361245" (and vice-versa). When a phone has several profiles we return
-// the most recently saved named one — the active chart whose balance the
-// credit badge should reflect. Returns null if the phone has no profile yet.
+// Resolve the User behind a logged-in token, by phone alone (full-number match,
+// see utils/phone.js, so "+918525361245" and a row stored as "918525361245"
+// both resolve). When a phone has several profiles we return the most recently
+// saved named one — the active chart whose balance the credit badge should
+// reflect. Returns null if the phone has no profile yet.
 export async function findUserByPhone(phone) {
-  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
-  if (digits.length !== 10) return null;
+  const phoneMatch = phoneWhere(phone);
+  if (!phoneMatch) return null;
   return User.findOne({
-    where: { phone: { [Op.like]: `%${digits}` }, name: { [Op.ne]: '' } },
+    where: { phone: phoneMatch, name: { [Op.ne]: '' } },
     order: [['updatedAt', 'DESC']],
   });
 }
@@ -112,8 +117,7 @@ export async function findOrCreateUser(form) {
 // entered. Idempotent: an existing row (placeholder or full) is returned
 // untouched — no second row, no double bonus. Called from authService.
 export async function ensureUserForPhone(phone) {
-  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
-  if (digits.length !== 10) return null;
+  if (!normalizePhone(phone)) return null;
   const existing = await findUserByPhoneAny(phone);
   if (existing) return existing;
   const user = await User.create({
@@ -125,14 +129,15 @@ export async function ensureUserForPhone(phone) {
   return user;
 }
 
-// Look up an existing User for a phone, last-10-digit match, most-recently
-// updated first. Unlike findUserByPhone() this does NOT require a name, so it
-// also catches placeholder rows created before birth details were entered.
+// Look up an existing User for a phone, full-number match (see utils/phone.js),
+// most-recently updated first. Unlike findUserByPhone() this does NOT require a
+// name, so it also catches placeholder rows created before birth details were
+// entered.
 async function findUserByPhoneAny(phone) {
-  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
-  if (digits.length !== 10) return null;
+  const phoneMatch = phoneWhere(phone);
+  if (!phoneMatch) return null;
   return User.findOne({
-    where: { phone: { [Op.like]: `%${digits}` } },
+    where: { phone: phoneMatch },
     order: [['updatedAt', 'DESC']],
   });
 }
