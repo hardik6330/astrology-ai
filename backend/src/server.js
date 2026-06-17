@@ -86,8 +86,12 @@ async function start() {
     if (env.NODE_ENV === 'production') process.exit(1);
   }
 
-  // On Vercel, the platform handles port binding.
-  if (process.env.VERCEL) {
+  // On Vercel, the platform handles port binding. Vercel sets VERCEL=1, so match
+  // EXACTLY '1' — env vars are strings and the string "0" is truthy, so a plain
+  // `if (process.env.VERCEL)` would treat VERCEL=0 as "on Vercel" and skip
+  // app.listen(), making the local dev server exit immediately.
+  const onVercel = process.env.VERCEL === '1';
+  if (onVercel) {
     logger.info('Vercel environment detected — DB initialized');
     return;
   }
@@ -97,9 +101,7 @@ async function start() {
     logLanUrls(env.PORT);
   });
 
-  if (!process.env.VERCEL) {
-    startScheduler();
-  }
+  startScheduler();
 
   function shutdown(signal) {
     logger.info({ signal }, 'shutting down');
