@@ -14,9 +14,14 @@ import { EMOJIS } from "@/utils/emojis";
 
 const RESEND_SECS = 30;
 
+// Dev OTP bypass. When VITE_OTP_ENABLED='false', skip Firebase SMS and log in
+// straight from the typed phone number. Mirrors the backend OTP_ENABLED flag —
+// the backend still rejects the bypass unless its own flag is 'false' too.
+const OTP_ENABLED = import.meta.env.VITE_OTP_ENABLED !== "false";
+
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { completeOtpLogin, token } = useAuth();
+  const { completeOtpLogin, completePhoneBypass, token } = useAuth();
   const { applySavedForm } = useChart();
   const [phone, setPhone] = useState("");
   // Country dialing code (digits, no "+"), pre-filled from the browser region
@@ -67,6 +72,12 @@ export default function LoginPage() {
 
     setBusy(true);
     try {
+      // Dev bypass: no SMS — trade the bare phone for a session and route in.
+      if (!OTP_ENABLED) {
+        const { savedForm } = await completePhoneBypass(`+${cleaned}`);
+        routeAfterLogin(savedForm);
+        return;
+      }
       // Send the SMS, then go to the code screen. Firebase needs full E.164
       // format (+ country code + national number).
       confirmationRef.current = await fbSendOtp(`+${cleaned}`);

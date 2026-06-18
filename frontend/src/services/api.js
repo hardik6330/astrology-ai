@@ -22,6 +22,14 @@ export function verifyOtp(idToken) {
   return request("/auth/verify-otp", { method: "POST", body: { idToken } });
 }
 
+// Dev OTP bypass — POSTs a bare E.164 `phone` (no Firebase) to /auth/verify-otp.
+// Used only when VITE_OTP_ENABLED='false'; the backend rejects this path unless
+// its own OTP_ENABLED='false', so it's inert against production. Same response
+// shape as verifyOtp. → { token, account: { id, phone }, savedForm? }
+export function bypassLogin(phone) {
+  return request("/auth/verify-otp", { method: "POST", body: { phone } });
+}
+
 // Current session + any saved birth form. Used to re-hydrate a returning user
 // on app reload (token persists, but the client-side form does not).
 // → { account: { id, phone }, savedForm? }

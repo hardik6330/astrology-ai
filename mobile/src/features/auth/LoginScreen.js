@@ -24,6 +24,12 @@ const { width: SCREEN_W } = Dimensions.get("window");
 
 const RESEND_SECS = 30;
 
+// Dev OTP bypass. When EXPO_PUBLIC_OTP_ENABLED='false', skip Firebase SMS and
+// log in straight from the typed phone. Mirrors the backend OTP_ENABLED flag —
+// the backend still rejects the bypass unless its own flag is 'false' too. Also
+// dodges the native Firebase module, so this works in Expo Go.
+const OTP_ENABLED = process.env.EXPO_PUBLIC_OTP_ENABLED !== "false";
+
 // Map Firebase Auth error codes to friendly messages.
 function otpError(err) {
   const code = err?.code || "";
@@ -36,7 +42,7 @@ function otpError(err) {
 }
 
 export default function LoginScreen() {
-  const { completeOtpLogin } = useAuth();
+  const { completeOtpLogin, completePhoneBypass } = useAuth();
   const { applySavedForm } = useForm();
   const { theme, colors: color } = useTheme();
   const s = useStyles(makeStyles);
@@ -126,6 +132,23 @@ export default function LoginScreen() {
     if (!agreed) {
       triggerShake();
       return setError("Please agree to the Terms & Conditions");
+    }
+
+    // Dev bypass: no SMS / Firebase — trade the bare phone for a session.
+    if (!OTP_ENABLED) {
+      setBusy(true);
+      phoneRef.current = cleaned;
+      (async () => {
+        try {
+          const { savedForm, commitSession } = await completePhoneBypass(`+${cleaned}`);
+          if (savedForm) await applySavedForm(savedForm);
+          commitSession();
+        } catch (err) {
+          setError(otpError(err));
+          setBusy(false);
+        }
+      })();
+      return;
     }
 
     // Already on the code screen → this tap is a resend, not the first send.

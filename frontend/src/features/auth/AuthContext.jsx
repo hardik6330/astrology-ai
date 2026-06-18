@@ -4,7 +4,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { tokenStore } from "@/common/tokenStore";
-import { verifyOtp } from "@/services/api";
+import { verifyOtp, bypassLogin } from "@/services/api";
 import { registerForWebPush, teardownWebPush } from "@/features/notifications/webPush";
 
 // appToken (the bearer) is shared with services/api.js; appAccount holds the
@@ -39,6 +39,13 @@ export function AuthProvider({ children }) {
     return finishLogin(data);
   }
 
+  // Dev-only OTP bypass: trade a bare E.164 phone for our session JWT, skipping
+  // Firebase entirely. Only reachable when VITE_OTP_ENABLED='false' (LoginPage
+  // gates the call); the backend rejects it unless its bypass is on too.
+  async function completePhoneBypass(phone) {
+    return finishLogin(await bypassLogin(phone));
+  }
+
   // Persist the session + register push.
   function finishLogin(data) {
     appToken.set(data.token);
@@ -67,7 +74,9 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, account, hydrating: false, completeOtpLogin, logout }}>
+    <AuthContext.Provider
+      value={{ token, account, hydrating: false, completeOtpLogin, completePhoneBypass, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

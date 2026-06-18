@@ -15,9 +15,9 @@ export const config = asyncHandler(async (_req, res) => {
 });
 
 export const verifyOtp = asyncHandler(async (req, res) => {
-  // Normal flow: verify the Firebase ID token. Bypass flow (OTP_ENABLED=false):
-  // a bare phone mints a session without Firebase — auth.bypassOtp enforces the
-  // flag, so a `phone` sent while the bypass is off is rejected.
+  // Normal flow: verify the Firebase ID token. Bypass flow (non-production only):
+  // a bare phone mints a session without Firebase — auth.bypassOtp rejects this
+  // path in production, so a forged `phone` is useless against the cloud.
   const result = req.body.idToken
     ? await auth.verifyOtp(req.body.idToken)
     : await auth.bypassOtp(req.body.phone);

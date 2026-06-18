@@ -199,6 +199,23 @@ export async function verifyOtp(idToken) {
   return unwrap(await res.json()); // { token, account: { id, phone }, savedForm? }
 }
 
+// Dev OTP bypass: POST a bare E.164 `phone` (no Firebase) to /auth/verify-otp.
+// Used only when EXPO_PUBLIC_OTP_ENABLED='false'; the backend rejects this path
+// unless its own OTP_ENABLED='false', so it's inert against production builds.
+export async function bypassLogin(phone) {
+  const url = `${API_URL}/auth/verify-otp`;
+  const res = await fetchWithRetry(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  }, { timeoutMs: 20000, retries: 1 });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Login failed (HTTP ${res.status})`);
+  }
+  return unwrap(await res.json()); // { token, account: { id, phone }, savedForm? }
+}
+
 // ── Push tokens ──
 // Both endpoints require the session JWT (requireAuth on the backend); the
 // shared authHeaders() helper above attaches it.

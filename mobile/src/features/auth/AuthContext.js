@@ -6,7 +6,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { verifyOtp, primeAuthPhone, onUnauthorized } from "@/services/api";
+import { verifyOtp, bypassLogin, primeAuthPhone, onUnauthorized } from "@/services/api";
 import { registerForPush, unregisterForPush } from "@/features/notifications/push";
 import { logEvent } from "@/features/notifications/analytics";
 import { getToken, setToken as secureSetToken, clearToken } from "@/utils/tokenStore";
@@ -53,6 +53,13 @@ export function AuthProvider({ children }) {
     return finishLogin(await verifyOtp(idToken));
   }
 
+  // Dev-only OTP bypass: trade a bare E.164 phone for our session JWT, skipping
+  // Firebase. Only reachable when EXPO_PUBLIC_OTP_ENABLED='false' (LoginScreen
+  // gates the call); the backend rejects it unless its bypass is on too.
+  async function completePhoneBypass(phone) {
+    return finishLogin(await bypassLogin(phone));
+  }
+
   // Persist the session (without committing) + return commitSession(). The
   // caller hydrates ChartContext first, then calls commitSession() so HomeScreen
   // mounts already knowing whether to redirect a returning user.
@@ -97,7 +104,9 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, account, hydrating, completeOtpLogin, logout }}>
+    <AuthContext.Provider
+      value={{ token, account, hydrating, completeOtpLogin, completePhoneBypass, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

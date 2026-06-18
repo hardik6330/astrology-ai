@@ -89,9 +89,9 @@ export const userQuery = formSchema.partial({ gender: true }).extend({
 });
 
 // Auth — the client trades a verified Firebase ID token for our own session
-// JWT. See services/authService.js. When OTP_ENABLED='false' the client may
-// instead send a bare `phone` (E.164) to bypass Firebase; the service rejects
-// that path unless the bypass is on, so a forged `phone` is useless in prod.
+// JWT. See services/authService.js. In non-production the client may instead
+// send a bare `phone` (E.164) to bypass Firebase; the service rejects that path
+// in production, so a forged `phone` is useless in prod.
 export const verifyBody = z
   .object({
     idToken: z.string().min(20).optional(),
