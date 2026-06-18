@@ -14,10 +14,7 @@ import './models/index.js';
 import routes from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { responseWrapper } from './middleware/responseWrapper.js';
-import { seedAdmin } from './seeders/adminSeed.js';
-import { seedSettings } from './seeders/settingsSeed.js';
-import { seedNotificationTemplates } from './seeders/notificationSeed.js';
-import { seedCreditPlans } from './seeders/creditPlanSeed.js';
+import { seedDefaults } from './seeders/runSeeds.js';
 import { startScheduler } from './config/scheduler.js';
 import { initFirebase } from './config/firebase.js';
 
@@ -38,6 +35,11 @@ export function createApp() {
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
   // Envelope all /api JSON responses as { success, message, data }.
+  // Mounted at BOTH the versioned path and the bare /api alias (v1 registered
+  // first so /api/v1/* resolves there). Existing web + already-shipped APKs keep
+  // calling /api; new/breaking changes can land on /api/v2 without breaking
+  // clients pinned to /api/v1. Clients should migrate to /api/v1 going forward.
+  app.use('/api/v1', responseWrapper, routes);
   app.use('/api', responseWrapper, routes);
 
   // Centralized error handler — must be mounted LAST.
@@ -64,17 +66,18 @@ function logLanUrls(port) {
   });
 }
 
-// Verify the connection, create any missing tables, then seed defaults.
+// Verify the connection. Schema ownership:
+//   • production  → migrations only (`npm run migrate`). sync() never ALTERs an
+//     existing table, so it silently misses new columns — relying on it in prod
+//     is a latent "Unknown column" bug. Migrations are the source of truth.
+//   • dev / test  → sync() for convenience (auto-creates missing tables).
 async function initDatabase() {
   await sequelize.authenticate();
   logger.info('Database connection verified');
-  await sequelize.sync();
-  logger.info('Database synced (missing tables created)');
-
-  seedAdmin().catch((err) => logger.warn({ err }, 'Admin seed skipped'));
-  seedSettings().catch((err) => logger.warn({ err }, 'Settings seed skipped'));
-  seedNotificationTemplates().catch((err) => logger.warn({ err }, 'Notification seed skipped'));
-  seedCreditPlans().catch((err) => logger.warn({ err }, 'Credit plan seed skipped'));
+  if (env.NODE_ENV !== 'production') {
+    await sequelize.sync();
+    logger.info('Database synced (dev only — missing tables created)');
+  }
 }
 
 async function start() {
@@ -92,9 +95,17 @@ async function start() {
   // app.listen(), making the local dev server exit immediately.
   const onVercel = process.env.VERCEL === '1';
   if (onVercel) {
+    // Serverless: don't bind a port, don't run the in-process scheduler (an
+    // external cron hits /api/cron/run), and don't seed on cold start — seeds
+    // run in the deploy step via `npm run seed` so they don't tax the request
+    // hot path on every cold start.
     logger.info('Vercel environment detected — DB initialized');
     return;
   }
+
+  // Always-on host (private server / Render / Railway / Fly) or local dev: ONE
+  // long-lived process, so seed once at boot and run the in-process scheduler.
+  await seedDefaults();
 
   const server = app.listen(env.PORT, '0.0.0.0', () => {
     logger.info(`Server running on port ${env.PORT}`);

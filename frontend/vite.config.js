@@ -104,7 +104,7 @@ export default defineConfig(({ mode }) => {
             {
               urlPattern: ({ url, request }) =>
                 request.method === "GET" &&
-                /\/api\/(interpret|daily|daily-dates|palm|palm\/history|palm\/[^/]+|chat)$/.test(
+                /\/api\/(v1\/)?(interpret|daily|daily-dates|palm|palm\/history|palm\/[^/]+|chat)$/.test(
                   url.pathname
                 ),
               handler: "NetworkFirst",

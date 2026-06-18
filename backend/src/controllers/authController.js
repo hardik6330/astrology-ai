@@ -4,8 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 // Public bootstrap config the clients fetch on startup. Carries the force-update
 // knobs (latest version + whether to block older clients). Read live from
-// settings so the admin panel can flip them without a redeploy. The auth mode
-// (OTP vs dummy) is now decided client-side via each client's env, not here.
+// settings so the admin panel can flip them without a redeploy.
 // No store URL: the client redirects straight to its own store listing (built
 // from its package id), so there's no link to configure.
 export const config = asyncHandler(async (_req, res) => {
@@ -16,14 +15,12 @@ export const config = asyncHandler(async (_req, res) => {
 });
 
 export const verifyOtp = asyncHandler(async (req, res) => {
-  const result = await auth.verifyOtp(req.body.idToken);
-  res.json(result);
-});
-
-export const dummyLogin = asyncHandler(async (req, res) => {
-  // Auth mode is enforced client-side (each client only hits this when its
-  // OTP_SERVICE env flag is off), so the backend no longer gates this path.
-  const result = await auth.dummyLogin(req.body.phone);
+  // Normal flow: verify the Firebase ID token. Bypass flow (OTP_ENABLED=false):
+  // a bare phone mints a session without Firebase — auth.bypassOtp enforces the
+  // flag, so a `phone` sent while the bypass is off is rejected.
+  const result = req.body.idToken
+    ? await auth.verifyOtp(req.body.idToken)
+    : await auth.bypassOtp(req.body.phone);
   res.json(result);
 });
 

@@ -1,7 +1,11 @@
 // Centralized error handler. Mount LAST in the middleware chain.
 //
-// Controllers/services throw AppError (or any Error with .status / .code)
-// and this middleware translates it into the right HTTP status + JSON body.
+// Controllers/services throw AppError (or any Error with .status / .code) — and
+// so do the auth/validate/cron middlewares (via next(err)) — so EVERY failure
+// response has one shape: { success:false, error, code? }. An optional dev-only
+// `details` (e.g. validate's full Zod issues[]) rides along on err.details.
+
+import { env } from '../config/envConfig.js';
 
 const STATUS_BY_CODE = {
   AI_OVERLOADED:   503,
@@ -22,5 +26,6 @@ export function errorHandler(err, req, res, _next) {
     success: false,
     error: err.message || 'Internal error',
     ...(err.code && { code: err.code }),
+    ...(env.NODE_ENV !== 'production' && err.details && { details: err.details }),
   });
 }

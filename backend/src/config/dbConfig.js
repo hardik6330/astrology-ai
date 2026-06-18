@@ -22,6 +22,18 @@ const sequelize =
         port: env.DB_PORT,
         dialect: 'mysql',
         logging: false,
+        // Connection pool. VERCEL=1 is injected by Vercel only — on a private
+        // always-on server it's unset, so this auto-switches with NO code
+        // change: a small per-λ pool on serverless (many concurrent λ would
+        // otherwise blow past MySQL's max_connections), a larger pool on a
+        // single long-lived process. Override via DB_POOL_MAX/MIN.
+        pool: {
+          max: env.DB_POOL_MAX ?? (process.env.VERCEL === '1' ? 2 : 10),
+          min: env.DB_POOL_MIN ?? 0,
+          idle: 10_000,    // drop idle conns so λ don't pin them / quiet servers shed them
+          acquire: 30_000, // fail fast instead of hanging a request when saturated
+          evict: 1_000,
+        },
       });
 
 export default sequelize;

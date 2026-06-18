@@ -39,6 +39,8 @@ const Purchase = sequelize.define('Purchase', {
   indexes: [
     { name: 'purchases_created_at', fields: ['createdAt'] },
     { name: 'purchases_status_updated_at', fields: ['status', 'updatedAt'] },
+    // Per-user order history (admin user drill-down + future "my orders").
+    { name: 'purchases_user_id', fields: ['userId'] },
   ],
 });
 

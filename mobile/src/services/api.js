@@ -13,7 +13,7 @@ import { getToken } from "@/utils/tokenStore";
 import { noteBalance } from "./creditsStore";
 import { noteCosts } from "./costsStore";
 
-// Phone is cached after the dummy OTP login and attached to every form
+// Phone is cached after OTP login and attached to every form
 // payload so the backend can stamp it on the User row. Kept in a module ref
 // to avoid an AsyncStorage round-trip on every API call.
 let _phone = null;
@@ -42,10 +42,20 @@ function deriveDevUrl() {
   return "http://localhost:5000/api";
 }
 
-export const API_URL =
-  ENV_URL && ENV_URL.startsWith("http")
-    ? ENV_URL
-    : deriveDevUrl();
+// Pin the client to the versioned API path. /api and /api/v1 are backend
+// aliases today, but targeting /api/v1 means a future /api/v2 can change
+// behavior without breaking already-shipped APKs. Idempotent + tolerant of how
+// EXPO_PUBLIC_API_URL is set (bare origin, ".../api", or already ".../api/vN").
+function withVersion(base) {
+  const b = base.replace(/\/+$/, "");
+  if (/\/api\/v\d+$/.test(b)) return b;     // already versioned
+  if (/\/api$/.test(b)) return `${b}/v1`;   // ".../api" → ".../api/v1"
+  return `${b}/api/v1`;                      // bare origin → add "/api/v1"
+}
+
+export const API_URL = withVersion(
+  ENV_URL && ENV_URL.startsWith("http") ? ENV_URL : deriveDevUrl()
+);
 
 // 401 Unauthorized observer. AuthContext registers a listener here so we can
 // trigger a global logout from deep inside the API layer.
@@ -161,7 +171,6 @@ function parseContent(content) {
 // Startup config from the backend.
 // → { latestVersion, forceUpdate } — drive the force-update gate. The store
 // redirect is built client-side from the package id, so there's no URL here.
-// (Auth mode is decided client-side via EXPO_PUBLIC_OTP_SERVICE, not here.)
 // Fails OPEN: on any error we return safe defaults (no force-update) so a
 // flaky network never locks the user out of the app.
 export async function getAuthConfig() {
@@ -188,22 +197,6 @@ export async function verifyOtp(idToken) {
     throw new Error(body.error || `Login failed (HTTP ${res.status})`);
   }
   return unwrap(await res.json()); // { token, account: { id, phone }, savedForm? }
-}
-
-// Dummy login (used when EXPO_PUBLIC_OTP_SERVICE is OFF) — trades a bare phone
-// for our JWT, no SMS. → { token, account: { id, phone }, savedForm? }
-export async function dummyLogin(phone) {
-  const url = `${API_URL}/auth/dummy-login`;
-  const res = await fetchWithRetry(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone }),
-  }, { timeoutMs: 20000, retries: 1 });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Login failed (HTTP ${res.status})`);
-  }
-  return unwrap(await res.json());
 }
 
 // ── Push tokens ──
@@ -234,8 +227,8 @@ export async function unregisterPushToken(fcmToken) {
 // Hits "/" (the root route returns "Server is running") so the cold start
 // finishes before the user submits their first real request.
 export function warmupBackend() {
-  // Strip "/api" suffix since the warm-up route is at the root
-  const base = API_URL.replace(/\/api\/?$/, "");
+  // Strip the "/api" (or "/api/v1") suffix since the warm-up route is at root
+  const base = API_URL.replace(/\/api(\/v\d+)?\/?$/, "");
   fetch(`${base}/`).catch(() => { /* ignore — best-effort warm-up */ });
 }
 

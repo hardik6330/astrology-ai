@@ -6,7 +6,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { verifyOtp, dummyLogin, primeAuthPhone, onUnauthorized } from "@/services/api";
+import { verifyOtp, primeAuthPhone, onUnauthorized } from "@/services/api";
 import { registerForPush, unregisterForPush } from "@/features/notifications/push";
 import { logEvent } from "@/features/notifications/analytics";
 import { getToken, setToken as secureSetToken, clearToken } from "@/utils/tokenStore";
@@ -48,15 +48,9 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  // Exchange a verified Firebase ID token for our session JWT (real OTP mode).
+  // Exchange a verified Firebase ID token for our session JWT.
   async function completeOtpLogin(idToken) {
     return finishLogin(await verifyOtp(idToken));
-  }
-
-  // Dummy login — used when EXPO_PUBLIC_OTP_SERVICE is OFF. Trades a bare phone
-  // for our JWT, no SMS.
-  async function loginDummy(phone) {
-    return finishLogin(await dummyLogin(phone));
   }
 
   // Persist the session (without committing) + return commitSession(). The
@@ -103,7 +97,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, account, hydrating, completeOtpLogin, loginDummy, logout }}>
+    <AuthContext.Provider value={{ token, account, hydrating, completeOtpLogin, logout }}>
       {children}
     </AuthContext.Provider>
   );

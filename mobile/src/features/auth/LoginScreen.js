@@ -23,10 +23,6 @@ const { width: SCREEN_W } = Dimensions.get("window");
 
 const RESEND_SECS = 30;
 
-// Auth mode, controlled client-side via env: EXPO_PUBLIC_OTP_SERVICE=true → real
-// Firebase OTP, =false → dummy phone-only login. Defaults to real OTP when unset.
-const OTP_ENABLED = process.env.EXPO_PUBLIC_OTP_SERVICE !== "false";
-
 // Map Firebase Auth error codes to friendly messages.
 function otpError(err) {
   const code = err?.code || "";
@@ -39,7 +35,7 @@ function otpError(err) {
 }
 
 export default function LoginScreen() {
-  const { completeOtpLogin, loginDummy } = useAuth();
+  const { completeOtpLogin } = useAuth();
   const { applySavedForm } = useForm();
   const { theme, colors: color } = useTheme();
   const s = useStyles(makeStyles);
@@ -137,21 +133,7 @@ export default function LoginScreen() {
     setResending(isResend);
     phoneRef.current = cleaned;
 
-    // OTP disabled → dummy login, straight in (no SMS, no code screen).
-    if (!OTP_ENABLED) {
-      loginDummy(cleaned)
-        .then(async ({ savedForm, commitSession }) => {
-          if (savedForm) await applySavedForm(savedForm);
-          commitSession(); // switches the navigator → this screen unmounts
-        })
-        .catch((err) => {
-          setError(otpError(err));
-          setBusy(false);
-        });
-      return;
-    }
-
-    // Real OTP — tear down any previous listener before a new send / resend.
+    // Tear down any previous listener before a new send / resend.
     unsubRef.current?.();
     // User enters the full number incl. country code; Firebase needs E.164 (+...).
     unsubRef.current = verifyPhone(`+${cleaned}`, {

@@ -1,17 +1,15 @@
 // Phone-OTP auth. The actual OTP delivery + verification happens on the
 // client via Firebase; we only ever see the resulting Firebase ID token,
 // verify it server-side with firebase-admin, then mint our own session JWT.
-//
-// The `dummyLogin` path is a stand-in for while real Firebase Phone Auth
-// isn't wired up on a client — it trades a bare phone number for a JWT.
 
 import { Op } from 'sequelize';
 import { verifyIdToken } from '../config/firebase.js';
 import { AuthAccount, User, Location, Kundali } from '../models/index.js';
 import { ensureUserForPhone } from './userService.js';
 import { signAppToken } from '../middleware/auth.js';
-import { normalizePhone, phoneWhere } from '../utils/phone.js';
+import { phoneWhere, normalizePhone } from '../utils/phone.js';
 import { AppError } from '../errors/AppError.js';
+import { env } from '../config/envConfig.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'auth' });
@@ -79,6 +77,27 @@ async function upsertAccount(firebaseUid, phone) {
   return account;
 }
 
+// Finish login for a verified (firebaseUid, phone) pair: upsert the account,
+// ensure a User row, mint the session JWT, and hand back any saved birth form.
+async function issueSession(firebaseUid, phone) {
+  const account = await upsertAccount(firebaseUid, phone);
+  // Register a placeholder User + signup credits on first login, so every
+  // signup is tracked even before birth details are entered. Best-effort.
+  await ensureUserForPhone(account.phone)
+    .catch((err) => log.warn({ err: err.message }, 'ensureUserForPhone failed'));
+  const token = signAppToken({
+    accountId:   account.id,
+    firebaseUid: account.firebaseUid,
+    phone:       account.phone,
+    userId:      await userIdForPhone(account.phone),
+  });
+
+  // Hand back any saved birth details so a returning user skips the form and
+  // lands on their reading.
+  const savedForm = await findSavedFormByPhone(account.phone);
+  return { token, account: { id: account.id, phone: account.phone }, savedForm };
+}
+
 // Verify a Firebase ID token, upsert the account, return token + account.
 export async function verifyOtp(idToken) {
   let decoded;
@@ -92,49 +111,19 @@ export async function verifyOtp(idToken) {
   const phone = decoded.phone_number || null;
   if (!phone) throw new AppError('no_phone_in_token', 400, 'NO_PHONE_IN_TOKEN');
 
-  const account = await upsertAccount(decoded.uid, phone);
-  // Register a placeholder User + signup credits on first login, so every
-  // signup is tracked even before birth details are entered. Best-effort.
-  await ensureUserForPhone(account.phone)
-    .catch((err) => log.warn({ err: err.message }, 'ensureUserForPhone failed'));
-  const token = signAppToken({
-    accountId:   account.id,
-    firebaseUid: account.firebaseUid,
-    phone:       account.phone,
-    userId:      await userIdForPhone(account.phone),
-  });
-
-  // Same as dummyLogin: hand back any saved birth details so a returning user
-  // skips the form and lands on their reading.
-  const savedForm = await findSavedFormByPhone(account.phone);
-  return { token, account: { id: account.id, phone: account.phone }, savedForm };
+  return issueSession(decoded.uid, phone);
 }
 
-// Dummy login — trades a raw phone number for a real session JWT. Used while
-// real Firebase Phone Auth isn't wired up on the client. Returns the saved
-// birth form too, so a returning user skips the home form.
-export async function dummyLogin(rawPhone) {
-  // Normalise to the full digit string (country code included), so dummy login
-  // works for any country — not just 10-digit Indian numbers. See utils/phone.js.
+// OTP bypass: mint a session straight from a phone number, skipping Firebase.
+// Gated on OTP_ENABLED='false' so a forged `phone` is inert when the bypass is
+// off (the only safe state for real users). The phone is normalized to E.164
+// and a synthetic, stable firebaseUid keeps the AuthAccount row idempotent.
+export async function bypassOtp(rawPhone) {
+  if (env.OTP_ENABLED !== 'false') {
+    throw new AppError('otp_bypass_disabled', 403, 'OTP_BYPASS_DISABLED');
+  }
   const digits = normalizePhone(rawPhone);
   if (!digits) throw new AppError('invalid_phone', 400, 'INVALID_PHONE');
-
-  // Synthetic firebaseUid keyed on phone so dummy and real Firebase accounts
-  // can't collide. Real Firebase UIDs are 28 alphanumerics; ours are prefixed
-  // `dummy_` and clearly distinguishable.
-  const account = await upsertAccount(`dummy_${digits}`, digits);
-  // Register a placeholder User + signup credits on first login (see verifyOtp).
-  await ensureUserForPhone(digits)
-    .catch((err) => log.warn({ err: err.message }, 'ensureUserForPhone failed'));
-  const token = signAppToken({
-    accountId:   account.id,
-    firebaseUid: account.firebaseUid,
-    phone:       account.phone,
-    userId:      await userIdForPhone(digits),
-  });
-
-  const savedForm = await findSavedFormByPhone(digits);
-  log.info({ phone: digits, accountId: account.id, returning: !!savedForm }, 'dummy login');
-
-  return { token, account: { id: account.id, phone: account.phone }, savedForm };
+  const phone = `+${digits}`;
+  return issueSession(`bypass:${phone}`, phone);
 }

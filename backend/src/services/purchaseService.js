@@ -251,7 +251,14 @@ export function appleTxnForProduct(inApp, productId) {
 // transaction id (idempotency key), or null on any failure / product mismatch.
 async function verifyAppleReceipt(productId, receipt) {
   if (!env.APPLE_IAP_SECRET) {
-    log.warn('APPLE_IAP_SECRET missing — using mock verification');
+    // Fail CLOSED in production: a mock txn here would let any authed client
+    // farm free credits (the mock id is unique each call, so the providerTxnId
+    // guard doesn't stop it). Mock is dev-only.
+    if (env.NODE_ENV === 'production') {
+      log.error('APPLE_IAP_SECRET missing in production — refusing IAP grant');
+      return null;
+    }
+    log.warn('APPLE_IAP_SECRET missing — using mock verification (dev only)');
     return `mock_apple_${Date.now()}`;
   }
 
@@ -296,7 +303,12 @@ async function verifyAppleReceipt(productId, receipt) {
 
 async function verifyGooglePurchase(productId, token) {
   if (!env.GOOGLE_IAP_SERVICE_ACCOUNT_JSON) {
-    log.warn('GOOGLE_IAP_SERVICE_ACCOUNT_JSON missing — using mock verification');
+    // Fail CLOSED in production (see verifyAppleReceipt) — mock is dev-only.
+    if (env.NODE_ENV === 'production') {
+      log.error('GOOGLE_IAP_SERVICE_ACCOUNT_JSON missing in production — refusing IAP grant');
+      return null;
+    }
+    log.warn('GOOGLE_IAP_SERVICE_ACCOUNT_JSON missing — using mock verification (dev only)');
     return `mock_google_${Date.now()}`;
   }
 

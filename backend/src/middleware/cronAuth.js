@@ -5,6 +5,7 @@
 
 import { timingSafeEqual, createHash } from 'node:crypto';
 import { env } from '../config/envConfig.js';
+import { AppError } from '../errors/AppError.js';
 
 // L2: compare SHA-256 digests (always 32 bytes) so the comparison never
 // short-circuits on a length mismatch — that early return would otherwise leak
@@ -17,7 +18,7 @@ function safeEqual(a, b) {
 
 export function requireCronSecret(req, res, next) {
   if (!env.CRON_SECRET) {
-    return res.status(503).json({ error: 'cron_not_configured', code: 'CRON_NOT_CONFIGURED' });
+    return next(AppError.http(503, 'Cron not configured', 'CRON_NOT_CONFIGURED'));
   }
   // Accept either scheme:
   //  • `x-cron-secret: <secret>`         — external schedulers (cron-job.org / GH Actions)
@@ -25,7 +26,7 @@ export function requireCronSecret(req, res, next) {
   const bearer = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
   const provided = req.get('x-cron-secret') || bearer || '';
   if (!provided || !safeEqual(provided, env.CRON_SECRET)) {
-    return res.status(401).json({ error: 'unauthorized' });
+    return next(AppError.unauthorized());
   }
   next();
 }

@@ -88,15 +88,18 @@ export const userQuery = formSchema.partial({ gender: true }).extend({
   targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
-// Auth — the client trades a Firebase ID token (or, on the dummy path, a raw
-// phone number) for our own session JWT. See services/authService.js.
-export const verifyBody = z.object({
-  idToken: z.string().min(20),
-});
-
-export const dummyBody = z.object({
-  phone: z.string().min(10).max(20),
-});
+// Auth — the client trades a verified Firebase ID token for our own session
+// JWT. See services/authService.js. When OTP_ENABLED='false' the client may
+// instead send a bare `phone` (E.164) to bypass Firebase; the service rejects
+// that path unless the bypass is on, so a forged `phone` is useless in prod.
+export const verifyBody = z
+  .object({
+    idToken: z.string().min(20).optional(),
+    phone: z.string().trim().min(1).optional(),
+  })
+  .refine((b) => b.idToken || b.phone, {
+    message: 'idToken or phone is required',
+  });
 
 // Back-office admin login — username + password.
 export const adminLoginBody = z.object({

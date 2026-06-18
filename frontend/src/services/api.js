@@ -22,12 +22,6 @@ export function verifyOtp(idToken) {
   return request("/auth/verify-otp", { method: "POST", body: { idToken } });
 }
 
-// Dummy login (used when VITE_OTP_SERVICE is OFF) — trades a bare phone for our
-// JWT, no SMS. → { token, account: { id, phone }, savedForm? }
-export function dummyLogin(phone) {
-  return request("/auth/dummy-login", { method: "POST", body: { phone } });
-}
-
 // Current session + any saved birth form. Used to re-hydrate a returning user
 // on app reload (token persists, but the client-side form does not).
 // → { account: { id, phone }, savedForm? }
@@ -35,7 +29,7 @@ export function getMe() {
   return request("/auth/me");
 }
 
-// Pulls the logged-in phone from the dummy AuthContext store and attaches
+// Pulls the logged-in phone from the AuthContext store and attaches
 // it to any outgoing form payload so the backend can stamp it on the User
 // row. Pure read — no side effects.
 function attachPhone(form) {

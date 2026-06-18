@@ -4,7 +4,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { tokenStore } from "@/common/tokenStore";
-import { verifyOtp, dummyLogin } from "@/services/api";
+import { verifyOtp } from "@/services/api";
 import { registerForWebPush, teardownWebPush } from "@/features/notifications/webPush";
 
 // appToken (the bearer) is shared with services/api.js; appAccount holds the
@@ -39,14 +39,7 @@ export function AuthProvider({ children }) {
     return finishLogin(data);
   }
 
-  // Dummy login — used when VITE_OTP_SERVICE is OFF. Trades a bare phone for our
-  // JWT, no SMS.
-  async function loginDummy(phone) {
-    const data = await dummyLogin(phone); // { token, account, savedForm? }
-    return finishLogin(data);
-  }
-
-  // Persist the session + register push. Shared by both login paths.
+  // Persist the session + register push.
   function finishLogin(data) {
     appToken.set(data.token);
     appAccount.set(JSON.stringify(data.account));
@@ -74,7 +67,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, account, hydrating: false, completeOtpLogin, loginDummy, logout }}>
+    <AuthContext.Provider value={{ token, account, hydrating: false, completeOtpLogin, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,6 +10,7 @@ import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
 import { fenceUntrusted, UNTRUSTED_DATA_GUARD } from '../utils/promptSafety.js';
 import { userKey } from '../utils/userKey.js';
+import { chartHashFor } from '../utils/chartHash.js';
 import { KUNDLI_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { logger } from '../config/logger.js';
 import { AppError } from '../errors/AppError.js';
@@ -81,15 +82,13 @@ export async function generateInterpretation({ form, factSheet }) {
       //    BOTH sides (neither user has a palm); otherwise fall through and
       //    generate fresh from THIS user's chart + their own palm (or none).
       if (!latestPalm) {
-        const sibling = await User.findOne({
-          where: {
-            name: form.name,
-            birthDate: form.date,
-            birthTime: form.time,
-            birthCity: form.city,
-            gender: form.gender || null,
-            id: { [Op.ne]: user.id },
-          },
+        // Match a sibling by the normalized birth-identity hash (one indexed
+        // lookup, whitespace-tolerant — see utils/chartHash.js).
+        const hash = chartHashFor({
+          name: form.name, date: form.date, time: form.time, city: form.city, gender: form.gender,
+        });
+        const sibling = hash && await User.findOne({
+          where: { chartHash: hash, id: { [Op.ne]: user.id } },
         });
         if (sibling) {
           const siblingKundali = await Kundali.findOne({ where: { userId: sibling.id } });

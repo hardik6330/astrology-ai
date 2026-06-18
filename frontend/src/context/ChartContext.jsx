@@ -1,10 +1,22 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { computeChart, buildFactSheet } from "@/shared/astrology";
 import { creditsStore } from "@/common/creditsStore";
 import { tokenStore } from "@/common/tokenStore";
 import { getMe, chatCompletionJSON, fetchSaved } from "@/services/api";
 
-const ChartContext = createContext(null);
+// State is split across three contexts — Form, Reading, Palm — backed by ONE
+// provider that owns all the state (mirrors mobile/src/context/ChartContext.js).
+// Why one provider but three contexts:
+//   • Cross-cutting resets (clearAll, applySavedForm) touch every slice, trivial
+//     when all setters share one scope.
+//   • A consumer of usePalm() only re-renders on palm changes, useReading() only
+//     on reading changes, etc. — so a per-frame palm-scan update can't re-render
+//     reading/chat consumers in the mounted subtree.
+// `useChart()` remains as a backward-compatible merged view of all three slices.
+
+const FormContext = createContext(null);
+const ReadingContext = createContext(null);
+const PalmContext = createContext(null);
 
 // Shared with the auth context — lets us tell "logged in" from "logged out"
 // without importing AuthContext (avoids a provider-ordering coupling).
@@ -105,6 +117,91 @@ export function ChartProvider({ children }) {
   // land on their reading. Guards wait on this flag to avoid a form flash.
   const [hydrating, setHydrating] = useState(() => !loadForm().date && !!appToken.get());
 
+  // Reset every reading + palm + insight slice (shared by applySavedForm/clearAll).
+  const clearReadingAndPalm = useCallback(() => {
+    setInterp(null);
+    insightInFlight.current = false;
+    setInsightLoading(false);
+    setInsightOverloaded(false);
+    setInsightLowCredits(false);
+    setInsightError("");
+    setDaily(null);
+    setChatMsgs([]);
+    setPalm(null);
+    setPalmPhoto(null);
+    setPalmAnalyzing(false);
+    setPalmClaimedHand(null);
+    setPalmLandmarks(null);
+    setPalmComparison(null);
+    setPalmOverloaded(false);
+    setPalmLowCredits(false);
+    setPalmLeftPhoto(null);
+    setPalmRightPhoto(null);
+  }, []);
+
+  // Hydrate form + chart from server payload (returning user). Persists to
+  // localStorage so a page refresh on /reading still works.
+  const applySavedForm = useCallback(
+    (saved) => {
+      if (!saved || !saved.date || !saved.time || !saved.city) return;
+      const next = {
+        name: saved.name || "",
+        gender: saved.gender || "",
+        date: saved.date,
+        time: saved.time,
+        city: saved.city,
+        lat: saved.lat ?? null,
+        lon: saved.lon ?? null,
+        tz: saved.tz ?? null,
+        tzId: saved.tzId ?? null,
+        placeId: saved.placeId ?? null,
+      };
+      setForm(next);
+      setChart(chartFromForm(next));
+      clearReadingAndPalm();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    },
+    [clearReadingAndPalm]
+  );
+
+  // Generate (and pay for) the detailed AI interpretation. User-initiated via
+  // the "Unlock" button on ReadingPage, but owned here so it survives navigation
+  // — if the user leaves the reading tab mid-generation, the request keeps
+  // running and the result lands in `interp` whenever it resolves. The in-flight
+  // ref makes a repeat trigger (e.g. re-clicking after coming back) a no-op.
+  const generateInsight = useCallback(async () => {
+    if (!chart || insightInFlight.current) return;
+    insightInFlight.current = true;
+    setInsightError("");
+    setInsightLowCredits(false);
+    setInsightOverloaded(false);
+    setInsightLoading(true);
+    try {
+      // Already unlocked for this chart? The GET returns it for free.
+      const saved = await fetchSaved("interpret", form);
+      setInterp(
+        saved || (await chatCompletionJSON([], "interpret", { factSheet: buildFactSheet(chart, form), form }))
+      );
+    } catch (e) {
+      if (e.code === "AI_OVERLOADED") setInsightOverloaded(true);
+      else if (e.code === "INSUFFICIENT_CREDITS") setInsightLowCredits(true);
+      else setInsightError(e.message);
+    } finally {
+      setInsightLoading(false);
+      insightInFlight.current = false;
+    }
+  }, [chart, form]);
+
+  // Wipe everything — used on logout so a different phone number doesn't
+  // inherit the previous user's chart, readings or palm result.
+  const clearAll = useCallback(() => {
+    setForm(EMPTY_FORM);
+    setChart(null);
+    clearReadingAndPalm();
+    creditsStore.clear(); // don't let a new login inherit the previous balance
+    localStorage.removeItem(STORAGE_KEY);
+  }, [clearReadingAndPalm]);
+
   // Keep the saved form in sync so it survives a refresh.
   useEffect(() => {
     if (form.date) localStorage.setItem(STORAGE_KEY, JSON.stringify(form));
@@ -128,147 +225,109 @@ export function ChartProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Hydrate form + chart from server payload (returning user). Persists
-  // to sessionStorage so a page refresh on /reading still works.
-  function applySavedForm(saved) {
-    if (!saved || !saved.date || !saved.time || !saved.city) return;
-    const next = {
-      name: saved.name || "",
-      gender: saved.gender || "",
-      date: saved.date,
-      time: saved.time,
-      city: saved.city,
-      lat: saved.lat ?? null,
-      lon: saved.lon ?? null,
-      tz: saved.tz ?? null,
-      tzId: saved.tzId ?? null,
-      placeId: saved.placeId ?? null,
-    };
-    setForm(next);
-    setChart(chartFromForm(next));
-    setInterp(null);
-    insightInFlight.current = false;
-    setInsightLoading(false);
-    setInsightOverloaded(false);
-    setInsightLowCredits(false);
-    setInsightError("");
-    setDaily(null);
-    setChatMsgs([]);
-    setPalm(null);
-    setPalmPhoto(null);
-    setPalmAnalyzing(false);
-    setPalmClaimedHand(null);
-    setPalmLandmarks(null);
-    setPalmComparison(null);
-    setPalmOverloaded(false);
-    setPalmLowCredits(false);
-    setPalmLeftPhoto(null);
-    setPalmRightPhoto(null);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  }
+  // ── Slice values ───────────────────────────────────────────────────────
+  // Each memo only changes when its own slice does, so consumers re-render
+  // narrowly. Setters from useState are stable and don't affect the memo.
+  const formValue = useMemo(
+    () => ({ hydrating, form, setForm, chart, setChart, applySavedForm, clearAll }),
+    [hydrating, form, chart, applySavedForm, clearAll]
+  );
 
-  // Generate (and pay for) the detailed AI interpretation. User-initiated via
-  // the "Unlock" button on ReadingPage, but owned here so it survives navigation
-  // — if the user leaves the reading tab mid-generation, the request keeps
-  // running and the result lands in `interp` whenever it resolves. The in-flight
-  // ref makes a repeat trigger (e.g. re-clicking after coming back) a no-op.
-  async function generateInsight() {
-    if (!chart || insightInFlight.current) return;
-    insightInFlight.current = true;
-    setInsightError("");
-    setInsightLowCredits(false);
-    setInsightOverloaded(false);
-    setInsightLoading(true);
-    try {
-      // Already unlocked for this chart? The GET returns it for free.
-      const saved = await fetchSaved("interpret", form);
-      setInterp(
-        saved || (await chatCompletionJSON([], "interpret", { factSheet: buildFactSheet(chart, form), form }))
-      );
-    } catch (e) {
-      if (e.code === "AI_OVERLOADED") setInsightOverloaded(true);
-      else if (e.code === "INSUFFICIENT_CREDITS") setInsightLowCredits(true);
-      else setInsightError(e.message);
-    } finally {
-      setInsightLoading(false);
-      insightInFlight.current = false;
-    }
-  }
+  const readingValue = useMemo(
+    () => ({
+      interp,
+      setInterp,
+      daily,
+      setDaily,
+      chatMsgs,
+      setChatMsgs,
+      insightLoading,
+      insightOverloaded,
+      insightLowCredits,
+      insightError,
+      setInsightError,
+      setInsightLowCredits,
+      generateInsight,
+    }),
+    [
+      interp,
+      daily,
+      chatMsgs,
+      insightLoading,
+      insightOverloaded,
+      insightLowCredits,
+      insightError,
+      generateInsight,
+    ]
+  );
 
-  // Wipe everything — used on logout so a different phone number doesn't
-  // inherit the previous user's chart, readings or palm result.
-  function clearAll() {
-    setForm(EMPTY_FORM);
-    setChart(null);
-    setInterp(null);
-    insightInFlight.current = false;
-    setInsightLoading(false);
-    setInsightOverloaded(false);
-    setInsightLowCredits(false);
-    setInsightError("");
-    setDaily(null);
-    setChatMsgs([]);
-    setPalm(null);
-    setPalmPhoto(null);
-    setPalmAnalyzing(false);
-    setPalmClaimedHand(null);
-    setPalmLandmarks(null);
-    setPalmComparison(null);
-    setPalmOverloaded(false);
-    setPalmLowCredits(false);
-    setPalmLeftPhoto(null);
-    setPalmRightPhoto(null);
-    creditsStore.clear(); // don't let a new login inherit the previous balance
-    localStorage.removeItem(STORAGE_KEY);
-  }
+  const palmValue = useMemo(
+    () => ({
+      palm,
+      setPalm,
+      palmPhoto,
+      setPalmPhoto,
+      palmAnalyzing,
+      setPalmAnalyzing,
+      palmClaimedHand,
+      setPalmClaimedHand,
+      palmLandmarks,
+      setPalmLandmarks,
+      palmComparison,
+      setPalmComparison,
+      palmOverloaded,
+      setPalmOverloaded,
+      palmLowCredits,
+      setPalmLowCredits,
+      palmLeftPhoto,
+      setPalmLeftPhoto,
+      palmRightPhoto,
+      setPalmRightPhoto,
+    }),
+    [
+      palm,
+      palmPhoto,
+      palmAnalyzing,
+      palmClaimedHand,
+      palmLandmarks,
+      palmComparison,
+      palmOverloaded,
+      palmLowCredits,
+      palmLeftPhoto,
+      palmRightPhoto,
+    ]
+  );
 
-  const value = {
-    hydrating,
-    form,
-    setForm,
-    chart,
-    setChart,
-    interp,
-    setInterp,
-    insightLoading,
-    insightOverloaded,
-    insightLowCredits,
-    insightError,
-    setInsightError,
-    setInsightLowCredits,
-    generateInsight,
-    daily,
-    setDaily,
-    chatMsgs,
-    setChatMsgs,
-    palm,
-    setPalm,
-    palmPhoto,
-    setPalmPhoto,
-    palmAnalyzing,
-    setPalmAnalyzing,
-    palmClaimedHand,
-    setPalmClaimedHand,
-    palmLandmarks,
-    setPalmLandmarks,
-    palmComparison,
-    setPalmComparison,
-    palmOverloaded,
-    setPalmOverloaded,
-    palmLowCredits,
-    setPalmLowCredits,
-    palmLeftPhoto,
-    setPalmLeftPhoto,
-    palmRightPhoto,
-    setPalmRightPhoto,
-    clearAll,
-    applySavedForm,
-  };
-  return <ChartContext.Provider value={value}>{children}</ChartContext.Provider>;
+  return (
+    <FormContext.Provider value={formValue}>
+      <ReadingContext.Provider value={readingValue}>
+        <PalmContext.Provider value={palmValue}>{children}</PalmContext.Provider>
+      </ReadingContext.Provider>
+    </FormContext.Provider>
+  );
 }
 
-export function useChart() {
-  const ctx = useContext(ChartContext);
-  if (!ctx) throw new Error("useChart must be used within a ChartProvider");
+export function useForm() {
+  const ctx = useContext(FormContext);
+  if (!ctx) throw new Error("useForm must be used within a ChartProvider");
   return ctx;
+}
+
+export function useReading() {
+  const ctx = useContext(ReadingContext);
+  if (!ctx) throw new Error("useReading must be used within a ChartProvider");
+  return ctx;
+}
+
+export function usePalm() {
+  const ctx = useContext(PalmContext);
+  if (!ctx) throw new Error("usePalm must be used within a ChartProvider");
+  return ctx;
+}
+
+// Backward-compatible merged view of all three slices. Prefer the granular
+// hooks (useForm/useReading/usePalm) in new code so consumers re-render
+// narrowly; useChart() re-renders on any slice change.
+export function useChart() {
+  return { ...useForm(), ...useReading(), ...usePalm() };
 }

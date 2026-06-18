@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useChart } from "../context/ChartContext";
+import { useForm, usePalm } from "../context/ChartContext";
 import { analyzePalm, comparePalms, fetchSaved, fetchPalmHistory, fetchPalmById } from "../services/api";
 import { gatePalmImage, warmUpGate, ensureGate } from "../utils/palmGate";
 import BottomNav from "../components/BottomNav";
@@ -241,8 +241,8 @@ export default function PalmPage() {
   const costs = useCosts();
   const palmCost = costs?.palm ?? 30;
   const credits = useCredits();
+  const { form } = useForm();
   const {
-    form,
     palm,
     setPalm,
     palmPhoto,
@@ -263,7 +263,7 @@ export default function PalmPage() {
     setPalmLeftPhoto,
     palmRightPhoto,
     setPalmRightPhoto,
-  } = useChart();
+  } = usePalm();
   // Local preview mirrors context.palmPhoto so the photo survives a navigation
   // away from /palm (e.g. user uploaded on the Palm Step page).
   const [preview, setPreview] = useState(palmPhoto || null);

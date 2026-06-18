@@ -1,3 +1,5 @@
+import { env } from './envConfig.js';
+
 // Model chains
 // - PRO: deep synthesis for kundli/daily/palm. No flash fallback — when Pro
 //   fails 3×, frontend gets AI_OVERLOADED + retry UI (no quality downgrade).
@@ -20,6 +22,12 @@ export const PALM_MODELS         = ['gemini-2.5-pro'];
 // Retry tuning for Gemini calls.
 export const MAX_RETRIES   = 3;
 export const RETRY_BASE_MS = 1000;       // exponential backoff: 1s, 2s, 4s
+
+// Timeout budgets (ms) — see envConfig. DEADLINE bounds total wall-clock across
+// all attempts + backoff (keeps us under the host's function timeout); ATTEMPT
+// bounds a single generateContent call.
+export const GEMINI_DEADLINE_MS        = env.GEMINI_DEADLINE_MS;
+export const GEMINI_ATTEMPT_TIMEOUT_MS = env.GEMINI_ATTEMPT_TIMEOUT_MS;
 
 // Hard ceiling on response length per Gemini call (M1) — bounds cost/latency so
 // a crafted prompt can't drive an unbounded generation. NOTE: on 2.5 "thinking"

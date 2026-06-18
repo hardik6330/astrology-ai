@@ -11,15 +11,11 @@ import { sendOtp as fbSendOtp, confirmOtp, clearRecaptcha } from "./webOtp";
 import { defaultDialCode } from "@/utils/dialCode";
 import { EMOJIS } from "@/utils/emojis";
 
-// Auth mode, controlled client-side via env: VITE_OTP_SERVICE=true → real
-// Firebase OTP, =false → dummy phone-only login. Defaults to real OTP when unset.
-const OTP_ENABLED = import.meta.env.VITE_OTP_SERVICE !== "false";
-
 const RESEND_SECS = 30;
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { completeOtpLogin, loginDummy, token } = useAuth();
+  const { completeOtpLogin, token } = useAuth();
   const { applySavedForm } = useChart();
   const [phone, setPhone] = useState("");
   // Country dialing code (digits, no "+"), pre-filled from the browser region
@@ -70,17 +66,11 @@ export default function LoginPage() {
 
     setBusy(true);
     try {
-      if (OTP_ENABLED) {
-        // Real OTP: send the SMS, then go to the code screen.
-        // Firebase needs full E.164 format (+ country code + national number).
-        confirmationRef.current = await fbSendOtp(`+${cleaned}`);
-        setStep("otp");
-        setResendIn(RESEND_SECS);
-      } else {
-        // OTP disabled → dummy login, straight in (no SMS, no code screen).
-        const { savedForm } = await loginDummy(cleaned);
-        routeAfterLogin(savedForm);
-      }
+      // Send the SMS, then go to the code screen. Firebase needs full E.164
+      // format (+ country code + national number).
+      confirmationRef.current = await fbSendOtp(`+${cleaned}`);
+      setStep("otp");
+      setResendIn(RESEND_SECS);
     } catch (err) {
       setError(otpError(err));
     } finally {

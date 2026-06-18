@@ -19,6 +19,10 @@ const CreditTransaction = sequelize.define('CreditTransaction', {
   // signup_bonus | chat | insights | daily | palm | admin | purchase
   reason:  { type: DataTypes.STRING(40), allowNull: false },
   meta:    { type: DataTypes.JSON, allowNull: true },       // optional context
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  // Credit-history reads filter `where userId order by createdAt`.
+  indexes: [{ name: 'credit_transactions_user_created', fields: ['userId', 'createdAt'] }],
+});
 
 export default CreditTransaction;

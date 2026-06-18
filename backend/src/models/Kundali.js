@@ -12,6 +12,12 @@ const Kundali = sequelize.define('Kundali', {
   locationId:     { type: DataTypes.STRING(24), allowNull: true },
   chartData:      { type: DataTypes.JSON, allowNull: false },
   interpretation: { type: DataTypes.JSON, allowNull: false },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  // Every read is `findOne({ where: { userId } })`. UNIQUE: exactly one chart
+  // per user (hasOne) — also makes a concurrent double-insert fail at the DB
+  // instead of silently forking a second row.
+  indexes: [{ name: 'kundalis_user_id', fields: ['userId'], unique: true }],
+});
 
 export default Kundali;

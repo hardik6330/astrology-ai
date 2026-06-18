@@ -17,15 +17,19 @@ const User = sequelize.define('User', {
   // Spendable Cosmic Credits balance. New profiles are granted the
   // initial_credits bonus on creation (see userService.findOrCreateUser).
   credits:   { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  // Normalized hash of the birth identity (name|date|time|city|gender) — the
+  // sibling-copy match key (see utils/chartHash.js). Null for placeholders.
+  chartHash: { type: DataTypes.STRING(64), allowNull: true },
 }, {
   timestamps: true,
-  // findUserByForm (every content request) filters on name+birth fields, and
-  // sibling lookups do the same — (name, birthDate) keeps those off full scans.
-  // Phone EQUALITY (form-scoped lookups) uses the phone index; the suffix
-  // LIKE '%digits' login path can't use any B-tree index by nature.
+  // findUserByForm (every content request) filters on name+birth fields —
+  // (name, birthDate) keeps that off a full scan. Phone EQUALITY (form-scoped
+  // lookups) uses the phone index; the suffix LIKE '%digits' login path can't
+  // use any B-tree index by nature. chartHash powers the sibling-copy lookup.
   indexes: [
     { name: 'users_name_birth_date', fields: ['name', 'birthDate'] },
     { name: 'users_phone', fields: ['phone'] },
+    { name: 'users_chart_hash', fields: ['chartHash'] },
   ],
 });
 

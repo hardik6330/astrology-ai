@@ -8,6 +8,7 @@ import { charge, grant, getBalance } from './creditService.js';
 import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
 import { fenceUntrusted, UNTRUSTED_DATA_GUARD } from '../utils/promptSafety.js';
+import { chartHashFor } from '../utils/chartHash.js';
 import { userKey } from '../utils/userKey.js';
 import { KUNDLI_MODELS, THINK_BUDGET } from '../config/constants.js';
 import { logger } from '../config/logger.js';
@@ -57,15 +58,13 @@ export async function generateDailyGuidance({ form, ctx, targetDate }) {
     // answer is identical — reuse it instead of burning Gemini tokens. We still
     // write a row owned by THIS user so per-user lifecycle stays clean. Mirrors
     // the kundali sibling-copy: charged like a fresh day, just no AI call.
-    const sibling = await User.findOne({
-      where: {
-        name: form.name,
-        birthDate: form.date,
-        birthTime: form.time,
-        birthCity: form.city,
-        gender: form.gender || null,
-        id: { [Op.ne]: user.id },
-      },
+    // Match a sibling by the normalized birth-identity hash (one indexed
+    // lookup, whitespace-tolerant — see utils/chartHash.js).
+    const hash = chartHashFor({
+      name: form.name, date: form.date, time: form.time, city: form.city, gender: form.gender,
+    });
+    const sibling = hash && await User.findOne({
+      where: { chartHash: hash, id: { [Op.ne]: user.id } },
     });
     if (sibling) {
       const siblingDaily = await DailyData.findOne({ where: { userId: sibling.id, date } });

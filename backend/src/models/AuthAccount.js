@@ -15,6 +15,12 @@ const AuthAccount = sequelize.define('AuthAccount', {
   firebaseUid: { type: DataTypes.STRING(128), allowNull: false, unique: true },
   phone:       { type: DataTypes.STRING(20),  allowNull: false },
   lastLoginAt: { type: DataTypes.DATE,        allowNull: true  },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  // Every push fan-out + login resolves accounts by phone (tokensForPhone) —
+  // without this it's a full table scan per send. NOT unique: one phone can have
+  // re-verified several times (firebaseUid is the unique identity).
+  indexes: [{ name: 'auth_accounts_phone', fields: ['phone'] }],
+});
 
 export default AuthAccount;

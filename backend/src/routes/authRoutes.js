@@ -7,13 +7,12 @@ import * as auth from '../controllers/authController.js';
 import { requireAuth } from '../middleware/auth.js';
 import { writeLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
-import { verifyBody, dummyBody } from '../validators/schemas.js';
+import { verifyBody } from '../validators/schemas.js';
 
 const router = Router();
 
-router.get ('/auth/config',      auth.config);   // public: which auth mode is active
+router.get ('/auth/config',      auth.config);   // public: force-update knobs
 router.post('/auth/verify-otp',  writeLimiter, validate(verifyBody, 'body'), auth.verifyOtp);
-router.post('/auth/dummy-login', writeLimiter, validate(dummyBody, 'body'), auth.dummyLogin);
 router.get ('/auth/me',          requireAuth,  auth.me);
 
 export default router;

@@ -13,8 +13,9 @@ const DailyData = sequelize.define('DailyData', {
   guidance: { type: DataTypes.JSON, allowNull: false },
 }, {
   timestamps: true,
-  // Every daily fetch/save filters { userId, date } — serve it from one index.
-  indexes: [{ name: 'daily_data_user_date', fields: ['userId', 'date'] }],
+  // Every daily fetch/save filters { userId, date }. UNIQUE: one reading per
+  // user per day — guards against a concurrent double-insert for the same date.
+  indexes: [{ name: 'daily_data_user_date', fields: ['userId', 'date'], unique: true }],
 });
 
 export default DailyData;

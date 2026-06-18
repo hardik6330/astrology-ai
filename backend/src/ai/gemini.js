@@ -1,12 +1,18 @@
 import { genAI } from '../config/aiConfig.js';
-import { CHAT_MODELS, MAX_RETRIES, RETRY_BASE_MS, MAX_OUTPUT_TOKENS } from '../config/constants.js';
+import {
+  CHAT_MODELS, MAX_RETRIES, RETRY_BASE_MS, MAX_OUTPUT_TOKENS,
+  GEMINI_DEADLINE_MS, GEMINI_ATTEMPT_TIMEOUT_MS,
+} from '../config/constants.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'gemini' });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 503 / 429 are transient — retry. Everything else is a real bug, give up.
+// 503 / 429 are transient — retry the SAME model with backoff. Everything else
+// (incl. a timeout — see below) breaks out to the next model in the chain, then
+// gives up gracefully. A timeout is NOT treated as same-model-retryable: a slow
+// model would just time out again and burn the deadline.
 const isTransient = (err) => /\b(503|429)\b/.test(err.message || '');
 
 function overloadedError(cause) {
@@ -14,6 +20,22 @@ function overloadedError(cause) {
   err.code = 'AI_OVERLOADED';
   err.cause = cause;
   return err;
+}
+
+// Reject if `promise` doesn't settle within `ms`. Promise.race can't truly abort
+// the underlying request, but we ALSO pass the same budget to the SDK
+// (requestOptions.timeout) so the fetch itself is cancelled — this race is the
+// hard backstop guaranteeing a request never blocks past the budget regardless.
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const e = new Error(`Gemini call exceeded ${ms}ms`);
+      e.code = 'GEMINI_TIMEOUT';
+      reject(e);
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 /**
@@ -38,15 +60,22 @@ export function minimizeChart(chart) {
 }
 
 /**
- * Text-only Gemini call with retry + model fallback.
- *   thinkingBudget — caps Pro's internal reasoning tokens (cheaper = lower).
- *   Pass null to use Google's default dynamic behavior.
+ * Shared retry + model-fallback + timeout core for every Gemini call shape.
+ *   parts  — the content array (text / inlineData) to send.
+ *   label  — (modelName) => string tagging the usage log line.
+ * Bounds total time with an overall DEADLINE across all attempts + backoff so a
+ * slow/hung generation can't run past the host's function timeout; on timeout or
+ * exhaustion it throws AI_OVERLOADED (the graceful retry-UI path), never a 500.
  */
-export async function callGemini(systemPrompt, userPrompt, jsonMode = false, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS) {
+async function generateWithRetry({ models, parts, jsonMode, thinkingBudget, maxOutputTokens, label }) {
   let lastError;
+  const deadline = Date.now() + GEMINI_DEADLINE_MS;
 
   for (const modelName of models) {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) { lastError ??= new Error('Gemini deadline exceeded'); break; }
+      const attemptMs = Math.min(GEMINI_ATTEMPT_TIMEOUT_MS, remaining);
       try {
         const startTime = Date.now();
         const generationConfig = {
@@ -55,24 +84,25 @@ export async function callGemini(systemPrompt, userPrompt, jsonMode = false, mod
           ...(jsonMode && { responseMimeType: 'application/json' }),
           ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
         };
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          ...(Object.keys(generationConfig).length > 0 && { generationConfig }),
-        });
-        const result = await model.generateContent([
-          { text: `SYSTEM: ${systemPrompt}` },
-          { text: `USER: ${userPrompt}` },
-        ]);
+        const model = genAI.getGenerativeModel(
+          { model: modelName, generationConfig },
+          { timeout: attemptMs },
+        );
+        const result = await withTimeout(model.generateContent(parts), attemptMs);
         const response = await result.response;
         const text = response.text();
         const duration = Date.now() - startTime;
         const u = response.usageMetadata || {};
-        log.info(`[Gemini] ${modelName} thinking=${thinkingBudget ?? '-'} prompt=${u.promptTokenCount ?? '?'} out=${u.candidatesTokenCount ?? '?'} total=${u.totalTokenCount ?? '?'} (${duration}ms)`);
+        log.info(`${label(modelName)} thinking=${thinkingBudget ?? '-'} prompt=${u.promptTokenCount ?? '?'} out=${u.candidatesTokenCount ?? '?'} total=${u.totalTokenCount ?? '?'} (${duration}ms)`);
         return text;
       } catch (error) {
         lastError = error;
+        // Non-transient (real error or timeout) → stop retrying this model, try
+        // the next in the chain. Only 503/429 retry the same model.
         if (!isTransient(error)) break;
-        if (attempt < MAX_RETRIES) await sleep(RETRY_BASE_MS * 2 ** (attempt - 1));
+        const backoff = RETRY_BASE_MS * 2 ** (attempt - 1);
+        // Only back off if there's budget left for it AND another attempt.
+        if (attempt < MAX_RETRIES && (deadline - Date.now()) > backoff) await sleep(backoff);
       }
     }
   }
@@ -80,49 +110,33 @@ export async function callGemini(systemPrompt, userPrompt, jsonMode = false, mod
 }
 
 /**
+ * Text-only Gemini call with retry + model fallback.
+ *   thinkingBudget — caps Pro's internal reasoning tokens (cheaper = lower).
+ *   Pass null to use Google's default dynamic behavior.
+ */
+export async function callGemini(systemPrompt, userPrompt, jsonMode = false, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS) {
+  return generateWithRetry({
+    models, jsonMode, thinkingBudget, maxOutputTokens,
+    parts: [{ text: `SYSTEM: ${systemPrompt}` }, { text: `USER: ${userPrompt}` }],
+    label: (m) => `[Gemini] ${m}`,
+  });
+}
+
+/**
  * Multi-image Gemini Vision call. `images` is an array of
  * { base64, mimeType } — each one passed in order to the model. Useful for
  * the Both-Hands palm comparison where Pro sees BOTH photos in one call.
- * Same retry/fallback semantics as callGeminiVision.
  */
 export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, jsonMode = true, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS) {
-  let lastError;
-  for (const modelName of models) {
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const startTime = Date.now();
-        const generationConfig = {
-          temperature: 1.0,
-          maxOutputTokens,
-          ...(jsonMode && { responseMimeType: 'application/json' }),
-          ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
-        };
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          ...(Object.keys(generationConfig).length > 0 && { generationConfig }),
-        });
-        const parts = [{ text: `SYSTEM: ${systemPrompt}` }];
-        for (const img of images) {
-          parts.push({ inlineData: { data: img.base64, mimeType: img.mimeType || 'image/jpeg' } });
-        }
-        parts.push({ text: `USER: ${userPrompt}` });
-        const result = await model.generateContent(parts);
-        const response = await result.response;
-        const text = response.text();
-        const duration = Date.now() - startTime;
-        const u = response.usageMetadata || {};
-        log.info(`[Gemini Vision Multi] ${modelName} images=${images.length} thinking=${thinkingBudget ?? '-'} prompt=${u.promptTokenCount ?? '?'} out=${u.candidatesTokenCount ?? '?'} total=${u.totalTokenCount ?? '?'} (${duration}ms)`);
-        return text;
-      } catch (error) {
-        lastError = error;
-        if (!isTransient(error)) break;
-        if (attempt < MAX_RETRIES) {
-          await sleep(RETRY_BASE_MS * 2 ** (attempt - 1));
-        }
-      }
-    }
+  const parts = [{ text: `SYSTEM: ${systemPrompt}` }];
+  for (const img of images) {
+    parts.push({ inlineData: { data: img.base64, mimeType: img.mimeType || 'image/jpeg' } });
   }
-  throw overloadedError(lastError);
+  parts.push({ text: `USER: ${userPrompt}` });
+  return generateWithRetry({
+    models, jsonMode, thinkingBudget, maxOutputTokens, parts,
+    label: (m) => `[Gemini Vision Multi] ${m} images=${images.length}`,
+  });
 }
 
 /**
@@ -130,43 +144,13 @@ export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, js
  * imageBase64 must be raw base64 (no `data:` prefix).
  */
 export async function callGeminiVision(systemPrompt, userPrompt, imageBase64, mimeType = 'image/jpeg', jsonMode = true, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS) {
-  let lastError;
-
-  for (const modelName of models) {
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const startTime = Date.now();
-        const generationConfig = {
-          temperature: 1.0,
-          maxOutputTokens,
-          ...(jsonMode && { responseMimeType: 'application/json' }),
-          ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
-        };
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          ...(Object.keys(generationConfig).length > 0 && { generationConfig }),
-        });
-        const result = await model.generateContent([
-          { text: `SYSTEM: ${systemPrompt}` },
-          { inlineData: { data: imageBase64, mimeType } },
-          { text: `USER: ${userPrompt}` },
-        ]);
-        const response = await result.response;
-        const text = response.text();
-        const duration = Date.now() - startTime;
-        const u = response.usageMetadata || {};
-        log.info(`[Gemini Vision] ${modelName} thinking=${thinkingBudget ?? '-'} prompt=${u.promptTokenCount ?? '?'} out=${u.candidatesTokenCount ?? '?'} total=${u.totalTokenCount ?? '?'} (${duration}ms)`);
-        return text;
-      } catch (error) {
-        lastError = error;
-        if (!isTransient(error)) break;
-        if (attempt < MAX_RETRIES) {
-          const wait = RETRY_BASE_MS * 2 ** (attempt - 1);
-          await sleep(wait);
-        }
-      }
-    }
-  }
-  throw overloadedError(lastError);
+  return generateWithRetry({
+    models, jsonMode, thinkingBudget, maxOutputTokens,
+    parts: [
+      { text: `SYSTEM: ${systemPrompt}` },
+      { inlineData: { data: imageBase64, mimeType } },
+      { text: `USER: ${userPrompt}` },
+    ],
+    label: (m) => `[Gemini Vision] ${m}`,
+  });
 }
-

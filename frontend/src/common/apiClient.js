@@ -13,10 +13,23 @@ import { tokenStore } from "./tokenStore";
 const RAW_API_URL = import.meta.env.VITE_API_URL || "";
 const isLocalDefault = !RAW_API_URL || /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(RAW_API_URL);
 
-export const API_BASE =
+const RESOLVED_BASE =
   isLocalDefault && typeof window !== "undefined"
     ? `${window.location.protocol}//${window.location.hostname}:5000/api`
     : RAW_API_URL || "http://localhost:5000/api";
+
+// Pin the client to the versioned API path. /api and /api/v1 are backend
+// aliases today, but targeting /api/v1 means a future /api/v2 can change
+// behavior without breaking this build. Idempotent + tolerant of how
+// VITE_API_URL is set (bare origin, ".../api", or already ".../api/vN").
+function withVersion(base) {
+  const b = base.replace(/\/+$/, "");
+  if (/\/api\/v\d+$/.test(b)) return b; // already versioned
+  if (/\/api$/.test(b)) return `${b}/v1`; // ".../api" → ".../api/v1"
+  return `${b}/api/v1`; // bare origin → add "/api/v1"
+}
+
+export const API_BASE = withVersion(RESOLVED_BASE);
 
 // L4: guard against shipping a cleartext API base. http:// is fine on localhost
 // / LAN dev, but in a production (https) page it both fails mixed-content and

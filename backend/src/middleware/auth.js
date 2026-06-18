@@ -7,17 +7,18 @@
 
 import jwt from 'jsonwebtoken';
 import { env } from '../config/envConfig.js';
+import { AppError } from '../errors/AppError.js';
 
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'unauthorized' });
+  if (!token) return next(AppError.unauthorized());
   try {
     const payload = jwt.verify(token, env.JWT_SECRET);
     req.auth = payload;
     next();
   } catch {
-    return res.status(401).json({ error: 'unauthorized' });
+    return next(AppError.unauthorized());
   }
 }
 
@@ -51,13 +52,13 @@ export function signAdminToken({ adminId, username }) {
 export function requireAdmin(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'unauthorized' });
+  if (!token) return next(AppError.unauthorized());
   try {
     const payload = jwt.verify(token, ADMIN_SECRET, { audience: ADMIN_AUD });
-    if (payload.role !== 'admin') return res.status(403).json({ error: 'forbidden' });
+    if (payload.role !== 'admin') return next(AppError.forbidden());
     req.admin = payload;
     next();
   } catch {
-    return res.status(401).json({ error: 'unauthorized' });
+    return next(AppError.unauthorized());
   }
 }

@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useChart } from "../context/ChartContext";
+import { useForm, usePalm } from "../context/ChartContext";
 import { useAnalyzePalm } from "@/features/palm/hooks";
 import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 import Card from "@/common/Card";
@@ -63,15 +63,9 @@ function resizeToBase64(file, maxDim = 600, quality = 0.8) {
 
 export default function PalmStepPage() {
   const navigate = useNavigate();
-  const {
-    form,
-    setPalm,
-    setPalmComparison,
-    setPalmPhoto,
-    setPalmAnalyzing,
-    setPalmClaimedHand,
-    setPalmLandmarks,
-  } = useChart();
+  const { form } = useForm();
+  const { setPalm, setPalmComparison, setPalmPhoto, setPalmAnalyzing, setPalmClaimedHand, setPalmLandmarks } =
+    usePalm();
   const analyze = useAnalyzePalm({ form });
   const fileRef = useRef(null); // generic file picker (desktop default)
   const cameraRef = useRef(null); // mobile-only camera capture

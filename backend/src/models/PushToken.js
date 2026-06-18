@@ -20,6 +20,11 @@ const PushToken = sequelize.define('PushToken', {
   platform:   { type: DataTypes.STRING(16),  allowNull: true },  // 'android' | 'ios'
   enabled:    { type: DataTypes.BOOLEAN,      allowNull: false, defaultValue: true },
   lastSeenAt: { type: DataTypes.DATE,         allowNull: true },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  // Fan-outs query `where accountId in (...)` for every push — index it so the
+  // FK lookup doesn't scan the whole token table.
+  indexes: [{ name: 'push_tokens_account_id', fields: ['accountId'] }],
+});
 
 export default PushToken;

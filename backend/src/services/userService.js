@@ -5,6 +5,7 @@ import { notifyWelcome } from './pushService.js';
 import { grant } from './creditService.js';
 import * as settings from './settingsService.js';
 import { normalizePhone, phoneWhere } from '../utils/phone.js';
+import { chartHashFor } from '../utils/chartHash.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'user' });
@@ -63,6 +64,11 @@ export async function findOrCreateUser(form) {
     birthTime: form.time,
     birthCity: form.city,
     gender: form.gender || null,
+    // Recomputed on every write so an edit to birth details re-points the
+    // sibling-copy match key (null for incomplete/placeholder data).
+    chartHash: chartHashFor({
+      name: form.name, date: form.date, time: form.time, city: form.city, gender: form.gender,
+    }),
   };
 
   // ── Anonymous / legacy path: no phone → key on birth data (old behaviour) ──

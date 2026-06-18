@@ -7,6 +7,13 @@ const schema = z.object({
   NODE_ENV:        z.enum(['development', 'production', 'test']).default('development'),
   PORT:            z.coerce.number().default(5000),
   GEMINI_API_KEY:  z.string().min(1, 'GEMINI_API_KEY is required'),
+  // Gemini call budgets (ms). DEADLINE caps total wall-clock across ALL retries +
+  // backoff so a slow generation can't run past the host's request/function
+  // timeout (Vercel: 60s Pro default → a hang there returns a raw 500 instead of
+  // a graceful AI_OVERLOADED). ATTEMPT caps a single try. Raise both on an
+  // always-on host with a higher request timeout.
+  GEMINI_DEADLINE_MS:        z.coerce.number().default(55_000),
+  GEMINI_ATTEMPT_TIMEOUT_MS: z.coerce.number().default(45_000),
   // Comma-separated list of allowed frontend origins in production.
   // In dev we use a permissive localhost/LAN allowlist regardless of this var.
   CORS_ORIGINS:    z.string().optional(),
@@ -20,6 +27,18 @@ const schema = z.object({
   DB_USER:         z.string().default('root'),
   DB_PASS:         z.string().default(''),
   DB_NAME:         z.string().default('astrology_db'),
+  // Connection-pool sizing. Serverless (Vercel) runs MANY concurrent λ, each its
+  // own process holding its own pool — keep it SMALL or concurrent λ exhaust
+  // MySQL's max_connections. An always-on host runs ONE process and wants a
+  // LARGER pool. Left unset, dbConfig.js auto-picks by environment (2 on Vercel,
+  // 10 otherwise); set these to tune against your DB's max_connections.
+  DB_POOL_MAX:     z.coerce.number().optional(),
+  DB_POOL_MIN:     z.coerce.number().optional(),
+  // OTP gate. When 'false', /auth/verify-otp skips Firebase ID-token
+  // verification and mints a session JWT straight from a supplied phone
+  // number — a dev/testing bypass so you can log in without sending a real
+  // OTP. Defaults ON; leave it 'true' anywhere real users sign in.
+  OTP_ENABLED:     z.enum(['true', 'false']).default('true'),
   JWT_SECRET:      z.string().min(16, 'JWT_SECRET must be at least 16 chars'),
   // M2: dedicated secret for back-office admin tokens, kept separate from the
   // user JWT secret so a leak of one can't forge the other (currently the only

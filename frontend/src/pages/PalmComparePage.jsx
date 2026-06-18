@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useChart } from "../context/ChartContext";
+import { useForm, usePalm } from "../context/ChartContext";
 import { useComparePalms } from "@/features/palm/hooks";
 import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 import Card from "@/common/Card";
@@ -53,15 +53,15 @@ const THUMB = "h-24 w-24 overflow-hidden rounded-xl border border-[rgba(168,85,2
 
 export default function PalmComparePage() {
   const navigate = useNavigate();
+  const { form } = useForm();
   const {
-    form,
     setPalmComparison,
     setPalmLeftPhoto,
     setPalmRightPhoto,
     setPalmAnalyzing,
     setPalmOverloaded,
     setPalmLowCredits,
-  } = useChart();
+  } = usePalm();
 
   const compare = useComparePalms({ form });
   const [left, setLeft] = useState(null); // data URL
