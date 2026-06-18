@@ -115,13 +115,15 @@ export async function verifyOtp(idToken) {
 }
 
 // OTP bypass: mint a session straight from a phone number, skipping Firebase.
-// Hard-gated to NON-production: a forged `phone` is always rejected once
-// NODE_ENV==='production', so the bypass can never be enabled in the cloud (no
-// env var to misconfigure). The CLIENTS opt into it (VITE_/EXPO_PUBLIC_OTP_
-// ENABLED='false') for local dev. The phone is normalized to E.164 and a
-// synthetic, stable firebaseUid keeps the AuthAccount row idempotent.
+// Allowed when NOT production (local dev always works, no config) OR when
+// OTP_ENABLED==='false' is explicitly set — the latter lets you toggle the
+// bypass on a LIVE deployment for testing. ⚠️ OTP_ENABLED='false' on a public
+// URL means anyone can log in as any phone; flip it back to 'true' before real
+// users. Clients opt in too via VITE_/EXPO_PUBLIC_OTP_ENABLED='false'. The phone
+// is normalized to E.164; a synthetic stable firebaseUid keeps the row idempotent.
 export async function bypassOtp(rawPhone) {
-  if (env.NODE_ENV === 'production') {
+  const bypassAllowed = env.NODE_ENV !== 'production' || env.OTP_ENABLED === 'false';
+  if (!bypassAllowed) {
     throw new AppError('otp_bypass_disabled', 403, 'OTP_BYPASS_DISABLED');
   }
   const digits = normalizePhone(rawPhone);

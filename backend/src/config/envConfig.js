@@ -34,9 +34,12 @@ const schema = z.object({
   // 10 otherwise); set these to tune against your DB's max_connections.
   DB_POOL_MAX:     z.coerce.number().optional(),
   DB_POOL_MIN:     z.coerce.number().optional(),
-  // OTP bypass is no longer env-gated: /auth/verify-otp accepts a bare `phone`
-  // (skipping Firebase) only when NODE_ENV!=='production' (see authService.js).
-  // Clients opt in via VITE_/EXPO_PUBLIC_OTP_ENABLED='false' for local dev.
+  // OTP bypass toggle. Local dev (NODE_ENV!=='production') always allows the
+  // bare-`phone` bypass regardless of this value. In production it stays OFF
+  // unless you explicitly set OTP_ENABLED='false' to allow the bypass on a LIVE
+  // deployment for testing (⚠️ insecure — flip back to 'true' before launch).
+  // Default 'true' = real Firebase OTP. See authService.js bypassOtp().
+  OTP_ENABLED:     z.enum(['true', 'false']).default('true'),
   JWT_SECRET:      z.string().min(16, 'JWT_SECRET must be at least 16 chars'),
   // M2: dedicated secret for back-office admin tokens, kept separate from the
   // user JWT secret so a leak of one can't forge the other (currently the only
