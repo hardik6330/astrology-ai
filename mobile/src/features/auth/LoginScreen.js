@@ -13,6 +13,7 @@ import { useAuth } from "./AuthContext";
 import { verifyPhone, confirmCode } from "./otp";
 import { useForm } from "@/context/ChartContext";
 import { defaultDialCode } from "@/utils/dialCode";
+import CountrySelect from "./CountrySelect";
 import { useTheme } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
 import { LoginBackdrop } from "@/components/cosmic";
@@ -205,17 +206,7 @@ export default function LoginScreen() {
               <>
                 <Text style={s.label}>Phone number</Text>
                 <View style={s.inputContainer}>
-                  <Text style={s.plus}>+</Text>
-                  <TextInput
-                    value={dialCode}
-                    onChangeText={(v) => setDialCode(v.replace(/\D/g, ""))}
-                    keyboardType="phone-pad"
-                    placeholder="91"
-                    placeholderTextColor={color.textMuted}
-                    style={s.codeInput}
-                    editable={!busy}
-                    maxLength={4}
-                  />
+                  <CountrySelect value={dialCode} onChange={setDialCode} disabled={busy} />
                   <View style={s.divider} />
                   <TextInput
                     value={phone}

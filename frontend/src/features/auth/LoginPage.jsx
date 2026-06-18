@@ -9,6 +9,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { useChart } from "@/context/ChartContext";
 import { sendOtp as fbSendOtp, confirmOtp, clearRecaptcha } from "./webOtp";
 import { defaultDialCode } from "@/utils/dialCode";
+import CountrySelect from "./CountrySelect";
 import { EMOJIS } from "@/utils/emojis";
 
 const RESEND_SECS = 30;
@@ -113,18 +114,7 @@ export default function LoginPage() {
           <form onSubmit={sendOtp}>
             <label className={labelCls}>Phone number</label>
             <div className={`${inputCls} flex items-center gap-1 px-0 py-0`}>
-              <span className="pl-3.5 text-sm font-semibold text-ink">+</span>
-              <input
-                type="tel"
-                inputMode="numeric"
-                aria-label="Country code"
-                placeholder="91"
-                value={dialCode}
-                onChange={(e) => setDialCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                className="w-12 bg-transparent py-3 text-center text-sm text-ink outline-none"
-                disabled={busy}
-                maxLength={4}
-              />
+              <CountrySelect value={dialCode} onChange={setDialCode} disabled={busy} />
               <span className="my-2 w-px self-stretch bg-(--c-border)" />
               <input
                 type="tel"

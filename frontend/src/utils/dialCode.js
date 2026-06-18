@@ -268,3 +268,59 @@ export function defaultDialCode() {
   const region = browserRegion();
   return (region && ISO_TO_DIAL[region]) || "";
 }
+
+// The browser's region ISO code (e.g. "IN"), or "" when unknown — lets the
+// country selector pre-select the right row, not just the dial code.
+export function defaultRegion() {
+  return browserRegion() || "";
+}
+
+// Turn an ISO alpha-2 code into its flag emoji by mapping each letter to its
+// Unicode regional-indicator symbol (A→🇦 …). Works for every 2-letter code.
+function flagEmoji(iso) {
+  return iso.toUpperCase().replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
+}
+
+// Localized country name from the ISO code via Intl, falling back to the raw
+// code if the runtime can't resolve it (e.g. deprecated AN).
+const regionNames =
+  typeof Intl !== "undefined" && Intl.DisplayNames ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
+
+const FALLBACK_NAMES = {
+  IN: "India",
+  US: "United States",
+  GB: "United Kingdom",
+  CA: "Canada",
+  AU: "Australia",
+  AE: "United Arab Emirates",
+  SG: "Singapore",
+  MY: "Malaysia",
+  ZA: "South Africa",
+  DE: "Germany",
+  FR: "France",
+  ES: "Spain",
+  IT: "Italy",
+  BR: "Brazil",
+  RU: "Russia",
+  JP: "Japan",
+  KR: "South Korea",
+  CN: "China",
+};
+
+function countryName(iso) {
+  try {
+    const name = regionNames?.of(iso);
+    if (name && name !== iso) return name;
+    return FALLBACK_NAMES[iso] || iso;
+  } catch {
+    return FALLBACK_NAMES[iso] || iso;
+  }
+}
+
+// Full searchable country list: { iso, dial, name, flag }, sorted by name.
+// Built once from ISO_TO_DIAL so the dial codes stay the single source of truth.
+// Skips deprecated/unresolvable regions (Intl returns the raw code unchanged).
+export const COUNTRIES = Object.entries(ISO_TO_DIAL)
+  .map(([iso, dial]) => ({ iso, dial, name: countryName(iso), flag: flagEmoji(iso) }))
+  .filter((c) => c.name !== c.iso || FALLBACK_NAMES[c.iso] || !regionNames)
+  .sort((a, b) => a.name.localeCompare(b.name));
