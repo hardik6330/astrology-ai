@@ -8,7 +8,7 @@ This document describes the full project structure, screens, and UI of the appli
 
 - **Frontend:** React 19, Vite, Tailwind CSS 4 (PWA)
 - **Mobile:** React Native (Expo SDK 54)
-- **Backend:** Node.js, Express 5, Sequelize + **MySQL** (Railway), Firebase Admin (Phone-OTP Auth)
+- **Backend:** Node.js, Express 5, Sequelize + **MySQL** (Railway), Firebase Admin (Phone-OTP Auth), `helmet` + Zod validation, JWT sessions (`expo-secure-store` on mobile)
 - **AI:** Google Gemini 2.5 Pro (interpretation) & Flash (quality gating)
 - **Astrology Engine:** `astronomy-engine` (NASA-grade precision, runs on-device)
 - **Payments:** Razorpay (Web), Native IAP (Mobile)
@@ -21,8 +21,11 @@ This document describes the full project structure, screens, and UI of the appli
 - **`src/controllers/`** — Business logic (e.g. `kundaliController.js`, `chatController.js`).
 - **`src/services/`** — Database and external-service integrations.
 - **`src/models/`** — Database schema (User, Kundali, PalmReading, etc.).
-- **`src/routes/`** — All API endpoints.
-- **`src/ai/`** — Gemini AI prompts and logic.
+- **`src/routes/`** — All API endpoints (mounted under `/api` in `server.js`, which also holds `createApp()` + startup).
+- **`src/ai/`** — Gemini AI prompts and the call wrapper (retry, model fallback, `maxOutputTokens` cap).
+- **`src/middleware/`** — `requireAuth`/`requireAdmin`, rate limiting, Zod `validate`, response envelope, error handler.
+- **`src/validators/`** — Zod request schemas. **`src/utils/`** — auth/identity binding, phone normalization, prompt safety, image + palm-geometry validation.
+- **`src/config/`** — env schema (Zod), DB, CORS, Firebase, logger, scheduler.
 
 ### 2. `/frontend` (Web App)
 - **`src/pages/`** — Main screens (HomePage, ReadingPage, ChatPage, etc.).
@@ -95,8 +98,9 @@ Four main tabs:
 - **Database:** A single **MySQL** database (via Sequelize ORM). Hosted on **Railway MySQL** in production.
 - **Tables:** `User`, `Kundali`, `PalmReading`, `DailyReading`, `ChatMessage`, `CreditTransaction` (append-only ledger), `Purchase`, `Setting`, `PushToken`, `Admin`, and engagement-push templates.
 - **Schema:** `sequelize.sync()` on boot (creates missing tables only — never drops/alters). Column changes go through `backend/migrations/` (Umzug), run manually.
-- **User Auth:** **Firebase Phone OTP** is the single identity source. The client verifies the OTP, obtains a Firebase ID token → the backend verifies it and issues its own **JWT**.
-- **Admin Auth:** A separate username/password account (scrypt-hashed) → a role=`admin` JWT; the `requireAdmin` middleware guards `/api/admin/*`.
+- **User Auth:** **Firebase Phone OTP** is the single identity source. The client verifies the OTP, obtains a Firebase ID token → the backend verifies it and issues its own **JWT** (signed with `JWT_SECRET`). On mobile the JWT is stored in the OS keychain via **`expo-secure-store`**, not plaintext AsyncStorage.
+- **Admin Auth:** A separate username/password account (scrypt-hashed) → a role=`admin` JWT, signed with a **dedicated `ADMIN_JWT_SECRET`** (required + distinct from `JWT_SECRET` in production) and carrying an `aud: astro-admin` claim, so a user token can never be verified as an admin token. The `requireAdmin` middleware guards `/api/admin/*`. The default admin password is rejected at boot in production.
+- **Identity binding (no IDOR):** every user-data route takes the acting account from the **verified token** (`req.auth.phone`), never from the request body — see `backend/src/utils/authForm.js` (`withAuthPhone`) + `utils/phone.js` (full E.164 match, any country); `phone` is stripped from the request schemas.
 
 ---
 
@@ -106,6 +110,22 @@ Four main tabs:
 - **Mobile:** **Native IAP** (`react-native-iap`) — iOS via Apple `verifyReceipt`, Android via the Play Developer API. A plan uses the store flow only when its `productId` is set; otherwise it falls back to mock.
 - **Costs in DB:** Feature costs (`chat_cost`, `insights_cost`, `daily_cost`, `palm_cost`) and the signup bonus (`initial_credits`) live in the **`Setting` table**, not in code — editable from the admin panel (`settingsService`, 60s cache).
 - **Ledger:** `creditService.charge()` performs an atomic guarded decrement; if credits are insufficient it returns HTTP 402 `INSUFFICIENT_CREDITS`.
+
+---
+
+## 🔒 Security & Hardening
+
+The app has been through a full security pass. Key protections (all in `backend/src` unless noted):
+
+- **Prompt-injection containment:** all untrusted text (chart fact-sheet, daily `ctx`, `name`/`gender`, chat turns) is fenced/sanitized before Gemini via `utils/promptSafety.js`, and system prompts carry a data-safety guard. The chat **topic gate is enforced** — off-topic → canned refusal + credit **refund**, skipping the expensive Pro call. Every Gemini call is capped with `maxOutputTokens` (`config/constants.js`).
+- **File uploads:** palm images are validated by **magic bytes + a header-only dimension guard** (`utils/imageValidator.js`) — oversized bitmaps are rejected *before* Jimp decodes, stopping decompression bombs. The client `skipGate` flag is **advisory**: the server only honors it with credible 21-point landmark evidence (`palmService.landmarksCredible`), otherwise it runs its own Flash gate. Only a SHA-256 hash + the text reading is persisted — never the image bytes.
+- **Transport & headers:** strict **CSP** (build-time `<meta>` with env-driven `connect-src` in `frontend/vite.config.js`) plus HTTP security headers (`frontend/vercel.json`: `frame-ancestors 'none'`, HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy`). Backend runs `helmet()`. **CORS** is default-deny in production — `*.vercel.app` previews are opt-in via `CORS_ALLOW_VERCEL_PREVIEWS`.
+- **Rate limiting** (`middleware/rateLimit.js`): keyed **per-account** when authenticated, per-IP (IPv6-normalized) for pre-auth routes — so rotating IPs can't multiply quota on the expensive AI routes.
+- **Secrets & logs:** phone numbers are redacted from logs (`config/logger.js`); the cron secret is compared in **constant time on fixed-length hashes** (`middleware/cronAuth.js`); Firebase **hard-fails at boot** in production if its credentials are missing/invalid.
+- **DB integrity:** the credit ledger is append-only with an atomic guarded decrement; the `literal()` credit math is integer-asserted (`creditService.js`). All queries go through Sequelize (parameterized).
+- **Validation:** every route runs a **Zod schema** (`validators/schemas.js`); admin pagination + location queries are bounds-checked, and chat messages must be non-empty (`trim().min(1)`).
+
+> **Known gaps to close before a public launch:** (1) `POST /auth/dummy-login` is **not yet gated out of production** (auth bypass); (2) the **IAP mock fallback** still grants free credits when the store secrets are unset — make it fail-closed; (3) real secrets are currently committed in the `*/.env.example` files — rotate and scrub them. See the audit thread / CLAUDE.md "Things that have bitten" for detail.
 
 ---
 
@@ -129,6 +149,9 @@ Four main tabs:
   cd backend && DB_HOST=<host> DB_PORT=<port> DB_USER=root DB_PASS='<pass>' DB_NAME=railway NODE_ENV=production npm run migrate
   ```
 - ⚠️ Connection pools are re-created on serverless cold starts; for a more reliable host, Render / Railway / Fly can run the app as-is.
+- ⚠️ **`VERCEL` is injected by the platform** (`=1`) — **never set it in your local `.env`.** `server.js` skips `app.listen()` when it sees Vercel, so a local `VERCEL=1` (or even `VERCEL=0` — env vars are strings and `"0"` is truthy) makes the dev server exit immediately. The check is `process.env.VERCEL === '1'`, so locally just leave it unset.
+- ⚠️ **Env var changes only apply to new deployments** — after editing a value in the Vercel dashboard you must **Redeploy** for it to take effect.
+- ⚠️ If the Railway DB is unreachable (`connect ETIMEDOUT`), cold-start init throws and the function `process.exit(1)`s → `FUNCTION_INVOCATION_FAILED` on every route. Verify `DB_HOST` is Railway's **public TCP proxy** (`*.proxy.rlwy.net`), not the internal `*.railway.internal` host, and that the DB service is running.
 
 ### Frontend → static / PWA host (Vercel)
 - `cd frontend && npm run build` → deploy `dist/`. The API URL is env-driven.
@@ -157,11 +180,15 @@ Four main tabs:
 | `FIREBASE_SERVICE_ACCOUNT_B64` | Backend | Firebase Admin (token verify) |
 | `DB_HOST/PORT/USER/PASS/NAME` | Backend | MySQL (Railway) connection |
 | `GEMINI_API_KEY` | Backend | AI interpretation + palm vision |
+| `JWT_SECRET` | Backend | User session-token signing |
+| `ADMIN_JWT_SECRET` | Backend | Admin token signing — **required + distinct from `JWT_SECRET` in prod** |
+| `CORS_ALLOW_VERCEL_PREVIEWS` | Backend | Opt-in (`true`/`false`) to allow `*.vercel.app` origins |
 | `RAZORPAY_KEY_ID` / `..._SECRET` | Backend | Web payments (mock if absent) |
 | `APPLE_IAP_SECRET` / `GOOGLE_IAP_SERVICE_ACCOUNT_JSON` | Backend | Mobile IAP receipt verification |
 | `CRON_SECRET` | Backend | Engagement-push cron auth |
-| `EXPO_PUBLIC_API_URL` | Mobile (EAS) | Backend API base URL |
+| `EXPO_PUBLIC_API_URL` | Mobile (EAS) | Backend API base URL (set per build profile in `eas.json`) |
 | `VITE_*` | Frontend | API URL, OTP service flag |
+| `VERCEL` | (auto) | Injected by Vercel as `1` — **never set manually** |
 
 > ⚠️ **Secrets:** Never commit `firebase-admin.json` (gitignored). If any key appears in a screenshot/chat, rotate it immediately.
 

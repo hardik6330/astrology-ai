@@ -8,6 +8,7 @@ import ErrorText from "@/common/ErrorText";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useChart } from "@/context/ChartContext";
 import { sendOtp as fbSendOtp, confirmOtp, clearRecaptcha } from "./webOtp";
+import { defaultDialCode } from "@/utils/dialCode";
 import { EMOJIS } from "@/utils/emojis";
 
 // Auth mode, controlled client-side via env: VITE_OTP_SERVICE=true → real
@@ -21,6 +22,10 @@ export default function LoginPage() {
   const { completeOtpLogin, loginDummy, token } = useAuth();
   const { applySavedForm } = useChart();
   const [phone, setPhone] = useState("");
+  // Country dialing code (digits, no "+"), pre-filled from the browser region
+  // (no permission/GPS). Editable, so a user whose browser locale differs from
+  // their number's country can correct it.
+  const [dialCode, setDialCode] = useState(() => defaultDialCode());
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState("phone");
   const [busy, setBusy] = useState(false);
@@ -55,15 +60,20 @@ export default function LoginPage() {
   async function sendOtp(e) {
     e?.preventDefault();
     setError("");
-    const cleaned = phone.replace(/\D/g, "").slice(-10);
-    if (cleaned.length !== 10) return setError("Enter a valid 10-digit phone number");
+    // Full E.164 number = country code (auto-detected, editable) + national digits.
+    const code = dialCode.replace(/\D/g, "");
+    const national = phone.replace(/\D/g, "");
+    const full = `${code}${national}`;
+    if (!code) return setError("Enter your country code");
+    if (national.length < 6 || full.length > 15) return setError("Enter a valid phone number");
+    const cleaned = full;
 
     setBusy(true);
     try {
       if (OTP_ENABLED) {
         // Real OTP: send the SMS, then go to the code screen.
-        // India-only (+91). Firebase needs full E.164 format.
-        confirmationRef.current = await fbSendOtp(`+91${cleaned}`);
+        // Firebase needs full E.164 format (+ country code + national number).
+        confirmationRef.current = await fbSendOtp(`+${cleaned}`);
         setStep("otp");
         setResendIn(RESEND_SECS);
       } else {
@@ -105,24 +115,39 @@ export default function LoginPage() {
           <p className="mt-2 mb-0 text-[13px] text-dim">
             {step === "phone"
               ? "We'll send you a one-time code over SMS."
-              : `Code sent to ${phone}. Enter it below.`}
+              : `Code sent to +${dialCode} ${phone}. Enter it below.`}
           </p>
         </div>
 
         {step === "phone" && (
           <form onSubmit={sendOtp}>
             <label className={labelCls}>Phone number</label>
-            <input
-              type="tel"
-              inputMode="numeric"
-              autoComplete="tel"
-              placeholder="10-digit mobile number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              className={`${inputCls} text-sm`}
-              disabled={busy}
-              maxLength={10}
-            />
+            <div className={`${inputCls} flex items-center gap-1 px-0 py-0`}>
+              <span className="pl-3.5 text-sm font-semibold text-ink">+</span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                aria-label="Country code"
+                placeholder="91"
+                value={dialCode}
+                onChange={(e) => setDialCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                className="w-12 bg-transparent py-3 text-center text-sm text-ink outline-none"
+                disabled={busy}
+                maxLength={4}
+              />
+              <span className="my-2 w-px self-stretch bg-(--c-border)" />
+              <input
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                placeholder="mobile number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                className="flex-1 bg-transparent py-3 pr-3.5 text-sm text-ink outline-none"
+                disabled={busy}
+                maxLength={12}
+              />
+            </div>
             <button type="submit" disabled={busy} className={primaryBtnCls}>
               {busy ? "Sending…" : "Send OTP"}
             </button>

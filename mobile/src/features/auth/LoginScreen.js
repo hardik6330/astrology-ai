@@ -12,6 +12,7 @@ import Animated, {
 import { useAuth } from "./AuthContext";
 import { verifyPhone, confirmCode } from "./otp";
 import { useForm } from "@/context/ChartContext";
+import { defaultDialCode } from "@/utils/dialCode";
 import { useTheme } from "@/theme/ThemeContext";
 import { useStyles } from "@/theme/useStyles";
 import { LoginBackdrop } from "@/components/cosmic";
@@ -76,6 +77,10 @@ export default function LoginScreen() {
   }
 
   const [phone, setPhone] = useState("");
+  // Country dialing code (digits, no "+"), pre-filled from the phone's region
+  // (expo-localization — no permission/GPS). Editable, so a traveler whose phone
+  // region differs from their number's country can correct it.
+  const [dialCode, setDialCode] = useState(() => defaultDialCode());
   const [otp,   setOtp]   = useState("");
   const [step,  setStep]  = useState("phone");
   const [busy,  setBusy]  = useState(false);
@@ -113,8 +118,14 @@ export default function LoginScreen() {
   function sendOtp() {
     setError("");
     setNotice("");
-    const cleaned = phone.replace(/\D/g, "").slice(-10);
-    if (cleaned.length !== 10) return setError("Enter a valid 10-digit phone number");
+    // Full E.164 number = country code (auto-detected, editable) + national digits.
+    const code = dialCode.replace(/\D/g, "");
+    const national = phone.replace(/\D/g, "");
+    const full = `${code}${national}`;
+    if (!code) return setError("Enter your country code");
+    if (national.length < 6 || full.length > 15)
+      return setError("Enter a valid phone number");
+    const cleaned = full;
     if (!agreed) {
       triggerShake();
       return setError("Please agree to the Terms & Conditions");
@@ -142,8 +153,8 @@ export default function LoginScreen() {
 
     // Real OTP — tear down any previous listener before a new send / resend.
     unsubRef.current?.();
-    // India-only (+91). Firebase needs full E.164 format.
-    unsubRef.current = verifyPhone(`+91${cleaned}`, {
+    // User enters the full number incl. country code; Firebase needs E.164 (+...).
+    unsubRef.current = verifyPhone(`+${cleaned}`, {
       onCodeSent: (verificationId) => {
         verificationIdRef.current = verificationId;
         setOtp("");
@@ -205,24 +216,35 @@ export default function LoginScreen() {
             <Text style={s.subtitle}>
               {step === "phone"
                 ? "We'll send a one-time code over SMS."
-                : `Code sent to ${phoneRef.current}. Enter it below.`}
+                : `Code sent to +${phoneRef.current}. Enter it below.`}
             </Text>
 
             {step === "phone" && (
               <>
                 <Text style={s.label}>Phone number</Text>
                 <View style={s.inputContainer}>
-                  <Text style={s.prefix}>+91</Text>
+                  <Text style={s.plus}>+</Text>
+                  <TextInput
+                    value={dialCode}
+                    onChangeText={(v) => setDialCode(v.replace(/\D/g, ""))}
+                    keyboardType="phone-pad"
+                    placeholder="91"
+                    placeholderTextColor={color.textMuted}
+                    style={s.codeInput}
+                    editable={!busy}
+                    maxLength={4}
+                  />
+                  <View style={s.divider} />
                   <TextInput
                     value={phone}
                     onChangeText={(v) => setPhone(v.replace(/\D/g, ""))}
                     keyboardType="phone-pad"
                     autoComplete="tel"
-                    placeholder="10-digit mobile number"
+                    placeholder="mobile number"
                     placeholderTextColor={color.textMuted}
                     style={s.input}
                     editable={!busy}
-                    maxLength={10}
+                    maxLength={12}
                   />
                 </View>
 
@@ -338,14 +360,26 @@ const makeStyles = (c) => StyleSheet.create({
     borderColor: c.cardBorder,
     paddingHorizontal: 16,
   },
-  prefix: {
+  plus: {
     color: c.text,
-    fontSize: 16,
-    fontWeight: "600",
-    marginRight: 10,
-    borderRightWidth: 1,
-    borderRightColor: c.cardBorder,
-    paddingRight: 10,
+    fontSize: 17,
+    fontWeight: "700",
+    marginRight: 2,
+  },
+  codeInput: {
+    color: c.text,
+    fontSize: 17,
+    fontWeight: "700",
+    paddingVertical: 18,
+    minWidth: 28,
+    textAlign: "center",
+  },
+  divider: {
+    width: 1,
+    alignSelf: "stretch",
+    marginVertical: 12,
+    marginHorizontal: 10,
+    backgroundColor: c.cardBorder,
   },
   input: {
     flex: 1,
