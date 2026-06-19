@@ -25,3 +25,20 @@ export const writeLimiter = make({ windowMs: 60_000, max: 10, label: 'write' });
 
 // Read endpoints — GETs the UI legitimately polls on mount.
 export const readLimiter  = make({ windowMs: 60_000, max: 60, label: 'read' });
+
+// Admin login — there is exactly ONE admin account, so legitimate traffic is a
+// handful of attempts. Keep this MUCH tighter than the generic write limiter to
+// blunt online password guessing: 5 tries per 15 min, always keyed by IP (the
+// request is pre-auth so there's no account to key on), and don't reset the
+// counter on a successful login (skipSuccessfulRequests stays false) so a
+// guesser can't clear their budget by interleaving a known-good probe.
+// NOTE: in-memory store → per-process. On the single-pm2-process VPS that's the
+// whole app, so it holds; behind multiple instances move to a shared store.
+export const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  max: 5,
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts — try again in 15 minutes.', code: 'RATE_LIMITED' },
+});

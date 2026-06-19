@@ -6,6 +6,7 @@
 // `details` (e.g. validate's full Zod issues[]) rides along on err.details.
 
 import { env } from '../config/envConfig.js';
+import { logger } from '../config/logger.js';
 
 const STATUS_BY_CODE = {
   AI_OVERLOADED:   503,
@@ -21,7 +22,10 @@ const STATUS_BY_CODE = {
 
 export function errorHandler(err, req, res, _next) {
   const status = err.status || STATUS_BY_CODE[err.code] || 500;
-  if (status >= 500) console.error('[error]', err);
+  // Route 5xx through pino so the configured redaction (auth headers, tokens,
+  // PII) is applied — console.error would dump the raw err/req to stdout
+  // unredacted. Attach method+path for triage; pino serializes err.stack.
+  if (status >= 500) logger.error({ err, method: req.method, path: req.originalUrl }, 'request failed');
   res.status(status).json({
     success: false,
     error: err.message || 'Internal error',

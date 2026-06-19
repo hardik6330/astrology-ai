@@ -4,7 +4,7 @@
 import { Router } from 'express';
 import * as admin from '../controllers/adminController.js';
 import { requireAdmin } from '../middleware/auth.js';
-import { writeLimiter } from '../middleware/rateLimit.js';
+import { adminLoginLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
 import {
   adminLoginBody, adminBroadcastBody, adminSettingsBody,
@@ -13,7 +13,7 @@ import {
 
 const router = Router();
 
-router.post('/admin/login', writeLimiter, validate(adminLoginBody, 'body'), admin.login);
+router.post('/admin/login', adminLoginLimiter, validate(adminLoginBody, 'body'), admin.login);
 
 // Everything below requires a valid admin session.
 router.get ('/admin/me',    requireAdmin, admin.me);
