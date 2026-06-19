@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useChart } from "@/context/ChartContext";
 import { useChatHistory, useSendChatMessage } from "@/features/chat/hooks";
 import Card from "@/common/Card";
+import BottomNav from "../components/BottomNav";
 import { useCosts } from "@/common/useCosts";
 import { useCredits } from "@/common/useCredits";
 import LowCreditsCard from "@/common/LowCreditsCard";
@@ -213,8 +214,8 @@ export default function ChatPage() {
           })}
         </div>
 
-        {/* Input + suggestions (fixed) */}
-        <div className="shrink-0 pt-2">
+        {/* Input + suggestions (fixed). pb clears the floating BottomNav. */}
+        <div className="shrink-0 pt-2 pb-20">
           {chatMsgs.length === 0 && (
             <div className="mb-2.5 flex flex-wrap gap-2">
               {SUGGESTIONS.map((q) => (
@@ -254,6 +255,8 @@ export default function ChatPage() {
           </form>
         </div>
       </div>
+
+      <BottomNav activeKey="chat" />
     </div>
   );
 }
