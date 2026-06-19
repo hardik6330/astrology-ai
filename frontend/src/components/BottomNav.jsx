@@ -33,6 +33,12 @@ export default function BottomNav({ activeKey, onLocalTab }) {
     else navigate("/reading", { state: { tab: key } }); // somewhere else → go to /reading and set tab
   }
 
+  // Index of the selected tab drives the sliding highlight pill below. The bar
+  // has 7 equal-flex buttons (gap 2px) inside 6px padding, so each button is
+  // (100% - 24px)/7 wide and sits at 6px + i*(width + 2px gap).
+  const activeIndex = TABS.findIndex(([key]) => key === activeKey);
+  const slotWidth = "((100% - 24px) / 7)";
+
   return (
     <nav
       style={{
@@ -54,6 +60,24 @@ export default function BottomNav({ activeKey, onLocalTab }) {
         boxShadow: "0 8px 28px rgba(0, 0, 0, 0.55)",
       }}
     >
+      {/* Sliding highlight pill — animates between tabs on selection. */}
+      {activeIndex >= 0 && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 6,
+            bottom: 6,
+            left: `calc(6px + ${activeIndex} * (${slotWidth} + 2px))`,
+            width: `calc(${slotWidth})`,
+            borderRadius: 13,
+            border: "1px solid rgba(168,85,247,0.5)",
+            background: "rgba(168,85,247,0.15)",
+            transition: "left 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
       {TABS.map(([key, label, icon]) => {
         const active = activeKey === key;
         return (
@@ -61,6 +85,7 @@ export default function BottomNav({ activeKey, onLocalTab }) {
             key={key}
             onClick={() => go(key)}
             style={{
+              position: "relative",
               flex: "1 1 0",
               minWidth: 0,
               display: "flex",
@@ -70,9 +95,10 @@ export default function BottomNav({ activeKey, onLocalTab }) {
               padding: "7px 2px",
               borderRadius: 13,
               cursor: "pointer",
-              border: "1px solid " + (active ? "rgba(168,85,247,0.5)" : "transparent"),
-              background: active ? "rgba(168,85,247,0.15)" : "transparent",
+              border: "1px solid transparent",
+              background: "transparent",
               color: active ? "#c084fc" : "#64748b",
+              transition: "color 0.28s ease",
             }}
           >
             <span style={{ fontSize: 17, lineHeight: 1 }}>{icon}</span>
