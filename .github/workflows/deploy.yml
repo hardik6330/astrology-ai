@@ -3,12 +3,20 @@ name: Deploy to Oracle VPS
 on:
   push:
     branches:
-      - main  # or master, change if needed
+      - main
+
+# Cancel an in-flight deploy if a newer commit lands, so we never race two
+# deploys onto the same box.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  # ── Gate: build + test BEFORE we touch the server ────────────────────────
+  # If anything here fails, the deploy job never runs and production is left
+  # untouched. Reproducible installs via `npm ci` (honors the committed locks).
+  verify:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,27 +26,89 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Deploy Backend
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Backend — install + test
+        working-directory: backend
+        run: |
+          npm ci
+          npm test         # vitest runs on sqlite (NODE_ENV=test) — no DB needed
+        env:
+          NODE_ENV: test
+
+      - name: Frontend — install + build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      # Hand the built frontend to the deploy job so we don't rebuild it.
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 1
+
+  # ── Deploy: only runs if `verify` passed ─────────────────────────────────
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      # Backend: pull, install (reproducible, prod-only deps), restart, then
+      # HEALTH-CHECK with automatic ROLLBACK to the previous commit on failure.
+      - name: Deploy Backend (with health check + rollback)
+        uses: appleboy/ssh-action@v1.0.3   # TODO: pin to a commit SHA — `gh api repos/appleboy/ssh-action/git/refs/tags/v1.0.3`
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            set -e
             cd ${{ secrets.DEPLOY_PATH }}
+            PREV_SHA=$(git rev-parse HEAD)          # remember where we were
+            echo "Current commit: $PREV_SHA"
             git pull origin main
             cd backend
-            npm install --production
-            pm2 restart astrology-backend || pm2 start src/server.js --name astrology-backend
+            npm ci --omit=dev                        # reproducible, prod-only
+
+            deploy_backend() {
+              pm2 restart astrology-backend --update-env \
+                || pm2 start src/server.js --name astrology-backend
+            }
+            deploy_backend
             pm2 save
-      - name: Build and Deploy Frontend
-        run: |
-          cd frontend
-          npm install
-          npm run build
-        
-      - name: Copy Frontend Build to Server
-        uses: appleboy/scp-action@v0.1.7
+
+            # Give the app a moment to bind, then probe /health up to 10×.
+            ok=0
+            for i in $(seq 1 10); do
+              sleep 3
+              if curl -fsS "http://127.0.0.1:${{ secrets.BACKEND_PORT }}/health" >/dev/null; then
+                ok=1; break
+              fi
+              echo "health check attempt $i failed, retrying…"
+            done
+
+            if [ "$ok" -ne 1 ]; then
+              echo "::error::Health check failed — rolling back to $PREV_SHA"
+              cd ${{ secrets.DEPLOY_PATH }}
+              git reset --hard "$PREV_SHA"
+              cd backend
+              npm ci --omit=dev
+              deploy_backend
+              pm2 save
+              exit 1
+            fi
+            echo "Backend healthy."
+
+      - name: Copy Frontend build to server
+        uses: appleboy/scp-action@v0.1.7   # TODO: pin to a commit SHA
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}

@@ -108,7 +108,9 @@ export default function PalmStepScreen({ navigation }) {
     try {
       const opts = {
         mediaTypes: ["images"],
-        base64: true,
+        // No base64 here: it would load the full-res image (~8–16MB) into the JS
+        // heap on every pick. The base64 we actually upload is derived from the
+        // downscaled crop/compress output below (img.base64).
         quality: 0.75,
         allowsEditing: false,
         exif: true, // camera-origin signal for the gate's anti-screen-photo check

@@ -9,6 +9,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/scripts/seed.js",
+    "sync-schema": "node src/scripts/syncSchema.js",
     "migrate": "node src/scripts/migrate.js up",
     "migrate:down": "node src/scripts/migrate.js down",
     "migrate:status": "node src/scripts/migrate.js status",

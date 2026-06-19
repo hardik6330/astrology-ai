@@ -117,7 +117,7 @@ export default function ReadingPage() {
             {form.name || "Seeker"}'s Cosmic Map
           </p>
           <p className="mt-1 text-xs text-[#888]">
-            {form.dob} • {form.time} • {form.city}
+            {form.date} • {form.time} • {form.city}
           </p>
         </div>
 

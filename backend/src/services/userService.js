@@ -1,4 +1,5 @@
 import { Op } from 'sequelize';
+import sequelize from '../config/dbConfig.js';
 import { User, Kundali, DailyData } from '../models/index.js';
 import { AppError } from '../errors/AppError.js';
 import { notifyWelcome } from './pushService.js';
@@ -99,13 +100,18 @@ export async function findOrCreateUser(form) {
       existing.birthTime !== birth.birthTime ||
       existing.birthCity !== birth.birthCity ||
       existing.name !== birth.name;
-    await existing.update(birth);
-    if (chartChanged) {
-      await Promise.all([
-        Kundali.destroy({ where: { userId: existing.id } }),
-        DailyData.destroy({ where: { userId: existing.id } }),
-      ]).catch((err) => log.warn({ err: err.message }, 'stale reading cleanup failed'));
-    }
+    // Atomic: re-point the row AND drop the now-stale cached readings together,
+    // so a crash can't leave the user on new birth details while the previous
+    // chart's AI interpretation survives. Don't swallow — let it roll back.
+    await sequelize.transaction(async (t) => {
+      await existing.update(birth, { transaction: t });
+      if (chartChanged) {
+        await Promise.all([
+          Kundali.destroy({ where: { userId: existing.id }, transaction: t }),
+          DailyData.destroy({ where: { userId: existing.id }, transaction: t }),
+        ]);
+      }
+    });
     if (wasPlaceholder && birth.name) sendWelcome(form.phone);
     return existing;
   }

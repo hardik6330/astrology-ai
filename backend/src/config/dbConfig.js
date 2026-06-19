@@ -22,6 +22,12 @@ const sequelize =
         port: env.DB_PORT,
         dialect: 'mysql',
         logging: false,
+        // Pin charset/collation so every table + FK column is built identically.
+        // MySQL silently refuses to create a FOREIGN KEY when the referenced
+        // (PK) and referencing (FK) columns differ in collation — our PKs/FKs
+        // are all STRING(24), so they MUST share one collation for sync()'s
+        // CASCADE constraints to actually take. Don't rely on the server default.
+        define: { charset: 'utf8mb4', collate: 'utf8mb4_unicode_ci' },
         // Connection pool. VERCEL=1 is injected by Vercel only — on a private
         // always-on server it's unset, so this auto-switches with NO code
         // change: a small per-λ pool on serverless (many concurrent λ would

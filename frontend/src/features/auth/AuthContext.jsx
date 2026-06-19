@@ -13,8 +13,35 @@ const appToken = tokenStore("app_token");
 const appAccount = tokenStore("app_account");
 const AuthContext = createContext(null);
 
+// Decode a JWT's `exp` (seconds) without a library and report whether it's
+// already past. We treat an undecodable token as expired so a corrupt value
+// can't masquerade as a live session. 30s skew guards against clock drift.
+function isTokenExpired(jwt) {
+  if (!jwt) return true;
+  try {
+    const [, payload] = jwt.split(".");
+    const { exp } = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    if (!exp) return false; // no exp claim → can't judge; let the server decide
+    return exp * 1000 <= Date.now() + 30_000;
+  } catch {
+    return true;
+  }
+}
+
+// A stored token is only a valid session if it hasn't expired; otherwise drop it
+// so the user lands on /login cleanly instead of flashing authenticated UI.
+function validStoredToken() {
+  const t = appToken.get();
+  if (isTokenExpired(t)) {
+    appToken.remove();
+    appAccount.remove();
+    return null;
+  }
+  return t;
+}
+
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => appToken.get());
+  const [token, setToken] = useState(validStoredToken);
   const [account, setAccount] = useState(() => {
     try {
       return JSON.parse(appAccount.get() || "null");

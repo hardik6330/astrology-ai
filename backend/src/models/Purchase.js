@@ -41,6 +41,8 @@ const Purchase = sequelize.define('Purchase', {
     { name: 'purchases_status_updated_at', fields: ['status', 'updatedAt'] },
     // Per-user order history (admin user drill-down + future "my orders").
     { name: 'purchases_user_id', fields: ['userId'] },
+    // Backs the FK + the admin order-list JOIN to CreditPlan (adminService).
+    { name: 'purchases_plan_id', fields: ['planId'] },
   ],
 });
 

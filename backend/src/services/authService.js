@@ -122,8 +122,12 @@ export async function verifyOtp(idToken) {
 // users. Clients opt in too via VITE_/EXPO_PUBLIC_OTP_ENABLED='false'. The phone
 // is normalized to E.164; a synthetic stable firebaseUid keeps the row idempotent.
 export async function bypassOtp(rawPhone) {
-  const bypassAllowed = env.NODE_ENV !== 'production' || env.OTP_ENABLED === 'false';
-  if (!bypassAllowed) {
+  // Defense-in-depth: in a production build the bypass is NEVER reachable, even
+  // if OTP_ENABLED='false' is mis-set in the env. A single env var must not be
+  // able to open a full auth bypass — so we hard-gate on NODE_ENV. The
+  // OTP_ENABLED toggle now only exists for local/staging QA (non-prod).
+  if (env.NODE_ENV === 'production') {
+    log.error('OTP bypass attempted in production — refused (check OTP_ENABLED is not set)');
     throw new AppError('otp_bypass_disabled', 403, 'OTP_BYPASS_DISABLED');
   }
   const digits = normalizePhone(rawPhone);

@@ -21,7 +21,16 @@ export async function compressPhoto(asset, { maxDim = 1024, compress = 0.7 } = {
     const out = await ref.saveAsync({ compress, format: SaveFormat.JPEG, base64: true });
     return { uri: out.uri, base64: out.base64, width: out.width, height: out.height };
   } catch {
-    // Fall back to the raw asset so a manipulation failure never blocks upload.
-    return { uri: asset.uri, base64: asset.base64, width: asset.width, height: asset.height };
+    // Manipulation failed (rare). The picker no longer hands us full-res base64
+    // (that was an 8–16MB heap spike on every pick — see PalmStepScreen), so on
+    // this cold path read the bytes from the file instead. Still best-effort:
+    // if even that fails, fall through to whatever base64 the asset carried.
+    try {
+      const FileSystem = await import("expo-file-system/legacy");
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: "base64" });
+      return { uri: asset.uri, base64, width: asset.width, height: asset.height };
+    } catch {
+      return { uri: asset.uri, base64: asset.base64, width: asset.width, height: asset.height };
+    }
   }
 }

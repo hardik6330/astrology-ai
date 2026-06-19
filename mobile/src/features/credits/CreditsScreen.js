@@ -1,20 +1,23 @@
-// Buy Cosmic Credits. Lists the admin-defined plans and runs a MOCK checkout
-// (no real payment yet) — the confirm modal simulates success and the backend
-// grants the credits. The modal is isolated so a real Razorpay flow can drop in
-// later without touching the plan list.
+// Buy Cosmic Credits. Lists the admin-defined plans and runs native In-App
+// Purchases (Apple/Google) for plans with a store `productId`; the backend
+// verifies the receipt before granting. Plans without a productId fall back to
+// a mock grant — DEV ONLY (gated below), never in a shipped build.
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { View, Text, StyleSheet, Modal, Platform, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-// react-native-iap removed — incompatible with RN 0.81 (Kotlin 2.x).
-// IAP is mock-only for now (no plan has a productId). Re-add when upgrading
-// to react-native-iap v14+ with react-native-nitro-modules.
-const requestPurchase = async () => { throw new Error("IAP not installed"); };
-const useIAP = () => ({ connected: false });
-const getProducts = async () => [];
-const finishTransaction = async () => {};
-const ErrorCode = { E_USER_CANCELLED: "E_USER_CANCELLED" };
+import {
+  iapAvailable,
+  initConnection,
+  endConnection,
+  getProducts,
+  requestPurchase,
+  finishTransaction,
+  purchaseUpdatedListener,
+  purchaseErrorListener,
+  getErrorCodes,
+} from "./iapClient";
 import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
 import MagicButton from "@/components/MagicButton";
@@ -27,9 +30,6 @@ import { radius, spacing, fontSize } from "@/theme/tokens";
 import { useCredits } from "@/hooks/useCredits";
 import { useBackToKundali } from "@/utils/useBackToKundali";
 import { fetchCreditPlans, purchasePlan, getCredits, verifyIapPayment } from "@/services/api";
-import Constants, { ExecutionEnvironment } from "expo-constants";
-
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 const PLAN_FEATURES = [
   "AI Birth Chart Interpretation",
@@ -57,25 +57,69 @@ export default function CreditsScreen({ navigation }) {
   const [selected, setSelected] = useState(null); // plan in the checkout modal
   const [error, setError] = useState("");
 
-  const iap = isExpoGo ? null : useIAP();
-  const {
-    connected,
-    currentPurchase,
-    currentPurchaseError,
-  } = iap || { connected: false };
+  // Latest plans for the purchase listener closure (set up once on mount).
+  const plansRef = useRef([]);
+  useEffect(() => { plansRef.current = plans; }, [plans]);
 
   // Refresh the balance whenever the screen is focused (drawer screens persist).
   useFocusEffect(useCallback(() => { getCredits(); }, []));
+
+  // Open the native store connection once and listen for purchase results.
+  // Imperative API (not the useIAP hook) so there are no conditional hooks and
+  // the whole thing is a clean no-op in Expo Go / non-IAP builds.
+  useEffect(() => {
+    if (!iapAvailable()) return;
+
+    let purchaseSub, errorSub;
+    const E = getErrorCodes();
+
+    initConnection()
+      .then(() => {
+        // Resolve a store result → verify with our backend → finish → refresh.
+        purchaseSub = purchaseUpdatedListener(async (purchase) => {
+          const receipt = purchase.transactionReceipt;
+          if (!receipt) return;
+          const plan = plansRef.current.find((p) => p.productId === purchase.productId);
+          if (!plan) return;
+          try {
+            await verifyIapPayment({
+              planId: plan.id,
+              platform: Platform.OS,
+              receipt: Platform.OS === "ios" ? receipt : undefined,
+              purchaseToken: Platform.OS === "android" ? purchase.purchaseToken : undefined,
+            });
+            // Only finish AFTER the backend grants — an unfinished txn is
+            // re-delivered on next launch, so a failed verify can retry.
+            await finishTransaction(purchase);
+            getCredits();
+            setSelected(null);
+          } catch (err) {
+            setError(err.message || "Payment verification failed");
+          }
+        });
+        errorSub = purchaseErrorListener((e) => {
+          if (e?.code === E.E_USER_CANCELLED) return; // sheet dismissed — ignore
+          setError(e?.message || "Store error");
+        });
+      })
+      .catch((err) => console.warn("IAP initConnection failed", err));
+
+    return () => {
+      purchaseSub?.remove?.();
+      errorSub?.remove?.();
+      endConnection();
+    };
+  }, []);
 
   useEffect(() => {
     fetchCreditPlans()
       .then(async (data) => {
         setPlans(data);
-        // If we have product IDs, fetch their localized details from the store
-        const skus = data.map(p => p.productId).filter(Boolean);
-        if (skus.length > 0 && connected) {
+        // Warm the store's localized product details for any SKUs we have.
+        const skus = data.map((p) => p.productId).filter(Boolean);
+        if (skus.length > 0 && iapAvailable()) {
           try {
-            await getProducts({ skus });
+            await getProducts(skus);
           } catch (err) {
             console.warn("IAP getProducts failed", err);
           }
@@ -83,52 +127,7 @@ export default function CreditsScreen({ navigation }) {
       })
       .catch(() => setError("Couldn't load plans. Please try again."))
       .finally(() => setLoading(false));
-  }, [connected]);
-
-  // Handle successful purchase from the store
-  useEffect(() => {
-    const checkPurchase = async () => {
-      if (currentPurchase) {
-        const receipt = currentPurchase.transactionReceipt;
-        if (receipt) {
-          try {
-            // Find the plan that matches this product
-            const plan = plans.find(p => p.productId === currentPurchase.productId);
-            if (!plan) return;
-
-            // Verify with our backend
-            await verifyIapPayment({
-              planId: plan.id,
-              platform: Platform.OS,
-              receipt: Platform.OS === "ios" ? receipt : undefined,
-              purchaseToken: Platform.OS === "android" ? currentPurchase.purchaseToken : undefined,
-            });
-
-            // Mark as finished in the store so it doesn't repeat
-            await finishTransaction({ purchase: currentPurchase });
-            
-            // Refresh balance
-            getCredits();
-            setSelected(null);
-          } catch (err) {
-            setError(err.message || "Payment verification failed");
-          }
-        }
-      }
-    };
-    checkPurchase();
-  }, [currentPurchase, plans]);
-
-  // Handle store errors
-  useEffect(() => {
-    if (currentPurchaseError) {
-      if (currentPurchaseError.code === ErrorCode.E_USER_CANCELLED) {
-        // user just closed the sheet — ignore
-      } else {
-        setError(currentPurchaseError.message || "Store error");
-      }
-    }
-  }, [currentPurchaseError]);
+  }, []);
 
   return (
     <ScreenContainer showMenu={false}>
@@ -235,39 +234,52 @@ export default function CreditsScreen({ navigation }) {
   );
 }
 
-// Mock checkout modal. Clearly labelled test-only. Swap the pay() body for a
-// Razorpay handler later — the success path just calls purchasePlan(plan.id).
+// Checkout modal. Plans with a store `productId` run the native IAP sheet
+// (success handled by the parent's purchase listener). Plans without one fall
+// back to a mock grant that is DEV-ONLY — in a release build it's refused, so a
+// shipped app can never give away credits without a verified payment.
+const MOCK_ALLOWED = __DEV__; // never true in a production (release) build
 function CheckoutModal({ plan, onClose, onError }) {
   const c = useColors();
   const s = useStyles(makeStyles);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const closeTimer = useRef(null);
 
-  // Reset the success flash whenever a new plan opens the modal.
-  useEffect(() => { setDone(false); }, [plan?.id]);
+  // Reset the success flash whenever a new plan opens the modal; clear any
+  // pending auto-close timer so it can't fire into an unmounted modal.
+  useEffect(() => {
+    setDone(false);
+    return () => clearTimeout(closeTimer.current);
+  }, [plan?.id]);
+
+  const canMock = !plan?.productId && MOCK_ALLOWED;
+  const purchasable = !!plan?.productId || canMock;
 
   async function pay() {
     setBusy(true);
     try {
       if (plan.productId) {
-        // Real In-App Purchase flow
-        await requestPurchase({ sku: plan.productId });
-        // The rest is handled by the useEffect(currentPurchase) in the parent
-      } else {
-        // Fallback mock flow (for testing or plans without SKUs)
+        if (!iapAvailable()) throw new Error("In-app purchases aren't available in this build.");
+        // Native IAP — the parent's purchaseUpdatedListener verifies & grants.
+        await requestPurchase(plan.productId);
+        // Modal stays open (busy) until the listener closes it.
+      } else if (MOCK_ALLOWED) {
+        // Dev-only fallback for plans without a store SKU.
         await purchasePlan(plan.id);
         setDone(true);
-        setTimeout(onClose, 1100);
+        closeTimer.current = setTimeout(onClose, 1100);
+      } else {
+        throw new Error("This plan isn't available for purchase yet.");
       }
     } catch (err) {
-      if (err.code === ErrorCode.E_USER_CANCELLED) {
+      if (err?.code === getErrorCodes().E_USER_CANCELLED) {
         setBusy(false);
       } else {
         onError(err.message || "Purchase failed");
       }
     } finally {
-      // For real IAP, we don't setBusy(false) here because the modal stays
-      // open until the useEffect handles the success/error update.
+      // Real IAP keeps the modal busy until the listener resolves it.
       if (!plan.productId) setBusy(false);
     }
   }
@@ -288,16 +300,23 @@ function CheckoutModal({ plan, onClose, onError }) {
               <Text style={s.modalSub}>
                 {plan?.credits} credits for {plan ? formatInr(plan.priceInr) : ""}
               </Text>
-              <MagicButton style={{ width: "100%", marginTop: spacing.sm }} loading={busy} onPress={pay}>
-                {plan?.productId ? "Buy with Store" : "Pay (test)"}
+              <MagicButton
+                style={{ width: "100%", marginTop: spacing.sm }}
+                loading={busy}
+                disabled={!purchasable}
+                onPress={pay}
+              >
+                {plan?.productId ? "Buy with Store" : canMock ? "Pay (test)" : "Coming soon"}
               </MagicButton>
               <MagicButton variant="ghost" style={{ width: "100%", marginTop: spacing.sm }} disabled={busy} onPress={onClose}>
                 Cancel
               </MagicButton>
               <Text style={s.modalNote}>
-                {plan?.productId 
+                {plan?.productId
                   ? "Secured by Apple/Google. Credits are added once payment is verified."
-                  : "Test payment — no real charge. Credits are granted instantly."}
+                  : canMock
+                    ? "Test payment — no real charge. Credits are granted instantly."
+                    : "This plan isn't available for purchase yet."}
               </Text>
             </>
           )}
