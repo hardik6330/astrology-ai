@@ -31,6 +31,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState("phone");
   const [busy, setBusy] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState("");
   const [resendIn, setResendIn] = useState(0);
   // Holds the Firebase confirmationResult between "send" and "verify".
@@ -87,6 +88,19 @@ export default function LoginPage() {
       setError(otpError(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Resend the SMS: clear the old code so the user types the new one fresh, and
+  // show a loading state on the button so the tap is obviously registered.
+  async function resendOtp() {
+    if (resendIn > 0 || busy || resending) return;
+    setOtp("");
+    setResending(true);
+    try {
+      await sendOtp();
+    } finally {
+      setResending(false);
     }
   }
 
@@ -175,11 +189,11 @@ export default function LoginPage() {
               </button>
               <button
                 type="button"
-                onClick={sendOtp}
-                disabled={resendIn > 0 || busy}
-                className={`${linkBtnCls} ${resendIn > 0 ? "opacity-50" : "opacity-100"}`}
+                onClick={resendOtp}
+                disabled={resendIn > 0 || busy || resending}
+                className={`${linkBtnCls} ${resendIn > 0 || resending ? "opacity-50" : "opacity-100"}`}
               >
-                {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend OTP"}
+                {resending ? "Sending…" : resendIn > 0 ? `Resend in ${resendIn}s` : "Resend OTP"}
               </button>
             </div>
           </form>
