@@ -5,7 +5,7 @@ import BottomNav from "../components/BottomNav";
 import Card from "@/common/Card";
 import { EMOJIS } from "@/utils/emojis";
 import { useCredits } from "@/common/useCredits";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getCredits } from "@/services/api";
 
 // Format the 24-h "HH:MM" form value to 12-h with AM/PM for display.
@@ -24,6 +24,9 @@ export default function ProfilePage() {
   const { account, logout } = useAuth();
   const { form, clearAll } = useChart();
   const credits = useCredits();
+  // Generic confirm dialog: null = closed, or { title, message, confirmLabel,
+  // danger, onConfirm } — reused by both Update and Log out.
+  const [confirm, setConfirm] = useState(null);
 
   // Refresh credits on mount
   useEffect(() => {
@@ -45,7 +48,9 @@ export default function ProfilePage() {
       <div className="cosmos"></div>
       <div className="stars"></div>
 
-      <h2 className="mb-6 text-center text-[22px] font-extrabold text-ink">Your Profile</h2>
+      <h2 className="mb-6 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-center text-[22px] font-bold text-transparent">
+        Your Profile
+      </h2>
 
       {/* Identity card — flex/gap are utilities; cosmic-card's bottom margin is
           overridden inline (it's unlayered, so it beats Tailwind). */}
@@ -85,13 +90,70 @@ export default function ProfilePage() {
 
       {/* Actions */}
       <Card className="grid gap-2.5">
-        <button type="button" onClick={() => navigate("/", { state: { edit: true } })} className={ghostBtn}>
+        <button
+          type="button"
+          onClick={() =>
+            setConfirm({
+              title: "Update birth details?",
+              message: "This recalculates your chart, readings and daily guidance from the new details.",
+              confirmLabel: `${EMOJIS.EDIT} Continue`,
+              onConfirm: () => navigate("/", { state: { edit: true } }),
+            })
+          }
+          className={ghostBtn}
+        >
           {EMOJIS.EDIT} Update Birth Details
         </button>
-        <button type="button" onClick={handleLogout} className={logoutBtn}>
+        <button
+          type="button"
+          onClick={() =>
+            setConfirm({
+              title: "Log out?",
+              message: "You'll need to sign in again with your phone number to access your readings.",
+              confirmLabel: `${EMOJIS.LOGOUT} Log out`,
+              danger: true,
+              onConfirm: handleLogout,
+            })
+          }
+          className={logoutBtn}
+        >
           {EMOJIS.LOGOUT} Log out
         </button>
       </Card>
+
+      {confirm && (
+        <div
+          className="fixed inset-0 z-100 flex items-center justify-center p-5"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onClick={() => setConfirm(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-90 rounded-2xl border border-[rgba(168,85,247,0.3)] bg-[rgba(16,16,28,0.98)] p-6 text-center shadow-[0_8px_28px_rgba(0,0,0,0.55)]"
+          >
+            <h3 className="m-0 mb-2 text-[18px] font-bold text-ink">{confirm.title}</h3>
+            <p className="m-0 mb-5 text-[13px] text-dim">{confirm.message}</p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button type="button" onClick={() => setConfirm(null)} className={ghostBtn}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const fn = confirm.onConfirm;
+                  setConfirm(null);
+                  fn?.();
+                }}
+                className={confirm.danger ? logoutBtn : ghostBtn}
+              >
+                {confirm.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav activeKey="profile" />
     </div>

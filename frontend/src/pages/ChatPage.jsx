@@ -158,14 +158,8 @@ export default function ChatPage() {
 
       {/* Fixed inner column — header and input stay, only messages scroll */}
       <div className="mx-auto flex w-full max-w-180 min-h-0 flex-1 flex-col p-4">
-        {/* Header (fixed) */}
+        {/* Header (fixed) — navigation handled by the bottom tab bar. */}
         <div className="shrink-0">
-          <button
-            onClick={() => navigate("/reading")}
-            className="mb-3 cursor-pointer rounded-lg border border-[rgba(99,102,241,0.4)] bg-[rgba(99,102,241,0.1)] px-4 py-2 text-xs text-[#a5b4fc]"
-          >
-            {EMOJIS.LEFT_ARROW} Back to Reading
-          </button>
           {/* cosmic-card padding/margin overridden inline (unlayered). */}
           <Card className="text-center" style={{ marginBottom: 12, padding: "1rem" }}>
             <h2 className="m-0 mb-1 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-[22px] font-bold text-transparent">

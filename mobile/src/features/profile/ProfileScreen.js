@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
@@ -28,6 +28,30 @@ export default function ProfileScreen({ navigation }) {
   const color = useColors();
   const s = useStyles(makeStyles);
   useBackToKundali(navigation);
+
+  // Confirm before logging out — accidental taps would force a full re-login.
+  const confirmLogout = useCallback(() => {
+    Alert.alert(
+      "Log out?",
+      "You'll need to sign in again with your phone number to access your readings.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Log out", style: "destructive", onPress: () => logout() },
+      ],
+    );
+  }, [logout]);
+
+  // Confirm before editing birth details — it recalculates the whole chart.
+  const confirmUpdate = useCallback(() => {
+    Alert.alert(
+      "Update birth details?",
+      "This recalculates your chart, readings and daily guidance from the new details.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Continue", onPress: () => navigation.navigate("Home") },
+      ],
+    );
+  }, [navigation]);
 
   // Cosmic Credits — fetched fresh each time Profile opens, and kept live by
   // the shared store as AI actions spend them elsewhere.
@@ -178,11 +202,11 @@ export default function ProfileScreen({ navigation }) {
         </CosmicCard>
       )}
 
-      <MagicButton onPress={() => navigation.navigate("Home")}>
+      <MagicButton onPress={confirmUpdate}>
         {EMOJIS.EDIT}  Update Birth Details
       </MagicButton>
 
-      <Pressable onPress={logout} style={s.logoutBtn}>
+      <Pressable onPress={confirmLogout} style={s.logoutBtn}>
         <Text style={s.logoutText}>{EMOJIS.DOOR}  Logout</Text>
       </Pressable>
     </ScreenContainer>
