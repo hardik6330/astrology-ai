@@ -6,37 +6,51 @@
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { auth } from "./firebaseConfig";
 
-let verifier = null;
-
 const CONTAINER_ID = "recaptcha-container";
 
-// verifier.clear() detaches Firebase's wrapper but leaves grecaptcha's rendered
-// widget inside the DOM node — so creating a new verifier on the same node
-// throws "reCAPTCHA has already been rendered in this element" (seen on Resend).
-// Emptying the node removes the stale widget before we re-render.
-function resetContainer() {
-  const el = typeof document !== "undefined" ? document.getElementById(CONTAINER_ID) : null;
-  if (el) el.innerHTML = "";
+// ONE invisible reCAPTCHA verifier, REUSED across sends and resends. grecaptcha
+// tracks the specific DOM node it rendered into; verifier.clear() + emptying the
+// node do NOT fully un-register it, so recreating a verifier on the same
+// #recaptcha-container threw "reCAPTCHA has already been rendered in this
+// element" on Resend. Invisible reCAPTCHA mints a fresh token on every
+// signInWithPhoneNumber call, so reusing the same verifier is the supported
+// pattern — we only tear it down on failure or when leaving the screen.
+let verifier = null;
+
+function getVerifier() {
+  if (!verifier) {
+    verifier = new RecaptchaVerifier(auth, CONTAINER_ID, { size: "invisible" });
+  }
+  return verifier;
 }
 
-// The invisible reCAPTCHA binds to a DOM node (#recaptcha-container, rendered by
-// LoginPage). Recreated per send so a consumed/expired challenge can't block a
-// resend ("reCAPTCHA already rendered" errors).
-function freshVerifier() {
+// Detach the verifier and remove the rendered widget so the NEXT getVerifier()
+// can render cleanly. Called after a failed send (the challenge may be consumed)
+// and on unmount (LoginPage cleanup).
+export function clearRecaptcha() {
   try {
     verifier?.clear();
   } catch {
     /* ignore */
   }
-  resetContainer();
-  verifier = new RecaptchaVerifier(auth, CONTAINER_ID, { size: "invisible" });
-  return verifier;
+  if (typeof document !== "undefined") {
+    const el = document.getElementById(CONTAINER_ID);
+    if (el) el.innerHTML = "";
+  }
+  verifier = null;
 }
 
 // Send the OTP SMS. `e164` must be full international format, e.g. "+919876543210".
 // Returns a confirmationResult whose .confirm(code) completes verification.
-export function sendOtp(e164) {
-  return signInWithPhoneNumber(auth, e164, freshVerifier());
+export async function sendOtp(e164) {
+  try {
+    return await signInWithPhoneNumber(auth, e164, getVerifier());
+  } catch (err) {
+    // A failed attempt can leave the verifier holding a consumed/expired
+    // challenge — drop it so the next send (e.g. Resend) builds a fresh one.
+    clearRecaptcha();
+    throw err;
+  }
 }
 
 // Verify the code the user typed; resolves to the Firebase ID token to hand the
@@ -44,15 +58,4 @@ export function sendOtp(e164) {
 export async function confirmOtp(confirmationResult, code) {
   const cred = await confirmationResult.confirm(code);
   return cred.user.getIdToken();
-}
-
-// Drop the reCAPTCHA widget (e.g. when leaving the login screen).
-export function clearRecaptcha() {
-  try {
-    verifier?.clear();
-  } catch {
-    /* ignore */
-  }
-  resetContainer();
-  verifier = null;
 }
