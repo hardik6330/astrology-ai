@@ -55,8 +55,18 @@ export function unwrap(body) {
  * Shared 401 handler — clears the token and bounces to /login.
  */
 export function handleUnauthorized() {
-  tokenStore("app_token").remove();
-  tokenStore("app_account").remove();
+  // Wipe ALL local data so the next user starts clean — same intent as
+  // AuthContext.logout(). A 401 bounce that only cleared the token left
+  // per-user keys (asked_alignments:*, timelineCheck:*) behind, so logging back
+  // in as the same account resurfaced stale "Analyzed"/answered state.
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k !== "admin_token")
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    tokenStore("app_token").remove();
+    tokenStore("app_account").remove(); // fallback: at least clear the session
+  }
   if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
     window.location.assign("/login");
   }
