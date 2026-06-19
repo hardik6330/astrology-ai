@@ -14,7 +14,13 @@ concurrency:
 jobs:
   # ── Gate: build + test BEFORE we touch the server ────────────────────────
   # If anything here fails, the deploy job never runs and production is left
-  # untouched. Reproducible installs via `npm ci` (honors the committed locks).
+  # untouched.
+  # NOTE: we use `npm install`, not `npm ci`. `npm ci` requires the lockfile to
+  # have been authored by the SAME npm major it runs under, but the lock is
+  # currently authored on Node 24 (dev) while CI/server run Node 20 — npm 10
+  # then rejects optional deps (@emnapi/*) that npm 11 wrote. TODO: standardize
+  # Node across dev + CI + server (engines: >=20), regenerate the lock once on
+  # that version, then switch back to `npm ci` for true reproducibility.
   verify:
     runs-on: ubuntu-latest
     steps:
@@ -29,7 +35,7 @@ jobs:
       - name: Backend — install + test
         working-directory: backend
         run: |
-          npm ci
+          npm install
           npm test         # vitest runs on sqlite (NODE_ENV=test) — no DB needed
         env:
           NODE_ENV: test
@@ -37,7 +43,7 @@ jobs:
       - name: Frontend — install + build
         working-directory: frontend
         run: |
-          npm ci
+          npm install
           npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
@@ -76,7 +82,7 @@ jobs:
             echo "Current commit: $PREV_SHA"
             git pull origin main
             cd backend
-            npm ci --omit=dev                        # reproducible, prod-only
+            npm install --omit=dev                        # prod-only deps (see verify-job note re: npm ci)
 
             deploy_backend() {
               pm2 restart astrology-backend --update-env \
@@ -100,7 +106,7 @@ jobs:
               cd ${{ secrets.DEPLOY_PATH }}
               git reset --hard "$PREV_SHA"
               cd backend
-              npm ci --omit=dev
+              npm install --omit=dev
               deploy_backend
               pm2 save
               exit 1
