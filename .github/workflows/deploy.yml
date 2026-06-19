@@ -5,22 +5,22 @@ on:
     branches:
       - main
 
-# Cancel an in-flight deploy if a newer commit lands, so we never race two
-# deploys onto the same box.
+# Cancel-in-progress is OFF: a deploy must finish (flip + health-check + maybe
+# rollback) atomically; killing it mid-flip could leave a dangling symlink.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 jobs:
-  # ── Gate: build + test BEFORE we touch the server ────────────────────────
-  # If anything here fails, the deploy job never runs and production is left
-  # untouched.
-  # NOTE: we use `npm install`, not `npm ci`. `npm ci` requires the lockfile to
-  # have been authored by the SAME npm major it runs under, but the lock is
-  # currently authored on Node 24 (dev) while CI/server run Node 20 — npm 10
-  # then rejects optional deps (@emnapi/*) that npm 11 wrote. TODO: standardize
-  # Node across dev + CI + server (engines: >=20), regenerate the lock once on
-  # that version, then switch back to `npm ci` for true reproducibility.
+  # ── Gate: build IMMUTABLE artifacts + test BEFORE we touch the server ────────
+  # Nothing is built on the production host anymore. This job produces two
+  # tarballs/dirs (backend release + frontend dist); the deploy job only ships
+  # and activates them. If anything here fails, prod is left untouched.
+  #
+  # NOTE on `npm install` vs `npm ci`: the lockfile is currently authored on a
+  # newer npm than CI's Node 20 runs, so `npm ci` rejects optional deps. We pin
+  # Node via .nvmrc (20.11.0) — once the lock is regenerated on Node 20, switch
+  # every `npm install` below to `npm ci` for byte-for-byte reproducibility.
   verify:
     runs-on: ubuntu-latest
     steps:
@@ -30,15 +30,39 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
 
+      # Full install (incl. devDeps) so vitest/sqlite can run the test gate.
       - name: Backend — install + test
         working-directory: backend
         run: |
           npm install
-          npm test         # vitest runs on sqlite (NODE_ENV=test) — no DB needed
+          npm test         # vitest on sqlite (NODE_ENV=test) — no DB needed
         env:
           NODE_ENV: test
+
+      # Build the IMMUTABLE backend release: a clean prod-only node_modules (no
+      # devDeps, and — verified — ZERO native .node binaries, so the x64-CI build
+      # is portable to an ARM64 or x64 VPS) tarred together with src/. This is
+      # what runs in production; the host never runs npm install again.
+      - name: Backend — build release artifact
+        working-directory: backend
+        run: |
+          rm -rf node_modules
+          npm install --omit=dev
+          tar -czf ../backend-release.tar.gz \
+            package.json package-lock.json node_modules src
+
+      - name: Upload backend release
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-release
+          path: backend-release.tar.gz
+          retention-days: 3
 
       - name: Frontend — install + build
         working-directory: frontend
@@ -48,77 +72,143 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
-      # Hand the built frontend to the deploy job so we don't rebuild it.
       - name: Upload frontend build
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist
-          retention-days: 1
+          retention-days: 3
 
-  # ── Deploy: only runs if `verify` passed ─────────────────────────────────
+  # ── Deploy: only runs if `verify` passed ─────────────────────────────────────
+  # Capistrano-style atomic release:
+  #   DEPLOY_PATH/                  (release root — NOT a git clone anymore)
+  #     releases/<sha>/             unpacked immutable artifact
+  #     shared/.env                 the real prod env (lives outside releases)
+  #     shared/logs/                pm2 logs (survive releases)
+  #     current -> releases/<sha>   atomically flipped symlink
+  # pm2 is started THROUGH the `current` symlink, so a plain `pm2 reload` after
+  # the flip re-execs the new release; rollback just flips the symlink back.
   deploy:
     needs: verify
     runs-on: ubuntu-latest
     steps:
+      - name: Download backend release
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-release
+          path: .
+
       - name: Download frontend build
         uses: actions/download-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist
 
-      # Backend: pull, install (reproducible, prod-only deps), restart, then
-      # HEALTH-CHECK with automatic ROLLBACK to the previous commit on failure.
-      - name: Deploy Backend (with health check + rollback)
-        uses: appleboy/ssh-action@v1.0.3   # TODO: pin to a commit SHA — `gh api repos/appleboy/ssh-action/git/refs/tags/v1.0.3`
+      # Ship the immutable artifacts to a staging spot on the box.
+      - name: Upload backend artifact to server
+        uses: appleboy/scp-action@v0.1.7   # TODO: pin to a commit SHA
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            set -e
-            cd ${{ secrets.DEPLOY_PATH }}
-            PREV_SHA=$(git rev-parse HEAD)          # remember where we were
-            echo "Current commit: $PREV_SHA"
-            git pull origin main
-            cd backend
-            npm install --omit=dev                        # prod-only deps (see verify-job note re: npm ci)
+          source: backend-release.tar.gz
+          target: /tmp/astro-deploy
 
-            deploy_backend() {
-              pm2 restart astrology-backend --update-env \
-                || pm2 start src/server.js --name astrology-backend
-            }
-            deploy_backend
-            pm2 save
-
-            # Give the app a moment to bind, then probe /health up to 10×.
-            ok=0
-            for i in $(seq 1 10); do
-              sleep 3
-              if curl -fsS "http://127.0.0.1:${{ secrets.BACKEND_PORT }}/health" >/dev/null; then
-                ok=1; break
-              fi
-              echo "health check attempt $i failed, retrying…"
-            done
-
-            if [ "$ok" -ne 1 ]; then
-              echo "::error::Health check failed — rolling back to $PREV_SHA"
-              cd ${{ secrets.DEPLOY_PATH }}
-              git reset --hard "$PREV_SHA"
-              cd backend
-              npm install --omit=dev
-              deploy_backend
-              pm2 save
-              exit 1
-            fi
-            echo "Backend healthy."
-
-      - name: Copy Frontend build to server
+      - name: Upload frontend dist to server
         uses: appleboy/scp-action@v0.1.7   # TODO: pin to a commit SHA
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "frontend/dist/*"
-          target: "${{ secrets.FRONTEND_DEPLOY_PATH }}"
+          target: /tmp/astro-deploy/frontend-dist
           strip_components: 2
+
+      # Activate the backend (atomic flip + health-check + rollback), THEN the
+      # frontend — so a failed backend never ships a mismatched frontend.
+      - name: Activate release (atomic, with health check + rollback)
+        uses: appleboy/ssh-action@v1.0.3   # TODO: pin to a commit SHA
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            APP="${{ secrets.DEPLOY_PATH }}"     # release root (e.g. /home/ubuntu/app)
+            SHA="${{ github.sha }}"
+            REL="$APP/releases/$SHA"
+            PORT="${{ secrets.BACKEND_PORT }}"
+
+            mkdir -p "$APP/releases" "$APP/shared/logs"
+
+            # The real prod env lives OUTSIDE releases and is required.
+            if [ ! -f "$APP/shared/.env" ]; then
+              echo "::error::Missing $APP/shared/.env — create it once before deploying."
+              exit 1
+            fi
+
+            # 1. Unpack the immutable artifact into a fresh release dir.
+            rm -rf "$REL"; mkdir -p "$REL"
+            tar -xzf /tmp/astro-deploy/backend-release.tar.gz -C "$REL"
+
+            # 2. Wire shared mutable state into the release (dotenv reads ./.env
+            #    from the process CWD, which we set to `current` below).
+            ln -sfn "$APP/shared/.env" "$REL/.env"
+
+            # 3. Remember the live target for rollback (empty on first deploy).
+            PREV=""
+            if [ -L "$APP/current" ]; then PREV="$(readlink "$APP/current")"; fi
+
+            # 4. ATOMIC activation — ln -sfn swaps the symlink in a single syscall.
+            ln -sfn "$REL" "$APP/current"
+
+            # (Migrations would run here, after the flip, once baseline exists:
+            #  cd "$APP/current" && npm run migrate || rollback)
+
+            # 5. Graceful reload through the symlink, or first-time start. We pass
+            #    the symlink path so pm2 stores it literally and future reloads
+            #    re-exec whatever `current` points at.
+            if pm2 describe astrology-backend >/dev/null 2>&1; then
+              pm2 reload astrology-backend --update-env
+            else
+              pm2 start "$APP/current/src/server.js" \
+                --name astrology-backend \
+                --cwd "$APP/current" \
+                --output "$APP/shared/logs/out.log" \
+                --error  "$APP/shared/logs/err.log" \
+                --update-env
+            fi
+            pm2 save
+
+            # 6. Health-check the new release; flip back on failure.
+            ok=0
+            for i in $(seq 1 10); do
+              sleep 3
+              if curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null; then ok=1; break; fi
+              echo "health attempt $i failed, retrying…"
+            done
+
+            if [ "$ok" -ne 1 ]; then
+              echo "::error::Health check failed — rolling back."
+              if [ -n "$PREV" ]; then
+                ln -sfn "$PREV" "$APP/current"
+                pm2 reload astrology-backend --update-env || pm2 restart astrology-backend
+                pm2 save
+                echo "Rolled back to $PREV"
+              else
+                echo "No previous release to roll back to (first deploy)."
+              fi
+              exit 1
+            fi
+            echo "Backend healthy on $SHA."
+
+            # 7. Frontend: swap atomically-enough via rsync --delete into the web
+            #    root nginx serves. (Backend is already verified healthy.)
+            rsync -a --delete /tmp/astro-deploy/frontend-dist/ "${{ secrets.FRONTEND_DEPLOY_PATH }}/"
+            echo "Frontend published."
+
+            # 8. Keep the last 5 releases; prune the rest (active + rollback are
+            #    always the two newest, so they're never pruned).
+            ls -1dt "$APP"/releases/*/ | tail -n +6 | xargs -r rm -rf
+            rm -rf /tmp/astro-deploy
+            echo "Deploy complete: $SHA"
