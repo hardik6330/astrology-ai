@@ -1,5 +1,11 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { EMOJIS } from "@/utils/emojis";
+
+// Remembers where the highlight pill last sat, so navigating between pages
+// (each mounts its own BottomNav) still slides the pill from the previous tab
+// to the new one instead of snapping. Module scope = persists for the session.
+let lastActiveIndex = -1;
 
 // Floating bottom tab bar — shared between ReadingPage and PalmPage so users
 // can jump between sections from any sub-page.
@@ -39,6 +45,18 @@ export default function BottomNav({ activeKey, onLocalTab }) {
   const activeIndex = TABS.findIndex(([key]) => key === activeKey);
   const slotWidth = "((100% - 24px) / 7)";
 
+  // Drive the pill's position from state so it animates. Start it where it last
+  // sat (carried across page mounts via the module var), then slide to the
+  // current tab after paint. Within the reading page, activeKey changes without
+  // a remount — the same effect handles that case too.
+  const [pillIndex, setPillIndex] = useState(lastActiveIndex >= 0 ? lastActiveIndex : activeIndex);
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    const id = requestAnimationFrame(() => setPillIndex(activeIndex));
+    lastActiveIndex = activeIndex;
+    return () => cancelAnimationFrame(id);
+  }, [activeIndex]);
+
   return (
     <nav
       style={{
@@ -68,7 +86,7 @@ export default function BottomNav({ activeKey, onLocalTab }) {
             position: "absolute",
             top: 6,
             bottom: 6,
-            left: `calc(6px + ${activeIndex} * (${slotWidth} + 2px))`,
+            left: `calc(6px + ${pillIndex} * (${slotWidth} + 2px))`,
             width: `calc(${slotWidth})`,
             borderRadius: 13,
             border: "1px solid rgba(168,85,247,0.5)",
