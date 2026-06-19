@@ -168,7 +168,9 @@ export async function sendEngagement({ force = false } = {}) {
   const rows = await resolveAudience(mode);
   if (!rows.length) return { skipped: 'no_audience', mode };
 
-  const result = await sendToTokens(rows, { title, body, data: { type: 'engage', screen } });
+  // 6h TTL: a "vibe" push is tied to the moment it's chosen — if undeliverable
+  // now, drop it rather than have FCM replay it hours later on reconnect.
+  const result = await sendToTokens(rows, { title, body, data: { type: 'engage', screen }, ttlMs: 6 * 60 * 60 * 1000 });
   log.info({ mode, audience: rows.length, source: usedSource, ...result }, 'engagement sent');
   return { ...result, audience: rows.length, mode, source: usedSource, templateId, title };
 }

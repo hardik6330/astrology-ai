@@ -75,13 +75,24 @@ export default defineConfig(({ mode }) => {
     },
   };
 
+  // The chart engine lives in ../packages/astrology-core (shared with mobile),
+  // which is OUTSIDE this app's root. Allow the dev server to serve it, else
+  // Vite blocks the import as "outside of the serving allow list". (Production
+  // `vite build` resolves the relative import fine without this.)
+  const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+
   return {
-    server: { host: true, proxy }, // `npm run dev`
+    server: { host: true, proxy, fs: { allow: [".", repoRoot] } }, // `npm run dev`
     preview: { host: true, proxy }, // `npm run preview`
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
+      // packages/astrology-core imports `astronomy-engine` as a bare specifier,
+      // but it lives outside this app's tree (no node_modules of its own), so
+      // resolution from the package file fails. dedupe forces it to resolve
+      // from THIS app's node_modules.
+      dedupe: ["astronomy-engine"],
     },
     plugins: [
       react(),

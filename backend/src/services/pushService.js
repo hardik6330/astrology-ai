@@ -81,21 +81,32 @@ async function inactiveAccountTokens(days) {
 
 // ── Campaigns (called by the cron controller) ───────────────────────────────
 
+const HOUR = 60 * 60 * 1000;
+
+// Time-sensitive copy carries a ttlMs: if FCM can't deliver within the window
+// (e.g. the device was offline all morning), the push is DROPPED rather than
+// stored and replayed on next reconnect — otherwise "Good Morning" lands at
+// 10pm when the user finally opens the app. Greetings expire within their part
+// of the day; the re-engagement nudge is "today"-relevant so it lasts longer.
+// Evergreen pushes (welcome, insight) intentionally omit ttlMs (never expire).
 const COPY = {
   morning: {
     title: '🌅 Good Morning!',
     body: "Check your personalized daily horoscope and today's auspicious timings (Muhurat).",
     data: { type: 'daily', target: 'today' },
+    ttlMs: 4 * HOUR,
   },
   evening: {
     title: '🌙 Evening Reflection',
     body: 'Reflect on your day — see what the stars have planned for you tomorrow.',
     data: { type: 'daily', target: 'tomorrow' },
+    ttlMs: 4 * HOUR,
   },
   inactivity: {
     title: '✨ The stars have a message for you',
     body: 'Ask our AI Astrologer a question today.',
     data: { type: 'reengage', screen: 'chat' },
+    ttlMs: 12 * HOUR,
   },
 };
 

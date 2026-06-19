@@ -28,10 +28,14 @@ function chunk(arr, size) {
 /**
  * Send one notification to many devices.
  * @param {Array<{id,token}>} rows  PushToken rows (need .token + .id)
- * @param {{title,body,data?}} msg
+ * @param {{title,body,data?,ttlMs?}} msg  ttlMs: drop the push if FCM can't
+ *        deliver it within this window (time-sensitive copy like "Good Morning"
+ *        — otherwise FCM stores it for ~4 weeks and replays it on next
+ *        reconnect, e.g. showing a morning greeting at 10pm). Omit for
+ *        evergreen pushes (welcome, insight) that should never expire.
  * @returns {{sent:number, failed:number, disabled:number}}
  */
-export async function sendToTokens(rows, { title, body, data = {} }) {
+export async function sendToTokens(rows, { title, body, data = {}, ttlMs } = {}) {
   if (!rows.length) return { sent: 0, failed: 0, disabled: 0 };
 
   // Log every outgoing notification at the single chokepoint all senders share
@@ -42,6 +46,15 @@ export async function sendToTokens(rows, { title, body, data = {} }) {
   const messaging = getMessaging();
   // FCM data values must be strings.
   const stringData = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]));
+
+  // Optional expiry. Each platform wants a different unit/shape:
+  //  - Android: ttl in milliseconds.
+  //  - APNs:    apns-expiration is an ABSOLUTE unix-seconds deadline ('0' would
+  //             mean "deliver now or drop", so we send an actual future epoch).
+  //  - WebPush: TTL header in seconds.
+  const hasTtl = Number.isFinite(ttlMs) && ttlMs > 0;
+  const ttlSeconds = hasTtl ? Math.ceil(ttlMs / 1000) : null;
+  const apnsExpiration = hasTtl ? String(Math.floor(Date.now() / 1000) + ttlSeconds) : null;
 
   let sent = 0, failed = 0;
   const deadIds = [];
@@ -61,10 +74,12 @@ export async function sendToTokens(rows, { title, body, data = {} }) {
       // first, then this backend. `sound` is a fallback for pre-O devices.
       android: {
         priority: 'high',
+        ...(hasTtl && { ttl: ttlMs }),
         notification: { channelId: 'default-sound', sound: 'notification' },
       },
       // iOS (dormant until APNs): play the bundled sound on the alert.
       apns: {
+        ...(hasTtl && { headers: { 'apns-expiration': apnsExpiration } }),
         payload: { aps: { sound: 'notification.wav' } },
       },
       // Web push: give the SW an icon + a click-through URL so background
@@ -72,6 +87,7 @@ export async function sendToTokens(rows, { title, body, data = {} }) {
       // sound is NOT possible for backgrounded web — the SW plays the system
       // sound only; the foreground chime lives in webPush.js.)
       webpush: {
+        ...(hasTtl && { headers: { TTL: String(ttlSeconds) } }),
         notification: { title, body, icon: '/icon.svg' },
         fcmOptions: stringData.screen ? { link: `/${stringData.screen}` } : undefined,
       },
