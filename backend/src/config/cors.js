@@ -8,6 +8,7 @@ const DEV_ALLOW = [
   /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
   /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
   /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
+  /^http:\/\/144\.24\.117\.60(:\d+)?$/,
 ];
 
 const PROD_ALLOW = (env.CORS_ORIGINS || '')
