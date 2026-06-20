@@ -64,13 +64,14 @@ jobs:
           path: backend-release.tar.gz
           retention-days: 3
 
+      # Frontend env is NOT injected here anymore — Vite auto-loads the committed
+      # frontend/.env.production at build time. VITE_* values are baked into the
+      # public bundle (not secret), so they live in that file, not a GH secret.
       - name: Frontend — install + build
         working-directory: frontend
         run: |
           npm install
           npm run build
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
       - name: Upload frontend build
         uses: actions/upload-artifact@v4
