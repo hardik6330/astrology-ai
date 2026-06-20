@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import AuthGate from "@/features/auth/AuthGate";
 import ProtectedRoute from "@/features/auth/ProtectedRoute";
 import RouteErrorBoundary from "@/components/RouteErrorBoundary";
-import HomePage from "@/pages/HomePage";
+import RootEntry from "@/features/auth/RootEntry";
 import LoginPage from "@/features/auth/LoginPage";
 import { AdminAuthProvider } from "@/admin/context/AdminAuthContext";
 import AdminRoute from "@/admin/components/AdminRoute";
@@ -59,7 +59,10 @@ const AdminPlans = lazyWithReload(() => import("@/admin/pages/AdminPlans"));
 // `public: true` skips AuthGate (login screen).
 const ROUTES = [
   { path: "/login", element: <LoginPage />, public: true },
-  { path: "/", element: <HomePage /> },
+  // Public entry: marketing landing for visitors, app home for signed-in users
+  // (RootEntry decides). `public` skips AuthGate so a visitor isn't bounced to
+  // /login before seeing what the product does.
+  { path: "/", element: <RootEntry />, public: true },
   { path: "/reading", element: <ReadingPage />, requiresChart: true },
   { path: "/chat", element: <ChatPage />, requiresChart: true },
   { path: "/palm", element: <PalmPage />, requiresChart: true },

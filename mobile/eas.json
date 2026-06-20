@@ -11,7 +11,7 @@
     },
     "preview": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://astrology-ai-pro-ez9t.vercel.app/api"
+        "EXPO_PUBLIC_API_URL": "https://api-astro-ai.mooo.com/api"
       },
       "distribution": "internal",
       "channel": "preview",
@@ -22,7 +22,7 @@
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://astrology-ai-pro-ez9t.vercel.app/api"
+        "EXPO_PUBLIC_API_URL": "https://api-astro-ai.mooo.com/api"
       },
       "channel": "production",
       "autoIncrement": true

@@ -26,6 +26,7 @@
     "@tanstack/react-query-devtools": "^5.100.14",
     "astronomy-engine": "^2.1.19",
     "firebase": "^12.13.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-error-boundary": "^6.1.1",
