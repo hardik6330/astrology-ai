@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath } from "node:url";
+import { readFileSync, existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 // Content-Security-Policy for the PRODUCTION build. The session JWT lives in the
 // browser, so the priority is denying an injected script the ability to run
@@ -52,6 +54,39 @@ function cspPlugin(apiOrigin) {
   };
 }
 
+// Standalone static GEO pages live in public/<route>/index.html (e.g. the
+// "best AI astrology apps" comparison + the palm-reading pillar). nginx serves
+// them via `try_files $uri $uri/ /index.html`, but Vite's dev/preview server
+// falls straight through to the SPA index.html for any directory request — so
+// React Router's "*" catch-all bounces the visitor back to "/". This dev-only
+// middleware mirrors nginx: if the requested directory has an index.html in
+// public/, serve that BEFORE the SPA fallback. (Production `vite build` copies
+// these files into dist as-is; this only affects `npm run dev`/`preview`.)
+function staticPublicPages() {
+  const publicDir = fileURLToPath(new URL("./public", import.meta.url));
+  const serve = (server) => (req, res, next) => {
+    const url = (req.url || "").split("?")[0];
+    if (!url.endsWith("/")) return next();
+    const file = join(publicDir, url, "index.html");
+    if (file.startsWith(publicDir) && existsSync(file)) {
+      res.setHeader("Content-Type", "text/html");
+      res.end(readFileSync(file));
+      return;
+    }
+    next();
+  };
+  return {
+    name: "serve-static-public-pages",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use(serve(server));
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(serve(server));
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -95,6 +130,7 @@ export default defineConfig(({ mode }) => {
       dedupe: ["astronomy-engine"],
     },
     plugins: [
+      staticPublicPages(),
       react(),
       tailwindcss(),
       cspPlugin(API_TARGET),

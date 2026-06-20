@@ -164,6 +164,13 @@ export default function LandingPage() {
               >
                 See what it does
               </a>
+              {/* static GEO page — full browser nav, not the SPA router */}
+              <a
+                href="/compare/best-ai-astrology-apps/"
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-white/5 px-6 py-3 text-base font-semibold text-body hover:text-ink"
+              >
+                Compare to other AI <LuArrowRight />
+              </a>
             </div>
             <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
               <li>★ No card needed</li>
@@ -474,6 +481,15 @@ export default function LandingPage() {
           <span className="flex items-center gap-2 font-bold text-body">
             <span className="text-warning">✦</span> Astro AI
           </span>
+          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+            {/* static GEO pages — full browser nav, not the SPA router */}
+            <a href="/compare/best-ai-astrology-apps/" className="hover:text-ink">
+              Compare to other AI
+            </a>
+            <a href="/palm-reading-ai/" className="hover:text-ink">
+              AI Palm Reading
+            </a>
+          </nav>
           <span>Personal astrology, made just for you. © 2026 Astrology AI Pro.</span>
         </div>
       </footer>
