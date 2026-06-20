@@ -4,7 +4,6 @@ import AuthGate from "@/features/auth/AuthGate";
 import ProtectedRoute from "@/features/auth/ProtectedRoute";
 import RouteErrorBoundary from "@/components/RouteErrorBoundary";
 import RootEntry from "@/features/auth/RootEntry";
-import LoginPage from "@/features/auth/LoginPage";
 import { AdminAuthProvider } from "@/admin/context/AdminAuthContext";
 import AdminRoute from "@/admin/components/AdminRoute";
 
@@ -35,6 +34,10 @@ function lazyWithReload(factory) {
 // Heavy authenticated screens are lazy-loaded so the initial login bundle
 // stays small. Add new routes to the array below — they pick up the same
 // AuthGate + ErrorBoundary wrapping automatically.
+// Login is lazy so its Firebase Phone Auth (reCAPTCHA + firebaseConfig) chunk
+// loads only when a visitor actually reaches /login — keeping Firebase out of
+// the initial bundle that the public landing page ("/") loads.
+const LoginPage = lazyWithReload(() => import("@/features/auth/LoginPage"));
 const ReadingPage = lazyWithReload(() => import("@/pages/ReadingPage"));
 const ChatPage = lazyWithReload(() => import("@/pages/ChatPage"));
 const PalmPage = lazyWithReload(() => import("@/pages/PalmPage"));

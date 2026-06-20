@@ -5,7 +5,17 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { tokenStore } from "@/common/tokenStore";
 import { verifyOtp, bypassLogin } from "@/services/api";
-import { registerForWebPush, teardownWebPush } from "@/features/notifications/webPush";
+
+// Web push pulls in Firebase Cloud Messaging (heavy) and is only ever needed
+// once the user is signed in. Load it lazily so a logged-out visitor on the
+// marketing landing never downloads Firebase at all. Fire-and-forget — these
+// are best-effort and must never block or throw into auth flow.
+function registerForWebPush() {
+  import("@/features/notifications/webPush").then((m) => m.registerForWebPush()).catch(() => {});
+}
+function teardownWebPush() {
+  import("@/features/notifications/webPush").then((m) => m.teardownWebPush()).catch(() => {});
+}
 
 // appToken (the bearer) is shared with services/api.js; appAccount holds the
 // cached account JSON.
