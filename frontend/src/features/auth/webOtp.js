@@ -8,36 +8,48 @@ import { auth } from "./firebaseConfig";
 
 const CONTAINER_ID = "recaptcha-container";
 
-// ONE invisible reCAPTCHA verifier, REUSED across sends and resends. grecaptcha
-// tracks the specific DOM node it rendered into; verifier.clear() + emptying the
-// node do NOT fully un-register it, so recreating a verifier on the same
-// #recaptcha-container threw "reCAPTCHA has already been rendered in this
-// element" on Resend. Invisible reCAPTCHA mints a fresh token on every
-// signInWithPhoneNumber call, so reusing the same verifier is the supported
-// pattern — we only tear it down on failure or when leaving the screen.
+// Invisible reCAPTCHA verifier. We REUSE one verifier across sends/resends, but
+// the key fix for "reCAPTCHA has already been rendered in this element" is to
+// render each verifier into a FRESH child <div> rather than the fixed
+// #recaptcha-container. grecaptcha registers the exact DOM node it rendered into
+// and never forgets it — `verifier.clear()` + emptying innerHTML do NOT
+// un-register it, so after a failed/cleared attempt, building a new verifier on
+// the SAME node throws. By giving every verifier a brand-new node (and removing
+// it on clear), grecaptcha never sees a node it already used → no collision.
 let verifier = null;
+let widgetEl = null;
 
 function getVerifier() {
-  if (!verifier) {
+  if (verifier) return verifier;
+
+  // Mount a throwaway child inside the stable #recaptcha-container so each
+  // verifier targets a node grecaptcha has never seen.
+  const host = typeof document !== "undefined" ? document.getElementById(CONTAINER_ID) : null;
+  if (host) {
+    widgetEl = document.createElement("div");
+    host.appendChild(widgetEl);
+    verifier = new RecaptchaVerifier(auth, widgetEl, { size: "invisible" });
+  } else {
+    // Fallback (container not mounted yet) — use the id directly.
     verifier = new RecaptchaVerifier(auth, CONTAINER_ID, { size: "invisible" });
   }
   return verifier;
 }
 
-// Detach the verifier and remove the rendered widget so the NEXT getVerifier()
-// can render cleanly. Called after a failed send (the challenge may be consumed)
-// and on unmount (LoginPage cleanup).
+// Detach the verifier and DELETE its rendered node so the next getVerifier()
+// renders into a clean, never-used element. Called after a failed send (the
+// challenge may be consumed) and on unmount (LoginPage cleanup).
 export function clearRecaptcha() {
   try {
     verifier?.clear();
   } catch {
     /* ignore */
   }
-  if (typeof document !== "undefined") {
-    const el = document.getElementById(CONTAINER_ID);
-    if (el) el.innerHTML = "";
-  }
   verifier = null;
+  if (widgetEl) {
+    widgetEl.remove(); // drop the exact node grecaptcha registered
+    widgetEl = null;
+  }
 }
 
 // Send the OTP SMS. `e164` must be full international format, e.g. "+919876543210".
