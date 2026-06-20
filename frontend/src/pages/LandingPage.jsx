@@ -146,9 +146,10 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="mt-5 max-w-xl text-base text-body md:text-lg">
-              Accurate, deeply personal guidance — made just for you. Get an instant Kundli reading, an AI
-              palm reading, daily predictions, and an AI astrologer that truly knows your chart. Private,
-              honest, and ready in seconds.
+              Free AI chatbots <span className="text-ink">guess</span> your chart. Astro AI gives you an{" "}
+              <span className="text-ink">accurate</span> one — a personal Kundli reading, daily predictions,
+              an AI astrologer that truly knows your chart, and an{" "}
+              <span className="text-ink">AI palm reading they can't do</span>. Private, and ready in seconds.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <button
@@ -173,10 +174,13 @@ export default function LandingPage() {
               </a>
             </div>
             <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
-              <li>★ No card needed</li>
+              <li>★ First reading free — no card needed</li>
               <li>✦ Your palm photo is never stored</li>
-              <li>◈ Private — your data stays yours</li>
+              <li>◈ Private — your data is never sold</li>
             </ul>
+            <p className="mt-3 text-xs text-dim">
+              🔒 Sign in with your phone — we text one code, that's it. No spam, ever.
+            </p>
           </div>
 
           {/* Bi-wheel motif */}
@@ -335,6 +339,59 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Sample-reading teaser (locked preview → curiosity) ──── */}
+      <section className="mx-auto max-w-4xl px-5 pb-16 md:pb-24">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">A peek inside</p>
+          <h2 className="text-3xl font-extrabold md:text-4xl">This is what you'll get.</h2>
+          <p className="mt-3 text-body">
+            A real reading is personal to you — here's a glimpse of the format.
+          </p>
+        </div>
+        <div className="relative mt-10 overflow-hidden rounded-3xl border border-[var(--c-border)] bg-white/[0.04] p-7 md:p-9">
+          {/* sample content, then a fade + lock overlay so it reads as "preview" */}
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Life theme</p>
+              <p className="mt-1 text-body">
+                You lead with curiosity and a need to understand <em>why</em> things work — at your best when
+                you're learning and sharing what you learn…
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Career</p>
+              <p className="mt-1 text-body">
+                Work that rewards independent thinking and patient, long-term building suits you. A
+                disciplined long game pays off more than chasing quick wins…
+              </p>
+            </div>
+            <div className="blur-[3px] select-none" aria-hidden="true">
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                Relationships · Timing · Palm
+              </p>
+              <p className="mt-1 text-body">
+                Your strongest period for change arrives when ▒▒▒▒▒▒▒, and your palm shows ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+                across your ▒▒▒▒ line, pointing toward ▒▒▒▒▒▒▒▒▒▒▒…
+              </p>
+            </div>
+          </div>
+          {/* fade-to-dark + unlock CTA */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#05050c] to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 pb-7">
+            <span className="rounded-full border border-[var(--c-border)] bg-white/10 px-4 py-1.5 text-sm font-semibold text-ink backdrop-blur">
+              🔒 Unlock your full, personal reading
+            </span>
+            <button
+              onClick={goLogin}
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-full px-6 py-3 text-base font-bold text-ink"
+              style={{ background: "var(--grad-primary)" }}
+            >
+              See Mine — Free <LuArrowRight />
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* ── How it works ───────────────────────────────────────── */}
       <section className="mx-auto max-w-4xl px-5 pb-16 md:pb-24">
         <div className="text-center">
@@ -350,6 +407,82 @@ export default function LandingPage() {
             </li>
           ))}
         </ol>
+      </section>
+
+      {/* ── Pricing (honest, no fabricated numbers) ────────────── */}
+      <section className="mx-auto max-w-4xl px-5 pb-16 md:pb-24">
+        <div className="text-center">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">
+            Simple &amp; fair
+          </p>
+          <h2 className="text-3xl font-extrabold md:text-4xl">Start free. Pay only for what you use.</h2>
+          <p className="mx-auto mt-3 max-w-xl text-body">
+            No subscription, no surprise charges. Your first reading is on us — after that, simple
+            pay-as-you-go credits you top up only when you want more.
+          </p>
+        </div>
+        <div className="mt-10 grid gap-5 sm:grid-cols-3">
+          {[
+            {
+              t: "Your first reading",
+              d: "Free. No card needed — see your real reading before you ever pay.",
+            },
+            {
+              t: "Pay-as-you-go credits",
+              d: "Top up only when you want more. Each reading spends a few credits — no lock-in.",
+            },
+            {
+              t: "No subscription",
+              d: "Nothing recurring. You're never charged unless you choose to top up.",
+            },
+          ].map((p) => (
+            <div
+              key={p.t}
+              className="rounded-3xl border border-[var(--c-border)] bg-white/[0.03] p-6 text-center"
+            >
+              <h3 className="text-base font-bold">{p.t}</h3>
+              <p className="mt-2 text-sm text-body">{p.d}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 text-center text-xs text-dim">
+          See exact credit prices anytime in your account — pricing is always shown before you spend.
+        </p>
+      </section>
+
+      {/* ── Social proof ───────────────────────────────────────── */}
+      {/* TODO(real-data): replace these with REAL user testimonials + your real
+          number of readings, and add Review/AggregateRating JSON-LD only once the
+          ratings are genuine. Do NOT ship fabricated reviews. */}
+      <section className="mx-auto max-w-5xl px-5 pb-16 md:pb-24">
+        <div className="text-center">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">
+            Loved by curious minds
+          </p>
+          <h2 className="text-3xl font-extrabold md:text-4xl">What people are saying.</h2>
+        </div>
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
+          {[
+            {
+              q: "The palm reading genuinely surprised me — it picked up things I'd never told anyone.",
+              a: "— add a real reviewer",
+            },
+            {
+              q: "Finally an astrology app that feels personal, not a generic daily horoscope.",
+              a: "— add a real reviewer",
+            },
+            {
+              q: "Loved that my chat remembered my chart. It felt like talking to someone who knew me.",
+              a: "— add a real reviewer",
+            },
+          ].map((t) => (
+            <figure key={t.q} className="rounded-3xl border border-[var(--c-border)] bg-white/[0.04] p-6">
+              <div className="text-warning">★★★★★</div>
+              <blockquote className="mt-3 text-sm text-body">“{t.q}”</blockquote>
+              <figcaption className="mt-3 text-xs text-dim">{t.a}</figcaption>
+            </figure>
+          ))}
+        </div>
       </section>
 
       {/* ── Trust / privacy ────────────────────────────────────── */}
@@ -482,7 +615,7 @@ export default function LandingPage() {
             <span className="text-warning">✦</span> Astro AI
           </span>
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-            {/* static GEO pages — full browser nav, not the SPA router */}
+            {/* static pages — full browser nav, not the SPA router */}
             <a href="/birth-chart-ai/" className="hover:text-ink">
               AI Birth Chart
             </a>
@@ -495,8 +628,17 @@ export default function LandingPage() {
             <a href="/compare/best-ai-astrology-apps/" className="hover:text-ink">
               Compare to other AI
             </a>
+            <a href="/privacy/" className="hover:text-ink">
+              Privacy
+            </a>
+            <a href="/terms/" className="hover:text-ink">
+              Terms
+            </a>
+            <a href="/about/" className="hover:text-ink">
+              About
+            </a>
           </nav>
-          <span>Personal astrology, made just for you. © 2026 Astrology AI Pro.</span>
+          <span>Made just for you. © 2026 Astrology AI Pro.</span>
         </div>
       </footer>
     </div>

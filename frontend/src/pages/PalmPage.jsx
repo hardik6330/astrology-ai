@@ -951,6 +951,15 @@ export default function PalmPage() {
               <div className="mx-auto mb-4 inline-flex items-center gap-1.5 rounded-full border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] px-3 py-1 text-[11.5px] font-semibold text-[#c084fc]">
                 ✨ {palmCost} credits per reading
               </div>
+              {/* Mobile-app nudge — live camera capture gives the cleanest scan
+                  and the most personalized reading. */}
+              <div className="mb-4 flex items-start gap-2.5 rounded-[10px] border border-[rgba(99,102,241,0.3)] bg-[rgba(99,102,241,0.08)] px-3.5 py-2.5 text-left">
+                <span className="text-base leading-none">📱</span>
+                <p className="m-0 text-[11.5px] leading-[1.55] text-subtle">
+                  <strong className="text-ink">For the best result, use our mobile app</strong> — capture your
+                  palm live with the camera for a sharper scan and a more personalized reading.
+                </p>
+              </div>
               <div className="grid gap-2.5">
                 <button
                   onClick={() => pickForHand("Right")}
