@@ -951,14 +951,23 @@ export default function PalmPage() {
               <div className="mx-auto mb-4 inline-flex items-center gap-1.5 rounded-full border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] px-3 py-1 text-[11.5px] font-semibold text-[#c084fc]">
                 ✨ {palmCost} credits per reading
               </div>
-              {/* Mobile-app nudge — live camera capture gives the cleanest scan
-                  and the most personalized reading. */}
-              <div className="mb-4 flex items-start gap-2.5 rounded-[10px] border border-[rgba(99,102,241,0.3)] bg-[rgba(99,102,241,0.08)] px-3.5 py-2.5 text-left">
-                <span className="text-base leading-none">{EMOJIS.MOBILE}</span>
-                <p className="m-0 text-[11.5px] leading-[1.55] text-subtle">
-                  <strong className="text-ink">For the best result, use our mobile app</strong> — capture your
-                  palm live with the camera for a sharper scan and a more personalized reading.
-                </p>
+              {/* Best-results suggestion — prominent app nudge. The native app's
+                  live camera capture produces a sharper scan than a web upload. */}
+              <div className="mb-5 overflow-hidden rounded-[15px] border border-[rgba(129,140,248,0.45)] bg-[linear-gradient(135deg,rgba(99,102,241,0.20),rgba(168,85,247,0.12))] shadow-[0_0_26px_rgba(99,102,241,0.18)]">
+                <div className="flex items-center gap-3.5 px-4 py-3.5 text-left">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[rgba(99,102,241,0.28)] text-[22px] shadow-[0_0_14px_rgba(99,102,241,0.3)]">
+                    {EMOJIS.MOBILE}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="m-0 flex items-center gap-1.5 text-[13px] font-bold text-ink">
+                      {EMOJIS.SPARKLES} Best results: scan in our app
+                    </p>
+                    <p className="mx-0 mt-0.5 mb-0 text-[11.5px] leading-[1.5] text-subtle">
+                      Capture your palm <strong className="text-[#c7d2fe]">live with the camera</strong> for a
+                      sharper, more accurate reading. Free on iOS &amp; Android.
+                    </p>
+                  </div>
+                </div>
               </div>
               {/* Visual guide tips for a better scan */}
               <div className="mb-5 grid grid-cols-2 gap-2 text-left">
