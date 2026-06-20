@@ -30,6 +30,21 @@ export default function UploadView({
             Pick which hand you're uploading. We'll check the photo matches the hand you choose.
           </Text>
 
+          {/* Visual guide tips for a better scan */}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginVertical: spacing.md, justifyContent: "center" }}>
+            {[
+              { icon: "💡", text: "Bright light" },
+              { icon: "🖐️", text: "Open hand" },
+              { icon: "📏", text: "Close up" },
+              { icon: "✨", text: "Sharp focus" },
+            ].map((tip, i) => (
+              <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 }}>
+                <Text style={{ fontSize: 14 }}>{tip.icon}</Text>
+                <Text style={{ fontSize: 10.5, fontWeight: "600", color: color.textDim }}>{tip.text}</Text>
+              </View>
+            ))}
+          </View>
+
           {/* Cost reminder — palm reading is a charged AI action. */}
           <View style={s.costPill}>
             <Text style={[s.costPillText, { color: color.primaryLight }]}>{EMOJIS.SPARKLES} {palmCost} credits per reading</Text>

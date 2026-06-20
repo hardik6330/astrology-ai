@@ -2,6 +2,7 @@
 // Explains what the product does, then funnels to login/signup. Rendered at "/"
 // by RootEntry only when there's no session; authed users get HomePage instead.
 // Styling follows the app palette (index.css @theme tokens) — no new dependency.
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -94,10 +95,43 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const goLogin = () => navigate("/login");
 
+  // Scroll-choreographed reveals: each [data-reveal] section fades/slides up as
+  // it enters the viewport (Linear/Stripe-style), instead of all content sitting
+  // static under constant ambient motion. Disabled under reduced-motion.
+  useEffect(() => {
+    const els = document.querySelectorAll(".reveal-scope > section:not(:first-of-type)");
+    if (!els.length) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      els.forEach((el) => el.classList.add("reveal-in"));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("reveal-in");
+            io.unobserve(e.target);
+          }
+        }),
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <div className="relative isolate min-h-screen overflow-hidden bg-[#05050c] text-ink">
+    <div className="reveal-scope relative isolate min-h-screen overflow-hidden bg-[#05050c] text-ink">
       {/* ── Futuristic astro backdrop (fixed, behind everything) ── */}
       <FuturisticBackground />
+
+      {/* Scroll-reveal base styles (paired with the IntersectionObserver above).
+          Every section except the hero starts hidden and reveals on scroll. */}
+      <style>{`
+        .reveal-scope > section:not(:first-of-type){opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s cubic-bezier(.22,1,.36,1)}
+        .reveal-scope > section.reveal-in{opacity:1;transform:none}
+        @media (prefers-reduced-motion: reduce){.reveal-scope > section{opacity:1!important;transform:none!important;transition:none}}
+      `}</style>
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-transparent">
@@ -151,26 +185,21 @@ export default function LandingPage() {
               an AI astrologer that truly knows your chart, and an{" "}
               <span className="text-ink">AI palm reading they can't do</span>. Private, and ready in seconds.
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
+            {/* One dominant CTA — secondary actions demoted to a quiet text link
+                so the primary action never competes for attention. */}
+            <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
               <button
                 onClick={goLogin}
-                className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-base font-bold text-ink"
+                className="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-bold text-ink shadow-[0_10px_30px_rgba(139,92,246,0.35)] transition active:scale-[0.98]"
                 style={{ background: "var(--grad-primary)" }}
               >
-                Get Your Free AI Reading <LuArrowRight />
+                Get Your Free Reading <LuArrowRight />
               </button>
               <a
                 href="#features"
-                className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-white/5 px-6 py-3 text-base font-semibold text-body hover:text-ink"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-body hover:text-ink"
               >
-                See what it does
-              </a>
-              {/* static GEO page — full browser nav, not the SPA router */}
-              <a
-                href="/compare/best-ai-astrology-apps/"
-                className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-white/5 px-6 py-3 text-base font-semibold text-body hover:text-ink"
-              >
-                Compare to other AI <LuArrowRight />
+                See how it works ↓
               </a>
             </div>
             <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
@@ -450,37 +479,49 @@ export default function LandingPage() {
         </p>
       </section>
 
-      {/* ── Social proof ───────────────────────────────────────── */}
-      {/* TODO(real-data): replace these with REAL user testimonials + your real
-          number of readings, and add Review/AggregateRating JSON-LD only once the
-          ratings are genuine. Do NOT ship fabricated reviews. */}
-      <section className="mx-auto max-w-5xl px-5 pb-16 md:pb-24">
+      {/* ── Trust tiles (TRUE facts — no fabricated reviews) ─────── */}
+      {/* When you have ≥3 REAL testimonials, swap this for a quotes grid and add
+          Review/AggregateRating JSON-LD. Until then, lead with what's verifiable. */}
+      <section data-reveal className="mx-auto max-w-5xl px-5 pb-16 md:pb-24">
         <div className="text-center">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">
-            Loved by curious minds
+            Why people trust us
           </p>
-          <h2 className="text-3xl font-extrabold md:text-4xl">What people are saying.</h2>
+          <h2 className="text-3xl font-extrabold md:text-4xl">Built to be trusted.</h2>
+          <p className="mt-3 text-body">No fine print, no surprises — here's what's always true.</p>
         </div>
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
-              q: "The palm reading genuinely surprised me — it picked up things I'd never told anyone.",
-              a: "— add a real reviewer",
+              i: LuShieldCheck,
+              t: "Photo never stored",
+              d: "Your palm image is used for your reading, then discarded.",
             },
             {
-              q: "Finally an astrology app that feels personal, not a generic daily horoscope.",
-              a: "— add a real reviewer",
+              i: LuSparkles,
+              t: "First reading free",
+              d: "See your real reading before you ever pay. No card needed.",
             },
+            { i: LuZap, t: "No subscription", d: "Pay only for what you use — nothing recurring, ever." },
             {
-              q: "Loved that my chat remembered my chart. It felt like talking to someone who knew me.",
-              a: "— add a real reviewer",
+              i: LuMessageCircle,
+              t: "Private by design",
+              d: "Your data is never sold or used to train anything.",
             },
-          ].map((t) => (
-            <figure key={t.q} className="rounded-3xl border border-[var(--c-border)] bg-white/[0.04] p-6">
-              <div className="text-warning">★★★★★</div>
-              <blockquote className="mt-3 text-sm text-body">“{t.q}”</blockquote>
-              <figcaption className="mt-3 text-xs text-dim">{t.a}</figcaption>
-            </figure>
+          ].map((p) => (
+            <div
+              key={p.t}
+              className="fx-card rounded-3xl border border-[var(--c-border)] bg-white/[0.04] p-6 text-center"
+            >
+              <div
+                className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl"
+                style={{ background: "var(--grad-primary)", boxShadow: "0 0 18px rgba(139,92,246,0.5)" }}
+              >
+                <p.i className="text-lg text-ink" />
+              </div>
+              <h3 className="text-sm font-bold">{p.t}</h3>
+              <p className="mt-1.5 text-xs text-body">{p.d}</p>
+            </div>
           ))}
         </div>
       </section>
@@ -712,10 +753,8 @@ function FuturisticBackground() {
 
       {/* falling stars / meteors — from BOTH sides: --1/--3 enter from the right
           (TR→BL), --2/--4 enter from the left (TL→BR) */}
+      {/* One occasional meteor — calmer, more premium than a constant shower. */}
       <span className="fx-meteor fx-meteor--1" />
-      <span className="fx-meteor fx-meteor--2" />
-      <span className="fx-meteor fx-meteor--3" />
-      <span className="fx-meteor fx-meteor--4" />
 
       {/* neon perspective grid horizon */}
       <div className="fx-grid" />
@@ -743,8 +782,8 @@ function FuturisticBackground() {
                       radial-gradient(1px 1px at 85% 20%, #a5b4fc, transparent),
                       radial-gradient(1px 1px at 55% 15%, #fff, transparent),
                       radial-gradient(1.5px 1.5px at 30% 50%, #e9d5ff, transparent); }
-        .fx-stars--far  { background-size: 700px 700px; opacity: 0.5; animation: fxDrift 200s linear infinite; }
-        .fx-stars--near { background-size: 420px 420px; opacity: 0.8; animation: fxDrift 120s linear infinite reverse, fxTwinkle 6s ease-in-out infinite; }
+        .fx-stars--far  { background-size: 700px 700px; opacity: 0.4; animation: fxDrift 340s linear infinite; }
+        .fx-stars--near { background-size: 420px 420px; opacity: 0.6; animation: fxDrift 220s linear infinite reverse; }
 
         /* will-change promotes each blob to its own layer: the expensive blur is
            rasterised ONCE, then the layer just translates (cheap). */
@@ -768,10 +807,8 @@ function FuturisticBackground() {
         .fx-meteor::after { content: ""; position: absolute; right: -2px; top: 50%; width: 4px; height: 4px;
                             border-radius: 50%; transform: translateY(-50%); background: #fff;
                             box-shadow: 0 0 10px 3px rgba(199,210,254,0.9), 0 0 22px 6px rgba(139,92,246,0.5); }
-        .fx-meteor--1 { top: 0;    left: 0; animation: fxMeteor  7s   linear infinite; animation-delay: 1s; }   /* from right */
-        .fx-meteor--2 { top: 4vh;  left: 0; animation: fxMeteorB 9s   linear infinite; animation-delay: 3.5s; } /* from left  */
-        .fx-meteor--3 { top: 22vh; left: 0; animation: fxMeteor  8.5s linear infinite; animation-delay: 6s; }   /* from right */
-        .fx-meteor--4 { top: 26vh; left: 0; animation: fxMeteorB 10s  linear infinite; animation-delay: 8.5s; } /* from left  */
+        /* Single meteor on a long cycle — it streaks ~once every 16s, then rests. */
+        .fx-meteor--1 { top: 2vh; left: 0; animation: fxMeteor 16s linear infinite; animation-delay: 3s; }
 
         .fx-grid { position: absolute; left: 50%; bottom: -10vh; width: 200vw; height: 60vh; transform: translateX(-50%) perspective(420px) rotateX(70deg);
                    background-image:
@@ -786,8 +823,8 @@ function FuturisticBackground() {
         /* Hero zodiac wheel: the whole wheel rotates, but each glyph counter-
            rotates at the SAME speed about its own centre, so the signs orbit
            while staying upright (never upside-down). Halo gently pulses. */
-        .rashi-wheel  { animation: rashiSpin 90s linear infinite; transform-origin: 50% 50%; will-change: transform; }
-        .rashi-glyph  { animation: rashiSpinRev 90s linear infinite; transform-box: fill-box; transform-origin: 50% 50%; will-change: transform; }
+        .rashi-wheel  { animation: rashiSpin 120s linear infinite; transform-origin: 50% 50%; will-change: transform; }
+        .rashi-glyph  { animation: rashiSpinRev 120s linear infinite; transform-box: fill-box; transform-origin: 50% 50%; will-change: transform; }
         .rashi-halo   { animation: rashiPulse 6s ease-in-out infinite; }
         @keyframes rashiSpin    { to { transform: rotate(360deg); } }
         @keyframes rashiSpinRev { to { transform: rotate(-360deg); } }

@@ -56,4 +56,6 @@ export const EMOJIS = {
   HEART_YELLOW: "💛",
   ARROW_UP: "⬆",
   KEY: "🔑",
+  RULER: "📏",
+  MOBILE: "📱",
 };

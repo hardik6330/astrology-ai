@@ -124,107 +124,156 @@ export default function LoginPage() {
   return (
     <div className="relative grid min-h-screen place-items-center overflow-hidden bg-[radial-gradient(circle_at_20%_30%,#1e1b4b_0%,#050508_70%)] p-4">
       <CosmicBackdrop />
-      <div className="relative z-1 w-full max-w-95 rounded-[20px] border border-(--c-border) bg-[rgba(var(--panel-rgb),0.78)] p-7 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[8px]">
-        <div className="mb-7 text-center">
-          <div className="mb-3 text-[44px]">{EMOJIS.SATURN}</div>
-          <h1 className="m-0 text-2xl font-bold text-ink">Sign in to Astrology AI</h1>
-          <p className="mt-2 mb-0 text-[13px] text-dim">
-            {step === "phone"
-              ? "We'll send you a one-time code over SMS."
-              : `Code sent to +${dialCode} ${phone}. Enter it below.`}
+      <div className="relative z-1 grid w-full max-w-5xl overflow-hidden rounded-[24px] border border-(--c-border) bg-[rgba(var(--panel-rgb),0.78)] shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[8px] md:grid-cols-2">
+        {/* ── Left: brand / value panel (desktop only) — reassures the visitor
+            at the exact moment we ask for their phone number. ── */}
+        <aside
+          className="relative hidden flex-col justify-between overflow-hidden p-9 md:flex"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(139,92,246,0.20), rgba(99,102,241,0.06) 55%, transparent)",
+            borderRight: "1px solid var(--c-border)",
+          }}
+        >
+          <div>
+            <span className="flex items-center gap-2 text-lg font-extrabold text-ink">
+              <span className="text-warning">✦</span> Astro AI
+            </span>
+            <h2 className="mt-8 text-3xl font-extrabold leading-tight text-ink">
+              Your stars are
+              <br />
+              waiting for you.
+            </h2>
+            <p className="mt-3 max-w-xs text-sm text-body">
+              Sign in to unlock a reading made just for you — accurate, personal, and private.
+            </p>
+
+            <ul className="mt-7 space-y-3.5">
+              {[
+                [EMOJIS.SPARKLES, "A personal Vedic birth chart & reading"],
+                [EMOJIS.HAND_OPEN, "AI palm reading — your photo is never stored"],
+                [EMOJIS.CHAT, "An AI astrologer that knows your chart"],
+                [EMOJIS.CALENDAR, "Daily guidance & predictions"],
+              ].map(([icon, text]) => (
+                <li key={text} className="flex items-center gap-3 text-sm text-body">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-(--c-border) bg-white/5 text-base">
+                    {icon}
+                  </span>
+                  {text}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+            <span>★ First reading free</span>
+            <span>🔒 One code — no spam, ever</span>
+          </div>
+        </aside>
+
+        {/* ── Right: login form ── */}
+        <div className="p-7 md:p-9">
+          <div className="mb-7 text-center">
+            <div className="mb-3 text-[44px]">{EMOJIS.SATURN}</div>
+            <h1 className="m-0 text-2xl font-bold text-ink">Sign in to Astrology AI</h1>
+            <p className="mt-2 mb-0 text-[13px] text-dim">
+              {step === "phone"
+                ? "We'll text you one code — no spam, ever."
+                : `Code sent to +${dialCode} ${phone}. Enter it below.`}
+            </p>
+          </div>
+
+          {step === "phone" && (
+            <form onSubmit={sendOtp}>
+              <label className={labelCls}>Phone number</label>
+              <div className={`${inputCls} flex items-center gap-1 px-0 py-0`}>
+                <CountrySelect value={dialCode} onChange={setDialCode} disabled={busy} />
+                <span className="my-2 w-px self-stretch bg-(--c-border)" />
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  placeholder="mobile number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                  className="flex-1 bg-transparent py-3 pr-3.5 text-sm text-ink outline-none"
+                  disabled={busy}
+                  maxLength={12}
+                />
+              </div>
+              <button type="submit" disabled={busy} className={primaryBtnCls}>
+                {busy ? "Sending…" : "Send OTP"}
+              </button>
+            </form>
+          )}
+
+          {step === "otp" && (
+            <form onSubmit={verifyOtp}>
+              <label className={labelCls}>6-digit code</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="••••••"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                className={`${inputCls} text-center text-lg tracking-[6px]`}
+                disabled={busy}
+              />
+              <button type="submit" disabled={busy} className={primaryBtnCls}>
+                {busy ? "Verifying…" : "Verify & continue"}
+              </button>
+              <div className="mt-3.5 flex justify-between text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep("phone");
+                    setOtp("");
+                  }}
+                  className={linkBtnCls}
+                >
+                  {EMOJIS.LEFT_ARROW} Change number
+                </button>
+                <button
+                  type="button"
+                  onClick={resendOtp}
+                  disabled={resendIn > 0 || busy || resending}
+                  className={`${linkBtnCls} ${resendIn > 0 || resending ? "opacity-50" : "opacity-100"}`}
+                >
+                  {resending ? "Sending…" : resendIn > 0 ? `Resend in ${resendIn}s` : "Resend OTP"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <ErrorText style={{ fontSize: 12.5, margin: "14px 0 0" }}>{error}</ErrorText>
+          {/* Invisible reCAPTCHA mount point — required by signInWithPhoneNumber. */}
+          <div id="recaptcha-container" />
+          {/* Required attribution — lets us hide the floating reCAPTCHA badge
+            (.grecaptcha-badge) per Google's terms. */}
+          <p className="mt-3.5 mb-0 text-center text-[10.5px] leading-snug text-dim">
+            This site is protected by reCAPTCHA and the Google{" "}
+            <a
+              href="https://policies.google.com/privacy"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#a78bfa] underline"
+            >
+              Privacy Policy
+            </a>{" "}
+            and{" "}
+            <a
+              href="https://policies.google.com/terms"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#a78bfa] underline"
+            >
+              Terms of Service
+            </a>{" "}
+            apply.
           </p>
         </div>
-
-        {step === "phone" && (
-          <form onSubmit={sendOtp}>
-            <label className={labelCls}>Phone number</label>
-            <div className={`${inputCls} flex items-center gap-1 px-0 py-0`}>
-              <CountrySelect value={dialCode} onChange={setDialCode} disabled={busy} />
-              <span className="my-2 w-px self-stretch bg-(--c-border)" />
-              <input
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel"
-                placeholder="mobile number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                className="flex-1 bg-transparent py-3 pr-3.5 text-sm text-ink outline-none"
-                disabled={busy}
-                maxLength={12}
-              />
-            </div>
-            <button type="submit" disabled={busy} className={primaryBtnCls}>
-              {busy ? "Sending…" : "Send OTP"}
-            </button>
-          </form>
-        )}
-
-        {step === "otp" && (
-          <form onSubmit={verifyOtp}>
-            <label className={labelCls}>6-digit code</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              placeholder="••••••"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-              className={`${inputCls} text-center text-lg tracking-[6px]`}
-              disabled={busy}
-            />
-            <button type="submit" disabled={busy} className={primaryBtnCls}>
-              {busy ? "Verifying…" : "Verify & continue"}
-            </button>
-            <div className="mt-3.5 flex justify-between text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setStep("phone");
-                  setOtp("");
-                }}
-                className={linkBtnCls}
-              >
-                {EMOJIS.LEFT_ARROW} Change number
-              </button>
-              <button
-                type="button"
-                onClick={resendOtp}
-                disabled={resendIn > 0 || busy || resending}
-                className={`${linkBtnCls} ${resendIn > 0 || resending ? "opacity-50" : "opacity-100"}`}
-              >
-                {resending ? "Sending…" : resendIn > 0 ? `Resend in ${resendIn}s` : "Resend OTP"}
-              </button>
-            </div>
-          </form>
-        )}
-
-        <ErrorText style={{ fontSize: 12.5, margin: "14px 0 0" }}>{error}</ErrorText>
-        {/* Invisible reCAPTCHA mount point — required by signInWithPhoneNumber. */}
-        <div id="recaptcha-container" />
-        {/* Required attribution — lets us hide the floating reCAPTCHA badge
-            (.grecaptcha-badge) per Google's terms. */}
-        <p className="mt-3.5 mb-0 text-center text-[10.5px] leading-snug text-dim">
-          This site is protected by reCAPTCHA and the Google{" "}
-          <a
-            href="https://policies.google.com/privacy"
-            target="_blank"
-            rel="noreferrer"
-            className="text-[#a78bfa] underline"
-          >
-            Privacy Policy
-          </a>{" "}
-          and{" "}
-          <a
-            href="https://policies.google.com/terms"
-            target="_blank"
-            rel="noreferrer"
-            className="text-[#a78bfa] underline"
-          >
-            Terms of Service
-          </a>{" "}
-          apply.
-        </p>
       </div>
     </div>
   );

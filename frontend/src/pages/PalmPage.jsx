@@ -954,49 +954,59 @@ export default function PalmPage() {
               {/* Mobile-app nudge — live camera capture gives the cleanest scan
                   and the most personalized reading. */}
               <div className="mb-4 flex items-start gap-2.5 rounded-[10px] border border-[rgba(99,102,241,0.3)] bg-[rgba(99,102,241,0.08)] px-3.5 py-2.5 text-left">
-                <span className="text-base leading-none">📱</span>
+                <span className="text-base leading-none">{EMOJIS.MOBILE}</span>
                 <p className="m-0 text-[11.5px] leading-[1.55] text-subtle">
                   <strong className="text-ink">For the best result, use our mobile app</strong> — capture your
                   palm live with the camera for a sharper scan and a more personalized reading.
                 </p>
               </div>
+              {/* Visual guide tips for a better scan */}
+              <div className="mb-5 grid grid-cols-2 gap-2 text-left">
+                {[
+                  { icon: EMOJIS.LIGHT_BULB, text: "Bright, even light" },
+                  { icon: EMOJIS.HAND_OPEN, text: "Spread fingers" },
+                  { icon: EMOJIS.RULER, text: "Fill the frame" },
+                  { icon: EMOJIS.SPARKLES, text: "Sharp & focused" },
+                ].map((tip, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg bg-white/3 px-2.5 py-2">
+                    <span className="text-sm">{tip.icon}</span>
+                    <span className="text-[10.5px] font-medium text-dim">{tip.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Hand-pick buttons with hover scale for delight */}
               <div className="grid gap-2.5">
-                <button
-                  onClick={() => pickForHand("Right")}
-                  disabled={gating || cannotAfford}
-                  className="flex w-full items-center gap-3.5 rounded-xl border border-[rgba(168,85,247,0.35)] bg-[rgba(168,85,247,0.08)] px-4 py-3.5 text-left text-ink"
-                  style={{
-                    cursor: gating || cannotAfford ? "not-allowed" : "pointer",
-                    opacity: gating || cannotAfford ? 0.5 : 1,
-                  }}
-                >
-                  <span className="w-8 text-center text-[26px]">✋</span>
-                  <span className="flex-1">
-                    <strong className="block text-sm">Right Hand</strong>
-                    <span className="text-xs text-dim">
-                      {hasCamera ? "Tap to take or pick a photo" : "Upload a clear photo of your right palm"}
+                {[
+                  { side: "Right", icon: EMOJIS.HAND, label: "Right Hand" },
+                  { side: "Left", icon: EMOJIS.HAND_LEFT, label: "Left Hand" },
+                ].map((h) => (
+                  <button
+                    key={h.side}
+                    onClick={() => pickForHand(h.side)}
+                    disabled={gating || cannotAfford}
+                    className="group flex w-full items-center gap-3.5 rounded-xl border border-[rgba(168,85,247,0.35)] bg-[rgba(168,85,247,0.08)] px-4 py-3.5 text-left text-ink transition-all hover:scale-[1.015] hover:bg-[rgba(168,85,247,0.12)] active:scale-[0.985]"
+                    style={{
+                      cursor: gating || cannotAfford ? "not-allowed" : "pointer",
+                      opacity: gating || cannotAfford ? 0.5 : 1,
+                    }}
+                  >
+                    <span className="w-8 text-center text-[26px] transition-transform group-hover:scale-110">
+                      {h.icon}
                     </span>
-                  </span>
-                  <span className="text-[22px] text-[#a855f7]">›</span>
-                </button>
-                <button
-                  onClick={() => pickForHand("Left")}
-                  disabled={gating || cannotAfford}
-                  className="flex w-full items-center gap-3.5 rounded-xl border border-[rgba(168,85,247,0.35)] bg-[rgba(168,85,247,0.08)] px-4 py-3.5 text-left text-ink"
-                  style={{
-                    cursor: gating || cannotAfford ? "not-allowed" : "pointer",
-                    opacity: gating || cannotAfford ? 0.5 : 1,
-                  }}
-                >
-                  <span className="w-8 text-center text-[26px]">🤚</span>
-                  <span className="flex-1">
-                    <strong className="block text-sm">Left Hand</strong>
-                    <span className="text-xs text-dim">
-                      {hasCamera ? "Tap to take or pick a photo" : "Upload a clear photo of your left palm"}
+                    <span className="flex-1">
+                      <strong className="block text-sm">{h.label}</strong>
+                      <span className="text-xs text-dim">
+                        {hasCamera
+                          ? "Tap to take or pick a photo"
+                          : `Upload a clear photo of your ${h.side.toLowerCase()} palm`}
+                      </span>
                     </span>
-                  </span>
-                  <span className="text-[22px] text-[#a855f7]">›</span>
-                </button>
+                    <span className="text-[22px] text-[#a855f7] transition-transform group-hover:translate-x-1">
+                      ›
+                    </span>
+                  </button>
+                ))}
               </div>
               <input ref={fileRef} type="file" accept="image/*" onChange={onPick} className="hidden" />
               <input
@@ -1257,25 +1267,26 @@ export default function PalmPage() {
               className="text-center"
               style={{
                 padding: "2rem 1.5rem",
-                borderColor: "rgba(248,113,113,0.4)",
-                background: "rgba(248,113,113,0.06)",
+                borderColor: "rgba(251,191,36,0.4)",
+                background: "rgba(251,191,36,0.06)",
               }}
             >
               {preview && (
-                <div className="mx-auto mb-4 h-35 w-35 overflow-hidden rounded-xl border border-[rgba(248,113,113,0.45)] shadow-[0_0_18px_rgba(248,113,113,0.2)]">
+                <div className="mx-auto mb-4 h-35 w-35 overflow-hidden rounded-xl border border-[rgba(251,191,36,0.45)] shadow-[0_0_18px_rgba(251,191,36,0.2)]">
                   <img src={preview} alt="uploaded palm" className="block h-full w-full object-cover" />
                 </div>
               )}
               <div className="mb-3 text-[44px]">{info.icon}</div>
-              <p className="mx-0 mt-0 mb-2 text-base font-bold text-danger">{info.title}</p>
+              <p className="mx-0 mt-0 mb-2 text-base font-bold text-warning">{info.title}</p>
               <p className="mx-0 mt-0 mb-1.5 text-[13.5px] leading-[1.65] text-subtle">{info.tip}</p>
               {palm.retakeReason && (
-                <p className="mx-0 mt-0 mb-4.5 text-xs leading-[1.6] text-muted italic">
-                  {palm.retakeReason}
-                </p>
+                <p className="mx-0 mt-0 mb-4 text-xs leading-[1.6] text-muted italic">{palm.retakeReason}</p>
               )}
+              <div className="mx-auto mb-4.5 inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-3 py-1 text-[11px] font-bold text-warning uppercase tracking-wider">
+                🛡️ No credits spent
+              </div>
               <Button variant="magic" onClick={reset} fullWidth>
-                📷 Upload Another Photo
+                📷 Try a Clearer Photo
               </Button>
             </Card>
           );
