@@ -483,11 +483,17 @@ export default function LandingPage() {
           </span>
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             {/* static GEO pages — full browser nav, not the SPA router */}
-            <a href="/compare/best-ai-astrology-apps/" className="hover:text-ink">
-              Compare to other AI
+            <a href="/birth-chart-ai/" className="hover:text-ink">
+              AI Birth Chart
             </a>
             <a href="/palm-reading-ai/" className="hover:text-ink">
               AI Palm Reading
+            </a>
+            <a href="/ai-astrologer-chat/" className="hover:text-ink">
+              AI Astrologer Chat
+            </a>
+            <a href="/compare/best-ai-astrology-apps/" className="hover:text-ink">
+              Compare to other AI
             </a>
           </nav>
           <span>Personal astrology, made just for you. © 2026 Astrology AI Pro.</span>
