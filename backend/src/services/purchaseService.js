@@ -68,6 +68,17 @@ export async function createOrder({ userId, planId }) {
   if (!plan || !plan.active) throw AppError.http(404, 'Plan not found', 'PLAN_NOT_FOUND');
 
   const useRazorpay = isRazorpayEnabled();
+
+  // Fail CLOSED in production: the mock checkout settles on a client-supplied
+  // flag (confirmOrder) with no real payment, so opening a mock order in prod
+  // would let any authed client farm free credits. Mock is dev-only; in prod
+  // Razorpay MUST be configured. (The mobile client guards this with __DEV__,
+  // but that's client-side — this is the server-side gate.)
+  if (!useRazorpay && env.NODE_ENV === 'production') {
+    log.error('Razorpay not configured in production — refusing mock checkout');
+    throw AppError.http(503, 'Payments are not configured', 'PAYMENTS_NOT_CONFIGURED');
+  }
+
   const purchase = await Purchase.create({
     userId,
     planId: plan.id,
@@ -199,6 +210,7 @@ export async function verifyIapPayment({
     const existing = await Purchase.findOne({
       where: { providerTxnId: transactionId, provider: platform },
       transaction: t,
+      lock: t.LOCK.UPDATE,
     });
     if (existing) {
       if (existing.status === 'paid') {
@@ -207,27 +219,43 @@ export async function verifyIapPayment({
       throw AppError.http(400, 'Transaction failed previously', 'TRANSACTION_FAILED');
     }
 
+    // Create the Purchase row FIRST so the UNIQUE(providerTxnId) constraint is
+    // the idempotency gate: two concurrent verifies with the same receipt both
+    // pass the existing-check (the not-yet-committed row is invisible under
+    // REPEATABLE READ), but only one INSERT wins — the loser aborts HERE, before
+    // any ledger write, instead of after grant() like before. We convert the
+    // unique violation into a clean idempotent response, not a raw 500.
+    let purchaseRow;
+    try {
+      purchaseRow = await Purchase.create(
+        {
+          userId,
+          planId: plan.id,
+          credits: plan.credits,
+          priceInr: plan.priceInr,
+          status: 'paid',
+          provider: platform,
+          providerTxnId: transactionId,
+          providerRef: { receipt, purchaseToken },
+        },
+        { transaction: t }
+      );
+    } catch (err) {
+      if (err?.name === 'SequelizeUniqueConstraintError') {
+        // A concurrent verify of the same transaction won the race and already
+        // granted. Treat as idempotent success (no second grant).
+        throw AppError.http(409, 'Transaction already processed', 'IAP_ALREADY_PROCESSED');
+      }
+      throw err;
+    }
+
     const { granted, balance } = await grant({
       userId,
       amount: plan.credits,
       reason: 'purchase',
-      meta: { planId: plan.id, platform, transactionId },
-      transaction: t, // atomic with the Purchase row below — see verifyRazorpayPayment
+      meta: { orderId: purchaseRow.id, planId: plan.id, platform, transactionId },
+      transaction: t, // atomic with the Purchase row above — see verifyRazorpayPayment
     });
-
-    await Purchase.create(
-      {
-        userId,
-        planId: plan.id,
-        credits: plan.credits,
-        priceInr: plan.priceInr,
-        status: 'paid',
-        provider: platform,
-        providerTxnId: transactionId,
-        providerRef: { receipt, purchaseToken },
-      },
-      { transaction: t }
-    );
 
     log.info({ userId, platform, transactionId, granted, balance }, 'IAP purchase settled');
     return { granted, balance, credits: plan.credits, status: 'paid' };
@@ -342,6 +370,13 @@ async function verifyGooglePurchase(productId, token) {
 //
 // Returns { granted, balance, credits, status }.
 export async function confirmOrder({ userId, orderId, mockSuccess = true }) {
+  // Defense-in-depth: even if a mock order somehow exists in production (it
+  // shouldn't — createOrder refuses to open one), never settle it for free.
+  if (env.NODE_ENV === 'production') {
+    log.error({ orderId }, 'Mock settlement attempted in production — refused');
+    throw AppError.http(503, 'Payments are not configured', 'PAYMENTS_NOT_CONFIGURED');
+  }
+
   const purchase = await Purchase.findOne({ where: { id: orderId, userId } });
   if (!purchase) throw AppError.http(404, 'Order not found', 'ORDER_NOT_FOUND');
 

@@ -113,6 +113,60 @@ export const adminBroadcastBody = z.object({
   body:  z.string().trim().min(1, 'body is required').max(500),
 });
 
+// Per-key validation for admin settings. Values are stored as strings, but the
+// feature code coerces them with Number()/comparison, so an out-of-range value
+// (e.g. chat_cost = "-50" or "abc") silently corrupts pricing/behavior. Validate
+// each known key's value here so the admin gets a clear error instead of
+// persisting garbage. Unknown keys fall through to the generic string check.
+const NON_NEG_INT = /^\d+$/;
+function settingValueIssue(key, value) {
+  const asInt = () => (NON_NEG_INT.test(value) ? Number(value) : NaN);
+  switch (key) {
+    // Credits/costs — non-negative integers with a sane ceiling.
+    case 'initial_credits':
+    case 'chat_cost':
+    case 'insights_cost':
+    case 'daily_cost':
+    case 'palm_cost': {
+      const n = asInt();
+      if (!Number.isInteger(n) || n < 0 || n > 100000) return 'must be an integer between 0 and 100000';
+      return null;
+    }
+    // IST window hours (0–23) and gap hours (0–168).
+    case 'notif_window_start':
+    case 'notif_window_end': {
+      const n = asInt();
+      if (!Number.isInteger(n) || n < 0 || n > 23) return 'must be an hour between 0 and 23';
+      return null;
+    }
+    case 'notif_min_gap_hours':
+    case 'notif_max_gap_hours': {
+      const n = asInt();
+      if (!Number.isInteger(n) || n < 0 || n > 168) return 'must be an integer between 0 and 168';
+      return null;
+    }
+    case 'notif_sample_pct': {
+      const n = asInt();
+      if (!Number.isInteger(n) || n < 1 || n > 100) return 'must be a percentage between 1 and 100';
+      return null;
+    }
+    case 'notif_max_tokens': {
+      const n = asInt();
+      if (!Number.isInteger(n) || n < 1 || n > 1000000) return 'must be a positive integer';
+      return null;
+    }
+    case 'notif_enabled':
+    case 'app_force_update':
+      return value === 'true' || value === 'false' ? null : "must be 'true' or 'false'";
+    case 'notif_source':
+      return value === 'pool' || value === 'ai' ? null : "must be 'pool' or 'ai'";
+    case 'notif_audience':
+      return ['all', 'random_one', 'random_sample'].includes(value) ? null : "must be 'all', 'random_one', or 'random_sample'";
+    default:
+      return null; // unknown key — keep the generic string check only
+  }
+}
+
 // Admin settings update — a batch of { key, value } pairs. Values arrive as
 // strings (the column type); feature code coerces with Number() where needed.
 export const adminSettingsBody = z.object({
@@ -120,6 +174,17 @@ export const adminSettingsBody = z.object({
     key:   z.string().trim().min(1, 'key is required').max(64),
     value: z.string().trim().min(1, 'value is required').max(255),
   })).min(1, 'at least one setting is required'),
+}).superRefine((body, ctx) => {
+  body.settings.forEach((s, i) => {
+    const issue = settingValueIssue(s.key, s.value);
+    if (issue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['settings', i, 'value'],
+        message: `${s.key} ${issue}`,
+      });
+    }
+  });
 });
 
 // Buy a credit plan — the client sends only the plan id; credits + price are

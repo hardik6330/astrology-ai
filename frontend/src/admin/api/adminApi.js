@@ -8,9 +8,28 @@ import { tokenStore } from "@/common/tokenStore";
 // Shared store for the admin bearer token (also used by AdminAuthContext).
 export const adminToken = tokenStore("admin_token");
 
+// Clear the admin session and bounce to the admin login. Used on a 401/403 from
+// any authed admin call so an expired/invalid admin token can't leave the
+// back-office UI mounted (the shared user handler preserves admin_token and
+// redirects to the USER /login, which is wrong for the admin area).
+function handleAdminUnauthorized() {
+  adminToken.remove();
+  tokenStore("admin_user").remove();
+  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin/login")) {
+    window.location.assign("/admin/login");
+  }
+}
+
 // Authed admin request — attaches the stored admin token to every call.
-function adminFetch(path, opts = {}) {
-  return request(path, { ...opts, token: adminToken.get() });
+// redirectOn401:false so the shared client doesn't bounce to the user /login;
+// we handle admin auth failures ourselves (clear admin session → /admin/login).
+async function adminFetch(path, opts = {}) {
+  try {
+    return await request(path, { ...opts, token: adminToken.get(), redirectOn401: false });
+  } catch (err) {
+    if (err.status === 401 || err.status === 403) handleAdminUnauthorized();
+    throw err;
+  }
 }
 
 // POST /admin/login → { token, admin: { id, name, username } }. Public (no token).

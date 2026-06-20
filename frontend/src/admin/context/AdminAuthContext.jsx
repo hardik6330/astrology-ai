@@ -11,8 +11,39 @@ import { adminLogin, adminToken } from "@/admin/api/adminApi";
 const userStore = tokenStore("admin_user");
 const AdminAuthContext = createContext(null);
 
+// Decode a JWT's `exp` (seconds) without a library, mirroring the user-side
+// AuthContext. An undecodable token counts as expired so a corrupt value is
+// dropped rather than trusted. 30s skew so a near-expiry token isn't used for a
+// call that 401s mid-flight.
+function isAdminTokenExpired(jwt) {
+  try {
+    const payload = jwt.split(".")[1];
+    if (!payload) return true;
+    const { exp } = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    if (!exp) return false; // no exp claim → let the server decide
+    return exp * 1000 <= Date.now() + 30_000;
+  } catch {
+    return true;
+  }
+}
+
+// A stored admin token is only a valid session if it hasn't expired; otherwise
+// drop it (and the cached profile) so AdminRoute redirects to /admin/login
+// immediately instead of flashing the back-office shell and 401-ing on its
+// first API call.
+function validStoredAdminToken() {
+  const t = adminToken.get();
+  if (!t) return null;
+  if (isAdminTokenExpired(t)) {
+    adminToken.remove();
+    userStore.remove();
+    return null;
+  }
+  return t;
+}
+
 export function AdminAuthProvider({ children }) {
-  const [token, setToken] = useState(() => adminToken.get());
+  const [token, setToken] = useState(() => validStoredAdminToken());
   const [admin, setAdmin] = useState(() => {
     try {
       return JSON.parse(userStore.get() || "null");

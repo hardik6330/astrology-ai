@@ -8,7 +8,7 @@ This document describes the full project structure, screens, and UI of the appli
 
 - **Frontend:** React 19, Vite, Tailwind CSS 4 (PWA)
 - **Mobile:** React Native (Expo SDK 54)
-- **Backend:** Node.js, Express 5, Sequelize + **MySQL** (Railway), Firebase Admin (Phone-OTP Auth), `helmet` + Zod validation, JWT sessions (`expo-secure-store` on mobile)
+- **Backend:** Node.js, Express 5, Sequelize + **MySQL**, Firebase Admin (Phone-OTP Auth), `helmet` + Zod validation, JWT sessions (`expo-secure-store` on mobile). Deployed on an **always-on Oracle VPS** (pm2 + nginx, GitHub Actions atomic releases)
 - **AI:** Google Gemini 2.5 Pro (interpretation) & Flash (quality gating)
 - **Astrology Engine:** `astronomy-engine` (NASA-grade precision, runs on-device)
 - **Payments:** Razorpay (Web), Native IAP (Mobile)
@@ -97,7 +97,7 @@ Four main tabs:
 
 - **Database:** A single **MySQL** database (via Sequelize ORM). Hosted on **Railway MySQL** in production.
 - **Tables:** `User`, `Kundali`, `PalmReading`, `DailyReading`, `ChatMessage`, `CreditTransaction` (append-only ledger), `Purchase`, `Setting`, `PushToken`, `Admin`, and engagement-push templates.
-- **Schema:** `sequelize.sync()` on boot (creates missing tables only — never drops/alters). Column changes go through `backend/migrations/` (Umzug), run manually.
+- **Schema:** `sequelize.sync()` on boot **only in dev/test** (creates missing tables, never drops/alters). Production is migrations-only; a fresh prod DB is bootstrapped once with `npm run sync-schema` (forces a `sync()` incl. real FK constraints). Ongoing column changes go through `backend/migrations/` (Umzug) — note **no baseline migration exists yet**, so the schema is currently frozen at the `sync-schema` snapshot.
 - **User Auth:** **Firebase Phone OTP** is the single identity source. The client verifies the OTP, obtains a Firebase ID token → the backend verifies it and issues its own **JWT** (signed with `JWT_SECRET`). On mobile the JWT is stored in the OS keychain via **`expo-secure-store`**, not plaintext AsyncStorage.
 - **Admin Auth:** A separate username/password account (scrypt-hashed) → a role=`admin` JWT, signed with a **dedicated `ADMIN_JWT_SECRET`** (required + distinct from `JWT_SECRET` in production) and carrying an `aud: astro-admin` claim, so a user token can never be verified as an admin token. The `requireAdmin` middleware guards `/api/admin/*`. The default admin password is rejected at boot in production.
 - **Identity binding (no IDOR):** every user-data route takes the acting account from the **verified token** (`req.auth.phone`), never from the request body — see `backend/src/utils/authForm.js` (`withAuthPhone`) + `utils/phone.js` (full E.164 match, any country); `phone` is stripped from the request schemas.
@@ -125,7 +125,9 @@ The app has been through a full security pass. Key protections (all in `backend/
 - **DB integrity:** the credit ledger is append-only with an atomic guarded decrement; the `literal()` credit math is integer-asserted (`creditService.js`). All queries go through Sequelize (parameterized).
 - **Validation:** every route runs a **Zod schema** (`validators/schemas.js`); admin pagination + location queries are bounds-checked, and chat messages must be non-empty (`trim().min(1)`).
 
-> **Known gaps to close before a public launch:** (1) `POST /auth/dummy-login` is **not yet gated out of production** (auth bypass); (2) the **IAP mock fallback** still grants free credits when the store secrets are unset — make it fail-closed; (3) real secrets are currently committed in the `*/.env.example` files — rotate and scrub them. See the audit thread / CLAUDE.md "Things that have bitten" for detail.
+> **Resolved since the original audit:** `POST /auth/dummy-login` is gone — replaced by `POST /auth/verify-otp`, whose bare-phone bypass is **production-gated** behind `OTP_ENABLED='false'` (never set in prod); and the **IAP mock fallback now fails closed in production** (`verifyAppleReceipt`/`verifyGooglePurchase` return null + log instead of granting when a store secret is missing).
+>
+> **Still open before a public launch:** (1) real secrets are committed in the `*/.env.example` files (base64 Firebase service account, `JWT_SECRET`, `CRON_SECRET`, Razorpay/Gemini/Maps keys) — **rotate, scrub to placeholders, and purge git history**; (2) rate limiting uses an **in-memory store** (per-instance — fine on the single-process VPS, but defeated by Vercel scale-out — move to Redis/Upstash if running serverless). See CLAUDE.md "Security model" / "Things that have bitten" for detail.
 
 ---
 
@@ -140,18 +142,17 @@ The app has been through a full security pass. Key protections (all in `backend/
 
 ## 🚀 Deployment
 
-### Backend → **Vercel** (serverless)
-- In Vercel project settings, **Root Directory = `backend`** (not in `vercel.json`).
-- **Env vars** are set in the Vercel dashboard — Firebase credentials via `FIREBASE_SERVICE_ACCOUNT_B64` (base64). Every new env var must be added to `backend/src/config/envConfig.js` (Zod schema).
-- **DB:** Railway MySQL (`RAILWAY_TCP_PROXY_DOMAIN` / `..._PORT`).
-- **Migrations** are run manually against the Railway DB:
+### Backend → **Oracle VPS** (always-on; Vercel still supported)
+Production runs on an **always-on Oracle VPS** (pm2 + nginx), deployed by **GitHub Actions** (`.github/workflows/deploy.yml`) on every push to `main` — Capistrano-style atomic release:
+1. **`verify` job** (CI): `npm test` (vitest on sqlite, no DB), then builds two **immutable artifacts** — a prod-only backend tarball (`node_modules --omit=dev`, verified free of native `.node` binaries so it's portable to ARM64/x64) + the frontend `dist`. **Nothing is built on the prod host**; a failure leaves prod untouched.
+2. **`deploy` job:** SCPs the artifacts, unpacks to `releases/<sha>/`, links the real `shared/.env` (lives outside releases) in, **atomically flips `current -> releases/<sha>`**, `pm2 reload astrology-backend`, then **health-checks `/health`** up to 10× — on failure it flips the symlink back and reloads (**rollback**). The frontend is rsync'd into nginx's web root only after the backend is healthy. Last 5 releases are kept.
+- **First-time setup:** create `$DEPLOY_PATH/shared/.env` on the box (deploy fails loudly if missing) and bootstrap the schema once with `npm run sync-schema` (`server.js` doesn't `sync()` in production). GH secrets: `SERVER_HOST/USER/SSH_KEY`, `DEPLOY_PATH`, `FRONTEND_DEPLOY_PATH`, `BACKEND_PORT`, `VITE_API_URL`.
+- Because the host is long-lived, the app runs **as written**: `app.listen()` binds a port and the in-process **node-cron** scheduler drives engagement pushes (no external cron needed). Every new env var must be added to `backend/src/config/envConfig.js` (Zod schema).
+- **Vercel (legacy/alt):** still works — Root Directory = `backend` (project settings, not `vercel.json`), env vars + `FIREBASE_SERVICE_ACCOUNT_B64` in the dashboard, external cron for pushes. ⚠️ **`VERCEL` is injected by the platform** (`=1`) — **never set it in your local `.env`** (the check is `process.env.VERCEL === '1'`; a local `VERCEL=1`/`VERCEL=0` makes the dev server skip `app.listen()` and exit). On Vercel, env changes apply only to **new deployments** (redeploy), and an unreachable DB `process.exit(1)`s → `FUNCTION_INVOCATION_FAILED` on every route.
+- **DB:** whatever `shared/.env` points at (MySQL — Railway public TCP proxy `*.proxy.rlwy.net`, or a MySQL local to the VPS). Migrations run manually:
   ```bash
-  cd backend && DB_HOST=<host> DB_PORT=<port> DB_USER=root DB_PASS='<pass>' DB_NAME=railway NODE_ENV=production npm run migrate
+  cd backend && DB_HOST=<host> DB_PORT=<port> DB_USER=root DB_PASS='<pass>' DB_NAME=<db> NODE_ENV=production npm run migrate
   ```
-- ⚠️ Connection pools are re-created on serverless cold starts; for a more reliable host, Render / Railway / Fly can run the app as-is.
-- ⚠️ **`VERCEL` is injected by the platform** (`=1`) — **never set it in your local `.env`.** `server.js` skips `app.listen()` when it sees Vercel, so a local `VERCEL=1` (or even `VERCEL=0` — env vars are strings and `"0"` is truthy) makes the dev server exit immediately. The check is `process.env.VERCEL === '1'`, so locally just leave it unset.
-- ⚠️ **Env var changes only apply to new deployments** — after editing a value in the Vercel dashboard you must **Redeploy** for it to take effect.
-- ⚠️ If the Railway DB is unreachable (`connect ETIMEDOUT`), cold-start init throws and the function `process.exit(1)`s → `FUNCTION_INVOCATION_FAILED` on every route. Verify `DB_HOST` is Railway's **public TCP proxy** (`*.proxy.rlwy.net`), not the internal `*.railway.internal` host, and that the DB service is running.
 
 ### Frontend → static / PWA host (Vercel)
 - `cd frontend && npm run build` → deploy `dist/`. The API URL is env-driven.

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Alert } from "react-native";
+import { Animated, Easing } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { useForm, usePalm } from "../../context/ChartContext";
@@ -254,11 +254,10 @@ export function usePalmReading() {
       // instead of failing silently with a blank screen.
       if (gateResult?.gateError) gateFailure = gateResult.gateError;
       else if (gateResult?.ok && !gateResult?.landmarks) gateFailure = "Gate passed but produced no hand landmarks.";
-      // TEMP DIAGNOSTIC — shows on every build (incl. preview/EAS where __DEV__
-      // is false) so we can read the real on-device gate error. Remove once the
-      // estimateHands failure is fixed.
-      if (gateFailure) {
-        Alert.alert("Palm gate diagnostic", gateFailure);
+      // A missing on-device gate just means we defer to the backend gate — log
+      // it for debugging, but never surface a developer popup to the user.
+      if (gateFailure && __DEV__) {
+        console.warn("[palm] gate diagnostic:", gateFailure);
       }
       setGateReport(gateResult?.checks || null);
       // Confidence only on a passing photo — a reject shows the failing-check

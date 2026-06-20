@@ -80,7 +80,7 @@ The flagship experience. From a name, gender, date, time, and birthplace it buil
 
 Upload or capture a palm photo and get a structured palmistry reading — with two layers of quality control so the AI never wastes a call on a bad photo:
 
-- **On-device gate first.** A **TensorFlow.js + MediaPipe Hands** model runs *locally* (web and mobile) to reject obviously unusable shots instantly — `not_a_palm`, `back_of_hand`, `blurry`, `too_dark`, `too_far`, `cropped`, `multiple_hands`, `wrong_hand` — each with a friendly retake hint.
+- **On-device gate first.** A **MediaPipe Hands** model runs *locally* to reject obviously unusable shots instantly — `not_a_palm`, `back_of_hand`, `blurry`, `too_dark`, `too_far`, `cropped`, `multiple_hands`, `wrong_hand` — each with a friendly retake hint. Web uses `@mediapipe/tasks-vision` (WASM); mobile uses a **native hand-landmarker module** (`mobile/modules/hand-landmarker`, MediaPipe via `react-native-nitro-modules`) — it replaced the earlier TensorFlow.js path for speed.
 - **Server gate second.** A cheap **Gemini Flash** pass (`PALM_GATE_SYSTEM`, `thinkingBudget: 0`) double-checks usability before any expensive Pro call.
 - **The reading.** **Gemini 2.5 Pro Vision** returns per-line analysis (Life, Head, Heart, Fate lines, Mount of Venus, Marriage lines), an overall vibe, strengths, watch-outs, practical career/love guidance, and classical palmistry cross-checks.
 - **Both-Hands "Full Life Comparison."** A single Pro call (`PALM_BOTH_HANDS_SYSTEM`) reads the **left hand as inborn potential** against the **right as lived reality**, returning a per-hand summary plus an evolution/alignment synthesis — "what you were given vs. what you've made of it."
@@ -137,13 +137,13 @@ A conversational astrologer that stays anchored to *your* chart:
 
 | Layer | Stack |
 |---|---|
-| **Frontend** | React 19, Vite 8, React Router 7, TanStack Query 5, vite-plugin-pwa, astronomy-engine, TensorFlow.js + MediaPipe Hands |
-| **Mobile** | React Native 0.81, Expo SDK 54, React Navigation 7 (drawer + native-stack), Reanimated 4, expo-image / image-picker / image-manipulator, expo-haptics, expo-blur, expo-updates, expo-location, react-native-svg, TensorFlow.js |
-| **Backend** | Node.js 20+, Express 5, Sequelize 6 + MySQL (`mysql2`), Zod, Pino, Helmet, express-rate-limit, Firebase Admin, jsonwebtoken |
+| **Frontend** | React 19, Vite 8, React Router 7, TanStack Query 5, vite-plugin-pwa, astronomy-engine, `@mediapipe/tasks-vision` (MediaPipe Hands, WASM) |
+| **Mobile** | React Native 0.81, Expo SDK 54, React Navigation 7 (drawer + native-stack), Reanimated 4, expo-image / image-picker / image-manipulator, expo-haptics, expo-updates, expo-location, react-native-svg, react-native-iap, native `hand-landmarker` module (MediaPipe via react-native-nitro-modules) |
+| **Backend** | Node.js 20+, Express 5, Sequelize 6 + MySQL (`mysql2`), Zod, Pino, Helmet, express-rate-limit, Firebase Admin, jsonwebtoken, Razorpay, googleapis (Play IAP), node-cron |
 | **AI** | Google Gemini 2.5 (`@google/generative-ai`) — Pro for synthesis, Flash/Flash-Lite for gating — text + vision |
 | **Geo** | OpenStreetMap Nominatim + `tz-lookup` (IANA timezone), MySQL-cached |
 | **Auth** | Firebase Phone Auth (OTP) — client sends ID token, backend verifies + issues JWT |
-| **Tooling** | ESLint, Prettier, Husky + lint-staged, Umzug migrations, EAS Build + EAS Update |
+| **Tooling** | ESLint, Prettier, Husky + lint-staged, Umzug migrations, EAS Build + EAS Update, GitHub Actions → Oracle VPS (pm2 + nginx, atomic releases) |
 
 ---
 
@@ -171,8 +171,7 @@ cd astrology-ai-pro
 cd backend
 npm install
 cp .env.example .env       # then fill in GEMINI_API_KEY + JWT_SECRET + DB credentials
-npm run migrate            # create tables
-npm run dev                # http://localhost:5000
+npm run dev                # http://localhost:5000 — in dev, sync() auto-creates tables on boot
 ```
 
 ### 3. Frontend setup

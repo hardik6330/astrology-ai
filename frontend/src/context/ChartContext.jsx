@@ -77,6 +77,7 @@ export function ChartProvider({ children }) {
   const [insightLowCredits, setInsightLowCredits] = useState(false); // 402 on unlock
   const [insightError, setInsightError] = useState("");
   const insightInFlight = useRef(false); // hard guard against a double-trigger
+  const insightRecovered = useRef(false); // one recovery attempt per chart (see effect below)
   const [daily, setDaily] = useState(null);
   const [chatMsgs, setChatMsgs] = useState([]);
   const [palm, setPalm] = useState(null);
@@ -121,6 +122,7 @@ export function ChartProvider({ children }) {
   const clearReadingAndPalm = useCallback(() => {
     setInterp(null);
     insightInFlight.current = false;
+    insightRecovered.current = false; // a new chart should re-attempt recovery
     setInsightLoading(false);
     setInsightOverloaded(false);
     setInsightLowCredits(false);
@@ -206,6 +208,27 @@ export function ChartProvider({ children }) {
   useEffect(() => {
     if (form.date) localStorage.setItem(STORAGE_KEY, JSON.stringify(form));
   }, [form]);
+
+  // Recover a previously-unlocked insight after a browser refresh. `interp`
+  // lives in memory only, so a reload drops it — but the reading was already
+  // generated AND paid for, and is saved server-side, so a free GET restores it.
+  // Without this, a refreshed user sees the locked "Unlock" state and thinks
+  // they lost the credits they spent (re-clicking would recover it free, but the
+  // UX reads as a paid-but-lost result). GET-only — never charges.
+  useEffect(() => {
+    if (!chart || !appToken.get()) return;
+    if (interp || insightLoading || insightInFlight.current || insightRecovered.current) return;
+    insightRecovered.current = true;
+    let cancelled = false;
+    fetchSaved("interpret", form)
+      .then((saved) => {
+        if (!cancelled && saved) setInterp(saved);
+      })
+      .catch(() => {}); // 404 / offline → user just sees the Unlock button
+    return () => {
+      cancelled = true;
+    };
+  }, [chart, interp, insightLoading, form]);
 
   // One-shot startup hydration (see `hydrating` above).
   useEffect(() => {
