@@ -55,6 +55,12 @@ export function initFirebase() {
   return admin;
 }
 
+// Cheap, side-effect-free status read for the deep health check — true once
+// initFirebase() has successfully loaded credentials. Does NOT attempt init.
+export function isFirebaseInitialized() {
+  return initialized;
+}
+
 export function verifyIdToken(idToken) {
   if (!initialized) initFirebase();
   return admin.auth().verifyIdToken(idToken);

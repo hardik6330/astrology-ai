@@ -16,7 +16,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { responseWrapper } from './middleware/responseWrapper.js';
 import { seedDefaults } from './seeders/runSeeds.js';
 import { startScheduler } from './config/scheduler.js';
-import { initFirebase } from './config/firebase.js';
+import { initFirebase, isFirebaseInitialized } from './config/firebase.js';
 
 // ── Express App Setup ────────────────────────────────────────────────────────
 
@@ -32,7 +32,23 @@ export function createApp() {
   app.use(express.json({ limit: '10mb' }));
 
   app.get('/', (_req, res) => res.send('Server is running'));
+  // Liveness: process is up. Cheap, never touches dependencies.
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+  // Readiness: verifies the real dependencies a request needs (DB reachable,
+  // Firebase auth initialised). The deploy workflow gates rollback on THIS, so a
+  // release that boots with a dead DB never goes live. 503 when degraded.
+  app.get('/health/deep', async (_req, res) => {
+    const checks = { process: 'ok', db: 'unknown', firebase: 'unknown' };
+    try {
+      await sequelize.authenticate();
+      checks.db = 'ok';
+    } catch {
+      checks.db = 'down';
+    }
+    checks.firebase = isFirebaseInitialized() ? 'ok' : 'down';
+    const healthy = checks.db === 'ok' && checks.firebase === 'ok';
+    res.status(healthy ? 200 : 503).json({ status: healthy ? 'ok' : 'degraded', checks });
+  });
 
   // Envelope all /api JSON responses as { success, message, data }.
   // Mounted at BOTH the versioned path and the bare /api alias (v1 registered

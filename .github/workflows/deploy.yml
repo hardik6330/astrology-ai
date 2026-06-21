@@ -19,16 +19,20 @@ jobs:
   #
   # NOTE on `npm install` vs `npm ci`: the lockfile is currently authored on a
   # newer npm than CI's Node 20 runs, so `npm ci` rejects optional deps. We pin
-  # Node via .nvmrc (20.11.0) — once the lock is regenerated on Node 20, switch
-  # every `npm install` below to `npm ci` for byte-for-byte reproducibility.
+  # Node via .nvmrc — once the lock is regenerated on Node 20, switch every
+  # `npm install` below to `npm ci` for byte-for-byte reproducibility.
+  # To regenerate (on Node 20 per .nvmrc):
+  #   (cd backend  && rm -rf node_modules package-lock.json && npm install)
+  #   (cd frontend && rm -rf node_modules package-lock.json && npm install)
+  # commit the new lockfiles, THEN replace every `npm install` here with `npm ci`.
   verify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -45,6 +49,14 @@ jobs:
         env:
           NODE_ENV: test
 
+      # Advisory only: surfaces new HIGH+ advisories in the run log without
+      # blocking the deploy (known ones are handled via package.json `overrides`).
+      # Flip to blocking (drop continue-on-error) once the audit is clean.
+      - name: Backend — dependency audit (advisory)
+        working-directory: backend
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+
       # Build the IMMUTABLE backend release: a clean prod-only node_modules (no
       # devDeps, and — verified — ZERO native .node binaries, so the x64-CI build
       # is portable to an ARM64 or x64 VPS) tarred together with src/. This is
@@ -58,7 +70,7 @@ jobs:
             package.json package-lock.json node_modules src
 
       - name: Upload backend release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: backend-release
           path: backend-release.tar.gz
@@ -74,7 +86,7 @@ jobs:
           npm run build
 
       - name: Upload frontend build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: frontend-dist
           path: frontend/dist
@@ -94,20 +106,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download backend release
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: backend-release
           path: .
 
       - name: Download frontend build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: frontend-dist
           path: frontend/dist
 
       # Ship the immutable artifacts to a staging spot on the box.
       - name: Upload backend artifact to server
-        uses: appleboy/scp-action@v0.1.7   # TODO: pin to a commit SHA
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -116,7 +128,7 @@ jobs:
           target: /tmp/astro-deploy
 
       - name: Upload frontend dist to server
-        uses: appleboy/scp-action@v0.1.7   # TODO: pin to a commit SHA
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -128,7 +140,7 @@ jobs:
       # Activate the backend (atomic flip + health-check + rollback), THEN the
       # frontend — so a failed backend never ships a mismatched frontend.
       - name: Activate release (atomic, with health check + rollback)
-        uses: appleboy/ssh-action@v1.0.3   # TODO: pin to a commit SHA
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -181,11 +193,14 @@ jobs:
             fi
             pm2 save
 
-            # 6. Health-check the new release; flip back on failure.
+            # 6. Health-check the new release; flip back on failure. Uses the
+            #    DEEP probe (verifies DB + Firebase, returns 503 if degraded), so
+            #    a release that boots with a dead dependency rolls back instead of
+            #    going live on a green port-is-open check.
             ok=0
             for i in $(seq 1 10); do
               sleep 3
-              if curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null; then ok=1; break; fi
+              if curl -fsS "http://127.0.0.1:$PORT/health/deep" >/dev/null; then ok=1; break; fi
               echo "health attempt $i failed, retrying…"
             done
 
