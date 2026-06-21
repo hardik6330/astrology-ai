@@ -194,14 +194,19 @@ jobs:
             pm2 save
 
             # 6. Health-check the new release; flip back on failure. Uses the
-            #    DEEP probe (verifies DB + Firebase, returns 503 if degraded), so
-            #    a release that boots with a dead dependency rolls back instead of
-            #    going live on a green port-is-open check.
+            #    DEEP probe (verifies the DB is reachable, returns 503 if not), so
+            #    a release that boots with a dead DB rolls back instead of going
+            #    live on a green port-is-open check. We capture the BODY each
+            #    attempt and echo it, so a failure shows WHICH check is down
+            #    ({"checks":{"db":"down",...}}) instead of a blind "attempt failed".
             ok=0
             for i in $(seq 1 10); do
               sleep 3
-              if curl -fsS "http://127.0.0.1:$PORT/health/deep" >/dev/null; then ok=1; break; fi
-              echo "health attempt $i failed, retrying…"
+              code="$(curl -s -o /tmp/astro-hc.json -w '%{http_code}' "http://127.0.0.1:$PORT/health/deep" || echo 000)"
+              if [ "$code" = "200" ]; then
+                ok=1; echo "health ok: $(cat /tmp/astro-hc.json)"; break
+              fi
+              echo "health attempt $i: HTTP $code body=$(cat /tmp/astro-hc.json 2>/dev/null || echo '<no response>')"
             done
 
             if [ "$ok" -ne 1 ]; then

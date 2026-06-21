@@ -142,7 +142,7 @@ export default function LandingPage() {
           <nav className="flex items-center gap-3">
             <button
               onClick={goLogin}
-              className="rounded-full px-5 py-2 text-sm font-bold text-ink"
+              className="cta-glow rounded-full px-5 py-2 text-sm font-bold text-ink"
               style={{ background: "var(--grad-primary)" }}
             >
               Get Started
@@ -190,10 +190,11 @@ export default function LandingPage() {
             <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
               <button
                 onClick={goLogin}
-                className="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-bold text-ink shadow-[0_10px_30px_rgba(139,92,246,0.35)] transition active:scale-[0.98]"
+                className="cta-glow group inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-bold text-ink shadow-[0_10px_30px_rgba(139,92,246,0.35)]"
                 style={{ background: "var(--grad-primary)" }}
               >
-                Get Your Free Reading <LuArrowRight />
+                Get Your Free Reading{" "}
+                <LuArrowRight className="transition-transform duration-200 group-hover:translate-x-1" />
               </button>
               <a
                 href="#features"
@@ -412,10 +413,11 @@ export default function LandingPage() {
             </span>
             <button
               onClick={goLogin}
-              className="pointer-events-auto inline-flex items-center gap-2 rounded-full px-6 py-3 text-base font-bold text-ink"
+              className="cta-glow group pointer-events-auto inline-flex items-center gap-2 rounded-full px-6 py-3 text-base font-bold text-ink"
               style={{ background: "var(--grad-primary)" }}
             >
-              See Mine — Free <LuArrowRight />
+              See Mine — Free{" "}
+              <LuArrowRight className="transition-transform duration-200 group-hover:translate-x-1" />
             </button>
           </div>
         </div>
@@ -641,10 +643,11 @@ export default function LandingPage() {
           </p>
           <button
             onClick={goLogin}
-            className="mt-7 inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-bold text-ink"
+            className="cta-glow group mt-7 inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-bold text-ink"
             style={{ background: "var(--grad-primary)" }}
           >
-            Get Your Free AI Reading <LuArrowRight />
+            Get Your Free AI Reading{" "}
+            <LuArrowRight className="transition-transform duration-200 group-hover:translate-x-1" />
           </button>
         </div>
       </section>
@@ -838,6 +841,18 @@ function FuturisticBackground() {
         .fx-card:hover { transform: translateY(-4px); border-color: rgba(139,92,246,0.5);
                          box-shadow: 0 0 0 1px rgba(139,92,246,0.4), 0 22px 55px rgba(139,92,246,0.20); }
         @media (prefers-reduced-motion: reduce) { .fx-card:hover { transform: none; } }
+
+        /* Primary CTA affordance: the hand/pointer cursor (so it reads as clickable
+           like a native button) plus a lift + brighter glow on hover, and a quick
+           press-down on click. Applied to every gradient call-to-action. */
+        .cta-glow { cursor: pointer; will-change: transform;
+                    transition: transform .2s cubic-bezier(.22,1,.36,1), box-shadow .25s ease, filter .2s ease; }
+        .cta-glow:hover { transform: translateY(-2px) scale(1.03); filter: brightness(1.07);
+                          box-shadow: 0 16px 42px rgba(139,92,246,0.55); }
+        .cta-glow:active { transform: translateY(0) scale(0.97); transition-duration: .08s; }
+        @media (prefers-reduced-motion: reduce) {
+          .cta-glow:hover, .cta-glow:active { transform: none; }
+        }
 
         @keyframes fxDrift  { to { transform: translate(-60px, -40px); } }
         @keyframes fxFloat  { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(28px,-22px) scale(1.08); } }

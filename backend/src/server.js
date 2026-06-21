@@ -46,7 +46,12 @@ export function createApp() {
       checks.db = 'down';
     }
     checks.firebase = isFirebaseInitialized() ? 'ok' : 'down';
-    const healthy = checks.db === 'ok' && checks.firebase === 'ok';
+    // Readiness gates on the DB ONLY — the dependency without which the app can't
+    // serve a single request. Firebase is REPORTED for observability but not
+    // gated: in production a Firebase init failure already aborts boot
+    // (process.exit(1) in start()), so a running-but-firebase-'down' process only
+    // happens in dev, where it must not fail a deploy's health check.
+    const healthy = checks.db === 'ok';
     res.status(healthy ? 200 : 503).json({ status: healthy ? 'ok' : 'degraded', checks });
   });
 
