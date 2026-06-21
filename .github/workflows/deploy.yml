@@ -178,20 +178,27 @@ jobs:
             # (Migrations would run here, after the flip, once baseline exists:
             #  cd "$APP/current" && npm run migrate || rollback)
 
-            # 5. Graceful reload through the symlink, or first-time start. We pass
-            #    the symlink path so pm2 stores it literally and future reloads
-            #    re-exec whatever `current` points at.
-            if pm2 describe astrology-backend >/dev/null 2>&1; then
-              pm2 reload astrology-backend --update-env
-            else
+            # 5. (Re)start the backend on the freshly-flipped `current`.
+            #    ⚠️ We DELETE + START rather than `pm2 reload`. pm2 resolves the
+            #    `current` symlink to a REAL release path at start time and stores
+            #    that absolute path; a plain `reload` then re-execs the ORIGINAL
+            #    release forever — the symlink flip is invisible to it, so the new
+            #    code never runs (this is why /health/deep 404'd: the route was on
+            #    disk in the new release, but pm2 was still executing an old one).
+            #    delete+start forces pm2 to re-resolve `current` → the NEW release
+            #    every deploy. The app is a single fork process, so `reload` was
+            #    never truly zero-downtime here anyway; the restart gap is ~1-2s.
+            start_backend() {
+              pm2 delete astrology-backend >/dev/null 2>&1 || true
               pm2 start "$APP/current/src/server.js" \
                 --name astrology-backend \
                 --cwd "$APP/current" \
                 --output "$APP/shared/logs/out.log" \
                 --error  "$APP/shared/logs/err.log" \
                 --update-env
-            fi
-            pm2 save
+              pm2 save
+            }
+            start_backend
 
             # 6. Health-check the new release; flip back on failure. Uses the
             #    DEEP probe (verifies the DB is reachable, returns 503 if not), so
@@ -213,8 +220,7 @@ jobs:
               echo "::error::Health check failed — rolling back."
               if [ -n "$PREV" ]; then
                 ln -sfn "$PREV" "$APP/current"
-                pm2 reload astrology-backend --update-env || pm2 restart astrology-backend
-                pm2 save
+                start_backend   # delete+start so pm2 re-resolves `current` → PREV
                 echo "Rolled back to $PREV"
               else
                 echo "No previous release to roll back to (first deploy)."
