@@ -40,7 +40,7 @@ export default function ProfilePage() {
     // the next phone number to log in lands on a fresh form.
     clearAll?.();
     await logout();
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   }
 
   return (
