@@ -18,6 +18,8 @@ import { getItem, setItem } from "./src/utils/storage";
 
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as ExpoSplash from "expo-splash-screen";
+import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
+import { SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from "@expo-google-fonts/space-grotesk";
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
@@ -66,6 +68,13 @@ function AuthLifecycle() {
 function AppShell() {
   const [splashing, setSplashing] = useState(true);
   const { hydrated, colors } = useTheme();
+  // Self-hosted fonts must finish loading before any Text mounts — otherwise the
+  // first frame renders in the system font, then pops to Inter. We hold inside
+  // the OS native splash (already up) until both fonts AND theme are ready.
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
+    SpaceGrotesk_500Medium, SpaceGrotesk_700Bold,
+  });
   // { latestVersion, mandatory } when an update prompt should show.
   const [update, setUpdate] = useState(null);
 
@@ -127,8 +136,10 @@ function AppShell() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ThemedStatusBar />
       <AuthLifecycle />
-      {!splashing && <RootNavigator />}
-      {splashing && hydrated && (
+      {/* Render nothing until fonts are loaded — the OS native splash stays up,
+          so the user never sees a system-font flash before Inter loads. */}
+      {fontsLoaded && !splashing && <RootNavigator />}
+      {fontsLoaded && splashing && hydrated && (
         <SplashScreen
           onReady={() => ExpoSplash.hideAsync().catch(() => {})}
           onDone={() => setSplashing(false)}

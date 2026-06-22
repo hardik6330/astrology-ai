@@ -77,6 +77,18 @@ export const palettes = { dark, light };
 // Static default — kept for files that haven't migrated to useTheme() yet.
 export const color = dark;
 
+// Self-bundled font faces (loaded in App.js). Body text gets Inter automatically
+// via the global Text patch (theme/textScale.js); use `display` for brand
+// wordmarks + hero headings to opt INTO Space Grotesk.
+export const fontFamily = {
+  regular:  "Inter_400Regular",
+  medium:   "Inter_500Medium",
+  semibold: "Inter_600SemiBold",
+  bold:     "Inter_700Bold",
+  display:  "SpaceGrotesk_700Bold",
+  displayMedium: "SpaceGrotesk_500Medium",
+};
+
 export const radius   = { sm: 12, md: 14, lg: 18, xl: 24, pill: 9999 };
 export const spacing  = { xs: 8, sm: 12, md: 16, lg: 22, xl: 30, xxl: 40 };
 export const fontSize = { xs: 14, sm: 16, md: 18, lg: 20, xl: 24, xxl: 28, hero: 36 };

@@ -7,7 +7,7 @@ import { useForm } from "../context/ChartContext";
 import { useAuth } from "../features/auth/AuthContext";
 import { useTheme } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
-import { radius, spacing, fontSize } from "../theme/tokens";
+import { radius, spacing, fontSize, fontFamily } from "../theme/tokens";
 import { EMOJIS } from "../utils/emojis";
 
 const ITEMS = [
@@ -201,6 +201,6 @@ const makeStyles = (c) =>
     logoutIcon:  { color: c.dangerStrong },
     logoutLabel: { color: c.dangerStrong, fontSize: 16, fontWeight: "700" },
 
-    footerTitle:   { color: c.textDim, fontSize: 12, fontWeight: "600" },
+    footerTitle:   { color: c.textDim, fontSize: 12, fontFamily: fontFamily.display, letterSpacing: 0.3 },
     footerVersion: { color: c.textFaint, fontSize: 11, marginTop: 4 },
   });

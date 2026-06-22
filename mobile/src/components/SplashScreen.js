@@ -8,7 +8,7 @@ import Svg, {
 } from "react-native-svg";
 import { useStyles } from "../theme/useStyles";
 import { useColors } from "../theme/ThemeContext";
-import { spacing } from "../theme/tokens";
+import { spacing, fontFamily } from "../theme/tokens";
 
 import * as Location from "expo-location";
 import { useForm } from "../context/ChartContext";
@@ -289,8 +289,8 @@ const makeStyles = (c) =>
       color: c.text,
       fontSize: 32,
       lineHeight: 42,
-      fontWeight: "800",
-      letterSpacing: 0.5,
+      fontFamily: fontFamily.display,
+      letterSpacing: -0.5,
     },
     tagline: {
       color: c.textDim,

@@ -10,6 +10,7 @@ import { useChart } from "@/context/ChartContext";
 import { sendOtp as fbSendOtp, confirmOtp, clearRecaptcha } from "./webOtp";
 import { defaultDialCode } from "@/utils/dialCode";
 import CountrySelect from "./CountrySelect";
+import Logo from "@/common/Logo";
 import { EMOJIS } from "@/utils/emojis";
 
 const RESEND_SECS = 30;
@@ -159,9 +160,9 @@ export default function LoginPage() {
             <Link
               to="/"
               aria-label="Astro AI — go to home"
-              className="flex w-fit items-center gap-2 text-lg font-extrabold text-ink no-underline transition-opacity hover:opacity-80"
+              className="font-display flex w-fit items-center gap-2 text-lg font-extrabold text-ink no-underline transition-opacity hover:opacity-80"
             >
-              <span className="text-warning">✦</span> Astro AI
+              <Logo size={22} /> Astro AI
             </Link>
             <h2 className="mt-8 text-3xl font-extrabold leading-tight text-ink">
               Your stars are

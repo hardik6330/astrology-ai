@@ -73,7 +73,8 @@
       ],
       "./plugins/withNotificationSound",
       "expo-secure-store",
-      "expo-localization"
+      "expo-localization",
+      "expo-font"
     ],
     "extra": {
       "apiUrl": {},
