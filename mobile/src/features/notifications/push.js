@@ -9,6 +9,7 @@
 import { Platform } from "react-native";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import { registerPushToken, unregisterPushToken } from "@/services/api";
+import { setDeviceToken } from "@/services/deviceToken";
 import { navigateFromNotification } from "@/navigation/navigationRef";
 
 // Firebase messaging + notifee are native modules that don't exist in Expo Go.
@@ -61,11 +62,13 @@ export async function registerForPush() {
 
     const token = await messaging().getToken();
     if (!token) return;
+    setDeviceToken(token); // cache for the API layer to target this device's pushes
     await registerPushToken(token, Platform.OS);
 
     // Re-send whenever FCM rotates the token (reinstall, restore, etc.).
     unsubscribeRefresh?.();
     unsubscribeRefresh = messaging().onTokenRefresh((next) => {
+      setDeviceToken(next);
       registerPushToken(next, Platform.OS).catch(() => {});
     });
 
@@ -84,6 +87,7 @@ export async function unregisterForPush() {
   try {
     unsubscribeRefresh?.();
     unsubscribeRefresh = null;
+    setDeviceToken(null);
     const token = await getMessaging()().getToken().catch(() => null);
     if (token) await unregisterPushToken(token);
   } catch (err) {

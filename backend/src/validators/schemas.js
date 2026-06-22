@@ -21,6 +21,11 @@ const formSchema = z.object({
 // legitimate charts.
 const factSheetSchema = z.string().max(20_000);
 
+// Optional FCM token of the device making the request. When present, the
+// "insight ready" push targets ONLY this device (the one that asked) instead of
+// every device on the account — see pushService.notifyInsightReady.
+const deviceTokenSchema = z.string().min(20).max(4096).nullish();
+
 // Persist birth details onto the logged-in user's row, no reading generated.
 export const profileBody = z.object({
   form: formSchema,
@@ -29,6 +34,7 @@ export const profileBody = z.object({
 export const interpretBody = z.object({
   form: formSchema,
   factSheet: factSheetSchema,
+  deviceToken: deviceTokenSchema,
 });
 
 export const dailyBody = z.object({
@@ -65,6 +71,7 @@ export const palmBody = z.object({
   // Used to build the palm-geometry hint sent to Gemini. Optional — absent when
   // the client gate didn't run (gate timeout/fallback).
   landmarks: z.array(z.object({ x: z.number(), y: z.number() }).passthrough()).min(15).max(40).nullish(),
+  deviceToken: deviceTokenSchema,
 });
 
 // Both-hands comparison payload. Left = Potential (inherited blueprint),
@@ -82,6 +89,7 @@ export const palmCompareBody = z.object({
   // didn't run; same shape as palmBody.landmarks.
   leftLandmarks:  z.array(z.object({ x: z.number(), y: z.number() }).passthrough()).min(15).max(40).nullish(),
   rightLandmarks: z.array(z.object({ x: z.number(), y: z.number() }).passthrough()).min(15).max(40).nullish(),
+  deviceToken: deviceTokenSchema,
 });
 
 export const userQuery = formSchema.partial({ gender: true }).extend({

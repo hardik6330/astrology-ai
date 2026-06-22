@@ -65,6 +65,22 @@ async function tokensForPhone(phone) {
   return rows;
 }
 
+// The SINGLE device token that made the request — but only if it actually
+// belongs to the caller's account and is enabled. Scoping to the account is
+// defense-in-depth: a client can't aim a push at a token it doesn't own, and we
+// never ping a logged-out/disabled device. Returns [] when it can't be matched.
+async function tokenForDevice(phone, token) {
+  const phoneMatch = phoneWhere(phone);
+  if (!phoneMatch) return [];
+  const accounts = await AuthAccount.findAll({ where: { phone: phoneMatch }, attributes: ['id'] });
+  if (!accounts.length) return [];
+  const row = await PushToken.findOne({
+    where: { token, enabled: true, accountId: { [Op.in]: accounts.map((a) => a.id) } },
+    attributes: ['id', 'token'],
+  });
+  return row ? [row] : [];
+}
+
 // Tokens for accounts whose last login is older than `days` (and never null).
 async function inactiveAccountTokens(days) {
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -153,8 +169,19 @@ export async function sendCustomToPhone(phone, { title, body }) {
 // "Your Kundali insight is ready." Fired after a fresh interpretation is
 // generated + persisted. Best-effort: the caller must not await or let a push
 // failure affect the HTTP response.
-export async function notifyInsightReady(phone) {
-  const rows = await tokensForPhone(phone);
+//
+// Targeted to the ONE device that requested the reading (it passes its own FCM
+// token as `deviceToken`) — never the account's other devices (web, a second
+// phone). When no token came with the request (e.g. the web client), we skip
+// the push entirely: the requester is already looking at the result, so a
+// notification to it (and a buzz on every other device) would be pure noise.
+export async function notifyInsightReady(phone, deviceToken) {
+  const token = String(deviceToken || '').trim();
+  if (!token) {
+    log.info('insight-ready: no device token on request — skipping push');
+    return { sent: 0, failed: 0, disabled: 0 };
+  }
+  const rows = await tokenForDevice(phone, token);
   if (!rows.length) return { sent: 0, failed: 0, disabled: 0 };
   return sendToTokens(rows, {
     title: '✨ Your Insight Data is Ready!',

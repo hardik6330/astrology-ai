@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getToken } from "@/utils/tokenStore";
 import { noteBalance } from "./creditsStore";
 import { noteCosts } from "./costsStore";
+import { getDeviceToken } from "./deviceToken";
 
 // Phone is cached after OTP login and attached to every form
 // payload so the backend can stamp it on the User row. Kept in a module ref
@@ -264,7 +265,7 @@ export async function chatCompletion(messages, type = "chat", extra = {}) {
   let body = { messages: trimChatHistory(messages), factSheet: extra.factSheet, form };
   if (type === "interpret") {
     endpoint = "/interpret";
-    body = { factSheet: extra.factSheet, form };
+    body = { factSheet: extra.factSheet, form, deviceToken: getDeviceToken() };
   } else if (type === "daily") {
     endpoint = "/daily";
     body = { ctx: extra.ctx, form, targetDate: extra.date };
@@ -370,6 +371,7 @@ export async function analyzePalm(imageBase64, form, claimedHand, skipGate = tru
     claimedHand,
     skipGate,
     landmarks,
+    deviceToken: getDeviceToken(),
   };
   const data = await postJSON("/palm", body);
   if (data.balance !== undefined) noteBalance(data.balance);
@@ -388,6 +390,7 @@ export async function comparePalms(leftBase64, rightBase64, form, leftLandmarks 
     leftLandmarks,
     rightLandmarks,
     skipGate: true,
+    deviceToken: getDeviceToken(),
   };
   const data = await postJSON("/palm/compare", body);
   if (data.balance !== undefined) noteBalance(data.balance);

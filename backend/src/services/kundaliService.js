@@ -26,17 +26,18 @@ export async function getSavedInterpretation(form) {
 }
 
 // POST — generate (with cache + in-flight dedupe), persist, return.
-export async function generateInterpretation({ form, factSheet }) {
+export async function generateInterpretation({ form, factSheet, deviceToken }) {
   if (!factSheet) throw AppError.http(400, 'factSheet is required', 'BAD_REQUEST');
 
   return dedupe(`interpret|${userKey(form)}`, async () => {
     const user = await findOrCreateUser(form);
 
-    // Push "your insight is ready" to this user's registered devices. Fired only
-    // when the insight is NEWLY produced for them (fresh generation or first
-    // sibling-copy) — not on plain cache hits. Fire-and-forget; never blocks.
+    // Push "your insight is ready" only to the DEVICE that asked (deviceToken),
+    // not the account's other devices. Fired only when the insight is NEWLY
+    // produced (fresh generation or first sibling-copy) — not on plain cache
+    // hits. Fire-and-forget; never blocks.
     const fireInsightPush = () =>
-      notifyInsightReady(user.phone || form.phone)
+      notifyInsightReady(user.phone || form.phone, deviceToken)
         .catch((err) => log.warn({ err: err.message }, 'insight-ready push failed'));
 
     // 1. Already saved for THIS user? Return that — already unlocked, so it's a

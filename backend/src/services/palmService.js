@@ -165,14 +165,15 @@ async function runGate({ image, claimedHand, skipGate = false, landmarks = null,
 }
 
 // Run Pro + persistence. Assumes the gate has already passed.
-async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash, scanId, landmarks }) {
+async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash, scanId, landmarks, deviceToken }) {
   const t0 = Date.now();
   const user = await findOrCreateUser(form);
 
-  // Push "your insight is ready" to this user's registered devices. Fired only
-  // when the reading is NEWLY produced for them — not on plain cache hits.
+  // Push "your insight is ready" only to the DEVICE that requested the scan
+  // (deviceToken) — never the account's other devices. Fired only when the
+  // reading is NEWLY produced — not on plain cache hits.
   const fireInsightPush = () =>
-    notifyInsightReady(user.phone || form.phone)
+    notifyInsightReady(user.phone || form.phone, deviceToken)
       .catch((err) => log.warn({ err: err.message }, 'palm-insight-ready push failed'));
 
   // Same image already analyzed (e.g. user retries same photo)? Only
@@ -295,7 +296,7 @@ async function persistGateRejection(_form, _imageHash, _rejection) {
   /* intentionally a no-op — see comment above */
 }
 
-export async function analyzePalm({ image, form, claimedHand, skipGate, landmarks }) {
+export async function analyzePalm({ image, form, claimedHand, skipGate, landmarks, deviceToken }) {
   // Short id to correlate every log line of one scan. Grep `scanId=xxxxxxxx`.
   const scanId = crypto.randomBytes(4).toString('hex');
   log.info({ scanId, hand: claimedHand || null, skipGate: !!skipGate, landmarks: Array.isArray(landmarks) ? landmarks.length : 0 }, 'palm scan: received');
@@ -335,6 +336,7 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
     imageHash: gateResult.imageHash,
     scanId,
     landmarks,
+    deviceToken,
   });
 }
 
@@ -351,7 +353,7 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
 //   2. Build a SHA-256 hash of (leftHash | rightHash) for dedupe.
 //   3. Single Pro Vision call with BOTH images.
 //   4. Save the parsed result with handType="Both".
-export async function comparePalms({ form, leftImage, rightImage, skipGate, leftLandmarks, rightLandmarks }) {
+export async function comparePalms({ form, leftImage, rightImage, skipGate, leftLandmarks, rightLandmarks, deviceToken }) {
   // Stage 1 — gate both photos. No Pro spend yet.
   const [leftGate, rightGate] = await Promise.all([
     runGate({ image: leftImage,  claimedHand: 'Left',  skipGate, landmarks: leftLandmarks }),
@@ -405,7 +407,7 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate, left
     const user = await findOrCreateUser(form);
 
     const fireInsightPush = () =>
-      notifyInsightReady(user.phone || form.phone)
+      notifyInsightReady(user.phone || form.phone, deviceToken)
         .catch((err) => log.warn({ err: err.message }, 'palm-both-insight-ready push failed'));
 
     // Same pair already analyzed? Return the saved Both reading (free).
