@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCredits } from "./useCredits";
 import Card from "./Card";
 import Button from "./Button";
@@ -8,7 +8,11 @@ import Button from "./Button";
 // the live balance so the user sees exactly how short they are.
 export default function LowCreditsCard({ cost, action = "This reading" }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const credits = useCredits();
+  // Carry the current screen to /credits so we can drop the user back here right
+  // after they top up — no hunting for the feature they were mid-flow on.
+  const goBuy = () => navigate("/credits", { state: { returnTo: location.pathname } });
   return (
     <Card
       className="text-center"
@@ -20,7 +24,7 @@ export default function LowCreditsCard({ cost, action = "This reading" }) {
         {action} costs {cost} credits
         {credits != null ? ` — you have ${credits}` : ""}. Top up to continue.
       </p>
-      <Button variant="magic" onClick={() => navigate("/credits")} fullWidth>
+      <Button variant="magic" onClick={goBuy} fullWidth>
         Buy Credits
       </Button>
     </Card>

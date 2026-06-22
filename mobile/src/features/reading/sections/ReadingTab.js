@@ -133,7 +133,7 @@ export default function ReadingTab({
         <LowCreditsCard
           cost={cost}
           action="The detailed AI analysis"
-          onTopUp={() => navigation.navigate("Credits")}
+          onTopUp={() => navigation.navigate("Credits", { returnTo: "Reading" })}
         />
       )}
 

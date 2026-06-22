@@ -4,6 +4,7 @@
 // no Razorpay keys (dev), the order settles instantly in mock mode instead.
 
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Card from "@/common/Card";
 import Button from "@/common/Button";
 import ErrorText from "@/common/ErrorText";
@@ -11,6 +12,7 @@ import BottomNav from "@/components/BottomNav";
 import { useCredits } from "@/common/useCredits";
 import { fetchCreditPlans, createCreditOrder, verifyCreditPayment, getCredits } from "@/services/api";
 import { loadRazorpay } from "@/common/razorpay";
+import { LuLock, LuInfinity, LuShieldCheck } from "react-icons/lu";
 
 // paise → "₹49" (drops the .00 when whole rupees).
 const formatInr = (paise) => {
@@ -20,10 +22,21 @@ const formatInr = (paise) => {
 
 export default function CreditsPage() {
   const credits = useCredits();
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Set when the user arrived here from a "not enough credits" prompt — after a
+  // successful top-up we send them straight back to that feature.
+  const returnTo = location.state?.returnTo || null;
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null); // plan in the checkout modal
   const [error, setError] = useState("");
+
+  // After a successful purchase, drop the user back where they came from.
+  const onPaid = () => {
+    setSelected(null);
+    if (returnTo) navigate(returnTo, { replace: true });
+  };
 
   // Refresh the balance + load plans on mount.
   useEffect(() => {
@@ -81,6 +94,12 @@ export default function CreditsPage() {
           </div>
         </div>
       </Card>
+
+      {returnTo && (
+        <div className="mb-5 rounded-xl border border-[#c084fc]/30 bg-[#c084fc]/10 px-4 py-2.5 text-center text-[12.5px] font-medium text-subtle">
+          Top up below — we'll take you right back to continue.
+        </div>
+      )}
 
       <ErrorText>{error}</ErrorText>
 
@@ -177,9 +196,9 @@ export default function CreditsPage() {
         <CheckoutModal
           plan={selected}
           onClose={() => setSelected(null)}
-          onPaid={() => setSelected(null)}
-          onError={(msg) => setError(msg)}
+          onPaid={onPaid}
           formatInr={formatInr}
+          returnTo={returnTo}
         />
       )}
 
@@ -191,17 +210,21 @@ export default function CreditsPage() {
 // Razorpay checkout. Opens an order on the backend, launches the Razorpay
 // widget, then verifies the payment server-side. Falls back to mock settlement
 // when the backend has no keys (provider:'mock').
-function CheckoutModal({ plan, onClose, onPaid, onError, formatInr }) {
+function CheckoutModal({ plan, onClose, onPaid, formatInr, returnTo }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  // Errors are shown INSIDE the modal (with a Try Again) instead of closing it —
+  // a payment hiccup shouldn't dump the user back to the plan list.
+  const [err, setErr] = useState("");
 
   function settled() {
     setDone(true);
-    setTimeout(onPaid, 1100); // brief success flash, then close
+    setTimeout(onPaid, 1100); // brief success flash, then close / return
   }
 
   async function pay() {
     setBusy(true);
+    setErr("");
     try {
       const order = await createCreditOrder(plan.id);
 
@@ -243,22 +266,27 @@ function CheckoutModal({ plan, onClose, onPaid, onError, formatInr }) {
               razorpaySignature: resp.razorpay_signature,
             });
             settled();
-          } catch (err) {
-            onError(err.message || "Payment verification failed");
-            onClose();
+          } catch {
+            setErr(
+              "We couldn't confirm your payment. If you were charged, your credits will arrive shortly — otherwise tap Try Again."
+            );
+            setBusy(false);
           }
         },
         // User dismissed Checkout without paying — re-enable the Pay button.
         modal: { ondismiss: () => setBusy(false) },
       });
       rzp.on("payment.failed", (resp) => {
-        onError(resp?.error?.description || "Payment failed");
+        setErr(
+          resp?.error?.description ||
+            "Your payment didn't go through — no money was deducted. Please try again."
+        );
         setBusy(false);
       });
       rzp.open();
-    } catch (err) {
-      onError(err.message || "Purchase failed");
-      onClose();
+    } catch {
+      setErr("Couldn't start checkout. Check your connection and try again.");
+      setBusy(false);
     }
   }
 
@@ -284,7 +312,9 @@ function CheckoutModal({ plan, onClose, onPaid, onError, formatInr }) {
             <p className="m-0 text-[18px] font-black text-success tracking-tight">
               {plan.credits} credits added!
             </p>
-            <p className="mt-2 text-[13px] text-dim">The stars are now in your favor.</p>
+            <p className="mt-2 text-[13px] text-dim">
+              {returnTo ? "Taking you back…" : "The stars are now in your favor."}
+            </p>
           </div>
         ) : (
           <>
@@ -296,6 +326,11 @@ function CheckoutModal({ plan, onClose, onPaid, onError, formatInr }) {
               <p className="m-0 text-[15px] font-bold text-subtle">{plan.credits} Cosmic Credits</p>
               <p className="mt-1 text-2xl font-black text-[#c084fc]">{formatInr(plan.priceInr)}</p>
             </div>
+            {err && (
+              <p className="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-[12px] leading-snug text-danger">
+                {err}
+              </p>
+            )}
             <Button
               variant="magic"
               fullWidth
@@ -304,12 +339,27 @@ function CheckoutModal({ plan, onClose, onPaid, onError, formatInr }) {
               className="py-4 text-[14px] font-black tracking-widest shadow-[0_10px_20px_rgba(192,132,252,0.3)]"
               onClick={pay}
             >
-              PAY {formatInr(plan.priceInr)}
+              {err ? "Try Again" : `PAY ${formatInr(plan.priceInr)}`}
             </Button>
-            <div className="mt-6 flex items-center justify-center gap-2 opacity-60">
-              <div className="h-[1px] w-8 bg-dim"></div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-dim">Secured by Razorpay</p>
-              <div className="h-[1px] w-8 bg-dim"></div>
+            {/* Trust signals at the exact moment of payment — reduce checkout
+                hesitation. All three are literally true (no auto-renew, credits
+                don't expire, Razorpay handles card data + PCI). */}
+            <div className="mt-6 flex flex-col items-center gap-2.5">
+              <div className="flex items-center gap-1.5 text-[11.5px] font-semibold text-subtle">
+                <LuLock size={13} className="text-success" />
+                Secure payment · card details never touch our servers
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[10.5px] text-dim">
+                <span className="inline-flex items-center gap-1">
+                  <LuInfinity size={12} className="text-[#c084fc]" /> Credits never expire
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <LuShieldCheck size={12} className="text-[#c084fc]" /> No subscription · one-time
+                </span>
+              </div>
+              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-dim opacity-70">
+                Payments secured by Razorpay
+              </p>
             </div>
           </>
         )}

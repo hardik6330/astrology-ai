@@ -16,6 +16,8 @@ import {
   LuBell,
   LuZap,
   LuScan,
+  LuLock,
+  LuInfinity,
 } from "react-icons/lu";
 import { FaApple, FaGooglePlay } from "react-icons/fa";
 import Logo from "@/common/Logo";
@@ -480,6 +482,23 @@ export default function LandingPage() {
         <p className="mt-6 text-center text-xs text-dim">
           See exact credit prices anytime in your account — pricing is always shown before you spend.
         </p>
+        {/* Guarantee chips — every one is literally true (no fabricated claims),
+            placed at the pricing moment to ease the decision to pay. */}
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+          {[
+            [LuSparkles, "First reading free"],
+            [LuLock, "Secure UPI & card payments"],
+            [LuInfinity, "Credits never expire"],
+            [LuShieldCheck, "No subscription"],
+          ].map(([Icon, label]) => (
+            <span
+              key={label}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--c-border)] bg-white/[0.03] px-3 py-1.5 text-xs font-semibold text-subtle"
+            >
+              <Icon size={13} className="text-[#c084fc]" /> {label}
+            </span>
+          ))}
+        </div>
       </section>
 
       {/* ── Trust tiles (TRUE facts — no fabricated reviews) ─────── */}

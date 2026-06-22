@@ -32,7 +32,7 @@ export default function PalmScreen({ navigation }) {
 
   // Shared "not enough credits" card for both views.
   const lowCreditsCard = vm.cannotAfford ? (
-    <LowCreditsCard cost={vm.palmCost} action="A palm reading" onTopUp={() => navigation.navigate("Credits")} />
+    <LowCreditsCard cost={vm.palmCost} action="A palm reading" onTopUp={() => navigation.navigate("Credits", { returnTo: "Palm" })} />
   ) : null;
 
   if (vm.inCompareMode) {

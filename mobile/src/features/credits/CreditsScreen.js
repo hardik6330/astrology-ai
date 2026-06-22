@@ -44,10 +44,13 @@ const formatInr = (paise) => {
   return `₹${Number.isInteger(rupees) ? rupees : rupees.toFixed(2)}`;
 };
 
-export default function CreditsScreen({ navigation }) {
+export default function CreditsScreen({ navigation, route }) {
   const c = useColors();
   const s = useStyles(makeStyles);
   const credits = useCredits();
+  // Set when the user arrived from a "not enough credits" prompt — after a
+  // successful top-up we send them straight back to that feature screen.
+  const returnTo = route?.params?.returnTo || null;
 
   // Consistent with every other top-level screen: Android hardware back
   // returns to the Reading/Kundali home base, not the previous drawer screen.
@@ -56,6 +59,13 @@ export default function CreditsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null); // plan in the checkout modal
   const [error, setError] = useState("");
+
+  // Close the modal after a successful purchase, then return to the originating
+  // feature if we came from one.
+  const finishAndReturn = useCallback(() => {
+    setSelected(null);
+    if (returnTo) navigation.navigate(returnTo);
+  }, [returnTo, navigation]);
 
   // Latest plans for the purchase listener closure (set up once on mount).
   const plansRef = useRef([]);
@@ -93,6 +103,7 @@ export default function CreditsScreen({ navigation }) {
             await finishTransaction(purchase);
             getCredits();
             setSelected(null);
+            if (returnTo) navigation.navigate(returnTo);
           } catch (err) {
             setError(err.message || "Payment verification failed");
           }
@@ -228,6 +239,7 @@ export default function CreditsScreen({ navigation }) {
       <CheckoutModal
         plan={selected}
         onClose={() => setSelected(null)}
+        onPaid={finishAndReturn}
         onError={(msg) => { setError(msg); setSelected(null); }}
       />
     </ScreenContainer>
@@ -239,7 +251,7 @@ export default function CreditsScreen({ navigation }) {
 // back to a mock grant that is DEV-ONLY — in a release build it's refused, so a
 // shipped app can never give away credits without a verified payment.
 const MOCK_ALLOWED = __DEV__; // never true in a production (release) build
-function CheckoutModal({ plan, onClose, onError }) {
+function CheckoutModal({ plan, onClose, onPaid, onError }) {
   const c = useColors();
   const s = useStyles(makeStyles);
   const [busy, setBusy] = useState(false);
@@ -268,7 +280,7 @@ function CheckoutModal({ plan, onClose, onError }) {
         // Dev-only fallback for plans without a store SKU.
         await purchasePlan(plan.id);
         setDone(true);
-        closeTimer.current = setTimeout(onClose, 1100);
+        closeTimer.current = setTimeout(onPaid, 1100);
       } else {
         throw new Error("This plan isn't available for purchase yet.");
       }
@@ -311,6 +323,15 @@ function CheckoutModal({ plan, onClose, onError }) {
               <MagicButton variant="ghost" style={{ width: "100%", marginTop: spacing.sm }} disabled={busy} onPress={onClose}>
                 Cancel
               </MagicButton>
+              {/* Trust signals at the payment moment — all literally true. */}
+              <View style={s.trustRow}>
+                <Ionicons name="lock-closed" size={12} color={c.success} />
+                <Text style={s.trustText}>Secure payment · verified before credits are added</Text>
+              </View>
+              <View style={s.trustRow}>
+                <Ionicons name="infinite" size={13} color={c.primaryLight} />
+                <Text style={s.trustText}>Credits never expire · No subscription</Text>
+              </View>
               <Text style={s.modalNote}>
                 {plan?.productId
                   ? "Secured by Apple/Google. Credits are added once payment is verified."
@@ -484,4 +505,6 @@ const makeStyles = (c) =>
     modalTitle:    { color: c.text, fontSize: 18, fontWeight: "700", textAlign: "center" },
     modalSub:      { color: c.textBody, fontSize: 15, textAlign: "center", marginTop: 4, marginBottom: spacing.sm },
     modalNote:     { color: c.textDim, fontSize: 12.5, lineHeight: 18, textAlign: "center", marginTop: 10 },
+    trustRow:      { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 10 },
+    trustText:     { color: c.textBody, fontSize: 12, fontWeight: "600", textAlign: "center" },
   });

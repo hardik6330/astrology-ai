@@ -5,6 +5,7 @@ import Constants from "expo-constants";
 import PressableScale from "./PressableScale";
 import { useForm } from "../context/ChartContext";
 import { useAuth } from "../features/auth/AuthContext";
+import { useCredits } from "../hooks/useCredits";
 import { useTheme } from "../theme/ThemeContext";
 import { useStyles } from "../theme/useStyles";
 import { radius, spacing, fontSize, fontFamily } from "../theme/tokens";
@@ -36,6 +37,7 @@ export default function DrawerContent({ navigation, state }) {
   const { account, logout } = useAuth();
   const { theme, toggleTheme, colors } = useTheme();
   const styles = useStyles(makeStyles);
+  const credits = useCredits();
 
   const initial = (form.name || "?").trim().charAt(0).toUpperCase();
   const activeRoute = state?.routeNames?.[state.index];
@@ -70,6 +72,16 @@ export default function DrawerContent({ navigation, state }) {
               <Text style={styles.tagline} numberOfLines={1}>Tap to set birth details</Text>
             )}
           </View>
+        </Pressable>
+
+        {/* Balance pill — credits are visible here instead of only surfacing
+            when an action fails, and it's a one-tap path to top up. */}
+        <Pressable onPress={() => go("Credits")} style={({ pressed }) => [styles.creditsPill, pressed && { opacity: 0.8 }]}>
+          <Text style={styles.creditsIcon}>{EMOJIS.SPARKLES}</Text>
+          <Text style={styles.creditsValue}>{credits ?? "—"}</Text>
+          <Text style={styles.creditsLabel}>credits</Text>
+          <View style={{ flex: 1 }} />
+          <Text style={styles.creditsTopUp}>Top up ›</Text>
         </Pressable>
 
         <View style={styles.divider} />
@@ -170,6 +182,19 @@ const makeStyles = (c) =>
     tagline:    { color: c.textMuted, fontSize: 13, marginTop: 2 },
 
     divider: { height: 1, backgroundColor: c.cardBorder },
+
+    creditsPill: {
+      flexDirection: "row", alignItems: "center", gap: 6,
+      marginHorizontal: spacing.lg, marginBottom: spacing.md,
+      paddingHorizontal: spacing.md, paddingVertical: 10,
+      borderRadius: radius.md,
+      backgroundColor: c.primarySoft,
+      borderWidth: 1, borderColor: c.primaryBorder,
+    },
+    creditsIcon:  { fontSize: 15 },
+    creditsValue: { color: c.text, fontSize: 16, fontWeight: "800" },
+    creditsLabel: { color: c.textBody, fontSize: 13 },
+    creditsTopUp: { color: c.primaryLight, fontSize: 13, fontWeight: "700" },
 
     item: {
       flexDirection: "row", alignItems: "center", gap: spacing.md,
