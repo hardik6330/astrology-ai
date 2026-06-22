@@ -3,7 +3,7 @@
 // to get a Firebase ID token, which AuthContext trades for our session JWT.
 
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import ErrorText from "@/common/ErrorText";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useChart } from "@/context/ChartContext";
@@ -156,9 +156,13 @@ export default function LoginPage() {
           }}
         >
           <div>
-            <span className="flex items-center gap-2 text-lg font-extrabold text-ink">
+            <Link
+              to="/"
+              aria-label="Astro AI — go to home"
+              className="flex w-fit items-center gap-2 text-lg font-extrabold text-ink no-underline transition-opacity hover:opacity-80"
+            >
               <span className="text-warning">✦</span> Astro AI
-            </span>
+            </Link>
             <h2 className="mt-8 text-3xl font-extrabold leading-tight text-ink">
               Your stars are
               <br />
