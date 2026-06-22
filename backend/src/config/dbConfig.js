@@ -28,13 +28,10 @@ const sequelize =
         // are all STRING(24), so they MUST share one collation for sync()'s
         // CASCADE constraints to actually take. Don't rely on the server default.
         define: { charset: 'utf8mb4', collate: 'utf8mb4_unicode_ci' },
-        // Connection pool. VERCEL=1 is injected by Vercel only — on a private
-        // always-on server it's unset, so this auto-switches with NO code
-        // change: a small per-λ pool on serverless (many concurrent λ would
-        // otherwise blow past MySQL's max_connections), a larger pool on a
-        // single long-lived process. Override via DB_POOL_MAX/MIN.
+        // Connection pool sized for a single long-lived process (the VPS runs
+        // ONE pm2 fork). Override via DB_POOL_MAX/MIN.
         pool: {
-          max: env.DB_POOL_MAX ?? (process.env.VERCEL === '1' ? 2 : 10),
+          max: env.DB_POOL_MAX ?? 10,
           min: env.DB_POOL_MIN ?? 0,
           idle: 10_000,    // drop idle conns so λ don't pin them / quiet servers shed them
           acquire: 30_000, // fail fast instead of hanging a request when saturated

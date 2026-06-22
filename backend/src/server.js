@@ -110,22 +110,8 @@ async function start() {
     if (env.NODE_ENV === 'production') process.exit(1);
   }
 
-  // On Vercel, the platform handles port binding. Vercel sets VERCEL=1, so match
-  // EXACTLY '1' — env vars are strings and the string "0" is truthy, so a plain
-  // `if (process.env.VERCEL)` would treat VERCEL=0 as "on Vercel" and skip
-  // app.listen(), making the local dev server exit immediately.
-  const onVercel = process.env.VERCEL === '1';
-  if (onVercel) {
-    // Serverless: don't bind a port, don't run the in-process scheduler (an
-    // external cron hits /api/cron/run), and don't seed on cold start — seeds
-    // run in the deploy step via `npm run seed` so they don't tax the request
-    // hot path on every cold start.
-    logger.info('Vercel environment detected — DB initialized');
-    return;
-  }
-
-  // Always-on host (private server / Render / Railway / Fly) or local dev: ONE
-  // long-lived process, so seed once at boot and run the in-process scheduler.
+  // Always-on host (Oracle VPS) or local dev: ONE long-lived process, so seed
+  // once at boot and run the in-process scheduler.
   await seedDefaults();
 
   const server = app.listen(env.PORT, '0.0.0.0', () => {

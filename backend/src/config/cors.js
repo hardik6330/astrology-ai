@@ -21,12 +21,8 @@ export const corsOptions = {
     // Non-browser callers (server-to-server, curl, mobile webview) have no Origin.
     if (!origin) return cb(null, true);
     if (env.NODE_ENV === 'production') {
-      // Only the explicit CORS_ORIGINS allowlist. The *.vercel.app wildcard is
-      // opt-in (CORS_ALLOW_VERCEL_PREVIEWS) — with credentials:true it would
-      // otherwise let ANY Vercel-hosted site call the API with the user's token.
-      const vercelPreview =
-        env.CORS_ALLOW_VERCEL_PREVIEWS === 'true' && /^https:\/\/[a-z0-9.-]+\.vercel\.app$/i.test(origin);
-      if (PROD_ALLOW.includes(origin) || vercelPreview) {
+      // Only the explicit CORS_ORIGINS allowlist passes in production.
+      if (PROD_ALLOW.includes(origin)) {
         return cb(null, true);
       }
       return cb(new Error(`CORS: origin ${origin} not allowed`));
