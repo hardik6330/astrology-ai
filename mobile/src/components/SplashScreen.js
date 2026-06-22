@@ -251,7 +251,7 @@ export default function SplashScreen({ onDone, onReady, duration = 2800 }) {
         <AstroLogo size={260} zodiacRotation={zodiacRotation} planetScale={planetScale} />
       </Animated.View>
 
-      <Text style={styles.brand}>Astro AI</Text>
+      <Text style={styles.brand}>Selora</Text>
       <Text style={styles.tagline}>Precision Vedic astrology</Text>
 
       <View style={styles.lineWrap}>

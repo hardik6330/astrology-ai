@@ -151,7 +151,7 @@ export async function notifyWelcome(phone) {
   const rows = await tokensForPhone(phone);
   if (!rows.length) return { sent: 0, failed: 0, disabled: 0 };
   return sendToTokens(rows, {
-    title: '🔮 Welcome to Astrology AI!',
+    title: '🔮 Welcome to Selora!',
     body: 'Your first chat is FREE! Got questions about your life, marriage, or career? Just ask away!',
     data: { type: 'welcome', screen: 'chat' },
   });

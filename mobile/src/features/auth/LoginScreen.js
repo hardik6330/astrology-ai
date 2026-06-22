@@ -218,7 +218,7 @@ export default function LoginScreen() {
             <Animated.View style={[s.logoContainer, animatedLogoStyle]}>
               <Text style={s.logoEmoji}>{EMOJIS.CRYSTAL_BALL}</Text>
             </Animated.View>
-            <Text style={s.title}>Sign in to Astrology AI</Text>
+            <Text style={s.title}>Sign in to Selora</Text>
             <Text style={s.subtitle}>
               {step === "phone"
                 ? "We'll send a one-time code over SMS."

@@ -165,11 +165,12 @@ export default defineConfig(({ mode }) => {
           ],
         },
         manifest: {
-          name: "AI Kundali Insights",
-          short_name: "AI Kundali",
-          description: "Precision astronomy + AI birth-chart readings",
-          theme_color: "#0a0a14",
-          background_color: "#050508",
+          name: "Selora — AI Astrology & Guidance",
+          short_name: "Selora",
+          description:
+            "Personalized cosmic guidance powered by AI — Vedic charts, palm reading, daily insight.",
+          theme_color: "#0B1020",
+          background_color: "#060A15",
           display: "standalone",
           orientation: "portrait",
           start_url: "/",

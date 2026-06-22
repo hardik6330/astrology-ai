@@ -159,10 +159,10 @@ export default function LoginPage() {
           <div>
             <Link
               to="/"
-              aria-label="Astro AI — go to home"
+              aria-label="Selora — go to home"
               className="font-display flex w-fit items-center gap-2 text-lg font-extrabold text-ink no-underline transition-opacity hover:opacity-80"
             >
-              <Logo size={22} /> Astro AI
+              <Logo size={22} /> Selora
             </Link>
             <h2 className="mt-8 text-3xl font-extrabold leading-tight text-ink">
               Your stars are
@@ -200,7 +200,7 @@ export default function LoginPage() {
         <div className="p-7 md:p-9">
           <div className="mb-7 text-center">
             <div className="mb-3 text-[44px]">{EMOJIS.SATURN}</div>
-            <h1 className="m-0 text-2xl font-bold text-ink">Sign in to Astrology AI</h1>
+            <h1 className="m-0 text-2xl font-bold text-ink">Sign in to Selora</h1>
             <p className="mt-2 mb-0 text-[13px] text-dim">
               {step === "phone"
                 ? "We'll text you one code — no spam, ever."

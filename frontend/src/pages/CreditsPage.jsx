@@ -240,7 +240,7 @@ function CheckoutModal({ plan, onClose, onPaid, formatInr, returnTo }) {
         order_id: rzpOrderId,
         amount,
         currency,
-        name: "Astrology AI",
+        name: "Selora",
         description: `${order.credits} Cosmic Credits`,
         theme: { color: "#a855f7" },
         // Surface UPI as the first payment block, then the rest. Requires UPI to

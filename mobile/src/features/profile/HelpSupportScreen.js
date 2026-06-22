@@ -30,7 +30,7 @@ const FAQ = [
 ];
 
 // App name + version pulled live from app.json (expo config) — single source.
-const APP_NAME = Constants.expoConfig?.name || "Astro AI";
+const APP_NAME = Constants.expoConfig?.name || "Selora";
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
 
 export default function HelpSupportScreen({ navigation }) {
@@ -63,7 +63,7 @@ export default function HelpSupportScreen({ navigation }) {
           icon={EMOJIS.ENVELOPE}
           label="Email"
           value="support@astrologyai.app"
-          onPress={() => Linking.openURL("mailto:support@astrologyai.app?subject=Astrology AI Support")}
+          onPress={() => Linking.openURL("mailto:support@astrologyai.app?subject=Selora Support")}
         />
         <ContactRow
           icon={EMOJIS.CHAT}

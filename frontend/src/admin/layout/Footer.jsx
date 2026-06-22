@@ -3,7 +3,7 @@
 export default function Footer() {
   return (
     <footer className="shrink-0 border-t border-(--c-border-soft) px-6 py-3.5 text-center text-xs text-muted">
-      © {YEAR} Astrology AI Pro · Admin Console
+      © {YEAR} Selora · Admin Console
     </footer>
   );
 }

@@ -25,7 +25,7 @@ const messaging = firebase.messaging();
 // handled in-page by onMessage in webPush.js so we don't double-notify.)
 messaging.onBackgroundMessage((payload) => {
   const { title, body } = payload.notification || {};
-  self.registration.showNotification(title || "Astrology AI", {
+  self.registration.showNotification(title || "Selora", {
     body: body || "",
     icon: "/icon.svg",
     data: payload.data || {},

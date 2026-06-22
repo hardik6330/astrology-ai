@@ -140,7 +140,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-transparent">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <span className="flex items-center gap-2 text-lg font-extrabold">
-            <Logo size={20} /> <span className="font-display">Astro AI</span>
+            <Logo size={20} /> <span className="font-display">Selora</span>
           </span>
           <nav className="flex items-center gap-3">
             <button
@@ -183,7 +183,7 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="mt-5 max-w-xl text-base text-body md:text-lg">
-              Free AI chatbots <span className="text-ink">guess</span> your chart. Astro AI gives you an{" "}
+              Free AI chatbots <span className="text-ink">guess</span> your chart. Selora gives you an{" "}
               <span className="text-ink">accurate</span> one — a personal Kundli reading, daily predictions,
               an AI astrologer that truly knows your chart, and an{" "}
               <span className="text-ink">AI palm reading they can't do</span>. Private, and ready in seconds.
@@ -676,7 +676,7 @@ export default function LandingPage() {
       <footer className="border-t border-[var(--c-border)] py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 text-sm text-muted sm:flex-row">
           <span className="flex items-center gap-2 font-bold text-body">
-            <Logo size={20} /> <span className="font-display">Astro AI</span>
+            <Logo size={20} /> <span className="font-display">Selora</span>
           </span>
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             {/* static pages — full browser nav, not the SPA router */}
@@ -702,7 +702,7 @@ export default function LandingPage() {
               About
             </a>
           </nav>
-          <span>Made just for you. © 2026 Astrology AI Pro.</span>
+          <span>Made just for you. © 2026 Selora.</span>
         </div>
       </footer>
     </div>
@@ -728,7 +728,7 @@ function PhoneMock() {
         {/* screen */}
         <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-b from-[#12121f] to-[#0a0a14] px-5 pb-7 pt-11 text-center">
           <div className="flex items-center justify-center gap-1.5 text-sm font-extrabold">
-            <Logo size={20} /> <span className="font-display">Astro AI</span>
+            <Logo size={20} /> <span className="font-display">Selora</span>
           </div>
           <p className="mt-1 text-[11px] text-dim">Scan to download</p>
           <div

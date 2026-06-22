@@ -157,7 +157,7 @@ export default function DrawerContent({ navigation, state }) {
         <View style={styles.divider} />
 
         <View style={{ padding: spacing.lg }}>
-          <Text style={styles.footerTitle}>{Constants.expoConfig?.name || "Astro AI"}</Text>
+          <Text style={styles.footerTitle}>{Constants.expoConfig?.name || "Selora"}</Text>
         </View>
       </View>
     </SafeAreaView>

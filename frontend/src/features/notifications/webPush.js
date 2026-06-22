@@ -69,7 +69,7 @@ export async function registerForWebPush() {
       const reg = await navigator.serviceWorker.getRegistration(FCM_SW_SCOPE);
       if (Notification.permission === "granted" && reg) {
         playChime(); // foreground-only custom sound (see note on playChime)
-        reg.showNotification(title || "Astrology AI", {
+        reg.showNotification(title || "Selora", {
           body: body || "",
           icon: "/icon.svg",
           data: payload.data || {},

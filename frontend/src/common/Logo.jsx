@@ -3,7 +3,7 @@ import { useId } from "react";
 // Brand mark — a ringed planet with a small orbiting spark, drawn in the brand
 // violet→indigo gradient. Replaces the bare ✦ emoji so the brand reads as a
 // designed product (Linear/Stripe-tier) rather than a template. Pairs with the
-// "Astro AI" wordmark, which callers render in the display font.
+// "Selora" wordmark, which callers render in the display font.
 export default function Logo({ size = 22, className = "" }) {
   const id = useId(); // unique gradient ids so multiple logos on a page don't clash
   return (
