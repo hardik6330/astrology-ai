@@ -13,6 +13,9 @@ import CountrySelect from "./CountrySelect";
 import { EMOJIS } from "@/utils/emojis";
 
 const RESEND_SECS = 30;
+// Remember the last country code the user picked so returning visitors see it
+// pre-selected instead of the browser-region guess.
+const DIAL_CODE_KEY = "astro_dial_code";
 
 // Dev OTP bypass. When VITE_OTP_ENABLED='false', skip Firebase SMS and log in
 // straight from the typed phone number. Mirrors the backend OTP_ENABLED flag —
@@ -24,10 +27,27 @@ export default function LoginPage() {
   const { completeOtpLogin, completePhoneBypass, token } = useAuth();
   const { applySavedForm } = useChart();
   const [phone, setPhone] = useState("");
-  // Country dialing code (digits, no "+"), pre-filled from the browser region
-  // (no permission/GPS). Editable, so a user whose browser locale differs from
-  // their number's country can correct it.
-  const [dialCode, setDialCode] = useState(() => defaultDialCode());
+  // Country dialing code (digits, no "+"). Prefer the user's last saved choice;
+  // otherwise fall back to the browser region (no permission/GPS). Editable, so a
+  // user whose browser locale differs from their number's country can correct it.
+  const [dialCode, setDialCode] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DIAL_CODE_KEY);
+      if (saved && /^\d{1,4}$/.test(saved)) return saved;
+    } catch {
+      /* localStorage unavailable (private mode) — fall through */
+    }
+    return defaultDialCode();
+  });
+
+  // Persist the selected country code for next time.
+  useEffect(() => {
+    try {
+      localStorage.setItem(DIAL_CODE_KEY, dialCode);
+    } catch {
+      /* ignore */
+    }
+  }, [dialCode]);
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState("phone");
   const [busy, setBusy] = useState(false);
