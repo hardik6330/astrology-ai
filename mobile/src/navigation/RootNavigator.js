@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { View, Text, BackHandler, ToastAndroid, Platform } from "react-native";
+import { View, BackHandler, ToastAndroid, Platform } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { logScreenView } from "../features/notifications/analytics";
@@ -16,6 +16,7 @@ import CreditsScreen     from "../features/credits/CreditsScreen";
 import HelpSupportScreen from "../features/profile/HelpSupportScreen";
 import LoginScreen       from "../features/auth/LoginScreen";
 import DrawerContent     from "../components/DrawerContent";
+import SolarSystemLoader from "../components/SolarSystemLoader";
 import { withErrorBoundary } from "../components/ErrorBoundary";
 import { color } from "../theme/tokens";
 import { useAuth } from "../features/auth/AuthContext";
@@ -146,7 +147,7 @@ export default function RootNavigator() {
   if (hydrating || (token && !chartHydrated)) {
     return (
       <View style={{ flex: 1, backgroundColor: color.bg, alignItems: "center", justifyContent: "center" }}>
-        <Text style={{ color: color.textDim, fontSize: 28 }}>✨</Text>
+        <SolarSystemLoader />
       </View>
     );
   }

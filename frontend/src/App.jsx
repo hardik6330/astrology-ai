@@ -5,12 +5,16 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ChartProvider } from "@/context/ChartContext";
 import { AuthProvider } from "@/features/auth/AuthContext";
 import { queryClient } from "@/lib/queryClient";
-import Loading from "@/common/Loading";
+import SolarSystemLoader from "@/common/SolarSystemLoader";
 import CreditBadge from "@/common/CreditBadge";
 import { appRoutes } from "@/routes";
 
 function PageLoader() {
-  return <Loading />;
+  return (
+    <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", background: "#050508" }}>
+      <SolarSystemLoader />
+    </div>
+  );
 }
 
 // Phone-OTP auth gates the whole app. /reading|/chat|/palm additionally

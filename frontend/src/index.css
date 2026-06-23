@@ -188,6 +188,14 @@ h3,
   }
 }
 
+/* Drives the solar-system loader: each planet's rotating layer spins one full
+   turn; per-planet animation-duration encodes its (compressed) orbital period. */
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 select option {
   background: #1a1a1a;
   color: #f5f5f7;
