@@ -75,8 +75,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   /* Scale the whole app up to read like a browser at 110% zoom — reflows
-     layout just as native zoom does, app-wide. */
-  zoom: 1.1;
+     layout just as native zoom does, app-wide. --app-zoom must match `zoom`
+     so viewport-height layouts (.full-screen) can divide it back out. */
+  --app-zoom: 1.1;
+  zoom: var(--app-zoom);
 }
 
 /* Display type identity: headings + anything tagged .font-display render in the
@@ -196,6 +198,20 @@ h3,
   }
 }
 
+/* Chat "AI is typing" indicator — three dots bounce in a staggered wave. */
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
 select option {
   background: #1a1a1a;
   color: #f5f5f7;
@@ -299,8 +315,12 @@ select option {
 
 /* Full viewport height — dvh accounts for the mobile browser address bar. */
 .full-screen {
-  height: 100vh;
-  height: 100dvh;
+  /* Divide by --app-zoom: body `zoom` magnifies the rendered height of vh
+     units, so a raw 100dvh column overflows the visible screen by the zoom
+     factor (pushing the chat input below the fixed BottomNav). Dividing it
+     back out makes the column fill exactly one visible viewport post-zoom. */
+  height: calc(100vh / var(--app-zoom, 1));
+  height: calc(100dvh / var(--app-zoom, 1));
 }
 
 /* Responsive Utilities */

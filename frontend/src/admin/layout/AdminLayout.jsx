@@ -12,7 +12,10 @@ export default function AdminLayout() {
     // Lock the frame to the viewport height so the sidebar (with its pinned
     // Profile/Logout) and the Footer stay put — only <main> scrolls on tall
     // pages. min-h-0 lets the flex children actually shrink so overflow works.
-    <div className="flex h-screen overflow-hidden text-body">
+    <div className="full-screen flex overflow-hidden text-body">
+      {/* full-screen (not h-screen): its height divides out the body `zoom`, so
+          this fixed-height shell fills exactly one visible viewport instead of
+          overflowing by the zoom factor. */}
       {/* Animated cosmic backdrop — same as the rest of the app (index.css).
           These are position:fixed, so they sit behind the chrome. */}
       <div className="cosmos" />

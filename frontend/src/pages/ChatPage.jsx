@@ -17,6 +17,22 @@ const SUGGESTIONS = [
   "Will I settle abroad?",
 ];
 
+// "AI is typing" — three dots bouncing in a staggered wave (keyframe in
+// index.css). Shown in place of the "…" placeholder bubble while awaiting Pro.
+function TypingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 py-0.5" aria-label="Astrologer is typing">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="inline-block h-1.5 w-1.5 rounded-full bg-[#c084fc]"
+          style={{ animation: "typing-bounce 1.2s ease-in-out infinite", animationDelay: `${i * 0.18}s` }}
+        />
+      ))}
+    </span>
+  );
+}
+
 // Protected page — follow-up Q&A locked to the generated birth chart.
 // Fixed-height layout: only the message list scrolls, header and input stay put.
 export default function ChatPage() {
@@ -178,6 +194,9 @@ export default function ChatPage() {
         >
           {[{ role: "assistant", content: welcomeMsg }, ...chatMsgs].map((m, i) => {
             const isUser = m.role === "user";
+            // The "…" placeholder pushed while awaiting the reply (askChat) →
+            // render the animated typing indicator instead of literal dots.
+            const isPending = m.role === "assistant" && m.content === "…";
             const avatar = (
               // bg/border are role-driven → inline; shape/size → utilities.
               <div
@@ -205,7 +224,7 @@ export default function ChatPage() {
                     color: isUser ? "#e0e7ff" : "#cbd5e1",
                   }}
                 >
-                  {m.content}
+                  {isPending ? <TypingDots /> : m.content}
                 </div>
               </div>
             );
