@@ -89,6 +89,7 @@ export default function ReadingScreen({ navigation, route }) {
   );
   const [loading, setLoading]     = useState(false);
   const [loadMsg, setLoadMsg]     = useState("Reading your chart…");
+  const [progress, setProgress]   = useState(0); // time-estimated generation %
   const [error, setError]         = useState("");
   const [overloaded, setOverloaded] = useState(false);
   const [cooldown, setCooldown]   = useState(0);
@@ -196,11 +197,18 @@ export default function ReadingScreen({ navigation, route }) {
     setOverloaded(false);
     setLoading(true);
     setLoadMsg(MSGS?.[0] || "Reading your chart…");
-    let i = 0;
+    setProgress(4);
+    // Single time-based estimate: the bar eases toward ~92% (fast then slow),
+    // and the status message is derived from the same % so they never disagree.
+    // We never assert 100% until the reading actually lands. Mirrors web.
+    const start = Date.now();
     const iv = setInterval(() => {
-      i++;
-      if (MSGS) setLoadMsg(MSGS[i % MSGS.length]);
-    }, 2000);
+      const elapsed = (Date.now() - start) / 1000;
+      const pct = Math.min(92, Math.round(100 * (1 - Math.exp(-elapsed / 11))));
+      setProgress(pct);
+      const step = pct < 20 ? 0 : pct < 42 ? 1 : pct < 64 ? 2 : pct < 86 ? 3 : 4;
+      if (MSGS) setLoadMsg(MSGS[step]);
+    }, 250);
     try {
       const saved = await fetchSaved("interpret", form);
       setInterp(
@@ -222,6 +230,7 @@ export default function ReadingScreen({ navigation, route }) {
       } else { setError(e.message); haptics.warning(); }
     } finally {
       clearInterval(iv);
+      setProgress(0);
       setLoading(false);
     }
   }
@@ -377,6 +386,7 @@ Running period: ${d.dasha}`;
                 cooldown={cooldown}
                 lowCredits={lowCredits}
                 loadMsg={loadMsg}
+                progress={progress}
                 generateReading={generateReading}
                 navigation={navigation}
                 chart={chart}

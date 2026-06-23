@@ -17,6 +17,19 @@ import { getItem, setItem } from "../../../utils/storage";
 
 const COLLAPSED_LINES = 6;
 
+// Generation pipeline shown as a checklist during the wait (mirrors the web
+// InsightsTab and the MSGS stages). STEP_AT = progress% at which each step turns
+// "active"; a step reads "done" once the next one starts. The last stays active
+// until the reading lands and this view unmounts — so we never claim 100%.
+const GEN_STEPS = [
+  "Calculating planetary positions",
+  "Casting houses & ascendant",
+  "Scanning aspects & patterns",
+  "Writing your interpretation",
+  "Finalising your reading",
+];
+const STEP_AT = [0, 20, 42, 64, 86];
+
 // One narrative section, clamped to ~6 lines with a Show more / Show less
 // toggle. We render full once to measure the true line count (onTextLayout),
 // then clamp — so the toggle only appears when the body actually overflows.
@@ -120,7 +133,7 @@ function TimelineCheck({ pastCheck, s }) {
 // (an "Unlock for N credits" preview) until the user pays; also handles the
 // overloaded / loading / low-credits / loaded states.
 export default function ReadingTab({
-  interp, loading, overloaded, cooldown, lowCredits, loadMsg, generateReading, navigation, chart, form,
+  interp, loading, overloaded, cooldown, lowCredits, loadMsg, progress = 0, generateReading, navigation, chart, form,
 }) {
   const color = useColors();
   const s = useStyles(makeStyles);
@@ -173,6 +186,63 @@ export default function ReadingTab({
             <Text style={s.loadingTitle}>{loadMsg}</Text>
             <Text style={s.loadingSub}>The stars are aligning for you…</Text>
           </View>
+
+          {/* Time-estimated bar (eases toward ~92%) + the pipeline as a
+              checklist, so the wait shows progress instead of a blind spinner. */}
+          <View style={{ marginBottom: spacing.md }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={{ color: color.textDim, fontSize: 11 }}>Generating your reading</Text>
+              <Text style={{ color: color.primary, fontSize: 11, fontWeight: "700" }}>
+                {Math.round(progress)}%
+              </Text>
+            </View>
+            <View
+              style={{ height: 8, borderRadius: 4, backgroundColor: color.primarySoft, overflow: "hidden" }}
+            >
+              <View
+                style={{
+                  height: "100%",
+                  width: `${Math.max(4, progress)}%`,
+                  borderRadius: 4,
+                  backgroundColor: color.primary,
+                }}
+              />
+            </View>
+
+            <View style={{ marginTop: 14, gap: 10 }}>
+              {GEN_STEPS.map((label, i) => {
+                const done = progress >= (STEP_AT[i + 1] ?? 101);
+                const active = !done && progress >= STEP_AT[i];
+                return (
+                  <View key={i} style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={{ width: 18, alignItems: "center", justifyContent: "center" }}>
+                      {done ? (
+                        <Text
+                          style={{
+                            color: color.primary,
+                            fontSize: 13,
+                            lineHeight: 18,
+                            fontWeight: "700",
+                            includeFontPadding: false,
+                          }}
+                        >
+                          ✓
+                        </Text>
+                      ) : active ? (
+                        <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: color.primary }} />
+                      ) : (
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color.cardBorder }} />
+                      )}
+                    </View>
+                    <Text style={{ marginLeft: 8, fontSize: 12.5, color: done || active ? color.text : color.textMuted }}>
+                      {label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
           <SkeletonAIReading />
         </>
       )}

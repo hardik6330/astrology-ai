@@ -7,6 +7,19 @@ import LowCreditsCard from "@/common/LowCreditsCard";
 import { Icon } from "@/utils/icons";
 import { STRINGS } from "@/shared/uiStrings";
 
+// The generation pipeline, surfaced as a checklist during the wait. STEP_AT is
+// the progress% at which each step turns "active"; a step reads "done" once the
+// NEXT one starts. The last stays active until the result lands (this card then
+// unmounts), so we never falsely claim 100%. Mirrors the MSGS stages upstream.
+const GEN_STEPS = [
+  "Calculating planetary positions",
+  "Casting houses & ascendant",
+  "Scanning aspects & patterns",
+  "Writing your interpretation",
+  "Finalising your reading",
+];
+const STEP_AT = [0, 20, 42, 64, 86];
+
 // Insights tab: the AI-generated reading — blueprint, core cards, strengths /
 // challenges, key placements, remedies, and the chat CTA. Locked by default
 // (a "Unlock for N credits" preview) until the user pays; also renders the
@@ -15,6 +28,7 @@ export default function InsightsTab({
   interp,
   loading,
   loadMsg,
+  progress = 0,
   overloaded,
   cooldown,
   lowCredits,
@@ -82,12 +96,51 @@ export default function InsightsTab({
         </Card>
       )}
       {loading && !interp && (
-        <Card className="text-center" style={{ padding: "3rem 1.5rem" }}>
-          <div className="astrology-icon" style={{ marginBottom: 20 }}>
-            <Icon name="CRYSTAL_BALL" size={40} />
+        <Card style={{ padding: "2.25rem 1.5rem" }}>
+          <div className="flex flex-col items-center text-center">
+            <div className="astrology-icon" style={{ marginBottom: 16 }}>
+              <Icon name="CRYSTAL_BALL" size={40} />
+            </div>
+            <p className="mb-1 text-base font-medium text-ink">{loadMsg}</p>
+            <p className="mb-5 text-xs text-[#666]">{STRINGS.INSIGHTS.LOADING_MSG}</p>
           </div>
-          <p className="mb-2 text-base font-medium text-ink">{loadMsg}</p>
-          <p className="text-xs text-[#666]">{STRINGS.INSIGHTS.LOADING_MSG}</p>
+
+          <div className="mx-auto max-w-100">
+            {/* Time-estimated bar — eases toward ~92%, never claims 100% until
+                the reading actually lands (LLM latency is variable). */}
+            <div className="mb-1.5 flex items-center justify-between text-[11px] text-subtle">
+              <span>Generating your reading</span>
+              <span className="font-semibold text-primary tabular-nums">{Math.round(progress)}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-[rgba(168,85,247,0.12)]">
+              <div
+                className="h-full rounded-full bg-[linear-gradient(90deg,#6366f1,#a855f7)] transition-[width] duration-300 ease-out"
+                style={{ width: `${Math.max(4, progress)}%` }}
+              />
+            </div>
+
+            {/* The pipeline as a checklist, so the wait shows what's happening. */}
+            <ul className="mt-4 list-none space-y-2.5 p-0 text-left">
+              {GEN_STEPS.map((label, i) => {
+                const done = progress >= (STEP_AT[i + 1] ?? 101);
+                const active = !done && progress >= STEP_AT[i];
+                return (
+                  <li key={i} className="flex items-center gap-2.5 text-[12.5px]">
+                    <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                      {done ? (
+                        <span className="font-bold text-primary">✓</span>
+                      ) : active ? (
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+                      ) : (
+                        <span className="h-1.5 w-1.5 rounded-full bg-[rgba(255,255,255,0.18)]" />
+                      )}
+                    </span>
+                    <span className={done || active ? "text-ink" : "text-muted"}>{label}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </Card>
       )}
 

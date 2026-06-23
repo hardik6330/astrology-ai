@@ -42,6 +42,7 @@ export default function ReadingPage() {
   }, [location.state]);
 
   const [loadMsg, setLoadMsg] = useState(MSGS[0]);
+  const [progress, setProgress] = useState(0); // time-estimated generation %
   const [error, setError] = useState(""); // local errors (e.g. KundaliTab)
   const [cooldown, setCooldown] = useState(0); // seconds until retry is allowed
   const fetched = useRef(false);
@@ -63,16 +64,29 @@ export default function ReadingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chart, interp, insightLoading, form]);
 
-  // Rotate the loading messages while a generation is in flight. Runs off the
-  // context flag so re-entering the page mid-generation restarts the rotation.
+  // Drive a single time-based progress estimate while a generation is in
+  // flight, and derive the status message from it so the bar and the text never
+  // disagree. The bar eases asymptotically toward ~92% (fast at first, slowing
+  // as it nears the cap) — we never assert 100% until the result actually lands
+  // and this loading view unmounts. Runs off the context flag so re-entering the
+  // page mid-generation resumes the estimate.
   useEffect(() => {
-    if (!insightLoading) return;
+    if (!insightLoading) {
+      setProgress(0);
+      return;
+    }
+    const start = Date.now();
+    setProgress(4);
     setLoadMsg(MSGS[0]);
-    let mi = 0;
     const iv = setInterval(() => {
-      mi++;
-      setLoadMsg(MSGS[mi % MSGS.length]);
-    }, 2000);
+      const elapsed = (Date.now() - start) / 1000;
+      const pct = Math.min(92, Math.round(100 * (1 - Math.exp(-elapsed / 11))));
+      setProgress(pct);
+      // Map the estimate onto the 5 pipeline stages (thresholds mirror STEP_AT
+      // in InsightsTab) so the headline message tracks the checklist.
+      const step = pct < 20 ? 0 : pct < 42 ? 1 : pct < 64 ? 2 : pct < 86 ? 3 : 4;
+      setLoadMsg(MSGS[step]);
+    }, 250);
     return () => clearInterval(iv);
   }, [insightLoading]);
 
@@ -129,6 +143,7 @@ export default function ReadingPage() {
             interp={interp}
             loading={insightLoading}
             loadMsg={loadMsg}
+            progress={progress}
             overloaded={insightOverloaded}
             cooldown={cooldown}
             lowCredits={insightLowCredits}
