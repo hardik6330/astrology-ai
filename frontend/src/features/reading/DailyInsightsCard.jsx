@@ -6,7 +6,7 @@ import { useDailyDates, kundaliKeys } from "@/features/kundali/hooks";
 import Card from "@/common/Card";
 import { useCosts } from "@/common/useCosts";
 import { useCredits } from "@/common/useCredits";
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 
 const WD_SHORT = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -176,12 +176,12 @@ Running period: ${d.dasha}`;
         <div className="text-right">
           {activeLoc &&
             (activeLoc.isGps ? (
-              <div className="text-[11px] font-medium text-accent">
-                {EMOJIS.PIN} {activeLoc.n} (Live)
+              <div className="inline-flex items-center gap-1 text-[11px] font-medium text-accent">
+                <Icon name="PIN" size={12} /> {activeLoc.n} (Live)
               </div>
             ) : (
-              <div className="text-[11px] font-medium text-[#666]">
-                {EMOJIS.HOUSE} {activeLoc.n}
+              <div className="inline-flex items-center gap-1 text-[11px] font-medium text-[#666]">
+                <Icon name="HOUSE" size={12} /> {activeLoc.n}
               </div>
             ))}
         </div>
@@ -272,11 +272,16 @@ Running period: ${d.dasha}`;
           disabled={dailyBusy || cannotAfford}
           className="w-full cursor-pointer rounded-[10px] border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] p-2.75 text-[13px] font-semibold text-[#c084fc] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {dailyBusy
-            ? "Reading the sky…"
-            : cannotAfford
-              ? `Not enough credits · ${dailyCost} needed`
-              : `${EMOJIS.SPARKLES} Reveal ${MONTHS[selDate.getMonth()]} ${selDate.getDate()}'s Guidance · ${dailyCost} Credits`}
+          {dailyBusy ? (
+            "Reading the sky…"
+          ) : cannotAfford ? (
+            `Not enough credits · ${dailyCost} needed`
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="SPARKLES" size={13} /> Reveal {MONTHS[selDate.getMonth()]} {selDate.getDate()}'s
+              Guidance · {dailyCost} Credits
+            </span>
+          )}
         </button>
       )}
       {guide && (

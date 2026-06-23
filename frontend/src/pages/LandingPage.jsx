@@ -1,98 +1,40 @@
 // Public marketing landing — the FIRST thing an unauthenticated visitor sees.
 // Explains what the product does, then funnels to login/signup. Rendered at "/"
 // by RootEntry only when there's no session; authed users get HomePage instead.
-// Styling follows the app palette (index.css @theme tokens) — no new dependency.
-import { useEffect } from "react";
+//
+// Design intent: every major section tells a DIFFERENT visual story (bento grid,
+// palm analysis card, kundli wheel, a live AI-chat demo, a day timeline, an FAQ
+// accordion) so the page never reads as "the same card, eight times". All copy
+// in the honest sections is true of the product (no fabricated reviews/stats).
+//
+// This file is just the page composition; the data, backdrop/CSS, and the
+// individual visuals live in ./landing/* so each piece stays editable on its
+// own. The QR phone mock is lazy-loaded (it's the only `qrcode.react` consumer,
+// far down the page) so that lib stays out of the eager landing bundle.
+import { useEffect, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
 import {
   LuSparkles,
-  LuHand,
-  LuMessageCircle,
-  LuCalendarDays,
   LuShieldCheck,
-  LuSmartphone,
-  LuArrowRight,
-  LuBell,
-  LuZap,
-  LuScan,
-  LuLock,
   LuInfinity,
+  LuListChecks,
+  LuZap,
+  LuArrowRight,
+  LuLock,
+  LuSmartphone,
 } from "react-icons/lu";
 import { FaApple, FaGooglePlay } from "react-icons/fa";
 import Logo from "@/common/Logo";
 
-// App download targets. Point QR + badges at the live store listings once they
-// exist; until then they go to the site, which can device-detect and redirect.
-const APP_LINK = "https://astro-ai.mooo.com/app";
-const APP_STORE_URL = "https://astro-ai.mooo.com/app"; // TODO: App Store listing
-const PLAY_STORE_URL = "https://astro-ai.mooo.com/app"; // TODO: Play Store listing
+import { BENTO, STEPS, DAY_PARTS, FAQS, APP_PERKS, APP_STORE_URL, PLAY_STORE_URL } from "./landing/data";
+import { FuturisticBackground, LandingStyles } from "./landing/backdrop";
+import { PalmReportPreview, RashiWheel } from "./landing/visuals";
+import { ChatPreview, AstrologerDemo, BentoChatThread } from "./landing/chat";
+import FaqItem from "./landing/FaqItem";
 
-const APP_PERKS = [
-  { i: LuScan, t: "Scan your palm with the camera" },
-  { i: LuBell, t: "Daily guidance, delivered to you" },
-  { i: LuZap, t: "Fast, and works offline anywhere" },
-  { i: LuShieldCheck, t: "Private, secure sign-in" },
-];
-
-// Crisp foreground twinkle stars (deterministic positions — same approach as the
-// login CosmicBackdrop). Rendered as glowing DOM dots over the drifting starfield.
-const TWINKLE_STARS = Array.from({ length: 18 }, (_, i) => ({
-  l: `${(i * 61) % 100}%`,
-  t: `${(i * 37) % 97}%`,
-  s: `${(i % 3) + 1}px`,
-  d: `${((i * 0.37) % 4).toFixed(2)}s`,
-}));
-
-// 12 zodiac glyphs, Aries → Pisces — the same set the mobile app's splash wheel
-// uses (mobile/src/components/SplashScreen.js), rendered in the same warm cream.
-// Each carries U+FE0E (text-presentation selector) so browsers draw the
-// monochrome LINE glyph (which respects `fill`) instead of a color-emoji box.
-const VS_TEXT = String.fromCharCode(0xfe0e); // U+FE0E text-presentation selector
-const RASHI = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"].map(
-  (g) => g + VS_TEXT
-);
-
-const FEATURES = [
-  {
-    icon: LuSparkles,
-    title: "Birth Chart AI (Kundli)",
-    desc: "A complete Vedic birth chart with a clear, personal reading — your life theme, career, relationships, strengths, and remedies, with the reasoning shown behind every insight so you can trust it.",
-  },
-  {
-    icon: LuHand,
-    title: "AI Palm Reading",
-    desc: "Snap a photo of your hand for a structured palmistry reading. We show the measured geometry of your lines — never invented numbers — and your photo is never stored.",
-  },
-  {
-    icon: LuMessageCircle,
-    title: "AI Astrologer Chat",
-    desc: "Ask about career, love, money, or timing. The AI is grounded in your real chart, remembers your prior questions, and even folds in your palm reading.",
-  },
-  {
-    icon: LuCalendarDays,
-    title: "Daily Predictions",
-    desc: "Guidance mapped to the real sky for any day — Moon transit, alignment score, lucky colour & number, auspicious windows, and Rahu Kaal.",
-  },
-];
-
-const STEPS = [
-  {
-    n: "01",
-    t: "Share your birth details",
-    d: "Just your date, time, and place of birth — that's all it takes to get started.",
-  },
-  {
-    n: "02",
-    t: "Get your personalized reading",
-    d: "Your complete birth chart and a clear, personal reading — accurate and ready in seconds.",
-  },
-  {
-    n: "03",
-    t: "Explore and ask anything",
-    d: "Dive into daily guidance, scan your palm, and chat with your personal AI astrologer anytime.",
-  },
-];
+// Lazy so `qrcode.react` is split into its own chunk, loaded only when a visitor
+// scrolls to the app section — not in the first paint everyone downloads.
+const PhoneMock = lazy(() => import("./landing/PhoneMock"));
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -100,9 +42,11 @@ export default function LandingPage() {
 
   // Scroll-choreographed reveals: each [data-reveal] section fades/slides up as
   // it enters the viewport (Linear/Stripe-style), instead of all content sitting
-  // static under constant ambient motion. Disabled under reduced-motion.
+  // static under constant ambient motion. Disabled under reduced-motion. The
+  // observer is keyed off the [data-reveal] attribute, so a section opts in by
+  // adding it (and the hero/trust-strip deliberately don't).
   useEffect(() => {
-    const els = document.querySelectorAll(".reveal-scope > section:not(:first-of-type)");
+    const els = document.querySelectorAll("[data-reveal]");
     if (!els.length) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (reduce) {
@@ -124,25 +68,24 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="reveal-scope relative isolate min-h-screen overflow-hidden bg-[#05050c] text-ink">
+    <div className="relative isolate min-h-screen overflow-hidden bg-[#05050c] text-ink">
       {/* ── Futuristic astro backdrop (fixed, behind everything) ── */}
       <FuturisticBackground />
-
-      {/* Scroll-reveal base styles (paired with the IntersectionObserver above).
-          Every section except the hero starts hidden and reveals on scroll. */}
-      <style>{`
-        .reveal-scope > section:not(:first-of-type){opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s cubic-bezier(.22,1,.36,1)}
-        .reveal-scope > section.reveal-in{opacity:1;transform:none}
-        @media (prefers-reduced-motion: reduce){.reveal-scope > section{opacity:1!important;transform:none!important;transition:none}}
-      `}</style>
+      <LandingStyles />
 
       {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-transparent">
+      <header className="sticky top-0 z-50 bg-transparent backdrop-blur-[2px]">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <span className="flex items-center gap-2 text-lg font-extrabold">
             <Logo size={20} /> <span className="font-display">Selora</span>
           </span>
           <nav className="flex items-center gap-3">
+            <a href="#features" className="hidden text-sm font-semibold text-body hover:text-ink sm:inline">
+              Features
+            </a>
+            <a href="#faq" className="hidden text-sm font-semibold text-body hover:text-ink sm:inline">
+              FAQ
+            </a>
             <button
               onClick={goLogin}
               className="cta-glow rounded-full px-5 py-2 text-sm font-bold text-ink"
@@ -154,7 +97,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* ── Hero ───────────────────────────────────────────────── */}
+      {/* ── Hero — headline + live AI-chat preview (not a card grid) ─ */}
       <section className="relative overflow-hidden">
         <div
           className="pointer-events-none absolute inset-0 -z-10"
@@ -166,8 +109,8 @@ export default function LandingPage() {
         />
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 md:grid-cols-2 md:py-24">
           <div>
-            <span className="mb-5 inline-block rounded-full border border-[var(--c-border)] bg-white/5 px-3 py-1 text-xs font-semibold tracking-wide text-subtle">
-              ✦ AI Astrology · Vedic · Privacy-first
+            <span className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-[var(--c-border)] bg-white/5 px-3 py-1 text-xs font-semibold tracking-wide text-subtle">
+              <LuSparkles size={13} className="text-[#c084fc]" /> AI Astrology · Vedic · Privacy-first
             </span>
             <h1 className="text-4xl font-extrabold leading-tight md:text-5xl">
               The AI astrologer that{" "}
@@ -188,8 +131,7 @@ export default function LandingPage() {
               an AI astrologer that truly knows your chart, and an{" "}
               <span className="text-ink">AI palm reading they can't do</span>. Private, and ready in seconds.
             </p>
-            {/* One dominant CTA — secondary actions demoted to a quiet text link
-                so the primary action never competes for attention. */}
+            {/* One dominant CTA — secondary action demoted to a quiet text link. */}
             <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
               <button
                 onClick={goLogin}
@@ -207,245 +149,235 @@ export default function LandingPage() {
               </a>
             </div>
             <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
-              <li>★ First reading free — no card needed</li>
-              <li>✦ Your palm photo is never stored</li>
-              <li>◈ Private — your data is never sold</li>
+              <li className="inline-flex items-center gap-1.5">
+                <LuSparkles size={13} className="text-[#c084fc]" /> First reading free — no card needed
+              </li>
+              <li className="inline-flex items-center gap-1.5">
+                <LuShieldCheck size={13} className="text-success" /> Your palm photo is never stored
+              </li>
             </ul>
-            <p className="mt-3 text-xs text-dim">
-              🔒 Sign in with your phone — we text one code, that's it. No spam, ever.
+            <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-dim">
+              <LuLock size={12} /> Sign in with your phone — we text one code, that's it. No spam, ever.
             </p>
           </div>
 
-          {/* Bi-wheel motif */}
-          <div className="flex justify-center" aria-hidden="true">
-            <svg
-              viewBox="0 0 360 360"
-              className="rashi-wheel w-[min(400px,82%)]"
-              style={{ filter: "drop-shadow(0 0 30px rgba(139,92,246,0.35))" }}
-            >
-              <defs>
-                <radialGradient id="halo" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="rgba(139,92,246,0.5)" />
-                  <stop offset="100%" stopColor="rgba(139,92,246,0)" />
-                </radialGradient>
-                {/* same amber → lavender → pink ring gradient as the mobile splash wheel */}
-                <linearGradient
-                  id="wheelGrad"
-                  x1="180"
-                  y1="30"
-                  x2="180"
-                  y2="330"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop offset="0%" stopColor="#fde68a" />
-                  <stop offset="40%" stopColor="#c4b5fd" />
-                  <stop offset="100%" stopColor="#f9a8d4" />
-                </linearGradient>
-              </defs>
-
-              {/* glow + concentric rings (gradient strokes, matching mobile) */}
-              <circle className="rashi-halo" cx="180" cy="180" r="150" fill="url(#halo)" />
-              <circle
-                cx="180"
-                cy="180"
-                r="150"
-                fill="none"
-                stroke="url(#wheelGrad)"
-                strokeWidth="1.6"
-                opacity="0.95"
-              />
-              <circle
-                cx="180"
-                cy="180"
-                r="108"
-                fill="none"
-                stroke="url(#wheelGrad)"
-                strokeWidth="1.2"
-                opacity="0.8"
-              />
-              <circle
-                cx="180"
-                cy="180"
-                r="60"
-                fill="none"
-                stroke="url(#wheelGrad)"
-                strokeWidth="1"
-                opacity="0.5"
-              />
-
-              {/* 12 house spokes dividing the sign band */}
-              {Array.from({ length: 12 }).map((_, i) => {
-                const a = ((i * 30 - 90) * Math.PI) / 180;
-                return (
-                  <line
-                    key={`spoke-${i}`}
-                    x1={180 + 60 * Math.cos(a)}
-                    y1={180 + 60 * Math.sin(a)}
-                    x2={180 + 150 * Math.cos(a)}
-                    y2={180 + 150 * Math.sin(a)}
-                    stroke="url(#wheelGrad)"
-                    strokeWidth="0.8"
-                    opacity="0.55"
-                  />
-                );
-              })}
-
-              {/* the 12 rashi glyphs — warm cream (#fef3c7), upright, like the mobile app */}
-              {RASHI.map((s, i) => {
-                const a = ((i * 30 - 90 + 15) * Math.PI) / 180;
-                const r = 129;
-                return (
-                  <text
-                    key={`rashi-${i}`}
-                    className="rashi-glyph"
-                    x={180 + r * Math.cos(a)}
-                    y={180 + r * Math.sin(a)}
-                    fontSize="21"
-                    fontWeight="600"
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fill="#fef3c7"
-                    style={{ filter: "drop-shadow(0 0 5px rgba(254,243,199,0.45))" }}
-                  >
-                    {s}
-                  </text>
-                );
-              })}
-
-              {/* center spark */}
-              <text
-                x="180"
-                y="180"
-                fontSize="26"
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill="#fde68a"
-              >
-                ✦
-              </text>
-            </svg>
+          {/* Right: a compact, animated AI-astrologer chat preview. */}
+          <div className="flex justify-center">
+            <ChatPreview />
           </div>
         </div>
       </section>
 
-      {/* ── Differentiator strip ───────────────────────────────── */}
+      {/* ── Trust strip — TRUE facts only, horizontal, no card ──── */}
       <section className="border-y border-[var(--c-border)] bg-white/[0.03]">
-        <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-6 px-5 py-6 text-center">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-5 py-5 text-sm">
           {[
-            { v: "Instant", l: "Readings in under a minute" },
-            { v: "Personal", l: "Tailored to your birth chart" },
-            { v: "Private", l: "Your photos are never stored" },
-            { v: "Daily", l: "Fresh guidance every day" },
-          ].map((s) => (
-            <div key={s.l} className="min-w-[130px]">
-              <div className="text-xl font-extrabold text-primary">{s.v}</div>
-              <div className="text-xs text-muted">{s.l}</div>
-            </div>
+            [LuSparkles, "First reading free"],
+            [LuShieldCheck, "Palm photo never stored"],
+            [LuInfinity, "No subscription"],
+            [LuListChecks, "Shows its reasoning"],
+            [LuZap, "Ready in seconds"],
+          ].map(([Icon, label], i) => (
+            <span key={label} className="inline-flex items-center gap-2 font-semibold text-subtle">
+              <Icon size={15} className="text-[#c084fc]" /> {label}
+              {i < 4 && <span className="ml-6 hidden h-4 w-px bg-white/10 sm:inline-block" />}
+            </span>
           ))}
         </div>
       </section>
 
-      {/* ── Features ───────────────────────────────────────────── */}
-      <section id="features" className="mx-auto max-w-6xl px-5 py-16 md:py-24">
+      {/* ── Features — asymmetric BENTO grid (varied tile sizes) ── */}
+      <section id="features" data-reveal className="mx-auto max-w-6xl px-5 py-16 md:py-24">
         <div className="mx-auto max-w-2xl text-center">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">What we do</p>
           <h2 className="text-3xl font-extrabold md:text-4xl">One chart. Endless guidance.</h2>
           <p className="mt-3 text-body">Everything the platform does, grounded in your real Vedic chart.</p>
         </div>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2">
-          {FEATURES.map((f) => (
+        <div className="mt-12 grid auto-rows-[1fr] gap-4 sm:grid-cols-3">
+          {BENTO.map((f) => (
             <article
               key={f.title}
-              className="fx-card rounded-3xl border border-[var(--c-border)] bg-white/[0.04] p-7"
+              className={`fx-card group relative overflow-hidden rounded-3xl border border-[var(--c-border)] bg-white/[0.04] p-7 ${
+                f.span || ""
+              }`}
             >
+              {f.big && (
+                <div
+                  className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-60 blur-2xl"
+                  style={{ background: "radial-gradient(circle, rgba(139,92,246,0.5), transparent 70%)" }}
+                  aria-hidden="true"
+                />
+              )}
               <div
                 className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl"
                 style={{ background: "var(--grad-primary)", boxShadow: "0 0 22px rgba(139,92,246,0.55)" }}
               >
                 <f.icon className="text-xl text-ink" />
               </div>
-              <h3 className="text-lg font-bold">{f.title}</h3>
-              <p className="mt-2 text-sm text-body">{f.desc}</p>
+              <h3 className={f.big ? "text-2xl font-bold" : "text-lg font-bold"}>{f.title}</h3>
+              <p className={`mt-2 text-body ${f.big ? "text-base" : "text-sm"}`}>{f.desc}</p>
+
+              {/* The large tile plays a live, looping AI-astrologer conversation. */}
+              {f.big && <BentoChatThread />}
             </article>
           ))}
         </div>
       </section>
 
-      {/* ── Sample-reading teaser (locked preview → curiosity) ──── */}
-      <section className="mx-auto max-w-4xl px-5 pb-16 md:pb-24">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">A peek inside</p>
-          <h2 className="text-3xl font-extrabold md:text-4xl">This is what you'll get.</h2>
-          <p className="mt-3 text-body">
-            A real reading is personal to you — here's a glimpse of the format.
-          </p>
-        </div>
-        <div className="relative mt-10 overflow-hidden rounded-3xl border border-[var(--c-border)] bg-white/[0.04] p-7 md:p-9">
-          {/* sample content, then a fade + lock overlay so it reads as "preview" */}
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Life theme</p>
-              <p className="mt-1 text-body">
-                You lead with curiosity and a need to understand <em>why</em> things work — at your best when
-                you're learning and sharing what you learn…
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Career</p>
-              <p className="mt-1 text-body">
-                Work that rewards independent thinking and patient, long-term building suits you. A
-                disciplined long game pays off more than chasing quick wins…
-              </p>
-            </div>
-            <div className="blur-[3px] select-none" aria-hidden="true">
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                Relationships · Timing · Palm
-              </p>
-              <p className="mt-1 text-body">
-                Your strongest period for change arrives when ▒▒▒▒▒▒▒, and your palm shows ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
-                across your ▒▒▒▒ line, pointing toward ▒▒▒▒▒▒▒▒▒▒▒…
-              </p>
+      {/* ── Palm reading — analysis card, not a generic feature card ─ */}
+      <section data-reveal className="mx-auto max-w-6xl px-5 pb-16 md:pb-24">
+        <div className="grid items-center gap-12 md:grid-cols-2 md:gap-20">
+          <div className="order-2 md:order-1">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">
+              AI palm reading
+            </p>
+            <h2 className="text-3xl font-extrabold md:text-5xl md:leading-tight">
+              We read the lines, and show the math.
+            </h2>
+            <p className="mt-5 max-w-md text-base leading-relaxed text-body md:text-lg">
+              Snap one photo. We detect 21 points on your hand and measure the real geometry of your major
+              lines — then explain what it means. The chips you see are <em>measured</em>, never invented.
+            </p>
+            <ul className="mt-6 space-y-3">
+              {[
+                ["Heart line", "relationships & emotional style"],
+                ["Head line", "how you think & decide"],
+                ["Life line", "vitality & life rhythm"],
+                ["Fate line", "career direction & timing"],
+              ].map(([k, v]) => (
+                <li key={k} className="flex items-center gap-3 text-sm">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#c084fc] shadow-[0_0_10px_rgba(192,132,252,0.8)]" />
+                  <span className="font-semibold text-ink">{k}</span>
+                  <span className="text-muted">— {v}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-white/[0.03] px-3.5 py-1.5 text-xs font-semibold text-subtle">
+              <LuShieldCheck size={14} className="text-success" /> Your photo is discarded after the reading
             </div>
           </div>
-          {/* fade-to-dark + unlock CTA */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#05050c] to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 pb-7">
-            <span className="rounded-full border border-[var(--c-border)] bg-white/10 px-4 py-1.5 text-sm font-semibold text-ink backdrop-blur">
-              🔒 Unlock your full, personal reading
-            </span>
-            <button
-              onClick={goLogin}
-              className="cta-glow group pointer-events-auto inline-flex items-center gap-2 rounded-full px-6 py-3 text-base font-bold text-ink"
-              style={{ background: "var(--grad-primary)" }}
-            >
-              See Mine — Free{" "}
-              <LuArrowRight className="transition-transform duration-200 group-hover:translate-x-1" />
-            </button>
+          <div className="order-1 flex justify-center md:order-2">
+            <PalmReportPreview />
           </div>
         </div>
       </section>
 
-      {/* ── How it works ───────────────────────────────────────── */}
-      <section className="mx-auto max-w-4xl px-5 pb-16 md:pb-24">
-        <div className="text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">How it works</p>
-          <h2 className="text-3xl font-extrabold md:text-4xl">Three steps to your reading.</h2>
+      {/* ── Kundli — the rotating zodiac bi-wheel as the centerpiece ─ */}
+      <section data-reveal className="mx-auto max-w-6xl px-5 pb-16 md:pb-24">
+        <div className="grid items-center gap-10 md:grid-cols-2">
+          <div className="flex justify-center">
+            <RashiWheel />
+          </div>
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">Birth chart</p>
+            <h2 className="text-3xl font-extrabold md:text-4xl">Your sky, the moment you were born.</h2>
+            <p className="mt-3 max-w-md text-body">
+              A complete Vedic Kundli computed from real astronomical positions for your exact date, time, and
+              place — twelve houses, every graha, your dashas and live transits. Not a template; your chart.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              {[
+                ["12", "houses mapped"],
+                ["9", "grahas placed"],
+                ["Dasha", "timeline of periods"],
+                ["Gochar", "live sky overlay"],
+              ].map(([v, l]) => (
+                <div
+                  key={l}
+                  className="rounded-2xl border border-[var(--c-border)] bg-white/[0.03] px-4 py-3"
+                >
+                  <div className="text-lg font-extrabold text-primary">{v}</div>
+                  <div className="text-xs text-muted">{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <ol className="mt-12 grid gap-5 md:grid-cols-3">
-          {STEPS.map((s) => (
-            <li key={s.n} className="rounded-3xl border border-[var(--c-border)] bg-white/[0.03] p-6">
-              <div className="text-2xl font-extrabold text-primary">{s.n}</div>
-              <h3 className="mt-2 text-base font-bold">{s.t}</h3>
-              <p className="mt-1 text-sm text-body">{s.d}</p>
+      </section>
+
+      {/* ── AI astrologer — a real product chat window with typing ─ */}
+      <section data-reveal className="mx-auto max-w-5xl px-5 pb-16 md:pb-24">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">AI astrologer</p>
+          <h2 className="text-3xl font-extrabold md:text-4xl">Ask anything. Get answers from your chart.</h2>
+          <p className="mt-3 text-body">
+            Not a generic chatbot — it reads your real placements and shows the evidence behind each answer.
+          </p>
+        </div>
+        <div className="mx-auto mt-10 max-w-xl">
+          <AstrologerDemo />
+        </div>
+      </section>
+
+      {/* ── Daily guidance — a day TIMELINE, not cards ──────────── */}
+      <section data-reveal className="mx-auto max-w-4xl px-5 pb-16 md:pb-24">
+        <div className="text-center">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">
+            Daily guidance
+          </p>
+          <h2 className="text-3xl font-extrabold md:text-4xl">Mapped to the real sky, hour by hour.</h2>
+          <p className="mt-3 text-body">A glimpse of the format — your actual guidance is personal to you.</p>
+        </div>
+        <ol className="relative mx-auto mt-12 max-w-2xl">
+          {/* vertical spine */}
+          <span
+            className="absolute left-[19px] top-2 bottom-2 w-px bg-gradient-to-b from-[#8b5cf6] via-[#d946ef]/40 to-transparent"
+            aria-hidden="true"
+          />
+          {DAY_PARTS.map((p) => (
+            <li key={p.k} className="relative flex gap-5 pb-8 last:pb-0">
+              <span
+                className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--c-border)]"
+                style={{ background: "var(--grad-primary)", boxShadow: "0 0 18px rgba(139,92,246,0.5)" }}
+              >
+                <p.i className="text-base text-ink" />
+              </span>
+              <div className="pt-1.5">
+                <h3 className="text-sm font-bold text-ink">{p.k}</h3>
+                <p className="mt-1 text-sm text-body">{p.d}</p>
+              </div>
             </li>
           ))}
         </ol>
       </section>
 
-      {/* ── Pricing (honest, no fabricated numbers) ────────────── */}
-      <section className="mx-auto max-w-4xl px-5 pb-16 md:pb-24">
+      {/* ── How it works — a connected 3-step stepper ───────────── */}
+      <section data-reveal className="mx-auto max-w-5xl px-5 pb-16 md:pb-24">
         <div className="text-center">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">How it works</p>
+          <h2 className="text-3xl font-extrabold md:text-4xl">Three steps to your reading.</h2>
+        </div>
+        <ol className="relative mt-12 grid gap-8 md:grid-cols-3">
+          {/* connecting line across the steps on desktop */}
+          <span
+            className="absolute left-[12%] right-[12%] top-6 hidden h-px bg-gradient-to-r from-transparent via-[#8b5cf6]/50 to-transparent md:block"
+            aria-hidden="true"
+          />
+          {STEPS.map((s) => (
+            <li key={s.n} className="relative text-center">
+              <div
+                className="mx-auto flex h-12 w-12 items-center justify-center rounded-full text-base font-extrabold text-ink"
+                style={{ background: "var(--grad-primary)", boxShadow: "0 0 20px rgba(139,92,246,0.5)" }}
+              >
+                {s.n}
+              </div>
+              <h3 className="mt-4 text-base font-bold">{s.t}</h3>
+              <p className="mt-1.5 text-sm text-body">{s.d}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ── Pricing — honest, one statement row + chips ─────────── */}
+      <section data-reveal className="mx-auto max-w-4xl px-5 pb-16 md:pb-24">
+        <div
+          className="overflow-hidden rounded-3xl border border-[var(--c-border)] p-8 text-center md:p-12"
+          style={{
+            background:
+              "radial-gradient(600px 300px at 50% -30%, rgba(139,92,246,0.22), transparent 60%), rgba(255,255,255,0.03)",
+          }}
+        >
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">
             Simple &amp; fair
           </p>
@@ -454,147 +386,83 @@ export default function LandingPage() {
             No subscription, no surprise charges. Your first reading is on us — after that, simple
             pay-as-you-go credits you top up only when you want more.
           </p>
-        </div>
-        <div className="mt-10 grid gap-5 sm:grid-cols-3">
-          {[
-            {
-              t: "Your first reading",
-              d: "Free. No card needed — see your real reading before you ever pay.",
-            },
-            {
-              t: "Pay-as-you-go credits",
-              d: "Top up only when you want more. Each reading spends a few credits — no lock-in.",
-            },
-            {
-              t: "No subscription",
-              d: "Nothing recurring. You're never charged unless you choose to top up.",
-            },
-          ].map((p) => (
-            <div
-              key={p.t}
-              className="rounded-3xl border border-[var(--c-border)] bg-white/[0.03] p-6 text-center"
-            >
-              <h3 className="text-base font-bold">{p.t}</h3>
-              <p className="mt-2 text-sm text-body">{p.d}</p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-6 text-center text-xs text-dim">
-          See exact credit prices anytime in your account — pricing is always shown before you spend.
-        </p>
-        {/* Guarantee chips — every one is literally true (no fabricated claims),
-            placed at the pricing moment to ease the decision to pay. */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-          {[
-            [LuSparkles, "First reading free"],
-            [LuLock, "Secure UPI & card payments"],
-            [LuInfinity, "Credits never expire"],
-            [LuShieldCheck, "No subscription"],
-          ].map(([Icon, label]) => (
-            <span
-              key={label}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--c-border)] bg-white/[0.03] px-3 py-1.5 text-xs font-semibold text-subtle"
-            >
-              <Icon size={13} className="text-[#c084fc]" /> {label}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Trust tiles (TRUE facts — no fabricated reviews) ─────── */}
-      {/* When you have ≥3 REAL testimonials, swap this for a quotes grid and add
-          Review/AggregateRating JSON-LD. Until then, lead with what's verifiable. */}
-      <section data-reveal className="mx-auto max-w-5xl px-5 pb-16 md:pb-24">
-        <div className="text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">
-            Why people trust us
-          </p>
-          <h2 className="text-3xl font-extrabold md:text-4xl">Built to be trusted.</h2>
-          <p className="mt-3 text-body">No fine print, no surprises — here's what's always true.</p>
-        </div>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              i: LuShieldCheck,
-              t: "Photo never stored",
-              d: "Your palm image is used for your reading, then discarded.",
-            },
-            {
-              i: LuSparkles,
-              t: "First reading free",
-              d: "See your real reading before you ever pay. No card needed.",
-            },
-            { i: LuZap, t: "No subscription", d: "Pay only for what you use — nothing recurring, ever." },
-            {
-              i: LuMessageCircle,
-              t: "Private by design",
-              d: "Your data is never sold or used to train anything.",
-            },
-          ].map((p) => (
-            <div
-              key={p.t}
-              className="fx-card rounded-3xl border border-[var(--c-border)] bg-white/[0.04] p-6 text-center"
-            >
-              <div
-                className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl"
-                style={{ background: "var(--grad-primary)", boxShadow: "0 0 18px rgba(139,92,246,0.5)" }}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+            {[
+              [LuSparkles, "First reading free"],
+              [LuLock, "Secure UPI & card payments"],
+              [LuInfinity, "Credits never expire"],
+              [LuShieldCheck, "No subscription"],
+            ].map(([Icon, label]) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--c-border)] bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold text-subtle"
               >
-                <p.i className="text-lg text-ink" />
-              </div>
-              <h3 className="text-sm font-bold">{p.t}</h3>
-              <p className="mt-1.5 text-xs text-body">{p.d}</p>
-            </div>
-          ))}
+                <Icon size={13} className="text-[#c084fc]" /> {label}
+              </span>
+            ))}
+          </div>
+          <button
+            onClick={goLogin}
+            className="cta-glow group mt-8 inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-bold text-ink"
+            style={{ background: "var(--grad-primary)" }}
+          >
+            See Mine — Free{" "}
+            <LuArrowRight className="transition-transform duration-200 group-hover:translate-x-1" />
+          </button>
+          <p className="mt-4 text-xs text-dim">
+            Exact credit prices are always shown in your account before you spend.
+          </p>
         </div>
       </section>
 
-      {/* ── Trust / privacy ────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-5 pb-16 md:pb-24">
-        <div className="rounded-3xl border border-[var(--c-border)] bg-white/[0.04] p-8 md:p-10">
-          <div className="flex items-center gap-3">
-            <LuShieldCheck className="text-2xl text-success" />
-            <h2 className="text-2xl font-extrabold md:text-3xl">Your data stays yours.</h2>
+      {/* ── Privacy — split statement + checklist ───────────────── */}
+      <section data-reveal className="mx-auto max-w-6xl px-5 pb-16 md:pb-24">
+        <div className="grid gap-8 md:grid-cols-[1fr_1.4fr] md:items-center">
+          <div>
+            <div className="flex items-center gap-3">
+              <LuShieldCheck className="text-2xl text-success" />
+              <h2 className="text-2xl font-extrabold md:text-3xl">Your data stays yours.</h2>
+            </div>
+            <p className="mt-3 max-w-md text-body">
+              We built privacy into the architecture, not the marketing. Nothing here is a promise we couldn't
+              keep.
+            </p>
           </div>
-          <p className="mt-2 max-w-2xl text-body">
-            We built privacy into the architecture, not the marketing.
-          </p>
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {[
               {
                 i: LuShieldCheck,
-                t: "Your palm photo is never saved.",
-                d: "Your image is used only to create your reading — then it's gone for good.",
+                t: "Palm photo never saved",
+                d: "Used only to create your reading, then gone for good.",
               },
               {
                 i: LuSmartphone,
-                t: "Your details stay private.",
-                d: "Your personal information is never shared, sold, or used to train anything.",
+                t: "Details stay private",
+                d: "Never shared, sold, or used to train anything.",
               },
               {
-                i: LuSparkles,
-                t: "You stay anonymous.",
-                d: "Your readings are personal to you, while your identity stays protected.",
+                i: LuLock,
+                t: "You stay anonymous",
+                d: "Your readings are personal; your identity is protected.",
               },
               {
-                i: LuMessageCircle,
-                t: "Honest by design.",
-                d: "Every prediction shows the reasoning behind it, so you always know why.",
+                i: LuListChecks,
+                t: "Honest by design",
+                d: "Every prediction shows the reasoning behind it.",
               },
             ].map((p) => (
-              <div key={p.t} className="flex items-start gap-3">
-                <p.i className="mt-1 shrink-0 text-lg text-primary" />
-                <div>
-                  <strong className="text-ink">{p.t}</strong>
-                  <p className="text-sm text-body">{p.d}</p>
-                </div>
+              <div key={p.t} className="rounded-2xl border border-[var(--c-border)] bg-white/[0.03] p-5">
+                <p.i className="text-lg text-primary" />
+                <strong className="mt-2 block text-sm text-ink">{p.t}</strong>
+                <p className="mt-1 text-xs text-body">{p.d}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Mobile app ─────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-5 pb-16 md:pb-24">
+      {/* ── Mobile app — phone mock + scannable QR ──────────────── */}
+      <section data-reveal className="mx-auto max-w-6xl px-5 pb-16 md:pb-24">
         <div className="grid gap-10 overflow-hidden rounded-3xl border border-[var(--c-border)] bg-white/[0.04] p-8 md:grid-cols-2 md:items-center md:p-12">
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">Mobile app</p>
@@ -640,23 +508,38 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Phone mockup with a scannable QR on screen */}
           <div className="flex justify-center">
-            <PhoneMock />
+            <Suspense fallback={<div className="h-[472px] w-[232px]" />}>
+              <PhoneMock />
+            </Suspense>
           </div>
         </div>
       </section>
 
-      {/* ── Final CTA ──────────────────────────────────────────── */}
-      <section className="mx-auto max-w-4xl px-5 pb-20">
+      {/* ── FAQ — minimal accordion ─────────────────────────────── */}
+      <section id="faq" data-reveal className="mx-auto max-w-3xl px-5 pb-16 md:pb-24">
+        <div className="text-center">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-warning">Questions</p>
+          <h2 className="text-3xl font-extrabold md:text-4xl">Good to know.</h2>
+        </div>
+        <div className="mt-10 divide-y divide-[var(--c-border)] border-y border-[var(--c-border)]">
+          {FAQS.map((f, i) => (
+            <FaqItem key={f.q} q={f.q} a={f.a} defaultOpen={i === 0} />
+          ))}
+        </div>
+      </section>
+
+      {/* ── Final CTA — full-width cosmic block ─────────────────── */}
+      <section data-reveal className="mx-auto max-w-4xl px-5 pb-20">
         <div
-          className="relative overflow-hidden rounded-3xl border border-[var(--c-border)] p-10 text-center"
+          className="relative overflow-hidden rounded-3xl border border-[var(--c-border)] p-10 text-center md:p-14"
           style={{
             background: "radial-gradient(700px 360px at 50% -20%, rgba(139,92,246,0.3), transparent 60%)",
           }}
         >
-          <h2 className="mx-auto max-w-xl text-3xl font-extrabold md:text-4xl">
-            Meet the AI astrologer that shows its work.
+          <p className="text-sm font-semibold tracking-wide text-[#c084fc]">Your chart is already written.</p>
+          <h2 className="mx-auto mt-2 max-w-xl text-3xl font-extrabold md:text-4xl">
+            Let Selora decode it with you.
           </h2>
           <p className="mx-auto mt-3 max-w-md text-body">
             Create a free account and get your first reading in under a minute. No card needed.
@@ -705,201 +588,6 @@ export default function LandingPage() {
           <span>Made just for you. © 2026 Selora.</span>
         </div>
       </footer>
-    </div>
-  );
-}
-
-// Phone mockup with a real, scannable QR on screen (rendered inline as SVG, so
-// no external request — CSP-safe). The QR encodes APP_LINK.
-function PhoneMock() {
-  return (
-    <div className="relative">
-      <div
-        aria-hidden="true"
-        className="absolute -inset-8 -z-10 rounded-[3rem] blur-2xl"
-        style={{ background: "radial-gradient(circle, rgba(139,92,246,0.45), transparent 70%)" }}
-      />
-      <div
-        className="relative w-[232px] rounded-[2.6rem] border border-white/15 bg-[#0b0b16] p-3"
-        style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.05)" }}
-      >
-        {/* notch */}
-        <div className="absolute left-1/2 top-3 z-10 h-5 w-24 -translate-x-1/2 rounded-full bg-black/80" />
-        {/* screen */}
-        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-b from-[#12121f] to-[#0a0a14] px-5 pb-7 pt-11 text-center">
-          <div className="flex items-center justify-center gap-1.5 text-sm font-extrabold">
-            <Logo size={20} /> <span className="font-display">Selora</span>
-          </div>
-          <p className="mt-1 text-[11px] text-dim">Scan to download</p>
-          <div
-            className="mx-auto mt-4 w-fit rounded-2xl bg-white p-3"
-            style={{ boxShadow: "0 0 30px rgba(139,92,246,0.35)" }}
-          >
-            <QRCodeSVG value={APP_LINK} size={140} bgColor="#ffffff" fgColor="#0b0b16" level="M" />
-          </div>
-          <p className="mt-4 text-[11px] leading-snug text-subtle">
-            Point your camera at the code to get the app on iOS or Android.
-          </p>
-          <div className="mt-4 flex items-center justify-center gap-3 text-lg text-dim">
-            <FaApple />
-            <FaGooglePlay className="text-base" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Fixed, GPU-cheap cosmic backdrop: twinkling starfield, drifting nebula blobs,
-// a neon perspective-grid horizon, and the odd shooting star. Purely decorative
-// (aria-hidden) and fully disabled under prefers-reduced-motion.
-function FuturisticBackground() {
-  return (
-    <div className="fx" aria-hidden="true">
-      {/* star layers */}
-      <div className="fx-stars fx-stars--far" />
-      <div className="fx-stars fx-stars--near" />
-
-      {/* nebula blobs */}
-      <span className="fx-blob fx-blob--violet" />
-      <span className="fx-blob fx-blob--magenta" />
-      <span className="fx-blob fx-blob--cyan" />
-
-      {/* crisp glowing twinkle stars (foreground sparkle, like the login backdrop) */}
-      {TWINKLE_STARS.map((s, i) => (
-        <span
-          key={i}
-          className="fx-star"
-          style={{ left: s.l, top: s.t, width: s.s, height: s.s, animationDelay: s.d }}
-        />
-      ))}
-
-      {/* falling stars / meteors — from BOTH sides: --1/--3 enter from the right
-          (TR→BL), --2/--4 enter from the left (TL→BR) */}
-      {/* One occasional meteor — calmer, more premium than a constant shower. */}
-      <span className="fx-meteor fx-meteor--1" />
-
-      {/* neon perspective grid horizon */}
-      <div className="fx-grid" />
-      <div className="fx-vignette" />
-
-      <style>{`
-        /* Directional lighting: primary source TOP-RIGHT, falling off toward the
-           BOTTOM-LEFT (violet key light + cyan bounce + a diagonal sheen). */
-        /* translateZ(0) isolates the whole backdrop onto its own GPU layer so
-           scrolling the page above it never triggers a repaint of it. */
-        .fx { position: fixed; inset: 0; z-index: -10; overflow: hidden; pointer-events: none;
-              transform: translateZ(0); contain: strict;
-              background:
-                radial-gradient(1000px 720px at 100% -6%, rgba(139,92,246,0.30), transparent 55%),
-                radial-gradient(820px 620px at 0% 106%, rgba(34,211,238,0.12), transparent 55%),
-                linear-gradient(215deg, rgba(139,92,246,0.10) 0%, transparent 48%),
-                #05050c; }
-
-        .fx-stars { position: absolute; inset: -50%; background-repeat: repeat;
-                    will-change: transform; backface-visibility: hidden;
-                    background-image:
-                      radial-gradient(1px 1px at 20% 30%, #fff, transparent),
-                      radial-gradient(1px 1px at 70% 60%, #cbd5e1, transparent),
-                      radial-gradient(1px 1px at 40% 80%, #fff, transparent),
-                      radial-gradient(1px 1px at 85% 20%, #a5b4fc, transparent),
-                      radial-gradient(1px 1px at 55% 15%, #fff, transparent),
-                      radial-gradient(1.5px 1.5px at 30% 50%, #e9d5ff, transparent); }
-        .fx-stars--far  { background-size: 700px 700px; opacity: 0.4; animation: fxDrift 340s linear infinite; }
-        .fx-stars--near { background-size: 420px 420px; opacity: 0.6; animation: fxDrift 220s linear infinite reverse; }
-
-        /* will-change promotes each blob to its own layer: the expensive blur is
-           rasterised ONCE, then the layer just translates (cheap). */
-        .fx-blob { position: absolute; border-radius: 50%; filter: blur(55px); opacity: 0.5; will-change: transform; }
-        .fx-blob--violet  { width: 460px; height: 460px; top: -90px; right: -60px;  background: radial-gradient(circle, #8b5cf6, transparent 70%); animation: fxFloat 26s ease-in-out infinite; }
-        .fx-blob--magenta { width: 340px; height: 340px; top: 24%; right: -40px;    background: radial-gradient(circle, #d946ef, transparent 70%); opacity: 0.4; animation: fxFloat 32s ease-in-out infinite reverse; }
-        .fx-blob--cyan    { width: 340px; height: 340px; bottom: 4%; left: -40px;    background: radial-gradient(circle, #22d3ee, transparent 70%); opacity: 0.35; animation: fxFloat 38s ease-in-out infinite; }
-
-        /* Crisp glowing stars that twinkle (ported from the login backdrop). */
-        .fx-star { position: absolute; border-radius: 50%; background: #fff;
-                   box-shadow: 0 0 6px 1px rgba(199,210,254,0.85); opacity: 0.85;
-                   animation: fxStarTwinkle 4s ease-in-out infinite; will-change: opacity; }
-
-        /* Falling stars / meteors: a tapered trail with a bright glowing head,
-           sweeping top-right → bottom-left (matching the key light). Each is
-           visible only briefly, then idles, so they streak periodically rather
-           than constantly — staggered + on different lanes for variety. */
-        .fx-meteor { position: absolute; height: 2px; width: 220px; border-radius: 999px;
-                     background: linear-gradient(90deg, transparent, rgba(199,210,254,0.55) 55%, #fff);
-                     opacity: 0; will-change: transform, opacity; }
-        .fx-meteor::after { content: ""; position: absolute; right: -2px; top: 50%; width: 4px; height: 4px;
-                            border-radius: 50%; transform: translateY(-50%); background: #fff;
-                            box-shadow: 0 0 10px 3px rgba(199,210,254,0.9), 0 0 22px 6px rgba(139,92,246,0.5); }
-        /* Single meteor on a long cycle — it streaks ~once every 16s, then rests. */
-        .fx-meteor--1 { top: 2vh; left: 0; animation: fxMeteor 16s linear infinite; animation-delay: 3s; }
-
-        .fx-grid { position: absolute; left: 50%; bottom: -10vh; width: 200vw; height: 60vh; transform: translateX(-50%) perspective(420px) rotateX(70deg);
-                   background-image:
-                     linear-gradient(rgba(139,92,246,0.28) 1px, transparent 1px),
-                     linear-gradient(90deg, rgba(139,92,246,0.28) 1px, transparent 1px);
-                   background-size: 56px 56px; mask-image: linear-gradient(to top, #000 10%, transparent 80%);
-                   -webkit-mask-image: linear-gradient(to top, #000 10%, transparent 80%);
-                   opacity: 0.55; }
-
-        .fx-vignette { position: absolute; inset: 0; background: radial-gradient(120% 80% at 50% 0%, transparent 55%, rgba(5,5,12,0.85)); }
-
-        /* Hero zodiac wheel: the whole wheel rotates, but each glyph counter-
-           rotates at the SAME speed about its own centre, so the signs orbit
-           while staying upright (never upside-down). Halo gently pulses. */
-        .rashi-wheel  { animation: rashiSpin 120s linear infinite; transform-origin: 50% 50%; will-change: transform; }
-        .rashi-glyph  { animation: rashiSpinRev 120s linear infinite; transform-box: fill-box; transform-origin: 50% 50%; will-change: transform; }
-        .rashi-halo   { animation: rashiPulse 6s ease-in-out infinite; }
-        @keyframes rashiSpin    { to { transform: rotate(360deg); } }
-        @keyframes rashiSpinRev { to { transform: rotate(-360deg); } }
-        @keyframes rashiPulse   { 0%,100% { opacity: 0.75; } 50% { opacity: 1; } }
-        @media (prefers-reduced-motion: reduce) {
-          .rashi-wheel, .rashi-glyph, .rashi-halo { animation: none; }
-        }
-
-        /* Neon-glow feature cards (defined here so the landing stays self-contained). */
-        .fx-card { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
-        .fx-card:hover { transform: translateY(-4px); border-color: rgba(139,92,246,0.5);
-                         box-shadow: 0 0 0 1px rgba(139,92,246,0.4), 0 22px 55px rgba(139,92,246,0.20); }
-        @media (prefers-reduced-motion: reduce) { .fx-card:hover { transform: none; } }
-
-        /* Primary CTA affordance: the hand/pointer cursor (so it reads as clickable
-           like a native button) plus a lift + brighter glow on hover, and a quick
-           press-down on click. Applied to every gradient call-to-action. */
-        .cta-glow { cursor: pointer; will-change: transform;
-                    transition: transform .2s cubic-bezier(.22,1,.36,1), box-shadow .25s ease, filter .2s ease; }
-        .cta-glow:hover { transform: translateY(-2px) scale(1.03); filter: brightness(1.07);
-                          box-shadow: 0 16px 42px rgba(139,92,246,0.55); }
-        .cta-glow:active { transform: translateY(0) scale(0.97); transition-duration: .08s; }
-        @media (prefers-reduced-motion: reduce) {
-          .cta-glow:hover, .cta-glow:active { transform: none; }
-        }
-
-        @keyframes fxDrift  { to { transform: translate(-60px, -40px); } }
-        @keyframes fxFloat  { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(28px,-22px) scale(1.08); } }
-        @keyframes fxTwinkle{ 0%,100% { opacity: 0.85; } 50% { opacity: 0.5; } }
-        @keyframes fxStarTwinkle { 0%,100% { opacity: 0.85; } 50% { opacity: 0.18; } }
-        /* enters top-RIGHT, falls to bottom-left (head leads down-left) */
-        @keyframes fxMeteor {
-          0%   { transform: translate(82vw, -12vh) rotate(150deg); opacity: 0; }
-          4%   { opacity: 1; }
-          15%  { opacity: 1; }
-          26%  { transform: translate(-28vw, 78vh) rotate(150deg); opacity: 0; }
-          100% { transform: translate(-28vw, 78vh) rotate(150deg); opacity: 0; }
-        }
-        /* mirror: enters top-LEFT, falls to bottom-right (head leads down-right) */
-        @keyframes fxMeteorB {
-          0%   { transform: translate(-30vw, -12vh) rotate(30deg); opacity: 0; }
-          4%   { opacity: 1; }
-          15%  { opacity: 1; }
-          26%  { transform: translate(84vw, 78vh) rotate(30deg); opacity: 0; }
-          100% { transform: translate(84vw, 78vh) rotate(30deg); opacity: 0; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .fx-stars, .fx-blob, .fx-star, .fx-meteor { animation: none !important; }
-          .fx-meteor { display: none; }
-        }
-      `}</style>
     </div>
   );
 }

@@ -104,82 +104,83 @@ function withTimeout(promise, ms) {
   ]);
 }
 
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 
 // Friendly UI copy for each rejection category Gemini can return.
+// `icon` is an Icon registry name string, rendered via <Icon name={info.icon} />.
 const REJECT_INFO = {
   not_a_palm: {
-    icon: EMOJIS.PUZZLE,
+    icon: "PUZZLE",
     title: "That's not a palm",
     tip: "Please upload a clear photo of your open hand, palm facing the camera.",
   },
   screen_photo: {
-    icon: EMOJIS.PROHIBITED,
+    icon: "PROHIBITED",
     title: "Don't photograph a screen",
     tip: "Take a photo of your real hand with the camera — pictures of a screen, monitor, or another photo can't be read.",
   },
   back_of_hand: {
-    icon: EMOJIS.REFRESH,
+    icon: "REFRESH",
     title: "Wrong side of the hand",
     tip: "Flip your hand so the PALM (not the back) faces the camera.",
   },
   blurry: {
-    icon: EMOJIS.CAMERA,
+    icon: "CAMERA",
     title: "Photo is too blurry",
     tip: "Hold steady and take a sharp, focused photo of your palm.",
   },
   too_dark: {
-    icon: EMOJIS.LIGHT_BULB,
+    icon: "LIGHT_BULB",
     title: "Lighting is too dark",
     tip: "Move into bright, even light so the lines on your palm are clearly visible.",
   },
   too_far: {
-    icon: EMOJIS.MAGNIFIER,
+    icon: "MAGNIFIER",
     title: "Palm is too far away",
     tip: "Bring the camera closer — your palm should fill most of the frame.",
   },
   cropped: {
-    icon: EMOJIS.SCISSORS,
+    icon: "SCISSORS",
     title: "Palm is cropped",
     tip: "Include your full palm — from wrist to fingertips — in the photo.",
   },
   multiple_hands: {
-    icon: EMOJIS.HAND_OPEN,
+    icon: "HAND",
     title: "More than one hand",
     tip: "Show just one open palm in the photo.",
   },
   wrong_hand: {
-    icon: EMOJIS.REPEAT,
+    icon: "REPEAT",
     title: "Wrong hand uploaded",
     tip: "The photo shows your other hand. Please retake using the hand you selected.",
   },
   fingers_closed: {
-    icon: EMOJIS.HAND,
+    icon: "HAND",
     title: "Spread your fingers",
     tip: "Open your hand and spread your fingers slightly so the full palm is visible.",
   },
   tilted_hand: {
-    icon: EMOJIS.REFRESH,
+    icon: "REFRESH",
     title: "Keep your hand straight",
     tip: "Hold your hand flat and upright (fingers pointing up), facing the camera.",
   },
   obstructed: {
-    icon: EMOJIS.PROHIBITED,
+    icon: "PROHIBITED",
     title: "Palm is blocked",
     tip: "Open your hand flat — remove rings, mehndi, or anything covering the main lines.",
   },
   lines_faint: {
-    icon: EMOJIS.MAGNIFIER,
+    icon: "MAGNIFIER",
     title: "Palm lines too faint",
     tip: "Take a sharp photo of your real hand in bright light so the fine lines stand out — a photo of a screen or another picture won't have enough detail.",
   },
   uneven_light: {
-    icon: EMOJIS.LIGHT_BULB,
+    icon: "LIGHT_BULB",
     title: "Lighting is uneven",
     tip: "Even out the lighting — avoid harsh shadow or glare falling across your palm.",
   },
   default: {
-    icon: EMOJIS.CAMERA,
+    icon: "CAMERA",
     title: "Photo unreadable",
     tip: "Please retake with a clear, well-lit photo of your open palm.",
   },
@@ -604,8 +605,8 @@ export default function PalmPage() {
           <p className="text-[13px] font-semibold tracking-[1px] text-[#a855f7] uppercase">
             {form.name || "Your"} · Full Life Comparison
           </p>
-          <p className="mt-1.5 text-[11px] text-muted">
-            🔒 Your photos are analyzed and discarded — never stored.
+          <p className="mt-1.5 inline-flex items-center justify-center gap-1 text-[11px] text-muted">
+            <Icon name="LOCK" size={12} /> Your photos are analyzed and discarded — never stored.
           </p>
         </div>
 
@@ -669,7 +670,9 @@ export default function PalmPage() {
             className="text-center"
             style={{ borderColor: "rgba(251,191,36,0.4)", background: "rgba(251,191,36,0.08)" }}
           >
-            <div className="mb-2 text-4xl">⏳</div>
+            <div className="mb-2 flex justify-center text-warning">
+              <Icon name="HOURGLASS" size={36} />
+            </div>
             <p className="mx-0 mt-0 mb-1.5 text-[15px] font-semibold text-warning">AI is busy right now</p>
             <p className="mx-0 mt-0 mb-4 text-[12.5px] leading-[1.6] text-subtle">
               Our reader couldn't compare your palms after several tries.
@@ -680,9 +683,17 @@ export default function PalmPage() {
               onClick={retryCompare}
               disabled={cooldown > 0}
               fullWidth
-              className="disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {cooldown > 0 ? `🕒 Try Again in ${cooldown}s` : "🔄 Try Again"}
+              {cooldown > 0 ? (
+                <>
+                  <Icon name="CLOCK" size={16} /> Try Again in {cooldown}s
+                </>
+              ) : (
+                <>
+                  <Icon name="ROTATE" size={16} /> Try Again
+                </>
+              )}
             </Button>
           </Card>
         )}
@@ -724,7 +735,9 @@ export default function PalmPage() {
                       key={side}
                       className="flex items-start gap-3 rounded-[10px] border border-[rgba(248,113,113,0.35)] bg-[rgba(15,14,32,0.55)] px-3.5 py-3"
                     >
-                      <div className="shrink-0 text-[28px] leading-none">{info.icon}</div>
+                      <div className="shrink-0 text-warning">
+                        <Icon name={info.icon} size={28} />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="m-0 text-xs font-bold tracking-[1.5px] text-warning uppercase">
                           {side} Hand
@@ -736,8 +749,13 @@ export default function PalmPage() {
                   ))}
                 </div>
 
-                <Button variant="magic" onClick={resetCompare} fullWidth className="mt-3.5">
-                  📷 Retake Both Photos
+                <Button
+                  variant="magic"
+                  onClick={resetCompare}
+                  fullWidth
+                  className="mt-3.5 inline-flex items-center justify-center gap-2"
+                >
+                  <Icon name="CAMERA" size={16} /> Retake Both Photos
                 </Button>
               </Card>
             );
@@ -756,16 +774,16 @@ export default function PalmPage() {
             {/* Per-line gap analysis */}
             <div className="grid gap-4">
               {[
-                ["Life Line", "🌿", c.lifeLine],
-                ["Head Line", "🧠", c.headLine],
-                ["Heart Line", "💛", c.heartLine],
-                ["Fate Line", "🪐", c.fateLine],
+                ["Life Line", "LEAF", c.lifeLine],
+                ["Head Line", "BRAIN", c.headLine],
+                ["Heart Line", "HEART", c.heartLine],
+                ["Fate Line", "SATURN", c.fateLine],
               ].map(
                 ([title, icon, content]) =>
                   content && (
                     <Card key={title} style={{ margin: 0 }}>
                       <div className="mb-2.5 flex items-center gap-2.5">
-                        <span className="text-[22px]">{icon}</span>
+                        <Icon name={icon} size={22} className="text-[#c084fc]" />
                         <p className={LINE_TITLE}>{title}</p>
                       </div>
                       <p className="m-0 text-[13px] leading-[1.7] text-dim">{content}</p>
@@ -780,10 +798,12 @@ export default function PalmPage() {
                 <Card
                   style={{ margin: 0, borderColor: "rgba(34,197,94,0.2)", background: "rgba(20,30,20,0.4)" }}
                 >
-                  <p className="mb-3.5 text-[15px] font-bold text-[#4ade80]">✦ Grown Stronger</p>
+                  <p className="mb-3.5 flex items-center gap-1.5 text-[15px] font-bold text-[#4ade80]">
+                    <Icon name="SPARKLES" size={15} /> Grown Stronger
+                  </p>
                   {c.grownStronger.map((s, i) => (
                     <div key={i} className={BULLET_ROW}>
-                      <span className="font-bold text-[#4ade80]">↑</span>
+                      <Icon name="ARROW_UP" size={14} className="shrink-0 text-[#4ade80]" />
                       <span>{s}</span>
                     </div>
                   ))}
@@ -793,7 +813,9 @@ export default function PalmPage() {
                 <Card
                   style={{ margin: 0, borderColor: "rgba(251,191,36,0.2)", background: "rgba(30,25,20,0.4)" }}
                 >
-                  <p className="mb-3.5 text-[15px] font-bold text-warning">✦ Still Showing Up</p>
+                  <p className="mb-3.5 flex items-center gap-1.5 text-[15px] font-bold text-warning">
+                    <Icon name="SPARKLES" size={15} /> Still Showing Up
+                  </p>
                   {c.watchPoints.map((w, i) => (
                     <div key={i} className={BULLET_ROW}>
                       <span className="font-bold text-warning">•</span>
@@ -806,7 +828,9 @@ export default function PalmPage() {
 
             {c.lifeAdvice && (
               <Card style={{ borderColor: "rgba(168,85,247,0.25)", background: "rgba(30,20,45,0.5)" }}>
-                <p className="mx-0 mt-0 mb-2.5 text-[15px] font-bold text-[#c084fc]">🎯 Direction</p>
+                <p className="mx-0 mt-0 mb-2.5 flex items-center gap-1.5 text-[15px] font-bold text-[#c084fc]">
+                  <Icon name="TARGET" size={15} /> Direction
+                </p>
                 <p className="m-0 text-[13.5px] leading-[1.7] text-body">{c.lifeAdvice}</p>
               </Card>
             )}
@@ -814,9 +838,9 @@ export default function PalmPage() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={resetCompare}
-                className="w-full cursor-pointer rounded-[10px] border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] p-3 text-[13px] font-semibold text-[#c084fc]"
+                className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] p-3 text-[13px] font-semibold text-[#c084fc]"
               >
-                🔄 Re-do Comparison
+                <Icon name="ROTATE" size={14} /> Re-do Comparison
               </button>
 
               <button
@@ -829,9 +853,9 @@ export default function PalmPage() {
                   reset();
                   navigate("/palm");
                 }}
-                className="w-full cursor-pointer rounded-[10px] border border-white/12 bg-white/5 p-3 text-[13px] font-semibold text-dim"
+                className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border border-white/12 bg-white/5 p-3 text-[13px] font-semibold text-dim"
               >
-                🖐️ Scan Different Hand
+                <Icon name="HAND" size={14} /> Scan Different Hand
               </button>
             </div>
 
@@ -855,8 +879,8 @@ export default function PalmPage() {
         <p className="text-[13px] font-semibold tracking-[1px] text-accent uppercase">
           {form.name || "Your"} Palm Reading
         </p>
-        <p className="mt-1.5 text-[11px] text-muted">
-          🔒 Your photo is analyzed and discarded — never stored.
+        <p className="mt-1.5 inline-flex items-center justify-center gap-1 text-[11px] text-muted">
+          <Icon name="LOCK" size={12} /> Your photo is analyzed and discarded — never stored.
         </p>
       </div>
 
@@ -867,7 +891,9 @@ export default function PalmPage() {
           className="text-center"
           style={{ borderColor: "rgba(251,191,36,0.4)", background: "rgba(251,191,36,0.08)" }}
         >
-          <div className="mb-2 text-4xl">⏳</div>
+          <div className="mb-2 flex justify-center text-warning">
+            <Icon name="HOURGLASS" size={36} />
+          </div>
           <p className="mx-0 mt-0 mb-1.5 text-[15px] font-semibold text-warning">AI is busy right now</p>
           <p className="mx-0 mt-0 mb-4 text-[12.5px] leading-[1.6] text-subtle">
             Our reader couldn't analyze your palm after several tries.
@@ -879,9 +905,17 @@ export default function PalmPage() {
               onClick={retry}
               disabled={cooldown > 0}
               fullWidth
-              className="disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {cooldown > 0 ? `🕒 Try Again in ${cooldown}s` : "🔄 Try Again with Same Photo"}
+              {cooldown > 0 ? (
+                <>
+                  <Icon name="CLOCK" size={16} /> Try Again in {cooldown}s
+                </>
+              ) : (
+                <>
+                  <Icon name="ROTATE" size={16} /> Try Again with Same Photo
+                </>
+              )}
             </Button>
           ) : (
             <Button
@@ -889,9 +923,15 @@ export default function PalmPage() {
               onClick={() => setOverloaded(false)}
               disabled={cooldown > 0}
               fullWidth
-              className="disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {cooldown > 0 ? `🕒 Wait ${cooldown}s` : "Upload a New Photo"}
+              {cooldown > 0 ? (
+                <>
+                  <Icon name="CLOCK" size={16} /> Wait {cooldown}s
+                </>
+              ) : (
+                "Upload a New Photo"
+              )}
             </Button>
           )}
         </Card>
@@ -900,7 +940,9 @@ export default function PalmPage() {
       {/* Past readings — appears above upload when there's history */}
       {!palm && !scanning && history.length > 0 && (
         <Card>
-          <p className="mx-0 mt-0 mb-1 text-sm font-semibold text-ink">📂 Your Past Readings</p>
+          <p className="mx-0 mt-0 mb-1 flex items-center gap-1.5 text-sm font-semibold text-ink">
+            <Icon name="FOLDER" size={15} /> Your Past Readings
+          </p>
           <p className="mx-0 mt-0 mb-3.5 text-[11px] text-muted">Tap to view — no AI re-run.</p>
           <div className="grid gap-2">
             {history.map((h) => {
@@ -923,8 +965,8 @@ export default function PalmPage() {
                     opacity: bad ? 0.6 : 1,
                   }}
                 >
-                  <span className="min-w-0 text-[13px] font-semibold">
-                    🖐️ {h.handType || "Unclear"} Hand
+                  <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold">
+                    <Icon name="HAND" size={14} className="shrink-0" /> {h.handType || "Unclear"} Hand
                     {bad && <span className="ml-2 text-[10px] text-danger">· unreadable</span>}
                   </span>
                   <span className="text-[11px] whitespace-nowrap text-muted">{when}</span>
@@ -940,8 +982,8 @@ export default function PalmPage() {
         <Card className="text-center" style={{ padding: "2rem 1.25rem" }}>
           {!preview && !scanning && (
             <>
-              <div className="astrology-icon" style={{ fontSize: 56, marginBottom: 12 }}>
-                🖐️
+              <div className="astrology-icon flex justify-center text-[#c084fc]" style={{ marginBottom: 12 }}>
+                <Icon name="HAND" size={56} />
               </div>
               <p className="mx-0 mt-0 mb-1.5 text-[15px] font-semibold text-ink">Scan Your Palm</p>
               <p className="mx-0 mt-0 mb-3 text-xs leading-[1.6] text-dim">
@@ -949,18 +991,18 @@ export default function PalmPage() {
               </p>
               {/* Cost reminder — palm reading is a charged AI action. */}
               <div className="mx-auto mb-4 inline-flex items-center gap-1.5 rounded-full border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] px-3 py-1 text-[11.5px] font-semibold text-[#c084fc]">
-                ✨ {palmCost} credits per reading
+                <Icon name="SPARKLES" size={13} /> {palmCost} credits per reading
               </div>
               {/* Best-results suggestion — prominent app nudge. The native app's
                   live camera capture produces a sharper scan than a web upload. */}
               <div className="mb-5 overflow-hidden rounded-[15px] border border-[rgba(129,140,248,0.45)] bg-[linear-gradient(135deg,rgba(99,102,241,0.20),rgba(168,85,247,0.12))] shadow-[0_0_26px_rgba(99,102,241,0.18)]">
                 <div className="flex items-center gap-3.5 px-4 py-3.5 text-left">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[rgba(99,102,241,0.28)] text-[22px] shadow-[0_0_14px_rgba(99,102,241,0.3)]">
-                    {EMOJIS.MOBILE}
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[rgba(99,102,241,0.28)] text-[#a5b4fc] shadow-[0_0_14px_rgba(99,102,241,0.3)]">
+                    <Icon name="MOBILE" size={22} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="m-0 flex items-center gap-1.5 text-[13px] font-bold text-ink">
-                      {EMOJIS.SPARKLES} Best results: scan in our app
+                      <Icon name="SPARKLES" size={13} /> Best results: scan in our app
                     </p>
                     <p className="mx-0 mt-0.5 mb-0 text-[11.5px] leading-[1.5] text-subtle">
                       Capture your palm <strong className="text-[#c7d2fe]">live with the camera</strong> for a
@@ -972,13 +1014,13 @@ export default function PalmPage() {
               {/* Visual guide tips for a better scan */}
               <div className="mb-5 grid grid-cols-2 gap-2 text-left">
                 {[
-                  { icon: EMOJIS.LIGHT_BULB, text: "Bright, even light" },
-                  { icon: EMOJIS.HAND_OPEN, text: "Spread fingers" },
-                  { icon: EMOJIS.RULER, text: "Fill the frame" },
-                  { icon: EMOJIS.SPARKLES, text: "Sharp & focused" },
+                  { icon: "LIGHT_BULB", text: "Bright, even light" },
+                  { icon: "HAND", text: "Spread fingers" },
+                  { icon: "RULER", text: "Fill the frame" },
+                  { icon: "SPARKLES", text: "Sharp & focused" },
                 ].map((tip, i) => (
                   <div key={i} className="flex items-center gap-2 rounded-lg bg-white/3 px-2.5 py-2">
-                    <span className="text-sm">{tip.icon}</span>
+                    <Icon name={tip.icon} size={14} className="shrink-0 text-[#c084fc]" />
                     <span className="text-[10.5px] font-medium text-dim">{tip.text}</span>
                   </div>
                 ))}
@@ -987,8 +1029,8 @@ export default function PalmPage() {
               {/* Hand-pick buttons with hover scale for delight */}
               <div className="grid gap-2.5">
                 {[
-                  { side: "Right", icon: EMOJIS.HAND, label: "Right Hand" },
-                  { side: "Left", icon: EMOJIS.HAND_LEFT, label: "Left Hand" },
+                  { side: "Right", icon: "HAND", label: "Right Hand" },
+                  { side: "Left", icon: "HAND", label: "Left Hand" },
                 ].map((h) => (
                   <button
                     key={h.side}
@@ -1000,8 +1042,8 @@ export default function PalmPage() {
                       opacity: gating || cannotAfford ? 0.5 : 1,
                     }}
                   >
-                    <span className="w-8 text-center text-[26px] transition-transform group-hover:scale-110">
-                      {h.icon}
+                    <span className="grid w-8 place-items-center text-[#c084fc] transition-transform group-hover:scale-110">
+                      <Icon name={h.icon} size={26} />
                     </span>
                     <span className="flex-1">
                       <strong className="block text-sm">{h.label}</strong>
@@ -1011,8 +1053,8 @@ export default function PalmPage() {
                           : `Upload a clear photo of your ${h.side.toLowerCase()} palm`}
                       </span>
                     </span>
-                    <span className="text-[22px] text-[#a855f7] transition-transform group-hover:translate-x-1">
-                      ›
+                    <span className="grid place-items-center text-[#a855f7] transition-transform group-hover:translate-x-1">
+                      <Icon name="CHEVRON_RIGHT" size={22} />
                     </span>
                   </button>
                 ))}
@@ -1031,9 +1073,10 @@ export default function PalmPage() {
               <button
                 onClick={() => navigate("/palm-compare")}
                 disabled={cannotAfford}
-                className="mt-3.5 w-full cursor-pointer rounded-[10px] border border-[rgba(192,132,252,0.4)] bg-[linear-gradient(135deg,rgba(168,85,247,0.10),rgba(99,102,241,0.10))] px-3 py-2.5 text-[12.5px] font-semibold text-[#c4b5fd] disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-3.5 inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border border-[rgba(192,132,252,0.4)] bg-[linear-gradient(135deg,rgba(168,85,247,0.10),rgba(99,102,241,0.10))] px-3 py-2.5 text-[12.5px] font-semibold text-[#c4b5fd] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                ✋🤚 Compare Both Hands · Full Life Reading · {palmCost} Credits →
+                <Icon name="HANDS" size={15} className="shrink-0" /> Compare Both Hands · Full Life Reading ·{" "}
+                {palmCost} Credits →
               </button>
 
               {gating && <p className="mx-0 mt-3 mb-0 text-center text-[13px] text-dim">Reading photo…</p>}
@@ -1050,7 +1093,7 @@ export default function PalmPage() {
             <>
               {claimedHand && (
                 <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-[rgba(168,85,247,0.5)] bg-[rgba(168,85,247,0.12)] px-3.5 py-1.5 text-xs font-bold tracking-[1.5px] text-[#c4b5fd] uppercase">
-                  <span className="text-sm">{claimedHand === "Right" ? "✋" : "🤚"}</span>
+                  <Icon name="HAND" size={14} />
                   {claimedHand} Hand
                 </div>
               )}
@@ -1089,7 +1132,7 @@ export default function PalmPage() {
             <Card className="text-center" style={{ padding: 14 }}>
               {palm.handType && palm.handType !== "Unclear" && (
                 <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-[rgba(168,85,247,0.5)] bg-[rgba(168,85,247,0.12)] px-3.5 py-1.5 text-xs font-bold tracking-[1.5px] text-[#c4b5fd] uppercase">
-                  <span className="text-sm">{palm.handType === "Right" ? "✋" : "🤚"}</span>
+                  <Icon name="HAND" size={14} />
                   {palm.handType} Hand
                 </div>
               )}
@@ -1127,7 +1170,9 @@ export default function PalmPage() {
                     background: "rgba(30,20,45,0.4)",
                   }}
                 >
-                  <p className="mx-0 mt-0 mb-1 text-[13px] font-bold text-[#c084fc]">📏 Palmistry Math</p>
+                  <p className="mx-0 mt-0 mb-1 flex items-center gap-1.5 text-[13px] font-bold text-[#c084fc]">
+                    <Icon name="RULER" size={13} /> Palmistry Math
+                  </p>
                   <p className="mx-0 mt-0 mb-3 text-[11px] text-muted">
                     Measured from 21 hand landmarks — the geometry behind your reading
                   </p>
@@ -1147,18 +1192,18 @@ export default function PalmPage() {
 
           <div className="grid gap-4">
             {[
-              ["Life Line", "🌿", palm.lifeLine],
-              ["Head Line", "🧠", palm.headLine],
-              ["Heart Line", "💛", palm.heartLine],
-              ["Fate Line", "🪐", palm.fateLine],
-              ["Mount of Venus", "✨", palm.mountOfVenus],
-              ["Marriage Lines", "💍", palm.marriageLines],
+              ["Life Line", "LEAF", palm.lifeLine],
+              ["Head Line", "BRAIN", palm.headLine],
+              ["Heart Line", "HEART", palm.heartLine],
+              ["Fate Line", "SATURN", palm.fateLine],
+              ["Mount of Venus", "SPARKLES", palm.mountOfVenus],
+              ["Marriage Lines", "RING", palm.marriageLines],
             ].map(
               ([title, icon, content]) =>
                 content && (
                   <Card key={title} style={{ margin: 0 }}>
                     <div className="mb-2.5 flex items-center gap-2.5">
-                      <span className="text-[22px]">{icon}</span>
+                      <Icon name={icon} size={22} className="text-[#c084fc]" />
                       <p className={LINE_TITLE}>{title}</p>
                     </div>
                     <p className="m-0 text-[13px] leading-[1.7] text-dim">{content}</p>
@@ -1176,10 +1221,12 @@ export default function PalmPage() {
                   background: "rgba(20, 30, 20, 0.4)",
                 }}
               >
-                <p className="mb-3.5 text-[15px] font-bold text-[#4ade80]">✦ Strengths</p>
+                <p className="mb-3.5 flex items-center gap-1.5 text-[15px] font-bold text-[#4ade80]">
+                  <Icon name="SPARKLES" size={15} /> Strengths
+                </p>
                 {palm.strengths.map((s, i) => (
                   <div key={i} className={BULLET_ROW}>
-                    <span className="font-bold text-[#4ade80]">✓</span>
+                    <Icon name="CHECK" size={14} className="shrink-0 text-[#4ade80]" />
                     <span>{s}</span>
                   </div>
                 ))}
@@ -1193,10 +1240,12 @@ export default function PalmPage() {
                   background: "rgba(30, 25, 20, 0.4)",
                 }}
               >
-                <p className="mb-3.5 text-[15px] font-bold text-warning">✦ Watch For</p>
+                <p className="mb-3.5 flex items-center gap-1.5 text-[15px] font-bold text-warning">
+                  <Icon name="SPARKLES" size={15} /> Watch For
+                </p>
                 {palm.watchOuts.map((c, i) => (
                   <div key={i} className={BULLET_ROW}>
-                    <span className="font-bold text-warning">↑</span>
+                    <Icon name="ARROW_UP" size={14} className="shrink-0 text-warning" />
                     <span>{c}</span>
                   </div>
                 ))}
@@ -1206,7 +1255,9 @@ export default function PalmPage() {
 
           {palm.practicalGuidance && (palm.practicalGuidance.career || palm.practicalGuidance.love) && (
             <Card style={{ borderColor: "rgba(168,85,247,0.25)", background: "rgba(30,20,45,0.5)" }}>
-              <p className="mx-0 mt-0 mb-1 text-[15px] font-bold text-[#c084fc]">🎯 Practical Guidance</p>
+              <p className="mx-0 mt-0 mb-1 flex items-center gap-1.5 text-[15px] font-bold text-[#c084fc]">
+                <Icon name="TARGET" size={15} /> Practical Guidance
+              </p>
               <p className="mx-0 mt-0 mb-3.5 text-[11px] text-muted">
                 Concrete next steps from your Fate and Heart lines
               </p>
@@ -1233,8 +1284,8 @@ export default function PalmPage() {
 
           {palm.palmistryNotes?.length > 0 && (
             <Card style={{ borderColor: "rgba(99,102,241,0.25)", background: "rgba(20,22,40,0.5)" }}>
-              <p className="mx-0 mt-0 mb-1 text-[15px] font-bold text-[#a5b4fc]">
-                📜 Classical Palmistry Notes
+              <p className="mx-0 mt-0 mb-1 flex items-center gap-1.5 text-[15px] font-bold text-[#a5b4fc]">
+                <Icon name="FOLDER" size={15} /> Classical Palmistry Notes
               </p>
               <p className="mx-0 mt-0 mb-3.5 text-[11px] text-muted">
                 Traditional rules cross-checked against your reading
@@ -1245,7 +1296,7 @@ export default function PalmPage() {
                     key={i}
                     className="flex gap-2.5 rounded-lg border-l-[3px] border-accent bg-white/3 px-3 py-2 text-[13px] leading-[1.55] text-subtle"
                   >
-                    <span className="font-bold text-[#a5b4fc]">✓</span>
+                    <Icon name="CHECK" size={14} className="shrink-0 text-[#a5b4fc]" />
                     <span>{n}</span>
                   </div>
                 ))}
@@ -1255,9 +1306,9 @@ export default function PalmPage() {
 
           <button
             onClick={reset}
-            className="w-full cursor-pointer rounded-[10px] border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] p-3 text-[13px] font-semibold text-[#c084fc]"
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border border-[rgba(168,85,247,0.4)] bg-[rgba(168,85,247,0.12)] p-3 text-[13px] font-semibold text-[#c084fc]"
           >
-            🔄 Scan a Different Palm
+            <Icon name="ROTATE" size={14} /> Scan a Different Palm
           </button>
 
           <p className={DISCLAIMER}>
@@ -1285,17 +1336,24 @@ export default function PalmPage() {
                   <img src={preview} alt="uploaded palm" className="block h-full w-full object-cover" />
                 </div>
               )}
-              <div className="mb-3 text-[44px]">{info.icon}</div>
+              <div className="mb-3 flex justify-center text-warning">
+                <Icon name={info.icon} size={44} />
+              </div>
               <p className="mx-0 mt-0 mb-2 text-base font-bold text-warning">{info.title}</p>
               <p className="mx-0 mt-0 mb-1.5 text-[13.5px] leading-[1.65] text-subtle">{info.tip}</p>
               {palm.retakeReason && (
                 <p className="mx-0 mt-0 mb-4 text-xs leading-[1.6] text-muted italic">{palm.retakeReason}</p>
               )}
               <div className="mx-auto mb-4.5 inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-3 py-1 text-[11px] font-bold text-warning uppercase tracking-wider">
-                🛡️ No credits spent
+                <Icon name="SHIELD" size={12} /> No credits spent
               </div>
-              <Button variant="magic" onClick={reset} fullWidth>
-                📷 Try a Clearer Photo
+              <Button
+                variant="magic"
+                onClick={reset}
+                fullWidth
+                className="inline-flex items-center justify-center gap-2"
+              >
+                <Icon name="CAMERA" size={16} /> Try a Clearer Photo
               </Button>
             </Card>
           );

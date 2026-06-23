@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCredits } from "./useCredits";
 import { getCredits } from "@/services/api";
+import { Icon } from "@/utils/icons";
 
 // Low-balance threshold — mirrors the priciest single action (insights/palm),
 // below which the user can't afford every feature.
@@ -13,7 +14,7 @@ const LOW = 20;
 // Login is pre-auth; admin has its own chrome.
 const isHidden = (path) => path === "/" || path.startsWith("/login") || path.startsWith("/admin");
 
-// Floating "✨ credits" badge. Hidden on the home/form + auth screens; on the
+// Floating "sparkle credits" badge. Hidden on the home/form + auth screens; on the
 // reading/chat/palm/credits pages it fetches the balance once on entry and then
 // re-renders live as AI actions update the shared store.
 export default function CreditBadge() {
@@ -41,7 +42,7 @@ export default function CreditBadge() {
       }`}
       title={low ? "Low balance — tap to buy credits" : "Cosmic Credits — tap to buy more"}
     >
-      <span>✨</span>
+      <Icon name="SPARKLES" size={14} />
       <span>{credits}</span>
       {low && <span className="text-[10px] font-semibold tracking-wide uppercase opacity-90">Low</span>}
     </button>

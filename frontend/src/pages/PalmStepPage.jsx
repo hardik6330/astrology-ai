@@ -11,7 +11,7 @@ import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 import Card from "@/common/Card";
 import PalmSkeletonOverlay from "../components/PalmSkeletonOverlay";
 import PalmGateChecklist from "../components/PalmGateChecklist";
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 
 // Mobile browsers can populate <input type=file capture="environment"> with
 // the camera directly. Desktop/laptop browsers ignore `capture` and always
@@ -84,7 +84,7 @@ export default function PalmStepPage() {
   const [confidence, setConfidence] = useState(null); // 0-100 photo-quality score
   const [landmarks, setLandmarks] = useState(null); // { keypoints, imgW, imgH }
   const [analyzing, setAnalyzing] = useState(false);
-  const [rejected, setRejected] = useState(false); // gate failed → show ✗ + retry
+  const [rejected, setRejected] = useState(false); // gate failed → show cross + retry
 
   // Pre-load the MediaPipe model in the background while the user is
   // still choosing a hand — so the first File they pick gets gated
@@ -211,7 +211,7 @@ export default function PalmStepPage() {
         <Card className="text-center">
           {claimedHand && (
             <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-[rgba(168,85,247,0.5)] bg-[rgba(168,85,247,0.12)] px-3.5 py-1.5 text-xs font-bold tracking-[1.5px] text-[#c4b5fd] uppercase">
-              <span className="text-sm">{claimedHand === "Right" ? "✋" : "🤚"}</span>
+              <Icon name="HAND" size={14} />
               {claimedHand} Hand
             </div>
           )}
@@ -232,7 +232,9 @@ export default function PalmStepPage() {
             <div className="mt-4 grid gap-2">
               <p className="m-0 text-[13px] text-danger">{error}</p>
               <button type="button" onClick={resetToIdle} className={CARD_BTN}>
-                <span className="w-9 text-center text-[24px]">{EMOJIS.CAMERA}</span>
+                <span className="grid w-9 place-items-center">
+                  <Icon name="CAMERA" size={24} />
+                </span>
                 <span className="flex-1">
                   <strong className="block text-[15px]">Choose a different photo</strong>
                 </span>
@@ -248,7 +250,9 @@ export default function PalmStepPage() {
         <>
           {/* cosmic-card bottom margin (unlayered) overridden inline. */}
           <Card className="text-center" style={{ marginBottom: "1.5rem" }}>
-            <h2 className="m-0 mb-2 text-2xl font-bold">{EMOJIS.HAND} Add a Palm Reading?</h2>
+            <h2 className="m-0 mb-2 inline-flex items-center justify-center gap-2 text-2xl font-bold">
+              <Icon name="HAND" size={24} /> Add a Palm Reading?
+            </h2>
             <p className="m-0 text-[13px] leading-normal text-dim">
               Optional — we'll analyze your palm while your kundali is being built.
             </p>
@@ -256,14 +260,18 @@ export default function PalmStepPage() {
 
           <Card className="grid gap-3">
             <button type="button" onClick={() => onHandTap("Right")} disabled={busy} className={CARD_BTN}>
-              <span className="w-9 text-center text-[28px]">{EMOJIS.HAND}</span>
+              <span className="grid w-9 place-items-center text-[#a855f7]">
+                <Icon name="HAND" size={28} />
+              </span>
               <span className="flex-1">
                 <strong className="block text-[15px]">Right Hand</strong>
                 <span className="text-xs text-dim">
                   {isMobile ? "Take a photo or pick from gallery" : "Upload a clear photo of your right palm"}
                 </span>
               </span>
-              <span className="text-[22px] text-[#a855f7]">{EMOJIS.CHEVRON_RIGHT}</span>
+              <span className="grid place-items-center text-[#a855f7]">
+                <Icon name="CHEVRON_RIGHT" size={22} />
+              </span>
             </button>
 
             <button
@@ -272,25 +280,33 @@ export default function PalmStepPage() {
               disabled={busy}
               className={COMPARE_BTN}
             >
-              <span className="w-9 text-center text-[28px]">✋🤚</span>
+              <span className="grid w-9 place-items-center text-[#c084fc]">
+                <Icon name="HANDS" size={28} />
+              </span>
               <span className="flex-1">
                 <strong className="block text-[15px]">Both Hands · Full Life Comparison</strong>
                 <span className="text-xs text-[#c4b5fd]">
                   Compare your inborn potential against your current reality
                 </span>
               </span>
-              <span className="text-[22px] text-[#c084fc]">›</span>
+              <span className="grid place-items-center text-[#c084fc]">
+                <Icon name="CHEVRON_RIGHT" size={22} />
+              </span>
             </button>
 
             <button type="button" onClick={() => onHandTap("Left")} disabled={busy} className={CARD_BTN}>
-              <span className="w-9 text-center text-[28px]">{EMOJIS.HAND}</span>
+              <span className="grid w-9 place-items-center text-[#a855f7]">
+                <Icon name="HAND" size={28} />
+              </span>
               <span className="flex-1">
                 <strong className="block text-[15px]">Left Hand</strong>
                 <span className="text-xs text-dim">
                   {isMobile ? "Take a photo or pick from gallery" : "Upload a clear photo of your left palm"}
                 </span>
               </span>
-              <span className="text-[22px] text-[#a855f7]">{EMOJIS.CHEVRON_RIGHT}</span>
+              <span className="grid place-items-center text-[#a855f7]">
+                <Icon name="CHEVRON_RIGHT" size={22} />
+              </span>
             </button>
 
             <button type="button" onClick={goToReading} disabled={busy} className={SKIP_BTN}>
@@ -339,14 +355,18 @@ export default function PalmStepPage() {
               How would you like to add the photo?
             </p>
             <button type="button" onClick={openCamera} className={CARD_BTN}>
-              <span className="w-9 text-center text-[26px]">📷</span>
+              <span className="grid w-9 place-items-center">
+                <Icon name="CAMERA" size={26} />
+              </span>
               <span className="flex-1">
                 <strong className="block text-[15px]">Take a Photo</strong>
                 <span className="text-xs text-dim">Use your camera</span>
               </span>
             </button>
             <button type="button" onClick={openGallery} className={CARD_BTN}>
-              <span className="w-9 text-center text-[26px]">🖼️</span>
+              <span className="grid w-9 place-items-center">
+                <Icon name="GALLERY" size={26} />
+              </span>
               <span className="flex-1">
                 <strong className="block text-[15px]">Choose from Gallery</strong>
                 <span className="text-xs text-dim">Pick an existing photo</span>

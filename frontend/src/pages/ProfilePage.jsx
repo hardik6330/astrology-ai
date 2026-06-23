@@ -3,7 +3,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { useChart } from "../context/ChartContext";
 import BottomNav from "../components/BottomNav";
 import Card from "@/common/Card";
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 import { useCredits } from "@/common/useCredits";
 import { useEffect, useState } from "react";
 import { getCredits } from "@/services/api";
@@ -59,7 +59,13 @@ export default function ProfilePage() {
           {initial}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="m-0 text-[17px] font-bold text-ink">{form?.name || `Welcome ${EMOJIS.SPARKLES}`}</p>
+          <p className="m-0 inline-flex items-center gap-1.5 text-[17px] font-bold text-ink">
+            {form?.name || (
+              <>
+                Welcome <Icon name="SPARKLES" size={16} className="text-[#c084fc]" />
+              </>
+            )}
+          </p>
           <p className="mt-1 mb-0 text-xs text-dim">{account?.phone ? account.phone : "Not signed in"}</p>
         </div>
       </Card>
@@ -68,7 +74,9 @@ export default function ProfilePage() {
       <Card className="flex items-center justify-between" style={{ marginBottom: 16, padding: "16px 20px" }}>
         <div className="flex flex-col">
           <span className="text-[12px] font-medium uppercase tracking-wider text-dim">Cosmic Credits</span>
-          <span className="mt-0.5 text-xl font-bold text-[#c084fc]">✨ {credits ?? "—"}</span>
+          <span className="mt-0.5 inline-flex items-center gap-1.5 text-xl font-bold text-[#c084fc]">
+            <Icon name="SPARKLES" size={18} className="text-[#c084fc]" /> {credits ?? "—"}
+          </span>
         </div>
         <button
           onClick={() => navigate("/credits")}
@@ -96,13 +104,17 @@ export default function ProfilePage() {
             setConfirm({
               title: "Update birth details?",
               message: "This recalculates your chart, readings and daily guidance from the new details.",
-              confirmLabel: `${EMOJIS.EDIT} Continue`,
+              confirmLabel: (
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="EDIT" size={14} /> Continue
+                </span>
+              ),
               onConfirm: () => navigate("/", { state: { edit: true } }),
             })
           }
-          className={ghostBtn}
+          className={`${ghostBtn} inline-flex items-center justify-center gap-1.5`}
         >
-          {EMOJIS.EDIT} Update Birth Details
+          <Icon name="EDIT" size={14} /> Update Birth Details
         </button>
         <button
           type="button"
@@ -110,14 +122,18 @@ export default function ProfilePage() {
             setConfirm({
               title: "Log out?",
               message: "You'll need to sign in again with your phone number to access your readings.",
-              confirmLabel: `${EMOJIS.LOGOUT} Log out`,
+              confirmLabel: (
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="LOGOUT" size={14} /> Log out
+                </span>
+              ),
               danger: true,
               onConfirm: handleLogout,
             })
           }
-          className={logoutBtn}
+          className={`${logoutBtn} inline-flex items-center justify-center gap-1.5`}
         >
-          {EMOJIS.LOGOUT} Log out
+          <Icon name="LOGOUT" size={14} /> Log out
         </button>
       </Card>
 

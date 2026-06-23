@@ -8,7 +8,7 @@ import { useCosts } from "@/common/useCosts";
 import { useCredits } from "@/common/useCredits";
 import LowCreditsCard from "@/common/LowCreditsCard";
 
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 
 const SUGGESTIONS = [
   "When will I marry?",
@@ -79,7 +79,7 @@ export default function ChatPage() {
   // Shown as the first astrologer message before any conversation starts
   // (display-only — not stored in the database).
   const welcomeMsg =
-    `Namaste ${form.name || "there"} ${EMOJIS.NAMASTE} I'm your personal Vedic astrologer. ` +
+    `Namaste ${form.name || "there"}. I'm your personal Vedic astrologer. ` +
     `Ask me anything about your life — career, marriage, money, health, timing — and ` +
     `I'll answer from your birth chart. What would you like to know?`;
 
@@ -162,8 +162,8 @@ export default function ChatPage() {
         <div className="shrink-0">
           {/* cosmic-card padding/margin overridden inline (unlayered). */}
           <Card className="text-center" style={{ marginBottom: 12, padding: "1rem" }}>
-            <h2 className="m-0 mb-1 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-[22px] font-bold text-transparent">
-              {EMOJIS.CHAT} Ask About Your Birth Chart
+            <h2 className="m-0 mb-1 inline-flex items-center justify-center gap-2 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-[22px] font-bold text-transparent">
+              <Icon name="CHAT" size={20} className="text-[#a855f7]" /> Ask About Your Birth Chart
             </h2>
             <p className="m-0 text-xs text-[#aaa]">
               {form.name ? `${form.name}'s chart` : "Your chart"} · answered from your birth chart only
@@ -187,7 +187,11 @@ export default function ChatPage() {
                   borderColor: isUser ? "rgba(99,102,241,0.5)" : "rgba(168,85,247,0.45)",
                 }}
               >
-                {isUser ? EMOJIS.PERSON : EMOJIS.CRYSTAL_BALL}
+                {isUser ? (
+                  <Icon name="USER" size={16} className="text-[#a5b4fc]" />
+                ) : (
+                  <Icon name="CRYSTAL_BALL" size={16} className="text-[#c084fc]" />
+                )}
               </div>
             );
             return (
@@ -228,8 +232,8 @@ export default function ChatPage() {
               <LowCreditsCard cost={chatCost} action="Each chat message" />
             </div>
           )}
-          <p className="mx-1 mb-1.5 text-center text-[10.5px] text-muted">
-            {EMOJIS.SPARKLES} {chatCost} credits per message
+          <p className="mx-1 mb-1.5 inline-flex w-full items-center justify-center gap-1 text-center text-[10.5px] text-muted">
+            <Icon name="SPARKLES" size={11} className="text-muted" /> {chatCost} credits per message
           </p>
           <form onSubmit={askChat} className="flex gap-2">
             <input

@@ -4,7 +4,7 @@ import KundaliChart from "@/features/kundali/KundaliChart";
 import DoshaCard from "@/features/kundali/DoshaCard";
 import PanchangCard from "@/features/kundali/PanchangCard";
 import Card from "@/common/Card";
-import { EMOJIS } from "@/utils/emojis";
+import { Icon, AstroGlyph } from "@/utils/icons";
 import { STRINGS } from "@/shared/uiStrings";
 import DailyInsightsCard from "./DailyInsightsCard";
 
@@ -21,23 +21,25 @@ export default function KundaliTab({ chart, form, onError }) {
     <>
       <div className="grid-3" style={{ marginBottom: 20 }}>
         {[
-          [STRINGS.LABELS.SUN_SIGN, sunV, EMOJIS.SUN],
-          [STRINGS.LABELS.MOON_SIGN, moonV, EMOJIS.MOON],
-          [STRINGS.LABELS.ASCENDANT, ascV, EMOJIS.ARROW_UP],
+          [STRINGS.LABELS.SUN_SIGN, sunV, "SUN"],
+          [STRINGS.LABELS.MOON_SIGN, moonV, "MOON"],
+          [STRINGS.LABELS.ASCENDANT, ascV, "ARROW_UP"],
         ].map(([l, v, ic]) => (
           <div key={l} className="big-three-card">
-            <span className="astrology-icon">{ic}</span>
+            <span className="astrology-icon">
+              <Icon name={ic} size={22} />
+            </span>
             <p className="m-0 mb-1 text-[11px] text-[#888] uppercase">{l}</p>
             <p className="m-0 text-[15px] font-bold text-ink">
-              {ZE[v] || ""} {v}
+              {v ? <AstroGlyph symbol={ZE[v]} size={15} className="align-middle" /> : ""} {v}
             </p>
           </div>
         ))}
       </div>
 
       <Card className="text-center" style={{ padding: "12px" }}>
-        <p className="m-0 text-[13px] font-medium text-warning">
-          {EMOJIS.MOON} {STRINGS.LABELS.BIRTH_STAR}:{" "}
+        <p className="m-0 inline-flex items-center gap-1.5 text-[13px] font-medium text-warning">
+          <Icon name="MOON" size={14} /> {STRINGS.LABELS.BIRTH_STAR}:{" "}
           <span className="text-[15px] font-bold">{chart.nakshatra}</span>
         </p>
       </Card>

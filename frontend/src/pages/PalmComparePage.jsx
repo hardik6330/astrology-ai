@@ -11,7 +11,7 @@ import { useComparePalms } from "@/features/palm/hooks";
 import { gatePalmImage, warmUpGate } from "../utils/palmGate";
 import Card from "@/common/Card";
 import Button from "@/common/Button";
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 
 function isMobileDevice() {
   if (typeof navigator === "undefined") return false;
@@ -167,14 +167,16 @@ export default function PalmComparePage() {
       <button
         type="button"
         onClick={() => navigate("/palm-step")}
-        className="mb-4 cursor-pointer rounded-lg border border-[rgba(99,102,241,0.4)] bg-[rgba(99,102,241,0.1)] px-4 py-2 text-xs text-[#a5b4fc]"
+        className="mb-4 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[rgba(99,102,241,0.4)] bg-[rgba(99,102,241,0.1)] px-4 py-2 text-xs text-[#a5b4fc]"
       >
-        {EMOJIS.LEFT_ARROW} Back
+        <Icon name="LEFT_ARROW" size={14} /> Back
       </button>
 
       {/* cosmic-card bottom margin (unlayered) overridden inline. */}
       <Card className="text-center" style={{ marginBottom: "1.5rem" }}>
-        <h2 className="m-0 mb-2 text-2xl font-bold">{EMOJIS.HANDS} Full Life Comparison</h2>
+        <h2 className="m-0 mb-2 inline-flex items-center justify-center gap-2 text-2xl font-bold">
+          <Icon name="HANDS" size={24} /> Full Life Comparison
+        </h2>
         <p className="m-0 text-[13px] leading-[1.6] text-dim">
           Compare your left palm (the potential you were born with) against your right palm (how your choices
           have reshaped it). We'll read the gap between them.
@@ -189,7 +191,9 @@ export default function PalmComparePage() {
               <img src={left} alt="left palm" className="block h-full w-full object-cover" />
             </div>
           ) : (
-            <span className="w-9 text-center text-[28px]">{EMOJIS.HAND_LEFT}</span>
+            <span className="grid w-9 place-items-center text-[#a855f7]">
+              <Icon name="HAND" size={28} />
+            </span>
           )}
           <span className="flex-1">
             <strong className="block text-[15px]">Step 1 · Left Hand</strong>
@@ -197,7 +201,9 @@ export default function PalmComparePage() {
               Potential — what you were born with{left ? " (tap to replace)" : ""}
             </span>
           </span>
-          <span className="text-[22px] text-[#a855f7]">{left ? "✓" : EMOJIS.CHEVRON_RIGHT}</span>
+          <span className="grid place-items-center text-[#a855f7]">
+            <Icon name={left ? "CHECK" : "CHEVRON_RIGHT"} size={22} />
+          </span>
         </button>
 
         {/* RIGHT */}
@@ -214,7 +220,9 @@ export default function PalmComparePage() {
               <img src={right} alt="right palm" className="block h-full w-full object-cover" />
             </div>
           ) : (
-            <span className="w-9 text-center text-[28px]">{EMOJIS.HAND}</span>
+            <span className="grid w-9 place-items-center text-[#a855f7]">
+              <Icon name="HAND" size={28} />
+            </span>
           )}
           <span className="flex-1">
             <strong className="block text-[15px]">Step 2 · Right Hand</strong>
@@ -222,7 +230,9 @@ export default function PalmComparePage() {
               Reality — what you've shaped through choices{right ? " (tap to replace)" : ""}
             </span>
           </span>
-          <span className="text-[22px] text-[#a855f7]">{right ? "✓" : EMOJIS.CHEVRON_RIGHT}</span>
+          <span className="grid place-items-center text-[#a855f7]">
+            <Icon name={right ? "CHECK" : "CHEVRON_RIGHT"} size={22} />
+          </span>
         </button>
 
         <Button
@@ -231,9 +241,9 @@ export default function PalmComparePage() {
           onClick={submit}
           disabled={!ready}
           fullWidth
-          className="disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {EMOJIS.SPARKLES} Read the Evolution
+          <Icon name="SPARKLES" size={16} /> Read the Evolution
         </Button>
 
         <button type="button" onClick={() => navigate("/reading")} className={GHOST_BTN}>
@@ -272,14 +282,18 @@ export default function PalmComparePage() {
               How would you like to add the photo?
             </p>
             <button type="button" onClick={openCamera} className={CARD_BTN}>
-              <span className="w-9 text-center text-[26px]">{EMOJIS.CAMERA}</span>
+              <span className="grid w-9 place-items-center">
+                <Icon name="CAMERA" size={26} />
+              </span>
               <span className="flex-1">
                 <strong className="block text-[15px]">Take a Photo</strong>
                 <span className="text-xs text-dim">Use your camera</span>
               </span>
             </button>
             <button type="button" onClick={openGallery} className={CARD_BTN}>
-              <span className="w-9 text-center text-[26px]">{EMOJIS.GALLERY}</span>
+              <span className="grid w-9 place-items-center">
+                <Icon name="GALLERY" size={26} />
+              </span>
               <span className="flex-1">
                 <strong className="block text-[15px]">Choose from Gallery</strong>
                 <span className="text-xs text-dim">Pick an existing photo</span>

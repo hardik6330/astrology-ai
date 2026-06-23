@@ -56,7 +56,7 @@ export default function AdminPush() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={120}
-          placeholder="✨ A message from the stars"
+          placeholder="A message from the stars"
           disabled={busy}
         />
 

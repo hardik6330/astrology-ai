@@ -1,10 +1,13 @@
 // Live gate diagnostic panel shown under the palm photo while it's analyzed.
 // Renders each gate check (from gatePalmImage's `checks` array) as a pill with
-// its measured value + a ✓ / ✗, revealed one-by-one. When `analyzing` is true,
-// a final spinner row ("Analyzing palm lines with AI…") sits below the checks.
+// its measured value + a check / cross icon, revealed one-by-one. When
+// `analyzing` is true, a final spinner row ("Analyzing palm lines with AI…")
+// sits below the checks.
 //
 // checks = [{ key, ok, label }]  — label already carries the value, e.g.
 //   "Lighting OK (150 / 255)", "Palm lines visible (edge score 182)".
+
+import { Icon } from "@/utils/icons";
 
 function CheckRow({ check, index }) {
   const tone = check.ok
@@ -15,7 +18,7 @@ function CheckRow({ check, index }) {
       className={`flex items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-[13px] font-medium ${tone}`}
       style={{ animation: "checkIn 0.32s ease-out both", animationDelay: `${index * 160}ms` }}
     >
-      <span className="text-sm leading-none">{check.ok ? "✓" : "✗"}</span>
+      <Icon name={check.ok ? "CHECK" : "CROSS"} size={14} className="shrink-0" />
       <span>{check.label}</span>
     </div>
   );

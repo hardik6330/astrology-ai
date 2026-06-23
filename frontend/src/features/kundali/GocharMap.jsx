@@ -4,6 +4,13 @@ import Card from "@/common/Card";
 import { SIGNS, ZE, nm } from "@/shared/astrology";
 import { STRINGS } from "@/shared/uiStrings";
 import { useAuth } from "@/features/auth/AuthContext";
+import { AstroGlyph } from "@/utils/icons";
+
+// SVG <text> can't host the <span>-based <AstroGlyph>, so glyphs drawn inside the
+// wheel get U+FE0E appended directly — same effect: forces the monochrome text
+// presentation instead of a color-emoji rendering.
+const VS_TEXT = String.fromCharCode(0xfe0e);
+const svgGlyph = (s) => (s ? s + VS_TEXT : s);
 
 // Bi-Wheel Chart (Birth vs Live Sky) — web twin of mobile GocharMap.js.
 // A sidereal zodiac wheel with TWO planet rings over the same signs:
@@ -169,7 +176,7 @@ export default function GocharMap({ chart }) {
                   fontWeight={900}
                   opacity={isLagnaSign ? 0.85 : 0.4}
                 >
-                  {ZE[sign]}
+                  {svgGlyph(ZE[sign])}
                 </text>
               </g>
             );
@@ -238,7 +245,7 @@ export default function GocharMap({ chart }) {
                   fill="#0b0a1f"
                   textAnchor="middle"
                 >
-                  {GLYPH[p.name] || p.name[0]}
+                  {svgGlyph(GLYPH[p.name]) || p.name[0]}
                 </text>
               </g>
             );
@@ -261,7 +268,7 @@ export default function GocharMap({ chart }) {
                 </circle>
                 <circle cx={pt.x} cy={pt.y} r={11} fill={C.bg} stroke={tint} strokeWidth={1.5} />
                 <text x={pt.x} y={pt.y + 5} fontSize="13" fontWeight="700" fill={tint} textAnchor="middle">
-                  {GLYPH[p.name] || p.name[0]}
+                  {svgGlyph(GLYPH[p.name]) || p.name[0]}
                 </text>
               </g>
             );
@@ -352,11 +359,13 @@ export default function GocharMap({ chart }) {
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
                 <span style={{ flex: 1, fontSize: 12.5, lineHeight: 1.5 }}>
                   <span style={{ color: C.warning, fontWeight: 800 }}>
-                    {GLYPH[t.name]} {STRINGS.CHART.TRANSIT_LABEL}ing {t.name}
+                    <AstroGlyph symbol={GLYPH[t.name]} size={12.5} style={{ verticalAlign: "middle" }} />{" "}
+                    {STRINGS.CHART.TRANSIT_LABEL}ing {t.name}
                   </span>
                   {"  ≈  "}
                   <span style={{ color: C.textBody, fontWeight: 700 }}>
-                    {GLYPH[n.name]} {STRINGS.CHART.NATAL_LABEL} {n.name}
+                    <AstroGlyph symbol={GLYPH[n.name]} size={12.5} style={{ verticalAlign: "middle" }} />{" "}
+                    {STRINGS.CHART.NATAL_LABEL} {n.name}
                   </span>
                   <span style={{ color: C.textMuted, fontSize: 11 }}> · {orb}° orb</span>
                 </span>
@@ -394,20 +403,19 @@ export default function GocharMap({ chart }) {
             <span
               style={{
                 width: 16,
-                fontSize: 14,
-                fontWeight: 700,
                 textAlign: "center",
                 color: MALEFIC.has(p.name) ? C.danger : C.success,
               }}
             >
-              {GLYPH[p.name] || ""}
+              {GLYPH[p.name] ? <AstroGlyph symbol={GLYPH[p.name]} size={14} /> : ""}
             </span>
             <span style={{ width: 64, color: C.textBody, fontSize: 12.5, fontWeight: 600 }}>
               {p.name}
               {p.retro ? " ℞" : ""}
             </span>
             <span style={{ flex: 1, color: "#fff", fontSize: 12.5 }}>
-              {ZE[p.sign]} {p.sign} {p.deg}°
+              <AstroGlyph symbol={ZE[p.sign]} size={12.5} style={{ verticalAlign: "middle" }} /> {p.sign}{" "}
+              {p.deg}°
             </span>
             <span
               style={{

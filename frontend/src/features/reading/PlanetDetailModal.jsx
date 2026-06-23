@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { signOf, ZE } from "@/shared/astrology";
 import { planetInfoFor } from "./planetInfo";
+import { Icon, AstroGlyph } from "@/utils/icons";
 
 // Slide-over detail for a tapped planet — web twin of the mobile
 // PlanetDetailSheet. Meaning is static (planetInfo.js); the placement line is
@@ -40,7 +41,7 @@ export default function PlanetDetailModal({ planet, onClose }) {
         }`}
       >
         <div className="mb-4 flex items-center gap-3.5">
-          <span className="text-[40px] leading-none">{info.glyph}</span>
+          <AstroGlyph symbol={info.glyph} size={40} className="leading-none" />
           <div>
             <p className="m-0 text-lg font-extrabold text-ink">
               {planet.base || planet.name} · {info.vedic}
@@ -51,7 +52,8 @@ export default function PlanetDetailModal({ planet, onClose }) {
 
         {/* Live placement for THIS chart. */}
         <div className="mb-[18px] rounded-[10px] border border-[rgba(168,85,247,0.3)] bg-[rgba(168,85,247,0.08)] px-3.5 py-2.5 text-center text-sm font-bold text-[#c4b5fd]">
-          {ZE[signOf(planet.sid)]} {signOf(planet.sid)}
+          <AstroGlyph symbol={ZE[signOf(planet.sid)]} size={14} className="align-middle" />{" "}
+          {signOf(planet.sid)}
           {planet.houseSid ? ` · House ${planet.houseSid}` : ""}
           {planet.retro ? " · Retrograde ℞" : ""}
         </div>
@@ -61,11 +63,15 @@ export default function PlanetDetailModal({ planet, onClose }) {
 
         <div className="mb-5 flex gap-2.5">
           <div className="flex-1 rounded-xl border border-[rgba(34,197,94,0.25)] bg-[rgba(34,197,94,0.06)] p-3">
-            <p className="m-0 mb-1.5 text-xs font-extrabold text-success">✓ When strong</p>
+            <p className="m-0 mb-1.5 flex items-center gap-1 text-xs font-extrabold text-success">
+              <Icon name="SHIELD" size={13} /> When strong
+            </p>
             <p className="m-0 text-[12.5px] leading-[1.5] text-body">{info.strong}</p>
           </div>
           <div className="flex-1 rounded-xl border border-[rgba(251,191,36,0.25)] bg-[rgba(251,191,36,0.06)] p-3">
-            <p className="m-0 mb-1.5 text-xs font-extrabold text-warning">⚠ When challenged</p>
+            <p className="m-0 mb-1.5 flex items-center gap-1 text-xs font-extrabold text-warning">
+              <Icon name="WARNING" size={13} /> When challenged
+            </p>
             <p className="m-0 text-[12.5px] leading-[1.5] text-body">{info.weak}</p>
           </div>
         </div>

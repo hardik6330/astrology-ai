@@ -11,7 +11,7 @@ import { sendOtp as fbSendOtp, confirmOtp, clearRecaptcha } from "./webOtp";
 import { defaultDialCode } from "@/utils/dialCode";
 import CountrySelect from "./CountrySelect";
 import Logo from "@/common/Logo";
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 
 const RESEND_SECS = 30;
 // Remember the last country code the user picked so returning visitors see it
@@ -175,14 +175,14 @@ export default function LoginPage() {
 
             <ul className="mt-7 space-y-3.5">
               {[
-                [EMOJIS.SPARKLES, "A personal Vedic birth chart & reading"],
-                [EMOJIS.HAND_OPEN, "AI palm reading — your photo is never stored"],
-                [EMOJIS.CHAT, "An AI astrologer that knows your chart"],
-                [EMOJIS.CALENDAR, "Daily guidance & predictions"],
+                ["SPARKLES", "A personal Vedic birth chart & reading"],
+                ["HAND_OPEN", "AI palm reading — your photo is never stored"],
+                ["CHAT", "An AI astrologer that knows your chart"],
+                ["CALENDAR", "Daily guidance & predictions"],
               ].map(([icon, text]) => (
                 <li key={text} className="flex items-center gap-3 text-sm text-body">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-(--c-border) bg-white/5 text-base">
-                    {icon}
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-(--c-border) bg-white/5 text-[#c4b5fd]">
+                    <Icon name={icon} size={16} />
                   </span>
                   {text}
                 </li>
@@ -191,15 +191,21 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-8 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-            <span>★ First reading free</span>
-            <span>🔒 One code — no spam, ever</span>
+            <span className="inline-flex items-center gap-1">
+              <Icon name="STAR" size={12} /> First reading free
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Icon name="LOCK" size={12} /> One code — no spam, ever
+            </span>
           </div>
         </aside>
 
         {/* ── Right: login form ── */}
         <div className="p-7 md:p-9">
           <div className="mb-7 text-center">
-            <div className="mb-3 text-[44px]">{EMOJIS.SATURN}</div>
+            <div className="mb-3 flex justify-center text-[#a78bfa]">
+              <Icon name="SATURN" size={44} />
+            </div>
             <h1 className="m-0 text-2xl font-bold text-ink">Sign in to Selora</h1>
             <p className="mt-2 mb-0 text-[13px] text-dim">
               {step === "phone"
@@ -256,9 +262,9 @@ export default function LoginPage() {
                     setStep("phone");
                     setOtp("");
                   }}
-                  className={linkBtnCls}
+                  className={`${linkBtnCls} inline-flex items-center gap-1`}
                 >
-                  {EMOJIS.LEFT_ARROW} Change number
+                  <Icon name="LEFT_ARROW" size={12} /> Change number
                 </button>
                 <button
                   type="button"

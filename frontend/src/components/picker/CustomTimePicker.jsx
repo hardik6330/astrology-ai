@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { color, gradient, radius, shadow } from "@/theme/tokens.js";
+import { Icon } from "@/utils/icons";
 
 // One scrollable column (hour / minute / am-pm). Module-level + stable so React
 // reconciles it in place on every pick — inlining it would remount the scroll
@@ -172,11 +173,11 @@ function CustomTimePicker({ value, onChange, disabled }) {
           transform: "translateY(-50%)",
           color: color.textDim,
           pointerEvents: "none",
-          fontSize: "14px",
+          display: "flex",
           opacity: disabled ? 0.3 : 1,
         }}
       >
-        🕒
+        <Icon name="CLOCK" size={14} />
       </div>
 
       {!disabled && isOpen && (
@@ -262,7 +263,7 @@ function CustomTimePicker({ value, onChange, disabled }) {
                 e.currentTarget.style.transform = "translateY(0)";
               }}
             >
-              <span style={{ fontSize: "12px" }}>✨</span> Now
+              <Icon name="SPARKLES" size={12} /> Now
             </button>
           </div>
         </div>

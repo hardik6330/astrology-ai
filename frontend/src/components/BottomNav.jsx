@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 
 // Remembers where the highlight pill last sat, so navigating between pages
 // (each mounts its own BottomNav) still slides the pill from the previous tab
@@ -17,13 +17,13 @@ let lastActiveIndex = -1;
 //                 switch its local tab state. If absent (e.g. on /palm), we navigate
 //                 to /reading and pass the tab key in location state.
 const TABS = [
-  ["kundali", "Birth Chart", EMOJIS.KUNDLI],
-  ["planets", "Planets", EMOJIS.SATURN],
-  ["timeline", "Timeline", EMOJIS.CLOCK],
-  ["reading", "Insights", EMOJIS.SPARKLES],
-  ["palm", "Palm", EMOJIS.HAND_OPEN],
-  ["chat", "Chat", EMOJIS.CHAT],
-  ["profile", "Profile", EMOJIS.USER],
+  ["kundali", "Birth Chart", "KUNDLI"],
+  ["planets", "Planets", "SATURN"],
+  ["timeline", "Timeline", "CLOCK"],
+  ["reading", "Insights", "SPARKLES"],
+  ["palm", "Palm", "HAND_OPEN"],
+  ["chat", "Chat", "CHAT"],
+  ["profile", "Profile", "USER"],
 ];
 
 export default function BottomNav({ activeKey, onLocalTab }) {
@@ -119,7 +119,7 @@ export default function BottomNav({ activeKey, onLocalTab }) {
               transition: "color 0.28s ease",
             }}
           >
-            <span style={{ fontSize: 17, lineHeight: 1 }}>{icon}</span>
+            <Icon name={icon} size={17} />
             <span
               style={{
                 fontSize: 10,

@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useCredits } from "./useCredits";
 import Card from "./Card";
 import Button from "./Button";
+import { Icon } from "@/utils/icons";
 
 // Prominent "not enough credits" card — shown whenever a charged AI action is
 // rejected with INSUFFICIENT_CREDITS (palm / insights / daily / chat). Reads
@@ -18,7 +19,9 @@ export default function LowCreditsCard({ cost, action = "This reading" }) {
       className="text-center"
       style={{ borderColor: "rgba(248,113,113,0.45)", background: "rgba(248,113,113,0.08)" }}
     >
-      <div className="mb-2 text-4xl">✨</div>
+      <div className="mb-2 flex justify-center text-danger">
+        <Icon name="SPARKLES" size={36} />
+      </div>
       <p className="mx-0 mt-0 mb-1.5 text-[15px] font-semibold text-danger">Not enough credits</p>
       <p className="mx-0 mt-0 mb-3 text-[12.5px] leading-[1.6] text-subtle">
         {action} costs {cost} credits

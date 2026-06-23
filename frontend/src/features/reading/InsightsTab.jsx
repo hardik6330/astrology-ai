@@ -4,7 +4,7 @@ import Button from "@/common/Button";
 import { asText } from "./asText";
 import { useCosts } from "@/common/useCosts";
 import LowCreditsCard from "@/common/LowCreditsCard";
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 import { STRINGS } from "@/shared/uiStrings";
 
 // Insights tab: the AI-generated reading — blueprint, core cards, strengths /
@@ -34,7 +34,9 @@ export default function InsightsTab({
       )}
       {!interp && !loading && !overloaded && !lowCredits && (
         <Card className="text-center" style={{ padding: "2.5rem 1.5rem" }}>
-          <div className="mb-3 text-5xl">{EMOJIS.SPARKLES || "✨"}</div>
+          <div className="mb-3 flex justify-center text-primary">
+            <Icon name="SPARKLES" size={48} />
+          </div>
           <p className="mx-0 mt-0 mb-1.5 text-[17px] font-bold text-ink">{STRINGS.INSIGHTS.UNLOCK_TITLE}</p>
           <p className="mx-auto mt-0 mb-5 max-w-95 text-[13px] leading-[1.6] text-subtle">
             {STRINGS.INSIGHTS.UNLOCK_SUBTITLE}
@@ -50,7 +52,9 @@ export default function InsightsTab({
           className="text-center"
           style={{ borderColor: "rgba(251,191,36,0.4)", background: "rgba(251,191,36,0.08)" }}
         >
-          <div className="mb-2 text-4xl">{EMOJIS.HOURGLASS}</div>
+          <div className="mb-2 flex justify-center text-warning">
+            <Icon name="HOURGLASS" size={36} />
+          </div>
           <p className="mx-0 mt-0 mb-1.5 text-[15px] font-semibold text-warning">AI is busy right now</p>
           <p className="mx-0 mt-0 mb-4 text-[12.5px] leading-[1.6] text-subtle">
             Our reader couldn't complete your reading after several tries.
@@ -63,14 +67,24 @@ export default function InsightsTab({
             fullWidth
             className="disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {cooldown > 0 ? `${EMOJIS.CLOCK} Try Again in ${cooldown}s` : `${EMOJIS.REFRESH} Try Again`}
+            <span className="inline-flex items-center gap-1.5">
+              {cooldown > 0 ? (
+                <>
+                  <Icon name="CLOCK" size={14} /> Try Again in {cooldown}s
+                </>
+              ) : (
+                <>
+                  <Icon name="REFRESH" size={14} /> Try Again
+                </>
+              )}
+            </span>
           </Button>
         </Card>
       )}
       {loading && !interp && (
         <Card className="text-center" style={{ padding: "3rem 1.5rem" }}>
-          <div className="astrology-icon" style={{ fontSize: 40, marginBottom: 20 }}>
-            {EMOJIS.CRYSTAL_BALL}
+          <div className="astrology-icon" style={{ marginBottom: 20 }}>
+            <Icon name="CRYSTAL_BALL" size={40} />
           </div>
           <p className="mb-2 text-base font-medium text-ink">{loadMsg}</p>
           <p className="text-xs text-[#666]">{STRINGS.INSIGHTS.LOADING_MSG}</p>
@@ -96,18 +110,18 @@ export default function InsightsTab({
 
           <div className="grid gap-4">
             {[
-              ["Core Identity", EMOJIS.SPARKLES, asText(interp.bigThree), null],
-              ["Personality Matrix", EMOJIS.USER, asText(interp.personality), "personality"],
-              ["Destiny & Purpose", EMOJIS.BRIEFCASE, asText(interp.career), "career"],
-              ["Heart & Soul", EMOJIS.HEART_YELLOW, asText(interp.relationships), "relationships"],
+              ["Core Identity", "SPARKLES", asText(interp.bigThree), null],
+              ["Personality Matrix", "USER", asText(interp.personality), "personality"],
+              ["Destiny & Purpose", "BRIEFCASE", asText(interp.career), "career"],
+              ["Heart & Soul", "HEART_YELLOW", asText(interp.relationships), "relationships"],
             ].map(
               ([title, icon, content, evKey], idx) =>
                 content && (
                   // margin:0 (override cosmic-card) + computed animationDelay → inline.
                   <Card key={title} style={{ margin: 0, animationDelay: `${idx * 0.1}s` }}>
                     <div className="mb-3 flex items-center gap-2.5">
-                      <span className="astrology-icon" style={{ margin: 0, fontSize: 22 }}>
-                        {icon}
+                      <span className="astrology-icon" style={{ margin: 0 }}>
+                        <Icon name={icon} size={22} />
                       </span>
                       <p className="m-0 text-[15px] font-bold tracking-[0.5px] text-ink">{title}</p>
                     </div>
@@ -115,8 +129,8 @@ export default function InsightsTab({
                     {/* "Show your work" — the exact chart factors behind this section. */}
                     {evKey && interp.evidence?.[evKey] && (
                       <p className="m-0 mt-3 rounded-lg border border-[rgba(168,85,247,0.25)] bg-[rgba(168,85,247,0.08)] px-3 py-2 text-[11.5px] leading-[1.6] text-[#c4b5fd]">
-                        {EMOJIS.SPARKLES} <span className="font-semibold">Astrology logic:</span>{" "}
-                        {interp.evidence[evKey]}
+                        <Icon name="SPARKLES" size={12} className="inline align-middle" />{" "}
+                        <span className="font-semibold">Astrology logic:</span> {interp.evidence[evKey]}
                       </p>
                     )}
                   </Card>
@@ -134,11 +148,11 @@ export default function InsightsTab({
               }}
             >
               <p className="mb-4 flex items-center gap-2 text-[15px] font-bold text-success">
-                <span className="text-xl">✦</span> Celestial Strengths
+                <Icon name="STAR" size={18} /> Celestial Strengths
               </p>
               {(interp.strengths || []).map((s, i) => (
                 <div key={i} className="mb-2.5 flex gap-2.5 text-sm leading-normal text-dim">
-                  <span className="font-bold text-success">✓</span>
+                  <Icon name="SHIELD" size={15} className="mt-0.5 shrink-0 text-success" />
                   <span>{asText(s)}</span>
                 </div>
               ))}
@@ -151,11 +165,11 @@ export default function InsightsTab({
               }}
             >
               <p className="mb-4 flex items-center gap-2 text-[15px] font-bold text-warning">
-                <span className="text-xl">✦</span> Growth Thresholds
+                <Icon name="STAR" size={18} /> Growth Thresholds
               </p>
               {(interp.challenges || []).map((c, i) => (
                 <div key={i} className="mb-2.5 flex gap-2.5 text-sm leading-normal text-dim">
-                  <span className="font-bold text-warning">↑</span>
+                  <Icon name="ARROW_UP" size={15} className="mt-0.5 shrink-0 text-warning" />
                   <span>{asText(c)}</span>
                 </div>
               ))}
@@ -164,7 +178,9 @@ export default function InsightsTab({
 
           {interp.keyPlacements && (
             <Card>
-              <p className="m-0 mb-4 text-base font-bold text-ink">{EMOJIS.KEY} Key Celestial Placements</p>
+              <p className="m-0 mb-4 flex items-center gap-2 text-base font-bold text-ink">
+                <Icon name="KEY" size={16} /> Key Celestial Placements
+              </p>
               <div className="grid gap-3">
                 {interp.keyPlacements.map((k, i) => (
                   <p
@@ -180,13 +196,14 @@ export default function InsightsTab({
 
           {interp.remedies && (
             <Card style={{ borderColor: "rgba(168, 85, 247, 0.2)", background: "rgba(30, 20, 30, 0.4)" }}>
-              <p className="m-0 mb-4 text-base font-bold text-[#c084fc]">
-                {EMOJIS.DIYA} Karmic Harmonization & Remedies
+              <p className="m-0 mb-4 flex items-center gap-2 text-base font-bold text-[#c084fc]">
+                <Icon name="DIYA" size={16} /> Karmic Harmonization & Remedies
               </p>
               <div className="grid gap-2.5">
                 {interp.remedies.map((r, i) => (
                   <p key={i} className="m-0 flex gap-2.5 text-[14.5px] leading-[1.7] text-[#c084fc]">
-                    <span className="opacity-80">{EMOJIS.SPARKLES}</span> <span>{asText(r)}</span>
+                    <Icon name="SPARKLES" size={15} className="mt-0.5 shrink-0 opacity-80" />{" "}
+                    <span>{asText(r)}</span>
                   </p>
                 ))}
               </div>
@@ -195,14 +212,16 @@ export default function InsightsTab({
 
           {/* Follow-up chat lives on its own route */}
           <Card className="text-center" style={{ marginTop: 24 }}>
-            <p className="m-0 mb-1 text-base font-bold text-[#c084fc]">
-              {EMOJIS.CHAT} Ask About Your Birth Chart
+            <p className="m-0 mb-1 inline-flex items-center gap-2 text-base font-bold text-[#c084fc]">
+              <Icon name="CHAT" size={16} /> Ask About Your Birth Chart
             </p>
             <p className="m-0 mb-4 text-xs text-muted">
               Ask anything about your future, career, marriage or timing — answered from your chart only.
             </p>
             <Button variant="magic" onClick={onOpenChat} fullWidth>
-              Open Chat {EMOJIS.ARROW_UP_RIGHT}
+              <span className="inline-flex items-center gap-1.5">
+                Open Chat <Icon name="ARROW_UP_RIGHT" size={15} />
+              </span>
             </Button>
           </Card>
 
@@ -247,8 +266,9 @@ function TimelineCheck({ pastCheck }) {
         : "Good to know — the same transit doesn't land the same way for everyone. Your reading focuses on the patterns active for you now.";
     return (
       <Card style={{ borderColor: "rgba(168,85,247,0.3)", background: "rgba(30,20,45,0.45)" }}>
-        <p className="m-0 text-[13px] leading-[1.7] text-[#c4b5fd]">
-          {answer === "yes" ? EMOJIS.SPARKLES : "🧭"} {msg}
+        <p className="m-0 flex gap-1.5 text-[13px] leading-[1.7] text-[#c4b5fd]">
+          <Icon name={answer === "yes" ? "SPARKLES" : "TARGET"} size={14} className="mt-0.5 shrink-0" />{" "}
+          <span>{msg}</span>
         </p>
       </Card>
     );
@@ -256,8 +276,8 @@ function TimelineCheck({ pastCheck }) {
 
   return (
     <Card style={{ borderColor: "rgba(168,85,247,0.4)", background: "rgba(30,20,45,0.55)" }}>
-      <p className="mx-0 mt-0 mb-1 text-[11px] font-bold tracking-[2px] text-[#a855f7] uppercase">
-        {EMOJIS.SPARKLES} Timeline Check
+      <p className="mx-0 mt-0 mb-1 inline-flex items-center gap-1.5 text-[11px] font-bold tracking-[2px] text-[#a855f7] uppercase">
+        <Icon name="SPARKLES" size={12} /> Timeline Check
       </p>
       <p className="mx-0 mt-0 mb-4 text-[14px] leading-[1.6] font-semibold text-ink">{pastCheck.question}</p>
       <div className="flex gap-3">

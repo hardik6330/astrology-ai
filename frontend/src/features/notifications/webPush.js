@@ -2,7 +2,7 @@
 // permission → token → POST /api/push/register. Everything is guarded so it
 // no-ops (never throws) where push isn't available.
 //
-// ⚠️ Requires a SECURE CONTEXT: works on https:// or http://localhost only.
+// NOTE: Requires a SECURE CONTEXT: works on https:// or http://localhost only.
 // On a plain-http LAN IP (e.g. http://192.168.x.x:5173) Service Workers and the
 // Notification API are disabled by the browser, so this silently no-ops there.
 

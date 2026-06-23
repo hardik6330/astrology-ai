@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { color, gradient, radius, shadow } from "@/theme/tokens.js";
+import { Icon } from "@/utils/icons";
 
 function CustomDatePicker({ value, onChange, max }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -184,10 +185,10 @@ function CustomDatePicker({ value, onChange, max }) {
           transform: "translateY(-50%)",
           color: color.textDim,
           pointerEvents: "none",
-          fontSize: "14px",
+          display: "flex",
         }}
       >
-        📅
+        <Icon name="CALENDAR" size={14} />
       </div>
       {isOpen && (
         <div
@@ -562,7 +563,7 @@ function CustomDatePicker({ value, onChange, max }) {
                   e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
-                <span style={{ fontSize: "14px" }}>✨</span> Today (
+                <Icon name="SPARKLES" size={14} /> Today (
                 {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" })})
               </button>
             </div>

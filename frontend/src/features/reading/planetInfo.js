@@ -11,7 +11,7 @@ export const PLANET_INFO = {
   Sun: {
     vedic: "Surya",
     epithet: "The Soul & Authority",
-    glyph: "☀️",
+    glyph: "☉",
     represents: "Self, ego, vitality, father, leadership, government, and the core identity you radiate.",
     strong: "Confidence, purpose, natural command, good health and recognition.",
     weak: "Low self-worth, ego friction with authority, strained bond with father.",
@@ -19,7 +19,7 @@ export const PLANET_INFO = {
   Moon: {
     vedic: "Chandra",
     epithet: "The Mind & Emotions",
-    glyph: "🌙",
+    glyph: "☽",
     represents: "Mind, emotions, mother, intuition, comfort, and how you nurture and feel.",
     strong: "Emotional steadiness, empathy, popularity, a calm and adaptable mind.",
     weak: "Mood swings, restlessness, over-sensitivity, emotional dependence.",
@@ -27,7 +27,7 @@ export const PLANET_INFO = {
   Mars: {
     vedic: "Mangal",
     epithet: "The Warrior & Drive",
-    glyph: "♂️",
+    glyph: "♂",
     represents: "Energy, courage, discipline, siblings, property, and how you assert and act.",
     strong: "Drive, decisiveness, physical stamina, courage under pressure.",
     weak: "Anger, impatience, conflict, accidents or impulsive risk-taking.",
@@ -35,7 +35,7 @@ export const PLANET_INFO = {
   Mercury: {
     vedic: "Budha",
     epithet: "The Communicator",
-    glyph: "☿️",
+    glyph: "☿",
     represents: "Intellect, speech, logic, commerce, learning, and how you process and express.",
     strong: "Sharp wit, eloquence, business sense, quick analytical thinking.",
     weak: "Scattered focus, nervous speech, indecision, miscommunication.",
@@ -51,7 +51,7 @@ export const PLANET_INFO = {
   Venus: {
     vedic: "Shukra",
     epithet: "Love & Beauty",
-    glyph: "♀️",
+    glyph: "♀",
     represents: "Love, relationships, beauty, art, luxury, comfort, and what you value.",
     strong: "Charm, artistic talent, harmony in love, refined taste, comfort.",
     weak: "Indulgence, relationship turbulence, vanity, attachment to pleasure.",

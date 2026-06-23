@@ -4,7 +4,7 @@ import DashaWheel from "@/features/kundali/DashaWheel";
 import AshtakvargaWheel from "@/features/kundali/AshtakvargaWheel";
 import GocharMap from "@/features/kundali/GocharMap";
 import Card from "@/common/Card";
-import { EMOJIS } from "@/utils/emojis";
+import { Icon, AstroGlyph } from "@/utils/icons";
 import { periodEnglish } from "@/shared/planetText";
 import { dashaGuidanceFor } from "./planetInfo";
 
@@ -105,8 +105,18 @@ function ForecastItem({ p, tc }) {
                 WHY THIS PERIOD
               </p>
               {why.map((w, j) => (
-                <p key={j} style={{ fontSize: 10.5, color: "#8b9bb0", margin: "3px 0" }}>
-                  {EMOJIS.SPARKLES} {w}
+                <p
+                  key={j}
+                  style={{
+                    fontSize: 10.5,
+                    color: "#8b9bb0",
+                    margin: "3px 0",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Icon name="SPARKLES" size={11} /> {w}
                 </p>
               ))}
             </>
@@ -122,7 +132,19 @@ function ForecastItem({ p, tc }) {
                   padding: 9,
                 }}
               >
-                <p style={{ fontSize: 11.5, fontWeight: 800, color: "#4ade80", margin: "0 0 5px" }}>✓ Do</p>
+                <p
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    color: "#4ade80",
+                    margin: "0 0 5px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Icon name="SHIELD" size={12} /> Do
+                </p>
                 {guide.dos.map((d, j) => (
                   <p key={j} style={{ fontSize: 11, color: "#cbd5e1", margin: "0 0 2px", lineHeight: 1.45 }}>
                     • {d}
@@ -138,8 +160,18 @@ function ForecastItem({ p, tc }) {
                   padding: 9,
                 }}
               >
-                <p style={{ fontSize: 11.5, fontWeight: 800, color: "#f87171", margin: "0 0 5px" }}>
-                  ✕ Don&apos;t
+                <p
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    color: "#f87171",
+                    margin: "0 0 5px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Icon name="PROHIBITED" size={12} /> Don&apos;t
                 </p>
                 {guide.donts.map((d, j) => (
                   <p key={j} style={{ fontSize: 11, color: "#cbd5e1", margin: "0 0 2px", lineHeight: 1.45 }}>
@@ -223,8 +255,18 @@ export default function TimelineTab({ chart }) {
               </summary>
               <div style={{ margin: "8px 0 2px" }}>
                 {c.supporting.map((s, j) => (
-                  <p key={j} style={{ fontSize: 10.5, color: "#86c8a0", margin: "3px 0" }}>
-                    ✓ {s}
+                  <p
+                    key={j}
+                    style={{
+                      fontSize: 10.5,
+                      color: "#86c8a0",
+                      margin: "3px 0",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <Icon name="SHIELD" size={11} /> {s}
                   </p>
                 ))}
                 {c.missing.map((s, j) => (
@@ -253,8 +295,18 @@ export default function TimelineTab({ chart }) {
               marginBottom: 16,
             }}
           >
-            <p style={{ fontSize: 13, color: "#f87171", fontWeight: 700, margin: 0 }}>
-              {EMOJIS.WARNING} Saturn Cycle Phase: {chart.transits.sadeSati.phase}
+            <p
+              style={{
+                fontSize: 13,
+                color: "#f87171",
+                fontWeight: 700,
+                margin: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <Icon name="WARNING" size={13} /> Saturn Cycle Phase: {chart.transits.sadeSati.phase}
             </p>
             <p style={{ fontSize: 11, color: "#fca5a5", margin: "4px 0 0" }}>
               Ends: {chart.transits.sadeSati.end ? fmtDay(chart.transits.sadeSati.end) : "ongoing"}
@@ -270,8 +322,18 @@ export default function TimelineTab({ chart }) {
               marginBottom: 16,
             }}
           >
-            <p style={{ fontSize: 13, color: "#4ade80", fontWeight: 600, margin: 0 }}>
-              ✓ Free from Saturn Cycle
+            <p
+              style={{
+                fontSize: 13,
+                color: "#4ade80",
+                fontWeight: 600,
+                margin: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <Icon name="SHIELD" size={13} /> Free from Saturn Cycle
             </p>
           </div>
         )}
@@ -288,7 +350,7 @@ export default function TimelineTab({ chart }) {
           >
             <span style={{ color: "#94a3b8" }}>{p.name}</span>
             <span style={{ color: "#fff" }}>
-              {ZE[p.sign]} {p.sign}{" "}
+              <AstroGlyph symbol={ZE[p.sign]} size={13} style={{ verticalAlign: "middle" }} /> {p.sign}{" "}
               <span style={{ color: "#666", fontSize: 11, marginLeft: 6 }}>• {p.houseMoon}th from Moon</span>
             </span>
           </div>

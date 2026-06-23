@@ -10,7 +10,7 @@ import PlanetsTab from "@/features/reading/PlanetsTab";
 import TimelineTab from "@/features/reading/TimelineTab";
 import InsightsTab from "@/features/reading/InsightsTab";
 
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 
 // Protected results page — owns the AI-reading lifecycle and tab state, then
 // delegates each tab's body to a dedicated component in features/reading/.
@@ -105,8 +105,8 @@ export default function ReadingPage() {
 
       {(error || insightError) && (
         <Card style={{ borderColor: "#ef4444", background: "rgba(239, 68, 68, 0.1)" }}>
-          <p className="m-0 text-sm text-danger">
-            {EMOJIS.WARNING} {error || insightError}
+          <p className="m-0 inline-flex items-center gap-1.5 text-sm text-danger">
+            <Icon name="WARNING" size={14} className="text-danger" /> {error || insightError}
           </p>
         </Card>
       )}

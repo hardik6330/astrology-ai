@@ -2,6 +2,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { useNavigate } from "react-router-dom";
 import { color } from "../theme/tokens";
 import Card from "@/common/Card";
+import { Icon } from "@/utils/icons";
 
 function Fallback({ error, resetErrorBoundary }) {
   const navigate = useNavigate();
@@ -10,7 +11,9 @@ function Fallback({ error, resetErrorBoundary }) {
       <div className="cosmos"></div>
       <div className="stars"></div>
       <Card style={{ borderColor: color.dangerStrong, background: "rgba(239, 68, 68, 0.06)" }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🌑</div>
+        <div style={{ marginBottom: 12, color: color.danger, display: "flex", justifyContent: "center" }}>
+          <Icon name="MOON" size={48} />
+        </div>
         <p style={{ fontSize: 17, fontWeight: 700, color: color.danger, margin: "0 0 8px" }}>
           Something went off-script
         </p>
@@ -26,8 +29,18 @@ function Fallback({ error, resetErrorBoundary }) {
           </pre>
         </details>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={resetErrorBoundary} className="magic-btn" style={{ flex: 1 }}>
-            🔄 Try Again
+          <button
+            onClick={resetErrorBoundary}
+            className="magic-btn"
+            style={{
+              flex: 1,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+            }}
+          >
+            <Icon name="ROTATE" size={14} /> Try Again
           </button>
           <button
             onClick={() => {
@@ -44,9 +57,13 @@ function Fallback({ error, resetErrorBoundary }) {
               color: color.accentLight,
               border: `1px solid ${color.accentBorder}`,
               background: color.accentSoft,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
             }}
           >
-            🏠 Home
+            <Icon name="HOUSE" size={14} /> Home
           </button>
         </div>
       </Card>

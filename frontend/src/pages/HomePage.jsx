@@ -11,7 +11,7 @@ import Button from "@/common/Button";
 import Loading from "@/common/Loading";
 
 import { saveProfile } from "@/services/api";
-import { EMOJIS } from "@/utils/emojis";
+import { Icon } from "@/utils/icons";
 
 const lbl = "mb-1 block text-[13px] text-[#888]";
 const errLbl = "mt-1 mb-0 text-[12px] text-danger";
@@ -134,8 +134,9 @@ export default function HomePage() {
 
       {/* cosmic-card's bottom margin (unlayered) is overridden inline. */}
       <Card className="text-center" style={{ marginBottom: "2.5rem" }}>
-        <h2 className="m-0 mb-2 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-[28px] font-bold text-transparent">
-          {EMOJIS.SPARKLES} AI Birth Chart Insights {EMOJIS.SPARKLES}
+        <h2 className="m-0 mb-2 inline-flex items-center justify-center gap-2 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-[28px] font-bold text-transparent">
+          <Icon name="SPARKLES" size={24} className="text-[#a855f7]" /> AI Birth Chart Insights{" "}
+          <Icon name="SPARKLES" size={24} className="text-[#a855f7]" />
         </h2>
         <p className="m-0 text-sm tracking-[0.5px] text-[#aaa]">
           Precision Astronomy + Celestial Intelligence
@@ -212,7 +213,9 @@ export default function HomePage() {
             {fieldErrors.city && <p className={errLbl}>{fieldErrors.city}</p>}
           </div>
           <Button variant="magic" onClick={generate} fullWidth className="mt-2">
-            Reveal My Destiny {EMOJIS.ARROW_UP_RIGHT}
+            <span className="inline-flex items-center gap-1.5">
+              Reveal My Destiny <Icon name="ARROW_UP_RIGHT" size={16} />
+            </span>
           </Button>
         </div>
       </Card>
@@ -220,8 +223,8 @@ export default function HomePage() {
       {error && (
         // cosmic-card border/bg overridden inline (it's unlayered).
         <Card style={{ borderColor: "#ef4444", background: "rgba(239, 68, 68, 0.1)" }}>
-          <p className="m-0 text-sm text-danger">
-            {EMOJIS.WARNING} {error}
+          <p className="m-0 inline-flex items-center gap-1.5 text-sm text-danger">
+            <Icon name="WARNING" size={14} className="text-danger" /> {error}
           </p>
         </Card>
       )}

@@ -12,6 +12,7 @@ import BottomNav from "@/components/BottomNav";
 import { useCredits } from "@/common/useCredits";
 import { fetchCreditPlans, createCreditOrder, verifyCreditPayment, getCredits } from "@/services/api";
 import { loadRazorpay } from "@/common/razorpay";
+import { Icon } from "@/utils/icons";
 import { LuLock, LuInfinity, LuShieldCheck } from "react-icons/lu";
 
 // paise → "₹49" (drops the .00 when whole rupees).
@@ -54,7 +55,7 @@ export default function CreditsPage() {
 
       <div className="text-center mb-10">
         <div className="inline-flex mb-4 p-3 rounded-2xl bg-[#c084fc]/10 border border-[#c084fc]/20 shadow-[0_0_20px_rgba(192,132,252,0.2)] animate-pulse">
-          <span className="text-3xl">✨</span>
+          <Icon name="SPARKLES" size={30} className="text-[#c084fc]" />
         </div>
         <h2 className="mb-2 text-[32px] font-black tracking-tight text-ink bg-gradient-to-b from-white to-[#c084fc] bg-clip-text text-transparent">
           Cosmic Credits
@@ -83,7 +84,9 @@ export default function CreditsPage() {
             Your Balance
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-black text-ink tracking-tight">✨ {credits ?? "—"}</span>
+            <span className="inline-flex items-center gap-2 text-4xl font-black text-ink tracking-tight">
+              <Icon name="SPARKLES" size={34} className="text-[#c084fc]" /> {credits ?? "—"}
+            </span>
             <span className="text-[14px] font-medium text-dim">Available</span>
           </div>
         </div>
@@ -151,15 +154,15 @@ export default function CreditsPage() {
                           : "bg-zinc-800 border border-white/10"
                     }`}
                   >
-                    {isPopular && <span className="mr-1.5">🔥</span>}
-                    {isBestValue && <span className="mr-1.5">💎</span>}
+                    {isPopular && <Icon name="FIRE" size={11} className="mr-1.5 inline align-[-1px]" />}
+                    {isBestValue && <Icon name="RING" size={11} className="mr-1.5 inline align-[-1px]" />}
                     {p.bonusLabel}
                   </div>
                 )}
 
                 <div className="flex items-center gap-4">
-                  <div className="text-4xl font-black text-ink group-hover:scale-110 transition-transform duration-500">
-                    ✨
+                  <div className="text-ink group-hover:scale-110 transition-transform duration-500">
+                    <Icon name="SPARKLES" size={36} className="text-[#c084fc]" />
                   </div>
                   <div className="flex flex-col items-start">
                     <div className="text-2xl font-black text-ink tracking-tight">{p.credits} Credits</div>
@@ -308,7 +311,9 @@ function CheckoutModal({ plan, onClose, onPaid, formatInr, returnTo }) {
 
         {done ? (
           <div className="animate-bounce">
-            <div className="mb-4 text-6xl">🎉</div>
+            <div className="mb-4 flex justify-center text-[#c084fc]">
+              <Icon name="SPARKLES" size={56} className="text-[#c084fc]" />
+            </div>
             <p className="m-0 text-[18px] font-black text-success tracking-tight">
               {plan.credits} credits added!
             </p>
@@ -319,7 +324,7 @@ function CheckoutModal({ plan, onClose, onPaid, formatInr, returnTo }) {
         ) : (
           <>
             <div className="mb-4 inline-flex p-4 rounded-full bg-[#c084fc]/10 border border-[#c084fc]/20 shadow-[0_0_20px_rgba(192,132,252,0.2)]">
-              <span className="text-4xl">✨</span>
+              <Icon name="SPARKLES" size={34} className="text-[#c084fc]" />
             </div>
             <p className="m-0 text-[20px] font-black text-ink tracking-tight uppercase">{plan.name}</p>
             <div className="my-6 p-4 rounded-xl bg-black/30 border border-white/5">
