@@ -19,10 +19,10 @@ function sector(start, end, rO, rI) {
 }
 
 function fillFor(total) {
-  if (total >= 32) return "#86efac"; // lightened from #4ade80
-  if (total >= 28) return "#d8b4fe"; // lightened from #c084fc
-  if (total >= 22) return "#fcd34d"; // lightened from #fbbf24
-  return "#fca5a5"; // lightened from #f87171
+  if (total >= 32) return "#4ade80";
+  if (total >= 28) return "#c084fc";
+  if (total >= 22) return "#fbbf24";
+  return "#f87171";
 }
 
 export default function AshtakvargaWheel({ ashtakvarga }) {
@@ -82,10 +82,10 @@ export default function AshtakvargaWheel({ ashtakvarga }) {
       </div>
       <div className="mt-3 flex flex-wrap justify-center gap-2.5">
         {[
-          ["32+ Excellent", "#86efac"],
-          ["28–31 Lucky", "#d8b4fe"],
-          ["22–27 Mixed", "#fcd34d"],
-          ["≤21 Weak", "#fca5a5"],
+          ["32+ Excellent", "#4ade80"],
+          ["28–31 Lucky", "#c084fc"],
+          ["22–27 Mixed", "#fbbf24"],
+          ["≤21 Weak", "#f87171"],
         ].map(([label, color]) => (
           <span key={label} className="flex items-center gap-1.25 text-[10.5px] text-subtle">
             {/* Swatch color is data-driven → inline. */}

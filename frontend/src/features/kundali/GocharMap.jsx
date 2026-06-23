@@ -48,9 +48,9 @@ const MALEFIC = new Set(["Sun", "Mars", "Saturn", "Rahu", "Ketu"]);
 
 // palette (matches the other web wheels)
 const C = {
-  warning: "#fcd34d", // lightened from #fbbf24
-  success: "#86efac", // lightened from #4ade80
-  danger: "#fca5a5", // lightened from #f87171
+  warning: "#fbbf24",
+  success: "#4ade80",
+  danger: "#f87171",
   textBody: "#cbd5e1",
   textMuted: "#64748b",
   primaryLight: "#a5b4fc",

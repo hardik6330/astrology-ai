@@ -86,7 +86,7 @@ export default function KundaliTab({ chart, form, onError }) {
       <Card>
         <p className="m-0 mb-4 text-sm font-semibold text-ink">Destiny Matrix</p>
         {chart.scores.map((s) => {
-          const col = s.score >= 70 ? "#86efac" : s.score >= 45 ? "#fcd34d" : "#fca5a5";
+          const col = s.score >= 70 ? "#4ade80" : s.score >= 45 ? "#fbbf24" : "#f87171";
           return (
             <details key={s.key} className="mb-3.5">
               <summary className="cursor-pointer list-none">

@@ -2,10 +2,10 @@
 
 import Card from "@/common/Card";
 function barColor(score) {
-  if (score >= 75) return "#86efac"; // lightened from #4ade80
-  if (score >= 50) return "#d8b4fe"; // lightened from #c084fc
-  if (score >= 30) return "#fcd34d"; // lightened from #fbbf24
-  return "#fca5a5"; // lightened from #f87171
+  if (score >= 75) return "#4ade80";
+  if (score >= 50) return "#c084fc";
+  if (score >= 30) return "#fbbf24";
+  return "#f87171";
 }
 
 export default function PlanetaryStrengthCard({ strengths }) {
