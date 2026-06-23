@@ -1,7 +1,7 @@
 // Back-office admin auth. Admins log in with username + password (seeded from
 // env on boot — see adminSeed.js), and receive a role-tagged session JWT.
 
-import { Op } from 'sequelize';
+import { Op, fn, col } from 'sequelize';
 import {
   Admin, User, Kundali, PalmReading, ChatMessage, PushToken, Purchase, CreditPlan,
 } from '../models/index.js';
@@ -63,6 +63,63 @@ export async function getStats() {
       paidOrders,
       payingUsers,
     },
+  };
+}
+
+// Dashboard time-series + breakdowns for the analytics charts. Daily buckets are
+// built in JS (not SQL date functions) so the identical query runs on MySQL
+// (prod) and SQLite (tests); the N-day window bounds how many rows we pull.
+// Revenue/orders are bucketed by `updatedAt` (the status flip to 'paid' instant),
+// matching getStats(); signups by `createdAt`.
+export async function getAnalytics({ days = 30 } = {}) {
+  const span = Math.min(Math.max(Number(days) || 30, 7), 90);
+  const since = new Date();
+  since.setHours(0, 0, 0, 0);
+  since.setDate(since.getDate() - (span - 1));
+
+  // Ordered YYYY-MM-DD day keys + a key→index map for O(1) bucketing.
+  const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
+  const labels = [];
+  const idx = new Map();
+  for (let i = 0; i < span; i++) {
+    const d = new Date(since);
+    d.setDate(since.getDate() + i);
+    const k = dayKey(d);
+    idx.set(k, i);
+    labels.push(k);
+  }
+
+  const [newUsers, paidRows, statusRows, providerRows] = await Promise.all([
+    User.findAll({ where: { createdAt: { [Op.gte]: since } }, attributes: ['createdAt'], raw: true }),
+    Purchase.findAll({
+      where: { status: 'paid', updatedAt: { [Op.gte]: since } },
+      attributes: ['priceInr', 'updatedAt'], raw: true,
+    }),
+    Purchase.findAll({ attributes: ['status', [fn('COUNT', col('id')), 'n']], group: ['status'], raw: true }),
+    Purchase.findAll({
+      where: { status: 'paid' },
+      attributes: ['provider', [fn('COUNT', col('id')), 'n']], group: ['provider'], raw: true,
+    }),
+  ]);
+
+  const signups = new Array(span).fill(0);
+  for (const u of newUsers) { const i = idx.get(dayKey(u.createdAt)); if (i != null) signups[i] += 1; }
+
+  const revenuePaise = new Array(span).fill(0);
+  const orders = new Array(span).fill(0);
+  for (const p of paidRows) {
+    const i = idx.get(dayKey(p.updatedAt));
+    if (i != null) { revenuePaise[i] += p.priceInr || 0; orders[i] += 1; }
+  }
+
+  return {
+    days: span,
+    labels,
+    signups,
+    revenuePaise,
+    orders,
+    ordersByStatus: statusRows.map((r) => ({ status: r.status, count: Number(r.n) })),
+    revenueByProvider: providerRows.map((r) => ({ provider: r.provider, count: Number(r.n) })),
   };
 }
 

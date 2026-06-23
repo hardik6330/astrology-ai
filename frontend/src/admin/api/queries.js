@@ -3,10 +3,26 @@
 // it tripped) with cached, deduped queries keyed under ["admin", …].
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { adminStats, adminUsers, adminPurchases, adminMe, adminGetSettings, adminGetPlans } from "./adminApi";
+import {
+  adminStats,
+  adminAnalytics,
+  adminUsers,
+  adminPurchases,
+  adminMe,
+  adminGetSettings,
+  adminGetPlans,
+} from "./adminApi";
 
 export function useAdminStats() {
   return useQuery({ queryKey: ["admin", "stats"], queryFn: adminStats });
+}
+
+export function useAdminAnalytics(days = 30) {
+  return useQuery({
+    queryKey: ["admin", "analytics", days],
+    queryFn: () => adminAnalytics({ days }),
+    placeholderData: keepPreviousData, // keep the chart on screen while a new window loads
+  });
 }
 
 export function useAdminUsers({ page, search, pageSize }) {

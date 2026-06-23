@@ -8,7 +8,7 @@ import { adminLoginLimiter } from '../middleware/rateLimit.js';
 import { validate } from '../middleware/validate.js';
 import {
   adminLoginBody, adminBroadcastBody, adminSettingsBody,
-  adminPlanCreateBody, adminPlanUpdateBody, adminListQuery,
+  adminPlanCreateBody, adminPlanUpdateBody, adminListQuery, adminAnalyticsQuery,
 } from '../validators/schemas.js';
 
 const router = Router();
@@ -18,6 +18,7 @@ router.post('/admin/login', adminLoginLimiter, validate(adminLoginBody, 'body'),
 // Everything below requires a valid admin session.
 router.get ('/admin/me',    requireAdmin, admin.me);
 router.get ('/admin/stats', requireAdmin, admin.stats);
+router.get ('/admin/analytics', requireAdmin, validate(adminAnalyticsQuery, 'query'), admin.analytics);
 router.get ('/admin/users', requireAdmin, validate(adminListQuery, 'query'), admin.users);
 router.get ('/admin/purchases', requireAdmin, validate(adminListQuery, 'query'), admin.orders);
 router.post('/admin/push/broadcast', requireAdmin, validate(adminBroadcastBody, 'body'), admin.broadcast);

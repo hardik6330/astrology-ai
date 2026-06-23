@@ -261,6 +261,12 @@ export const adminListQuery = z.object({
   all:    z.enum(['true', 'false']).optional(),
 });
 
+// Dashboard analytics window. `days` is clamped again in the service (7..90);
+// this just rejects junk before it reaches it.
+export const adminAnalyticsQuery = z.object({
+  days: z.coerce.number().int().min(7).max(90).optional(),
+});
+
 // Device push-token registration. Token length cap matches PushToken's column.
 export const pushRegisterBody = z.object({
   token:    z.string().min(20).max(512),

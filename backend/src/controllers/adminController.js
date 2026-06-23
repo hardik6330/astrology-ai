@@ -17,6 +17,10 @@ export const stats = asyncHandler(async (_req, res) => {
   res.json(await adminSvc.getStats());
 });
 
+export const analytics = asyncHandler(async (req, res) => {
+  res.json(await adminSvc.getAnalytics({ days: req.query.days }));
+});
+
 export const users = asyncHandler(async (req, res) => {
   const { limit, offset, search, all } = req.query;
   res.json(await adminSvc.listUsers({ limit, offset, search, fetchAll: all === 'true' }));

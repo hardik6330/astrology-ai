@@ -49,6 +49,12 @@ export function adminStats() {
   return adminFetch("/admin/stats");
 }
 
+// GET /admin/analytics → { days, labels, signups[], revenuePaise[], orders[],
+// ordersByStatus[], revenueByProvider[] }. Daily time-series for the charts.
+export function adminAnalytics({ days = 30 } = {}) {
+  return adminFetch(`/admin/analytics?days=${days}`);
+}
+
 // GET /admin/users → { rows, count }. Supports paging + search.
 export function adminUsers({ limit = 25, offset = 0, search = "" } = {}) {
   const qs = new URLSearchParams({ limit, offset });
