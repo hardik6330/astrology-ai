@@ -3,31 +3,31 @@ import tzLookup from 'tz-lookup';
 import { Location } from '../models/index.js';
 import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
+import { env } from '../config/envConfig.js';
 
 const log = logger.child({ mod: 'location' });
 
-// === OpenStreetMap Nominatim ===================================================
-// Free geocoding, no API key, no billing. Usage policy requires:
-//  - 1 req/sec maximum (we hit it once per debounced keystroke — well within)
-//  - a meaningful User-Agent identifying the app
-// Search results already include lat/lon + display_name, so we don't need a
-// separate "details" call like with Google Places.
-const NOMINATIM_SEARCH = 'https://nominatim.openstreetmap.org/search';
-const USER_AGENT = 'AstrologyAI/1.0 (location lookup for birth-chart app)';
+// === Google Maps Platform ======================================================
+// Requires GOOGLE_MAPS_API_KEY with the Places API + Geocoding API enabled.
+// Timezone is still resolved OFFLINE via tz-lookup (coords -> IANA id) + Intl, so
+// we don't need the (extra-billed) Time Zone API. Autocomplete only yields a
+// placeId + description; lat/lng come from a follow-up Place Details call, so
+// /details resolves coords and persists the row for instant cache hits later.
+const PLACES_AUTOCOMPLETE = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
+const PLACE_DETAILS = 'https://maps.googleapis.com/maps/api/place/details/json';
+const GEOCODE = 'https://maps.googleapis.com/maps/api/geocode/json';
 
-async function nominatimSearch(query, limit = 8) {
-  const qs = new URLSearchParams({
-    q: query,
-    format: 'json',
-    limit: String(limit),
-    addressdetails: '1',
-    'accept-language': 'en',
-  });
-  const res = await fetch(`${NOMINATIM_SEARCH}?${qs}`, {
-    headers: { 'User-Agent': USER_AGENT },
-  });
-  if (!res.ok) throw AppError.http(502, `Nominatim ${res.status}`);
-  return res.json();
+async function googleJson(url, params) {
+  if (!env.GOOGLE_MAPS_API_KEY) throw AppError.http(503, 'GOOGLE_MAPS_API_KEY not configured');
+  const qs = new URLSearchParams({ ...params, key: env.GOOGLE_MAPS_API_KEY });
+  const res = await fetch(`${url}?${qs}`);
+  if (!res.ok) throw AppError.http(502, `Google Maps ${res.status}`);
+  const body = await res.json();
+  // ZERO_RESULTS is a valid "found nothing"; anything else is a real failure.
+  if (body.status && body.status !== 'OK' && body.status !== 'ZERO_RESULTS') {
+    throw AppError.http(502, `Google Maps: ${body.status}${body.error_message ? ` — ${body.error_message}` : ''}`);
+  }
+  return body;
 }
 
 // Compute hours-offset-from-UTC at a given instant for an IANA tz id, using
@@ -54,24 +54,34 @@ function offsetForTz(tzId, when = new Date()) {
   }
 }
 
-// Best-effort short label like "City, State" from Nominatim's address blob.
-function shortName(item) {
-  const a = item.address || {};
-  const city  = a.city || a.town || a.village || a.municipality || a.county || a.name || '';
-  const state = a.state || a.region || '';
-  const country = a.country || '';
-  const parts = [city, state, country].filter(Boolean);
-  return parts.join(', ') || item.display_name;
+// tz id + current offset for a coordinate, via the offline tz-lookup table.
+function tzForCoords(lat, lng) {
+  try {
+    const tzId = tzLookup(lat, lng);
+    return { tzId, tzOffset: offsetForTz(tzId) };
+  } catch (err) {
+    log.warn({ err: err.message, lat, lng }, 'tz-lookup failed');
+    return { tzId: null, tzOffset: 0 };
+  }
+}
+
+// Best-effort short label like "City, State, Country" from a Google geocode
+// result's address_components.
+function shortNameFromComponents(components = []) {
+  const pick = (type) => components.find((c) => c.types?.includes(type))?.long_name || '';
+  const city = pick('locality') || pick('postal_town')
+    || pick('administrative_area_level_2') || pick('sublocality');
+  const state = pick('administrative_area_level_1');
+  const country = pick('country');
+  return [city, state, country].filter(Boolean).join(', ');
 }
 
 // Collapse predictions that point at the same place. One city resolves to
-// several rows the user shouldn't see twice: multiple OSM place_ids (a city node
-// + an admin boundary), and a seeded row whose label omits the country
-// ("Surat, Gujarat") next to Nominatim's fuller "Surat, Gujarat, India". Names
-// alone don't catch that, so we key on COORDINATES — the ground truth for "same
-// place" — rounded to ~0.1° (≈11 km), with the city label to avoid merging two
-// distinct nearby towns. Falls back to the normalized description when a row has
-// no coordinates. Keeps the FIRST occurrence (cache entries passed first → the
+// several rows the user shouldn't see twice: a seeded row whose label omits the
+// country ("Surat, Gujarat") next to Google's fuller "Surat, Gujarat, India".
+// We key on COORDINATES when present (ground truth for "same place") rounded to
+// ~0.1° (≈11 km) plus the city label, else fall back to the normalized
+// description. Keeps the FIRST occurrence (cache entries passed first → the
 // already-persisted row wins, so its placeId resolves instantly in /details).
 function dedupePredictions(predictions) {
   const seen = new Set();
@@ -91,9 +101,10 @@ function dedupePredictions(predictions) {
 // Phase A — Autocomplete with DB-first lookup.
 // 1. Local Location cache (seeded + previously resolved). 3+ hits → return,
 //    no network call.
-// 2. Otherwise hit Nominatim, persist EACH result (with computed lat/lng/tz)
-//    so a subsequent /details lookup is instant.
-export async function searchCities(query, _sessionToken /* kept for API compat */) {
+// 2. Otherwise hit Google Places Autocomplete. Predictions carry only a
+//    placeId + description (no coords) — those are resolved & persisted on the
+//    follow-up /details call.
+export async function searchCities(query, sessionToken) {
   const q = (query || '').trim();
   if (q.length < 2) return [];
 
@@ -117,52 +128,28 @@ export async function searchCities(query, _sessionToken /* kept for API compat *
 
   if (cachePredictions.length >= 3) return dedupePredictions(cachePredictions);
 
-  // Cache too thin — ask Nominatim. Best-effort; if it fails (network,
-  // rate-limit, 5xx) we still return whatever the cache had.
-  let nominatimPredictions = [];
+  // Cache too thin — ask Google. Best-effort; if it fails (network, quota,
+  // missing key) we still return whatever the cache had.
+  let livePredictions = [];
   try {
-    const items = await nominatimSearch(q, 8);
-    nominatimPredictions = await Promise.all(items.map(async (item) => {
-      const placeId = `osm:${item.place_id}`;
-      const lat = Number(item.lat);
-      const lng = Number(item.lon);
-      const searchName = shortName(item);
-
-      // Persist on first sighting so /details is a free cache hit later.
-      // tz-lookup is offline + sync; couples lat/lng → IANA tz id.
-      let tzId = null;
-      let tzOffset = 0;
-      try {
-        tzId = tzLookup(lat, lng);
-        tzOffset = offsetForTz(tzId);
-      } catch (err) {
-        log.warn({ err: err.message, lat, lng }, 'tz-lookup failed');
-      }
-
-      await Location.findOrCreate({
-        where: { placeId },
-        defaults: {
-          placeId, searchName, lat, lng, tzOffset, tzId, source: 'nominatim',
-        },
-      });
-
-      const [main, ...rest] = searchName.split(',');
-      return {
-        placeId,
-        description: searchName,
-        mainText: main.trim(),
-        secondaryText: rest.join(',').trim(),
-        lat,
-        lng,
-        source: 'nominatim',
-      };
+    const body = await googleJson(PLACES_AUTOCOMPLETE, {
+      input: q,
+      types: '(cities)',
+      ...(sessionToken && { sessiontoken: sessionToken }),
+    });
+    livePredictions = (body.predictions || []).map((p) => ({
+      placeId: p.place_id,
+      description: p.description,
+      mainText: p.structured_formatting?.main_text || p.description,
+      secondaryText: p.structured_formatting?.secondary_text || '',
+      source: 'google',
     }));
   } catch (err) {
-    log.warn({ err: err.message }, 'Nominatim search failed — returning cache only');
+    log.warn({ err: err.message }, 'Google autocomplete failed — returning cache only');
   }
 
   const seen = new Set(cachePredictions.map((p) => p.placeId));
-  for (const n of nominatimPredictions) {
+  for (const n of livePredictions) {
     if (!seen.has(n.placeId)) cachePredictions.push(n);
   }
   // Final pass: drop same-named duplicates across cache + live (different
@@ -180,35 +167,22 @@ export async function reverseGeocode(lat, lon) {
   const l = Number(lat);
   const r = Number(lon);
 
-  // 1. Resolve Timezone first (offline/fast)
-  let tzId = null;
-  let tzOffset = 0;
-  try {
-    tzId = tzLookup(l, r);
-    tzOffset = offsetForTz(tzId);
-  } catch (err) {
-    log.warn({ err: err.message, lat, lon }, 'tz-lookup failed in reverse');
-  }
+  // 1. Resolve timezone first (offline/fast).
+  const { tzId, tzOffset } = tzForCoords(l, r);
 
-  // 2. Resolve City Name via Nominatim
+  // 2. Resolve city name via Google reverse geocoding (best-effort).
   let name = 'Current Location';
   try {
-    const qs = new URLSearchParams({
-      format: 'json',
-      lat: String(l),
-      lon: String(r),
-      zoom: '10',
-      addressdetails: '1',
+    const body = await googleJson(GEOCODE, {
+      latlng: `${l},${r}`,
+      result_type: 'locality|administrative_area_level_1|country',
     });
-    const res = await fetch(`${NOMINATIM_SEARCH.replace('/search', '/reverse')}?${qs}`, {
-      headers: { 'User-Agent': USER_AGENT },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      name = shortName(data);
+    const result = body.results?.[0];
+    if (result) {
+      name = shortNameFromComponents(result.address_components) || result.formatted_address || name;
     }
   } catch (err) {
-    log.warn({ err: err.message, lat, lon }, 'Nominatim reverse failed');
+    log.warn({ err: err.message, lat, lon }, 'Google reverse geocode failed');
   }
 
   return {
@@ -220,11 +194,12 @@ export async function reverseGeocode(lat, lon) {
 }
 
 // Phase C — resolve placeId to {coordinates, timezone, ...}.
-// With Nominatim, /search already persisted the full record into the cache,
-// so this is just a DB read. `birthTimestamp` is accepted for API parity but
-// not used (the cached offset is "current"; for historical DST accuracy
-// in the user's birth year we'd need a different tz library — punt).
-export async function getCityDetails(placeId /*, _sessionToken, _birthTimestamp */) {
+// Cache-first: a row persisted by a prior /details (or a seed) is an instant DB
+// read. On a miss we call Google Place Details for the coords, derive the tz
+// offline, persist, and return. `birthTimestamp` is accepted for API parity but
+// not used (the cached offset is "current"; for historical DST accuracy in the
+// user's birth year we'd need the Time Zone API — punt, as before).
+export async function getCityDetails(placeId, sessionToken /*, _birthTimestamp */) {
   if (!placeId) throw AppError.http(400, 'placeId required');
 
   const cached = await Location.findOne({ where: { placeId } });
@@ -237,72 +212,31 @@ export async function getCityDetails(placeId /*, _sessionToken, _birthTimestamp 
       placeId: cached.placeId,
     };
   }
-  throw AppError.http(404, 'Unknown placeId — re-run search first');
-}
 
-/* ============================================================================
- * Google Places fallback — COMMENTED OUT. Re-enable by:
- *   1. Set GOOGLE_MAPS_API_KEY in .env (envConfig already accepts optional).
- *   2. Uncomment the code below and rename functions if you want them.
- *   3. Enable Places API + Time Zone API on the key in GCP Console.
- *
- * import { env } from '../config/envConfig.js';
- * const PLACES_AUTOCOMPLETE = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
- * const PLACE_DETAILS       = 'https://maps.googleapis.com/maps/api/place/details/json';
- * const TIMEZONE_API        = 'https://maps.googleapis.com/maps/api/timezone/json';
- *
- * async function googleJson(url, params) {
- *   const qs = new URLSearchParams({ ...params, key: env.GOOGLE_MAPS_API_KEY });
- *   const res = await fetch(`${url}?${qs}`);
- *   if (!res.ok) throw AppError.http(502, `Google API ${res.status}`);
- *   const body = await res.json();
- *   if (body.status !== 'OK' && body.status !== 'ZERO_RESULTS') {
- *     throw AppError.http(502, `Google API: ${body.status}`);
- *   }
- *   return body;
- * }
- *
- * // Autocomplete via Google Places + sessiontoken trick (free if same token
- * // is passed to subsequent /details).
- * export async function googleSearchCities(query, sessionToken) {
- *   const body = await googleJson(PLACES_AUTOCOMPLETE, {
- *     input: query.trim(),
- *     types: '(cities)',
- *     ...(sessionToken && { sessiontoken: sessionToken }),
- *   });
- *   return (body.predictions || []).map((p) => ({
- *     placeId: p.place_id,
- *     description: p.description,
- *     mainText: p.structured_formatting?.main_text || '',
- *     secondaryText: p.structured_formatting?.secondary_text || '',
- *   }));
- * }
- *
- * // Place Details for lat/lng, then Time Zone API for DST-aware offset at
- * // the user's birth timestamp.
- * export async function googleGetCityDetails(placeId, sessionToken, birthTimestamp) {
- *   const details = await googleJson(PLACE_DETAILS, {
- *     place_id: placeId,
- *     fields: 'geometry/location,formatted_address,name',
- *     ...(sessionToken && { sessiontoken: sessionToken }),
- *   });
- *   const { lat, lng } = details.result.geometry.location;
- *   const tsSec = Number.isFinite(birthTimestamp)
- *     ? Math.floor(birthTimestamp)
- *     : Math.floor(Date.now() / 1000);
- *   const tz = await googleJson(TIMEZONE_API, {
- *     location: `${lat},${lng}`,
- *     timestamp: String(tsSec),
- *   });
- *   return {
- *     searchName: details.result.formatted_address,
- *     coordinates: { lat, lng },
- *     timezone: {
- *       offset: ((tz.rawOffset || 0) + (tz.dstOffset || 0)) / 3600,
- *       id: tz.timeZoneId || null,
- *     },
- *     placeId,
- *     source: 'google_api',
- *   };
- * }
- * ========================================================================== */
+  // Cache miss — resolve via Google Place Details, then persist.
+  const body = await googleJson(PLACE_DETAILS, {
+    place_id: placeId,
+    fields: 'geometry/location,formatted_address,name',
+    ...(sessionToken && { sessiontoken: sessionToken }),
+  });
+  const loc = body.result?.geometry?.location;
+  if (!loc) throw AppError.http(404, 'Unknown placeId — re-run search first');
+
+  const lat = loc.lat;
+  const lng = loc.lng;
+  const searchName = body.result.formatted_address || body.result.name || '';
+  const { tzId, tzOffset } = tzForCoords(lat, lng);
+
+  await Location.findOrCreate({
+    where: { placeId },
+    defaults: { placeId, searchName, lat, lng, tzOffset, tzId, source: 'google' },
+  });
+
+  return {
+    searchName,
+    coordinates: { lat, lng },
+    timezone: { offset: tzOffset, id: tzId },
+    source: 'google',
+    placeId,
+  };
+}
