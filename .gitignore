@@ -36,3 +36,8 @@ backend/PROD_ENV_TEMPLATE.txt
 
 # Migration notes — kept local (contains internal/sensitive notes)
 backend/MIGRATIONS.md
+
+# Env templates — kept local (have carried real secrets); not committed
+backend/.env.example
+frontend/.env.example
+mobile/.env.example
