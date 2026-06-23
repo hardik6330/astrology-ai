@@ -68,6 +68,7 @@ import {
   LuCheck,
   LuX,
 } from "react-icons/lu";
+import { TbPlanet } from "react-icons/tb";
 
 // name → Lucide component. Keys mirror the old EMOJIS map so call sites read the
 // same intent (e.g. EMOJIS.SPARKLES → <Icon name="SPARKLES" />), plus a few extra
@@ -137,6 +138,7 @@ const ICON_MAP = {
   TARGET: LuTarget,
   CHECK: LuCheck,
   CROSS: LuX,
+  PLANET: TbPlanet, // ringed-planet glyph (Tabler) — used for the Planets tab
 };
 
 // Generic icon. Falls back to LuSparkles if a name is unmapped (so a typo renders

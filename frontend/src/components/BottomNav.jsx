@@ -18,7 +18,7 @@ let lastActiveIndex = -1;
 //                 to /reading and pass the tab key in location state.
 const TABS = [
   ["kundali", "Birth Chart", "KUNDLI"],
-  ["planets", "Planets", "SATURN"],
+  ["planets", "Planets", "PLANET"],
   ["timeline", "Timeline", "CLOCK"],
   ["reading", "Insights", "SPARKLES"],
   ["palm", "Palm", "HAND_OPEN"],
