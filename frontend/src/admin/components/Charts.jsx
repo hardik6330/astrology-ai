@@ -5,7 +5,26 @@
 //   <Donut>       — ring breakdown for a small categorical split (status, …)
 // Both inherit the app's violet palette and are reduced-motion-safe.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+// Respect the OS "reduce motion" setting — skip the draw-on transitions if set.
+const REDUCE =
+  typeof window !== "undefined" &&
+  window.matchMedia &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Flip to true one frame after mount (and whenever `dep` changes) so CSS
+// transitions animate from the initial state → final state on load.
+function useDrawOn(dep) {
+  const [shown, setShown] = useState(REDUCE);
+  useEffect(() => {
+    if (REDUCE) return undefined;
+    setShown(false);
+    const id = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(id);
+  }, [dep]);
+  return shown;
+}
 
 // Uniformly-scaled viewBox: the SVG stretches to its container width, height
 // follows the aspect ratio, so strokes never distort. Hover maps the pointer's
@@ -28,6 +47,7 @@ const fmtDay = (key) =>
 export function TrendChart({ labels = [], data = [], color = "#8b5cf6", format = fmtInt, gid = "c" }) {
   const [hover, setHover] = useState(null);
   const n = data.length;
+  const shown = useDrawOn(`${gid}:${n}:${data.join()}`);
 
   if (!n) return <div className="grid h-40 place-items-center text-[13px] text-dim">No data yet</div>;
 
@@ -77,7 +97,12 @@ export function TrendChart({ labels = [], data = [], color = "#8b5cf6", format =
           />
         ))}
 
-        <polygon points={area} fill={`url(#grad-${gid})`} />
+        <polygon
+          points={area}
+          fill={`url(#grad-${gid})`}
+          style={{ opacity: shown ? 1 : 0, transition: "opacity .9s ease .25s" }}
+        />
+        {/* line traces in: pathLength=1 normalises length so one dashoffset draws it */}
         <polyline
           points={pts}
           fill="none"
@@ -85,6 +110,12 @@ export function TrendChart({ labels = [], data = [], color = "#8b5cf6", format =
           strokeWidth="2.2"
           strokeLinejoin="round"
           strokeLinecap="round"
+          pathLength="1"
+          style={{
+            strokeDasharray: 1,
+            strokeDashoffset: shown ? 0 : 1,
+            transition: "stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1)",
+          }}
         />
 
         {hover != null && (
@@ -130,19 +161,22 @@ export function Donut({ data = [], format = fmtInt, size = 150 }) {
   const total = slices.reduce((a, d) => a + d.value, 0);
   const r = 56;
   const C = 2 * Math.PI * r;
+  const shown = useDrawOn(slices.map((d) => `${d.label}:${d.value}`).join());
 
   if (!total) return <div className="grid h-37.5 place-items-center text-[13px] text-dim">No data yet</div>;
 
-  let acc = 0;
+  let acc = 0; // running total (in value units) → each arc's start angle
   return (
     <div className="flex items-center gap-5">
       <svg viewBox="0 0 150 150" width={size} height={size} className="shrink-0">
         {/* arcs are rotated -90° (start at 12 o'clock); text stays upright */}
         <g transform="rotate(-90 75 75)">
           <circle cx="75" cy="75" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="14" />
-          {slices.map((d) => {
+          {slices.map((d, i) => {
             const seg = (d.value / total) * C;
-            const el = (
+            const start = (acc / total) * 360; // each arc spun to its own start so
+            acc += d.value; //                    dashoffset only controls the reveal
+            return (
               <circle
                 key={d.label}
                 cx="75"
@@ -151,13 +185,15 @@ export function Donut({ data = [], format = fmtInt, size = 150 }) {
                 fill="none"
                 stroke={d.color}
                 strokeWidth="14"
-                strokeDasharray={`${seg} ${C - seg}`}
-                strokeDashoffset={-acc}
+                strokeDasharray={`${seg} ${C}`}
+                transform={`rotate(${start} 75 75)`}
                 strokeLinecap="butt"
+                style={{
+                  strokeDashoffset: shown ? 0 : seg,
+                  transition: `stroke-dashoffset .8s cubic-bezier(.22,1,.36,1) ${i * 0.1}s`,
+                }}
               />
             );
-            acc += seg;
-            return el;
           })}
         </g>
         <text x="75" y="82" textAnchor="middle" fill="#e7e7f0" fontSize="22" fontWeight="700">
