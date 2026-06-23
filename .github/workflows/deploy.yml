@@ -168,15 +168,22 @@ jobs:
             #    from the process CWD, which we set to `current` below).
             ln -sfn "$APP/shared/.env" "$REL/.env"
 
+            # 2b. Forward migrations run on the NEW release BEFORE the flip, so a
+            #     failed migration aborts the deploy with the OLD release still
+            #     live (no flip, no rollback needed). Migrations are additive
+            #     (add column, swap index) and backward-compatible with the
+            #     currently-running old code. umzug is a prod dep, so it ships in
+            #     the --omit=dev tarball.
+            echo "Running database migrations…"
+            ( cd "$REL" && NODE_ENV=production npm run migrate ) \
+              || { echo "Migration failed — aborting deploy (old release untouched)"; exit 1; }
+
             # 3. Remember the live target for rollback (empty on first deploy).
             PREV=""
             if [ -L "$APP/current" ]; then PREV="$(readlink "$APP/current")"; fi
 
             # 4. ATOMIC activation — ln -sfn swaps the symlink in a single syscall.
             ln -sfn "$REL" "$APP/current"
-
-            # (Migrations would run here, after the flip, once baseline exists:
-            #  cd "$APP/current" && npm run migrate || rollback)
 
             # 5. (Re)start the backend on the freshly-flipped `current`.
             #    ⚠️ We DELETE + START rather than `pm2 reload`. pm2 resolves the

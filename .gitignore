@@ -33,3 +33,6 @@ firebase-b64.txt
 
 # Local-only filled-in prod env (real secrets) — never commit
 backend/PROD_ENV_TEMPLATE.txt
+
+# Migration notes — kept local (contains internal/sensitive notes)
+backend/MIGRATIONS.md

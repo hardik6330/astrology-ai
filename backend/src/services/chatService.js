@@ -9,6 +9,26 @@ import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'chat' });
 
+// Cap the per-user history scan. Without a bound, ChatMessage.findAll loads a
+// user's ENTIRE message history every fetch — a full-table-per-user read that
+// becomes a multi-second query (and a memory spike) for heavy chatters. The
+// newest N messages are more than enough for both UI restore and topic context.
+const MAX_CHAT_HISTORY = 200;
+
+// Fetch a user's most-recent messages in chronological (ASC) order, bounded by
+// MAX_CHAT_HISTORY. Queries newest-first (so the LIMIT keeps the latest), then
+// reverses to chronological. The role tiebreak mirrors the original ASC sort
+// ('user' before 'assistant' within the same second) after the reverse.
+async function fetchRecentHistory(userId, limit = MAX_CHAT_HISTORY) {
+  const rows = await ChatMessage.findAll({
+    where: { userId },
+    order: [['createdAt', 'DESC'], ['role', 'ASC']],
+    limit,
+    attributes: ['role', 'content'],
+  });
+  return rows.reverse().map((r) => ({ role: r.role, content: r.content }));
+}
+
 // Canned reply when the topic gate blocks an off-topic message (general
 // knowledge, coding, other named people, NSFW). Returned WITHOUT the expensive
 // answer call — the guard is lenient, so genuine life/astrology/personal and
@@ -123,14 +143,7 @@ async function buildInsightBlock(userId) {
 export async function getChatHistory(form) {
   const user = await findUserByForm(form);
   if (!user) return [];
-  const rows = await ChatMessage.findAll({
-    where: { userId: user.id },
-    // Secondary 'role' DESC tiebreak orders 'user' before 'assistant' within
-    // the same second — fixes legacy pairs saved with identical timestamps.
-    order: [['createdAt', 'ASC'], ['role', 'DESC']],
-    attributes: ['role', 'content'],
-  });
-  return rows.map((r) => ({ role: r.role, content: r.content }));
+  return fetchRecentHistory(user.id);
 }
 
 // Answer one user turn against the chart, then persist the exchange.
@@ -174,13 +187,7 @@ export async function answerAndPersist({ messages, factSheet, form }) {
     // Pull persisted history so a revisited topic can be answered with
     // awareness of what was already said. Reuse the already-resolved user.
     const [priorHistory, palmBlock, insightBlock] = await Promise.all([
-      user
-        ? ChatMessage.findAll({
-            where: { userId: user.id },
-            order: [['createdAt', 'ASC'], ['role', 'DESC']],
-            attributes: ['role', 'content'],
-          }).then(rows => rows.map(r => ({ role: r.role, content: r.content }))).catch(() => [])
-        : Promise.resolve([]),
+      user ? fetchRecentHistory(user.id).catch(() => []) : Promise.resolve([]),
       user ? buildPalmBlock(user.id) : Promise.resolve(''),
       user ? buildInsightBlock(user.id) : Promise.resolve(''),
     ]);
