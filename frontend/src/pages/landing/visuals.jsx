@@ -46,9 +46,10 @@ export function PalmReportPreview() {
               </div>
               <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-1000 ease-out"
+                  className="bar-fill h-full rounded-full"
                   style={{
-                    width: `${line.value}%`,
+                    "--bar-w": `${line.value}%`,
+                    animationDelay: `${0.2 + i * 0.18}s`,
                     backgroundColor: line.color,
                     boxShadow: `0 0 10px ${line.color}80`,
                   }}

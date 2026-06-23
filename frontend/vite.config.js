@@ -17,7 +17,7 @@ import { dirname, join } from "node:path";
 //     storage.googleapis.com (model)
 //   • the backend API → connect <apiOrigin> (from VITE_API_URL)
 // frame-ancestors is intentionally absent — it's ignored in a <meta> CSP and is
-// set as an HTTP header in vercel.json instead.
+// set as an HTTP header by nginx instead (see deploy/nginx/frontend.conf).
 function buildCsp(apiOrigin) {
   return [
     "default-src 'self'",

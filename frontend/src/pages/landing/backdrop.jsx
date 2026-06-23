@@ -112,6 +112,10 @@ export function LandingStyles() {
       .chat-rise { opacity: 0; animation: chatRise .5s cubic-bezier(.22,1,.36,1) forwards; }
       @keyframes chatRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
+      /* Palm-report meter bars fill from 0 → target width (--bar-w) on mount. */
+      .bar-fill { width: 0; animation: barFill 1.4s cubic-bezier(.22,1,.36,1) forwards; }
+      @keyframes barFill { to { width: var(--bar-w); } }
+
       /* Bento chat is a bottom-anchored window (no scrollbar) — the oldest visible
          turn softly fades out at the TOP edge as new ones arrive below it. */
       .mask-fade-t { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%); mask-image: linear-gradient(to bottom, transparent, #000 18%); }
@@ -152,10 +156,11 @@ export function LandingStyles() {
         [data-reveal] { opacity: 1 !important; transform: none !important; transition: none; }
         .fx-stars, .fx-blob, .fx-star, .fx-meteor,
         .rashi-wheel, .rashi-glyph, .rashi-halo,
-        .chat-rise, .typing-dot, .scan-line, .palm-outline, .palm-line, .palm-dot { animation: none !important; }
+        .chat-rise, .typing-dot, .scan-line, .palm-outline, .palm-line, .palm-dot, .bar-fill { animation: none !important; }
         .fx-meteor { display: none; }
         .fx-card:hover, .cta-glow:hover, .cta-glow:active { transform: none; }
         .chat-rise { opacity: 1; }
+        .bar-fill { width: var(--bar-w); }
         .palm-outline, .palm-line { stroke-dashoffset: 0; }
         .palm-dot { opacity: 1; }
       }

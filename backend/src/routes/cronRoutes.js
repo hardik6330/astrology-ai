@@ -1,8 +1,10 @@
-// Single scheduled-push trigger. Selects the campaign via the ?job= query param.
-// Two callers are supported (both gated by requireCronSecret):
-//   • Vercel Cron      → GET  (Vercel only issues GET; auth via Authorization: Bearer)
-//   • External cron    → POST (cron-job.org / GitHub Actions; auth via x-cron-secret)
-// Schedules live in vercel.json (engage hourly, morning/evening/reengage daily).
+// Manual scheduled-push trigger. Selects the campaign via the ?job= query param,
+// gated by requireCronSecret. The VPS no longer needs this for scheduling — the
+// in-process node-cron scheduler (config/scheduler.js) drives every campaign,
+// including the randomised engage poll. This route stays for manual/admin use
+// (e.g. ?job=engage_now to force a test send) and any optional external cron.
+// Both verbs hit the same handler: GET (Authorization: Bearer) and POST
+// (x-cron-secret) are accepted.
 
 import { Router } from 'express';
 import * as cron from '../controllers/cronController.js';
@@ -10,7 +12,6 @@ import { requireCronSecret } from '../middleware/cronAuth.js';
 
 const router = Router();
 
-// GET for Vercel Cron, POST for external schedulers — same handler.
 router.get('/cron/run', requireCronSecret, cron.run);
 router.post('/cron/run', requireCronSecret, cron.run);
 
