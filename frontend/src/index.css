@@ -74,6 +74,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  /* Scale the whole app up to read like a browser at 110% zoom — reflows
+     layout just as native zoom does, app-wide. */
+  zoom: 1.1;
 }
 
 /* Display type identity: headings + anything tagged .font-display render in the
