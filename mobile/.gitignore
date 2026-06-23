@@ -9,3 +9,7 @@ web-build/
 # (modules/hand-landmarker/android|ios) stays tracked and ships to EAS.
 /ios/
 /android/
+
+# Firebase client config — kept out of git (provided to EAS via file env vars)
+google-services.json
+GoogleService-Info.plist
