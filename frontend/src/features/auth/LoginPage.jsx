@@ -204,7 +204,7 @@ export default function LoginPage() {
         <div className="p-7 md:p-9">
           <div className="mb-7 text-center">
             <div className="mb-3 flex justify-center text-[#a78bfa]">
-              <Icon name="SATURN" size={44} />
+              <Icon name="PLANET" size={44} />
             </div>
             <h1 className="m-0 text-2xl font-bold text-ink">Sign in to Selora</h1>
             <p className="mt-2 mb-0 text-[13px] text-dim">
