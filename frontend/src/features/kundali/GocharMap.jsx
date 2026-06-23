@@ -48,9 +48,9 @@ const MALEFIC = new Set(["Sun", "Mars", "Saturn", "Rahu", "Ketu"]);
 
 // palette (matches the other web wheels)
 const C = {
-  warning: "#fbbf24",
-  success: "#4ade80",
-  danger: "#f87171",
+  warning: "#fcd34d", // lightened from #fbbf24
+  success: "#86efac", // lightened from #4ade80
+  danger: "#fca5a5", // lightened from #f87171
   textBody: "#cbd5e1",
   textMuted: "#64748b",
   primaryLight: "#a5b4fc",
@@ -237,14 +237,7 @@ export default function GocharMap({ chart }) {
             return (
               <g key={`n-${p.name}`}>
                 <circle cx={pt.x} cy={pt.y} r={8.5} fill={tint} opacity={0.92} />
-                <text
-                  x={pt.x}
-                  y={pt.y + 3.5}
-                  fontSize="10"
-                  fontWeight="800"
-                  fill="#0b0a1f"
-                  textAnchor="middle"
-                >
+                <text x={pt.x} y={pt.y + 3.5} fontSize="10" fontWeight="800" fill="#fff" textAnchor="middle">
                   {svgGlyph(GLYPH[p.name]) || p.name[0]}
                 </text>
               </g>

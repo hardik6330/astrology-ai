@@ -14,9 +14,9 @@
 @theme {
   --color-primary: #8b5cf6;
   --color-accent: #6366f1;
-  --color-danger: #f87171;
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
+  --color-danger: #fca5a5;
+  --color-success: #6ee7b7;
+  --color-warning: #fcd34d;
 
   --color-ink: #ffffff; /* headings / strong text */
   --color-body: #e2e8f0;
@@ -36,7 +36,7 @@
   /* base channels (for rgba alpha variants used by inline styles) */
   --slate-rgb: 148, 163, 184;
   --violet-rgb: 139, 92, 246;
-  --danger-rgb: 248, 113, 113;
+  --danger-rgb: 252, 165, 165;
   --panel-rgb: 15, 15, 24;
 
   /* Aliases: keep existing var(--c-*) inline styles working, sourced from the

@@ -52,7 +52,7 @@ export default function KundaliChart({ chart, variant }) {
         x={cx}
         y={cy + j * 13 - (arr.length - 1) * 6.5}
         fontSize="11.5"
-        fill={p.retro ? "#f87171" : "#fff"}
+        fill={p.retro ? "#fca5a5" : "#fff"}
         textAnchor="middle"
       >
         {PABBR[p.base]}
