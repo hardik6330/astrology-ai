@@ -19,9 +19,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.astrologyai.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to capture a photo of your palm for AI reading.",
-        "NSPhotoLibraryUsageDescription": "Used to pick a palm photo from your gallery."
+        "NSPhotoLibraryUsageDescription": "Used to pick a palm photo from your gallery.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -34,10 +36,6 @@
         "backgroundColor": "#0b0a1f"
       },
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.POST_NOTIFICATIONS",
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO",

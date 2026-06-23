@@ -22,18 +22,25 @@ export async function getSavedDaily(form, targetDate) {
   const user = await findUserByForm(form);
   if (!user) return null;
   const date = targetDate || today();
-  const daily = await DailyData.findOne({ where: { userId: user.id, date } });
+  // Scope to THIS chart so an edited profile doesn't show another chart's day.
+  const chartHash = chartHashFor({
+    name: form.name, date: form.date, time: form.time, city: form.city, gender: form.gender,
+  });
+  const where = chartHash ? { userId: user.id, date, chartHash } : { userId: user.id, date };
+  const daily = await DailyData.findOne({ where });
   return daily ? asContent(daily.guidance) : null;
 }
 
-// GET the list of dates that already have saved daily guidance for a user.
+// GET the list of dates that already have saved daily guidance for THIS chart
+// (so the calendar marks only days that will actually re-view for free).
 export async function getDailyDates(form) {
   const user = await findUserByForm(form);
   if (!user) return [];
-  const rows = await DailyData.findAll({
-    where: { userId: user.id },
-    attributes: ['date'],
+  const chartHash = chartHashFor({
+    name: form.name, date: form.date, time: form.time, city: form.city, gender: form.gender,
   });
+  const where = chartHash ? { userId: user.id, chartHash } : { userId: user.id };
+  const rows = await DailyData.findAll({ where, attributes: ['date'] });
   return rows.map((r) => r.date);
 }
 
@@ -44,7 +51,17 @@ export async function generateDailyGuidance({ form, ctx, targetDate }) {
   return dedupe(`daily|${userKey(form)}|${date}`, async () => {
     const user = await findOrCreateUser(form);
 
-    const existing = await DailyData.findOne({ where: { userId: user.id, date } });
+    // The birth-identity hash: cache key for THIS user's saved days AND the
+    // sibling-match key below.
+    const chartHash = chartHashFor({
+      name: form.name, date: form.date, time: form.time, city: form.city, gender: form.gender,
+    });
+
+    // Already saved for THIS chart + date? Free re-view. Keyed by the chart
+    // identity, so returning to a previously-generated chart re-views its saved
+    // days free instead of re-charging.
+    const cacheWhere = chartHash ? { userId: user.id, date, chartHash } : { userId: user.id, date };
+    const existing = await DailyData.findOne({ where: cacheWhere });
     if (existing) return { content: asContent(existing.guidance), balance: await getBalance(user.id) };
 
     // New day → charge once. Saved days above are free re-views. Throws 402
@@ -58,19 +75,14 @@ export async function generateDailyGuidance({ form, ctx, targetDate }) {
     // answer is identical — reuse it instead of burning Gemini tokens. We still
     // write a row owned by THIS user so per-user lifecycle stays clean. Mirrors
     // the kundali sibling-copy: charged like a fresh day, just no AI call.
-    // Match a sibling by the normalized birth-identity hash (one indexed
-    // lookup, whitespace-tolerant — see utils/chartHash.js).
-    const hash = chartHashFor({
-      name: form.name, date: form.date, time: form.time, city: form.city, gender: form.gender,
-    });
-    const sibling = hash && await User.findOne({
-      where: { chartHash: hash, id: { [Op.ne]: user.id } },
+    const sibling = chartHash && await User.findOne({
+      where: { chartHash, id: { [Op.ne]: user.id } },
     });
     if (sibling) {
-      const siblingDaily = await DailyData.findOne({ where: { userId: sibling.id, date } });
+      const siblingDaily = await DailyData.findOne({ where: { userId: sibling.id, date, chartHash } });
       if (siblingDaily) {
         try {
-          await DailyData.create({ userId: user.id, date, guidance: siblingDaily.guidance });
+          await DailyData.create({ userId: user.id, date, chartHash, guidance: siblingDaily.guidance });
           log.info({ userId: user.id, copiedFrom: sibling.id, date }, 'Daily copied from sibling user');
         } catch (saveError) {
           log.error({ err: saveError }, 'Daily sibling-copy save failed');
@@ -96,7 +108,7 @@ export async function generateDailyGuidance({ form, ctx, targetDate }) {
     let parsed = cleaned; // fallback to the cleaned string if JSON.parse fails
     try {
       parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
-      await DailyData.create({ userId: user.id, date, guidance: parsed });
+      await DailyData.create({ userId: user.id, date, chartHash, guidance: parsed });
     } catch (saveError) {
       log.error({ err: saveError }, 'Daily save failed');
     }

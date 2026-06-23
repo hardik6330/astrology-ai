@@ -1,6 +1,5 @@
 import { Op } from 'sequelize';
-import sequelize from '../config/dbConfig.js';
-import { User, Kundali, DailyData } from '../models/index.js';
+import { User } from '../models/index.js';
 import { AppError } from '../errors/AppError.js';
 import { notifyWelcome } from './pushService.js';
 import { grant } from './creditService.js';
@@ -92,26 +91,11 @@ export async function findOrCreateUser(form) {
     // birth details is the user's first real engagement, so fire the welcome
     // nudge now (a device token exists by this point, unlike at login).
     const wasPlaceholder = !existing.name;
-    // Re-point this row at the (possibly edited) birth details. If the chart
-    // actually changed, drop the cached AI readings so they regenerate for
-    // the new chart instead of showing the previous chart's interpretation.
-    const chartChanged =
-      existing.birthDate !== birth.birthDate ||
-      existing.birthTime !== birth.birthTime ||
-      existing.birthCity !== birth.birthCity ||
-      existing.name !== birth.name;
-    // Atomic: re-point the row AND drop the now-stale cached readings together,
-    // so a crash can't leave the user on new birth details while the previous
-    // chart's AI interpretation survives. Don't swallow — let it roll back.
-    await sequelize.transaction(async (t) => {
-      await existing.update(birth, { transaction: t });
-      if (chartChanged) {
-        await Promise.all([
-          Kundali.destroy({ where: { userId: existing.id }, transaction: t }),
-          DailyData.destroy({ where: { userId: existing.id }, transaction: t }),
-        ]);
-      }
-    });
+    // Re-point this row at the (possibly edited) birth details. Both AI caches
+    // — Kundali insights and DailyData — are now keyed PER chart (chartHash), so
+    // editing birth details never destroys them: returning to a previously
+    // generated chart stays a free re-view instead of a re-charge.
+    await existing.update(birth);
     if (wasPlaceholder && birth.name) sendWelcome(form.phone);
     return existing;
   }

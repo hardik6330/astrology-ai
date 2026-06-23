@@ -21,7 +21,13 @@ const log = logger.child({ mod: 'kundali' });
 export async function getSavedInterpretation(form) {
   const user = await findUserByForm(form);
   if (!user) return null;
-  const kundali = await Kundali.findOne({ where: { userId: user.id } });
+  // Scope the saved reading to THIS exact chart (birth identity), so an edited
+  // profile doesn't surface a previous chart's interpretation.
+  const chartHash = chartHashFor({
+    name: form.name, date: form.date, time: form.time, city: form.city, gender: form.gender,
+  });
+  const where = chartHash ? { userId: user.id, chartHash } : { userId: user.id };
+  const kundali = await Kundali.findOne({ where });
   return kundali ? asContent(kundali.interpretation) : null;
 }
 
@@ -40,9 +46,19 @@ export async function generateInterpretation({ form, factSheet, deviceToken }) {
       notifyInsightReady(user.phone || form.phone, deviceToken)
         .catch((err) => log.warn({ err: err.message }, 'insight-ready push failed'));
 
-    // 1. Already saved for THIS user? Return that — already unlocked, so it's a
-    //    free re-view (no charge, no push).
-    const existing = await Kundali.findOne({ where: { userId: user.id } });
+    // The birth-identity hash (name+date+time+city+gender). It's both the cache
+    // key for THIS user's saved readings AND the sibling-match key below.
+    const chartHash = chartHashFor({
+      name: form.name, date: form.date, time: form.time, city: form.city, gender: form.gender,
+    });
+
+    // 1. Already saved for THIS exact chart? Return it — already unlocked, so
+    //    it's a free re-view (no charge, no push). Keyed by the chart identity
+    //    (not just userId), so a user who edits birth details and later returns
+    //    to a previously-generated chart gets it back free instead of being
+    //    re-billed for a reading they already own.
+    const cacheWhere = chartHash ? { userId: user.id, chartHash } : { userId: user.id };
+    const existing = await Kundali.findOne({ where: cacheWhere });
     if (existing) {
       return { content: asContent(existing.interpretation), balance: await getBalance(user.id) };
     }
@@ -85,11 +101,8 @@ export async function generateInterpretation({ form, factSheet, deviceToken }) {
       if (!latestPalm) {
         // Match a sibling by the normalized birth-identity hash (one indexed
         // lookup, whitespace-tolerant — see utils/chartHash.js).
-        const hash = chartHashFor({
-          name: form.name, date: form.date, time: form.time, city: form.city, gender: form.gender,
-        });
-        const sibling = hash && await User.findOne({
-          where: { chartHash: hash, id: { [Op.ne]: user.id } },
+        const sibling = chartHash && await User.findOne({
+          where: { chartHash, id: { [Op.ne]: user.id } },
         });
         if (sibling) {
           const siblingKundali = await Kundali.findOne({ where: { userId: sibling.id } });
@@ -102,6 +115,7 @@ export async function generateInterpretation({ form, factSheet, deviceToken }) {
             try {
               await Kundali.create({
                 userId: user.id,
+                chartHash,
                 locationId: siblingKundali.locationId,
                 chartData: siblingKundali.chartData,
                 interpretation: siblingKundali.interpretation,
@@ -154,6 +168,7 @@ export async function generateInterpretation({ form, factSheet, deviceToken }) {
         parsed = typeof generated === 'string' ? JSON.parse(cleaned) : generated;
         await Kundali.create({
           userId: user.id,
+          chartHash,
           locationId,
           chartData: { factSheet },
           interpretation: parsed,

@@ -10,14 +10,20 @@ const Kundali = sequelize.define('Kundali', {
   },
   userId:         { type: DataTypes.STRING(24), allowNull: false },
   locationId:     { type: DataTypes.STRING(24), allowNull: true },
+  // Birth-identity hash (name+date+time+city+gender — see utils/chartHash.js).
+  // The cache key: a user keeps ONE saved interpretation per distinct chart, so
+  // editing birth details and later returning to a prior chart is a free
+  // re-view instead of a re-charge. Nullable for legacy/incomplete rows.
+  chartHash:      { type: DataTypes.STRING(64), allowNull: true },
   chartData:      { type: DataTypes.JSON, allowNull: false },
   interpretation: { type: DataTypes.JSON, allowNull: false },
 }, {
   timestamps: true,
-  // Every read is `findOne({ where: { userId } })`. UNIQUE: exactly one chart
-  // per user (hasOne) — also makes a concurrent double-insert fail at the DB
-  // instead of silently forking a second row.
-  indexes: [{ name: 'kundalis_user_id', fields: ['userId'], unique: true }],
+  // Reads are `findOne({ where: { userId, chartHash } })`. UNIQUE on the pair:
+  // one saved chart per (user, birth-identity), and a concurrent double-insert
+  // for the same chart fails at the DB instead of forking a second row. The
+  // composite also serves userId-only lookups (left-prefix).
+  indexes: [{ name: 'kundalis_user_charthash', fields: ['userId', 'chartHash'], unique: true }],
 });
 
 export default Kundali;
