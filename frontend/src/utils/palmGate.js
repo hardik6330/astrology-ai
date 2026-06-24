@@ -30,6 +30,15 @@ const MIN_FINGER_SPREAD = 0.12; // min normalized distance between finger tips
 const MAX_ORIENTATION_DEVIATION = 55; // max degrees away from vertical (up)
 const PALM_NORM_W = 200; // palm crop width for the in-region metrics
 // (resolution-independent: web 256 ≈ mobile 512).
+// Handedness: MediaPipe must be at least this confident for its label to count
+// as a vote (its score is a 0-1 probability for the reported hand).
+const HANDEDNESS_MIN_SCORE = 0.8;
+// Our capture is NOT mirrored: web uses the rear camera (`capture="environment"`)
+// and typical gallery uploads aren't mirror-flipped. MediaPipe, however, reports
+// handedness assuming a MIRRORED selfie image, so we swap its label for our
+// non-mirrored input. If a build is ever found to mirror its capture, flip this.
+// (Keep in sync with the mobile gate.)
+const CAPTURE_IS_MIRRORED = false;
 
 // Memoized model — loaded once per page session, kept warm in module scope.
 let _detector = null;
@@ -215,22 +224,50 @@ const TIPS = {
   tilted_hand: "Keep your hand straight (fingers pointing up) and flat towards the camera.",
 };
 
-// Determine handedness from LANDMARK GEOMETRY, not MediaPipe's label. MediaPipe
-// reports handedness under a mirror (selfie) assumption that doesn't hold
-// reliably across cameras, so we compute it ourselves: with the palm facing the
-// camera and fingers pointing up (enforced by the orientation check), a
-// non-mirrored photo puts the thumb on the image-LEFT for a RIGHT hand and the
-// image-RIGHT for a LEFT hand. Calibrated against real samples. Returns null
-// when thumb/pinky aren't clearly separated horizontally (too ambiguous).
+// Geometric handedness from the thumb-vs-pinky side. With the palm facing the
+// camera and fingers up (enforced by the orientation check) in a NON-mirrored
+// photo, the thumb sits on the image-RIGHT of the pinky for a RIGHT hand (dx > 0)
+// and image-LEFT for a LEFT hand. ⚠️ This is reliable ONLY for a palm-facing,
+// non-mirrored shot: it silently INVERTS for a back-of-hand photo or a mirrored
+// (selfie) upload — which is why we cross-check it against MediaPipe's
+// anatomy-aware label in resolveHandedness() rather than trusting it alone.
+// Returns null when thumb/pinky aren't clearly separated horizontally.
+// Keep in sync with the mobile gate + backend guard.
 function geometricHand(keypoints) {
   const thumbTip = keypoints[4];
   const pinkyMcp = keypoints[17];
   const palmWidth = Math.abs(keypoints[5].x - keypoints[17].x) || 1;
   const dx = thumbTip.x - pinkyMcp.x;
   if (Math.abs(dx) < palmWidth * 0.15) return null;
-  // Calibrated from live testing: thumb on the image-RIGHT of the pinky (dx > 0)
-  // = a RIGHT hand. Keep in sync with the mobile gate + backend guard.
   return dx > 0 ? "Right" : "Left";
+}
+
+// MediaPipe's label, corrected for our capture's mirror state. MediaPipe assumes
+// a mirrored selfie image, so for non-mirrored capture we flip it. Returns null
+// when absent or below the confidence floor.
+function mediapipeHand(mpLabel, mpScore) {
+  if (mpLabel !== "Left" && mpLabel !== "Right") return null;
+  if ((mpScore || 0) < HANDEDNESS_MIN_SCORE) return null;
+  if (CAPTURE_IS_MIRRORED) return mpLabel;
+  return mpLabel === "Left" ? "Right" : "Left";
+}
+
+// Resolve which hand the photo shows by combining TWO independent signals:
+//   • MediaPipe's trained handedness (anatomy-aware — distinguishes palm from the
+//     back of a hand), mirror-corrected for our capture.
+//   • The geometric thumb side (reliable only for a palm-facing, non-mirrored
+//     shot; see geometricHand).
+// `confident` is true ONLY when both signals are present AND agree. Callers
+// should hard-reject a "wrong hand" only on a confident, mismatching call, so an
+// ambiguous photo (back of hand / mirrored upload) is passed through rather than
+// wrongly blocked. Degrades safely: if CAPTURE_IS_MIRRORED is miscalibrated the
+// two signals simply disagree → never confident → the gate stops enforcing
+// handedness (no false rejects) instead of rejecting every correct hand.
+function resolveHandedness(keypoints, mpLabel, mpScore) {
+  const geo = geometricHand(keypoints);
+  const mp = mediapipeHand(mpLabel, mpScore);
+  if (geo && mp) return { hand: geo, confident: geo === mp, geo, mp };
+  return { hand: geo || mp, confident: false, geo, mp };
 }
 
 function checkFingerSpread(landmarks) {
@@ -376,13 +413,12 @@ export async function gatePalmImage(file, claimedHand) {
       bounds.maxY > img.height - pad
     : false;
 
-  // Hand-side check — handedness from landmark geometry (see geometricHand),
-  // not MediaPipe's mirror-prone label. Skipped when the call is too ambiguous.
-  let wrongHand = false;
-  if (hasHand && claimedHand) {
-    const detectedHand = geometricHand(hand.keypoints);
-    if (detectedHand) wrongHand = detectedHand !== claimedHand;
-  }
+  // Hand-side check — combine MediaPipe's anatomy-aware label with the geometric
+  // thumb side (see resolveHandedness). Only hard-reject on a CONFIDENT mismatch
+  // (both signals agree on the opposite hand), so a back-of-hand or mirrored
+  // upload isn't wrongly blocked.
+  const handInfo = hasHand ? resolveHandedness(hand.keypoints, hand.handedness, hand.score) : null;
+  const wrongHand = !!(claimedHand && handInfo?.confident && handInfo.hand && handInfo.hand !== claimedHand);
 
   // User-facing checklist (astro-2 order). `cropped` + `wrong_hand` are enforced
   // below but kept off the list to match the reference UI.
@@ -443,6 +479,16 @@ export async function gatePalmImage(file, claimedHand) {
       lightingVar: region ? +region.lightingVar.toFixed(1) : null,
       cropped,
       wrongHand,
+      // Handedness diagnostics — verify the mirror convention here: for a photo
+      // you KNOW is your right hand, `geo` and `mp` should both read "Right".
+      // If they consistently disagree on a correct hand, flip CAPTURE_IS_MIRRORED.
+      claimedHand: claimedHand || null,
+      mpRaw: hand?.handedness ?? null,
+      mpScore: hand?.score != null ? +hand.score.toFixed(2) : null,
+      handGeo: handInfo?.geo ?? null,
+      handMp: handInfo?.mp ?? null,
+      handResolved: handInfo?.hand ?? null,
+      handConfident: handInfo?.confident ?? null,
     });
   }
 

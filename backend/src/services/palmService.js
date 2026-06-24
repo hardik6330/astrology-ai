@@ -20,13 +20,17 @@ import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'palm' });
 
-// Handedness from landmark GEOMETRY — the same calibrated rule the client gates
-// run (frontend/src/utils/palmGate.js, mobile/.../palmGate.js). Server-side copy
-// so the wrong-hand check still holds even when the client gate failed open
+// Handedness from landmark GEOMETRY — the geometric half of the client gates'
+// check (frontend/src/utils/palmGate.js, mobile/.../palmGate.js). Server-side
+// copy so the wrong-hand check still holds even when the client gate failed open
 // (Expo Go / detector crash) or is a stale build. With the palm facing the
-// camera and fingers up, a NON-mirrored photo puts the thumb on the image-LEFT
-// for a RIGHT hand and image-RIGHT for a LEFT hand. Returns null when the
-// thumb/pinky split is too small to call (hand rotated / pointing at camera).
+// camera and fingers up in a NON-mirrored photo, the thumb sits image-RIGHT of
+// the pinky for a RIGHT hand (dx > 0), image-LEFT for a LEFT hand. ⚠️ This is a
+// GEOMETRY-ONLY backstop: the clients also cross-check MediaPipe's anatomy-aware
+// label (which the server can't recompute and must not trust from the client —
+// see the security model), so geometry here can over-call a back-of-hand or
+// mirrored upload. We keep it deliberately conservative — null (no call) when
+// the thumb/pinky split is too small (hand rotated / pointing at camera).
 function geometricHand(landmarks) {
   if (!Array.isArray(landmarks) || landmarks.length < 21) return null;
   const thumbTip = landmarks[4], pinkyMcp = landmarks[17], indexMcp = landmarks[5];
@@ -34,8 +38,6 @@ function geometricHand(landmarks) {
   const palmWidth = Math.abs(indexMcp.x - pinkyMcp.x) || 1;
   const dx = thumbTip.x - pinkyMcp.x;
   if (Math.abs(dx) < palmWidth * 0.15) return null;
-  // Calibrated from live testing: thumb on the image-RIGHT of the pinky (dx > 0)
-  // = a RIGHT hand. Keep in sync with the web + mobile gates.
   return dx > 0 ? 'Right' : 'Left';
 }
 
