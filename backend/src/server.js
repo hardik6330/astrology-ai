@@ -87,32 +87,33 @@ function logLanUrls(port) {
   });
 }
 
-// Verify the connection. Schema ownership:
-//   • production  → migrations only (`npm run migrate`). sync() never ALTERs an
-//     existing table, so it silently misses new columns — relying on it in prod
-//     is a latent "Unknown column" bug. Migrations are the source of truth.
-//   • dev / test  → sync() for convenience (auto-creates missing tables).
+// Verify the connection and ensure schema existence.
+//   • production  → sync() is called at boot to ensure missing tables exist,
+//     but real schema updates (new columns/indices) MUST go through migrations
+//     (`npm run migrate`). sync() never ALTERs existing tables.
+//   • dev / test  → sync() for convenience.
 async function initDatabase() {
   await sequelize.authenticate();
   logger.info('Database connection verified');
-  if (env.NODE_ENV !== 'production') {
-    await sequelize.sync();
-    logger.info('Database synced (dev only — missing tables created)');
-  }
+
+  // Ensure all tables exist. sync() is non-destructive: it only CREATEs missing
+  // tables and never drops or alters existing ones.
+  await sequelize.sync();
+  logger.info('Database schema synced (missing tables created)');
 }
 
 async function start() {
   try {
     await initDatabase();
     initFirebase();
+
+    // Always-on host (Oracle VPS) or local dev: ONE long-lived process, so seed
+    // once at boot and run the in-process scheduler.
+    await seedDefaults();
   } catch (err) {
     logger.fatal({ err }, 'Startup init failed');
     if (env.NODE_ENV === 'production') process.exit(1);
   }
-
-  // Always-on host (Oracle VPS) or local dev: ONE long-lived process, so seed
-  // once at boot and run the in-process scheduler.
-  await seedDefaults();
 
   const server = app.listen(env.PORT, '0.0.0.0', () => {
     logger.info(`Server running on port ${env.PORT}`);
