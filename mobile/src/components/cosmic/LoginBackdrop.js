@@ -27,7 +27,8 @@ const LoginBackdrop = React.memo(function LoginBackdrop({ color, theme }) {
   const stop2 = color.bg;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    // Slightly dimmed so the cosmic backdrop sits quietly behind the login form.
+    <View style={[StyleSheet.absoluteFill, { opacity: 0.8 }]} pointerEvents="none">
       {/* Solid radial gradient — drawn once, never animated. */}
       <Svg width={SCREEN_W} height={SCREEN_H} style={StyleSheet.absoluteFill}>
         <Defs>
