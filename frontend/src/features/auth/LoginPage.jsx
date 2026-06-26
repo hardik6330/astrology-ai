@@ -203,8 +203,8 @@ export default function LoginPage() {
         {/* ── Right: login form ── */}
         <div className="p-7 md:p-9">
           <div className="mb-7 text-center">
-            <div className="mb-3 flex justify-center text-[#a78bfa]">
-              <Icon name="PLANET" size={44} />
+            <div className="mb-3 flex justify-center">
+              <Logo size={48} className="rounded-xl" />
             </div>
             <h1 className="m-0 text-2xl font-bold text-ink">Sign in to Selora</h1>
             <p className="mt-2 mb-0 text-[13px] text-dim">
