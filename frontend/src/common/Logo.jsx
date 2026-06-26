@@ -1,37 +1,21 @@
-import { useId } from "react";
+import logoUrl from "@/assets/homescreen-logo.png";
 
-// Brand mark — a ringed planet with a small orbiting spark, drawn in the brand
-// violet→indigo gradient. Replaces the bare ✦ emoji so the brand reads as a
-// designed product (Linear/Stripe-tier) rather than a template. Pairs with the
-// "Selora" wordmark, which callers render in the display font.
+// Brand mark — the Selora logo (galaxy swirl + spark), rendered as an <img> from
+// the shared 500×500 PNG (the same asset as the mobile home-screen icon) so the
+// web and app brand read identically. Keeps the {size, className} API of the old
+// inline-SVG mark, so every caller (login header, landing nav/footer) is
+// unchanged. Pairs with the "Selora" wordmark, which callers render in the
+// display font — so the image is decorative (aria-hidden / empty alt).
 export default function Logo({ size = 22, className = "" }) {
-  const id = useId(); // unique gradient ids so multiple logos on a page don't clash
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id={`${id}-g`} x1="3" y1="3" x2="21" y2="21" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#a78bfa" />
-          <stop offset="0.55" stopColor="#8b5cf6" />
-          <stop offset="1" stopColor="#6366f1" />
-        </linearGradient>
-      </defs>
-      {/* planet */}
-      <circle cx="12" cy="12" r="6" fill={`url(#${id}-g)`} />
-      {/* highlight */}
-      <circle cx="9.8" cy="9.8" r="1.7" fill="#fff" opacity="0.55" />
-      {/* tilted ring */}
-      <ellipse
-        cx="12"
-        cy="12"
-        rx="10"
-        ry="3.4"
-        transform="rotate(-25 12 12)"
-        stroke={`url(#${id}-g)`}
-        strokeWidth="1.6"
-        opacity="0.9"
-      />
-      {/* orbiting spark */}
-      <circle cx="20.2" cy="6.6" r="1.15" fill="#fbbf24" />
-    </svg>
+    <img
+      src={logoUrl}
+      width={size}
+      height={size}
+      className={className}
+      alt=""
+      aria-hidden="true"
+      style={{ objectFit: "contain", display: "inline-block" }}
+    />
   );
 }

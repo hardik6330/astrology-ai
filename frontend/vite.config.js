@@ -139,7 +139,7 @@ export default defineConfig(({ mode }) => {
         // External register script (not inline) so the strict build CSP's
         // script-src 'self' doesn't block service-worker registration.
         injectRegister: "script",
-        includeAssets: ["favicon.svg", "apple-touch-icon.png"],
+        includeAssets: ["favicon.png", "apple-touch-icon.png"],
         devOptions: {
           enabled: true,
         },
