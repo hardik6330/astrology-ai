@@ -92,11 +92,18 @@ h3,
 }
 
 /* Cosmic Background */
+/* Inner-page cosmic backdrop — matches the landing page's .fx background
+   (violet glow top-right, cyan glow bottom-left, diagonal tint, vignette over
+   #05050c). Keep in visual sync with .fx in src/pages/landing/backdrop.jsx. */
 .cosmos {
   position: fixed;
   inset: 0;
   z-index: -2;
-  background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #050508 100%);
+  background:
+    radial-gradient(120% 80% at 50% 0%, transparent 55%, rgba(5, 5, 12, 0.85)),
+    radial-gradient(1000px 720px at 100% -6%, rgba(139, 92, 246, 0.3), transparent 55%),
+    radial-gradient(820px 620px at 0% 106%, rgba(34, 211, 238, 0.12), transparent 55%),
+    linear-gradient(215deg, rgba(139, 92, 246, 0.1) 0%, transparent 48%), #05050c;
 }
 
 .stars {
@@ -106,7 +113,7 @@ h3,
   pointer-events: none;
   background-image: radial-gradient(white, rgba(255, 255, 255, 0.2) 2px, transparent 40px);
   background-size: 550px 550px;
-  opacity: 0.1;
+  opacity: 0.18;
   animation: move-stars 100s linear infinite;
 }
 

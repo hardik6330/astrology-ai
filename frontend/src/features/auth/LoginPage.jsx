@@ -162,7 +162,7 @@ export default function LoginPage() {
               aria-label="Selora — go to home"
               className="font-display flex w-fit items-center gap-2 text-lg font-extrabold text-ink no-underline transition-opacity hover:opacity-80"
             >
-              <Logo size={22} /> Selora
+              <Logo size={30} /> Selora
             </Link>
             <h2 className="mt-8 text-3xl font-extrabold leading-tight text-ink">
               Your stars are

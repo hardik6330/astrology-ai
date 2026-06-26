@@ -24,7 +24,7 @@ export default function PhoneMock() {
         <div className="absolute left-1/2 top-3 z-10 h-5 w-24 -translate-x-1/2 rounded-full bg-black/80" />
         <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-b from-[#12121f] to-[#0a0a14] px-5 pb-7 pt-11 text-center">
           <div className="flex items-center justify-center gap-1.5 text-sm font-extrabold">
-            <Logo size={20} /> <span className="font-display">Selora</span>
+            <Logo size={24} /> <span className="font-display">Selora</span>
           </div>
           <p className="mt-1 text-[11px] text-dim">Scan to download</p>
           <div

@@ -3,7 +3,7 @@
 // token, which AuthContext trades for our session JWT.
 
 import React, { useRef, useState, useEffect } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Dimensions } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Dimensions, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   useSharedValue, useAnimatedStyle,
@@ -157,37 +157,48 @@ export default function LoginScreen() {
     setResending(isResend);
     phoneRef.current = cleaned;
 
-    // Tear down any previous listener before a new send / resend.
-    unsubRef.current?.();
-    // User enters the full number incl. country code; Firebase needs E.164 (+...).
-    unsubRef.current = verifyPhone(`+${cleaned}`, {
-      onCodeSent: (verificationId) => {
-        verificationIdRef.current = verificationId;
-        setOtp("");
-        setStep("otp");
-        setResendIn(RESEND_SECS);
-        if (isResend) setNotice("New code sent.");
-        setResending(false);
-        setBusy(false);
-      },
-      // Android auto-read the SMS → fill the boxes + sign in with no typing.
-      onAutoComplete: async (idToken, code) => {
-        if (code) setOtp(code);
-        setStep("otp");
-        setBusy(true);
-        try {
-          await doLogin(idToken);
-        } catch (err) {
-          setError(otpError(err));
+    // Wrap the whole start in try/catch: verifyPhone() runs the native
+    // verifyPhoneNumber() synchronously, which can THROW (e.g. a pending
+    // verification, reCAPTCHA/Play-Integrity hiccup, or rate-limit on a resend).
+    // The async onError callback only catches async failures — without this, a
+    // synchronous throw escapes the onPress handler and white-screens the app.
+    try {
+      // Tear down any previous listener before a new send / resend.
+      unsubRef.current?.();
+      // User enters the full number incl. country code; Firebase needs E.164 (+...).
+      unsubRef.current = verifyPhone(`+${cleaned}`, {
+        onCodeSent: (verificationId) => {
+          verificationIdRef.current = verificationId;
+          setOtp("");
+          setStep("otp");
+          setResendIn(RESEND_SECS);
+          if (isResend) setNotice("New code sent.");
+          setResending(false);
           setBusy(false);
-        }
-      },
-      onError: (err) => {
-        setError(otpError(err));
-        setResending(false);
-        setBusy(false);
-      },
-    });
+        },
+        // Android auto-read the SMS → fill the boxes + sign in with no typing.
+        onAutoComplete: async (idToken, code) => {
+          if (code) setOtp(code);
+          setStep("otp");
+          setBusy(true);
+          try {
+            await doLogin(idToken);
+          } catch (err) {
+            setError(otpError(err));
+            setBusy(false);
+          }
+        },
+        onError: (err) => {
+          setError(otpError(err));
+          setResending(false);
+          setBusy(false);
+        },
+      });
+    } catch (err) {
+      setError(otpError(err));
+      setResending(false);
+      setBusy(false);
+    }
   }
 
   async function verifyOtp() {
@@ -216,7 +227,7 @@ export default function LoginScreen() {
         <View style={s.container}>
           <View style={s.content}>
             <Animated.View style={[s.logoContainer, animatedLogoStyle]}>
-              <Text style={s.logoEmoji}>{EMOJIS.CRYSTAL_BALL}</Text>
+              <Image source={require("../../../assets/homescreen-logo.png")} style={s.logoImg} resizeMode="contain" />
             </Animated.View>
             <Text style={s.title}>Sign in to Selora</Text>
             <Text style={s.subtitle}>
@@ -318,22 +329,16 @@ const makeStyles = (c) => StyleSheet.create({
   logoContainer: {
     width: 90,
     height: 90,
-    borderRadius: 45,
-    backgroundColor: c.theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.05)",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 30,
     marginTop: 20, // Space for floating animation
-    borderWidth: 1.5,
-    borderColor: c.cardBorder,
     alignSelf: "center",
-    // Ensure emoji isn't cut
     overflow: "visible",
   },
-  logoEmoji: { 
-    fontSize: 48,
-    textAlign: "center",
-    includeFontPadding: false, // Android fix for emoji cutting
+  logoImg: {
+    width: 88,
+    height: 88,
   },
 
   title: { color: c.text, fontSize: 28, fontWeight: "800", textAlign: "center", letterSpacing: 0.5 },

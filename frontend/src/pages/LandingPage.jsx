@@ -77,7 +77,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-transparent backdrop-blur-[2px]">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <span className="flex items-center gap-2 text-lg font-extrabold">
-            <Logo size={20} /> <span className="font-display">Selora</span>
+            <Logo size={28} /> <span className="font-display">Selora</span>
           </span>
           <nav className="flex items-center gap-3">
             <a href="#features" className="hidden text-sm font-semibold text-body hover:text-ink sm:inline">
@@ -559,7 +559,7 @@ export default function LandingPage() {
       <footer className="border-t border-[var(--c-border)] py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 text-sm text-muted sm:flex-row">
           <span className="flex items-center gap-2 font-bold text-body">
-            <Logo size={20} /> <span className="font-display">Selora</span>
+            <Logo size={26} /> <span className="font-display">Selora</span>
           </span>
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             {/* static pages — full browser nav, not the SPA router */}
