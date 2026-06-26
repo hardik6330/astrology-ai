@@ -88,8 +88,9 @@ export default function LandingPage() {
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-transparent">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-          <span className="flex items-center gap-2 text-lg font-extrabold">
-            <Logo size={28} /> <span className="font-display">Selora</span>
+          <span className="flex items-center gap-0 text-lg font-extrabold">
+            <Logo size={50} />
+            <span className="font-display">Selora</span>
           </span>
           <nav className="flex items-center gap-3">
             <a href="#features" className="hidden text-sm font-semibold text-body hover:text-ink sm:inline">

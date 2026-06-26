@@ -3,8 +3,7 @@ import { View, StyleSheet, Dimensions } from "react-native";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import TwinkleStar from "./TwinkleStar";
 import ShootingStar from "./ShootingStar";
-import Orbit from "./Orbit";
-import CenterSun from "./CenterSun";
+import SolarSystem from "./SolarSystem";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
@@ -45,10 +44,9 @@ const LoginBackdrop = React.memo(function LoginBackdrop({ color, theme }) {
                      baseOpacity={isLight ? s.o * 0.4 : s.o} dur={s.dur} delay={s.delay} />
       ))}
 
-      <Orbit size={SCREEN_W * 1.0} dur={80000} planetColor={isLight ? "#f59e0b" : "#fbbf24"} planetSize={9} />
-      <Orbit size={SCREEN_W * 0.7} dur={50000} reverse planetColor={isLight ? "#8b5cf6" : "#a78bfa"} planetSize={8} />
-      <Orbit size={SCREEN_W * 0.42} dur={30000} planetColor={isLight ? "#10b981" : "#34d399"} planetSize={6} />
-      <CenterSun />
+      {/* Nine-planet solar system (real orbital periods) — twin of the web
+          SolarSystemLoader. Replaces the old 3-ring orbit set. */}
+      <SolarSystem />
 
       <ShootingStar />
     </View>
