@@ -10,6 +10,11 @@ frontend/.env
 **/.env
 **/.env.local
 **/.env.*.local
+# EXCEPTION: frontend/.env is the single, COMMITTED frontend env — it holds only
+# public VITE_* values baked into the static bundle (no secrets). Keep this
+# negation LAST so it overrides the broad .env ignores above. backend/.env stays
+# ignored (real secrets live there).
+!frontend/.env
 **/*firebase-admin.json
 
 # Build output

@@ -1,16 +1,9 @@
 // @astrology-ai/core — single source of truth for the chart engine, consumed by
 // both web (frontend) and mobile via thin proxies in each app's
-// src/shared/astrology.js. The math used to be duplicated in both clients (web
-// was the ~1484-line superset, mobile had drifted to ~964); it now lives here.
-// Public API only — internal helpers stay private to ./astrology.js.
-export {
-  SIGNS,
-  ZE,
-  nm,
-  signOf,
-  fmtDate,
-  fmtDay,
-  computeChart,
-  computeDaily,
-  buildFactSheet,
-} from "./astrology.js";
+// src/shared/astrology.js. The engine is split across constants.js, astronomy.js,
+// format.js, engines.js and astrology.js (orchestration); this barrel re-exports
+// the public API only — internal helpers stay private to their modules.
+export { SIGNS, ZE } from "./constants.js";
+export { nm, fmtDate, fmtDay } from "./format.js";
+export { signOf } from "./astronomy.js";
+export { computeChart, computeDaily, buildFactSheet } from "./astrology.js";
