@@ -88,6 +88,18 @@ export default function PalmCompareScreen({ navigation }) {
       }
 
       const img = await compressPhoto(a);
+
+      // Instant duplicate guard — the same photo in both slots isn't a real L/R
+      // pair. (The backend also checks bytes + landmark geometry, authoritatively.)
+      const otherSlot = hand === "left" ? right : left;
+      if (otherSlot && otherSlot.base64 === img.base64) {
+        setError("That's the same photo as your other hand — use a different photo.");
+        haptics.warning();
+        setBusy(false);
+        setPickingHand(null);
+        return;
+      }
+
       const landmarks = {
         keypoints: gateResult.landmarks,
         imgW: gateResult.imgW,

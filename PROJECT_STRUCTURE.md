@@ -2,6 +2,8 @@
 
 This document describes the full project structure, screens, and UI of the application.
 
+> 📝 **Keep the docs current.** When a feature, screen, stack choice, or deployment detail changes, update this file **and** `CLAUDE.md` **and** (for mobile-facing changes) `mobile.md` in the same change. See the "Keeping the docs in sync" rule in `CLAUDE.md`.
+
 ---
 
 ## 🛠 Tech Stack
@@ -39,6 +41,10 @@ This document describes the full project structure, screens, and UI of the appli
 - **`src/components/`** — Mobile-specific UI components.
 - **`src/navigation/`** — Drawer and Stack navigation.
 
+### 4. `/packages` (Shared logic — imported by both clients via relative path, no install step)
+- **`astrology-core/`** (`@astrology-ai/core`) — the single source of truth for the **chart engine** (`computeChart`, `computeDaily`, `buildFactSheet`, transits). Both clients re-export it through thin `src/shared/astrology.js` proxies. **Edit the core, not the proxies.**
+- **`palm-core/`** (`@astrology-ai/palm-core`) — the shared **palm hand-side classifier** (rotation-invariant Left/Right), **duplicate-hand check**, the quality thresholds, and the `confidenceScore()` formula. Both client palm gates import it. ⚠️ The **backend can't import `packages/`** (its prod tarball ships only `backend/src/`), so it keeps a byte-identical mirror at `backend/src/utils/palmHand.js` — change both together.
+
 ---
 
 ## 📱 Pages & Screens
@@ -63,9 +69,9 @@ Four main tabs:
 - Context-aware (it understands the user's chart before answering).
 
 ### 5. **Palmistry (Palm Reading)**
-- Capture and scan a photo of the hand.
-- On-device quality check via MediaPipe.
-- Line analysis via Gemini Vision.
+- Capture and scan a photo of the hand (single hand, or a both-hand "Potential vs Reality" comparison).
+- On-device quality check via MediaPipe, including **rotation-invariant Left/Right verification** (a wrong hand is rejected client-side and re-verified on the backend) and **duplicate-hand detection** in the comparison flow.
+- Line analysis via Gemini Vision; only a SHA-256 hash + the text reading is persisted — never the image.
 
 ### 6. **Daily Guidance**
 - Daily horoscope, lucky color, and lucky number.

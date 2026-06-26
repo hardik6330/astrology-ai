@@ -12,6 +12,7 @@ export const REJECT_INFO = {
   cropped:        { icon: EMOJIS.SCISSORS,     title: "Palm is cropped",         tip: "Include your full palm — from wrist to fingertips — in the photo." },
   multiple_hands: { icon: EMOJIS.HAND,         title: "More than one hand",      tip: "Show just one open palm in the photo." },
   wrong_hand:     { icon: EMOJIS.REPEAT,       title: "Wrong hand uploaded",     tip: "The photo shows your other hand. Please retake using the hand you selected." },
+  duplicate_hand: { icon: EMOJIS.REPEAT,       title: "Same hand twice",         tip: "Both slots look like the same hand. Upload your LEFT and RIGHT palms separately." },
   fingers_closed: { icon: EMOJIS.HAND,         title: "Spread your fingers",     tip: "Open your hand and spread your fingers slightly so the full palm is visible." },
   tilted_hand:    { icon: EMOJIS.REFRESH,      title: "Keep your hand straight", tip: "Hold your hand flat and upright (fingers pointing up), facing the camera." },
   obstructed:     { icon: EMOJIS.PROHIBITED,   title: "Palm is blocked",         tip: "Open your hand flat — remove rings, mehndi, or anything covering the main lines." },

@@ -8,6 +8,7 @@ import { findOrCreateUser, findUserByForm } from './userService.js';
 import { charge, grant, getBalance } from './creditService.js';
 import { notifyInsightReady } from './pushService.js';
 import { buildPalmGeometry } from '../utils/palmGeometry.js';
+import { classifyHand, handsLookIdentical, HAND_CONF_MIN } from '../utils/palmHand.js';
 import { enhancePalmImage } from '../utils/palmImage.js';
 import { validateImage } from '../utils/imageValidator.js';
 import { asContent } from '../utils/asContent.js';
@@ -31,17 +32,16 @@ const log = logger.child({ mod: 'palm' });
 // see the security model), so geometry here can over-call a back-of-hand or
 // mirrored upload. We keep it deliberately conservative — null (no call) when
 // the thumb/pinky split is too small (hand rotated / pointing at camera).
-function geometricHand(landmarks) {
-  if (!Array.isArray(landmarks) || landmarks.length < 21) return null;
-  const thumbTip = landmarks[4], pinkyMcp = landmarks[17], indexMcp = landmarks[5];
-  if (!thumbTip || !pinkyMcp || !indexMcp) return null;
-  const palmWidth = Math.abs(indexMcp.x - pinkyMcp.x) || 1;
-  const dx = thumbTip.x - pinkyMcp.x;
-  // Below this thumb-spread fraction the side is genuinely ambiguous (flat hand,
-  // thumb tucked) → return null so we don't false-reject. 0.10 catches clearer
-  // left/right mismatches than the old 0.15 without flagging tucked-thumb poses.
-  if (Math.abs(dx) < palmWidth * 0.10) return null;
-  return dx > 0 ? 'Right' : 'Left';
+// Decide whether a claimed hand-side mismatches the photo, using the
+// rotation-invariant classifier (utils/palmHand.js). The backend only receives
+// landmarks (no MediaPipe label), so it's a geometry-only vote — but still far
+// more robust than the old raw-X test. Only blocks at/above HAND_CONF_MIN so a
+// genuinely ambiguous photo (thumb tucked/occluded) isn't false-rejected.
+function handMismatch(landmarks, claimedHand) {
+  if (!claimedHand) return null;
+  const { hand, confidence } = classifyHand(landmarks);
+  if (hand && hand !== claimedHand && confidence >= HAND_CONF_MIN) return hand;
+  return null;
 }
 
 // M2 — `skipGate` is a CLIENT flag, so it can't be trusted on its own: a
@@ -320,8 +320,8 @@ export async function analyzePalm({ image, form, claimedHand, skipGate, landmark
   // Server-side handedness guard. The client gate also checks this, but it fails
   // open (no landmarks / Expo Go) and can be a stale build — so enforce here too
   // whenever the client sent landmarks. No charge: this returns before Pro.
-  const detectedHand = geometricHand(landmarks);
-  if (claimedHand && detectedHand && detectedHand !== claimedHand) {
+  const detectedHand = handMismatch(landmarks, claimedHand);
+  if (detectedHand) {
     log.info({ scanId, path: 'rejected', reject: 'wrong_hand', detectedHand, claimedHand }, 'palm scan: complete (wrong hand, server geometry)');
     return {
       content: {
@@ -380,13 +380,26 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate, left
     };
   }
 
+  // Duplicate-hand guard — the two slots must be DIFFERENT photos of DIFFERENT
+  // hands. Catch the same photo dropped into both slots (identical bytes) or a
+  // near-identical retake (landmark geometry) before any Pro spend. The
+  // handedness guard below separately catches uploading the same SIDE twice.
+  if (leftGate.imageHash === rightGate.imageHash || handsLookIdentical(leftLandmarks, rightLandmarks)) {
+    return {
+      content: {
+        left:  { imageQuality: 'clear' },
+        right: { imageQuality: 'unusable', rejectReason: 'duplicate_hand', retakeReason: 'That looks like the same hand — upload your RIGHT hand for this slot.' },
+        comparison: null,
+      },
+      balance: null,
+    };
+  }
+
   // Server-side handedness guard (defense-in-depth, same as analyzePalm): the
   // LEFT slot must be a left hand and the RIGHT slot a right hand. Runs whenever
   // the client sent per-hand landmarks; skipped (null) when it didn't. No charge.
-  const leftDetected = geometricHand(leftLandmarks);
-  const rightDetected = geometricHand(rightLandmarks);
-  const leftWrong = leftDetected && leftDetected !== 'Left';
-  const rightWrong = rightDetected && rightDetected !== 'Right';
+  const leftWrong = handMismatch(leftLandmarks, 'Left');
+  const rightWrong = handMismatch(rightLandmarks, 'Right');
   if (leftWrong || rightWrong) {
     return {
       content: {

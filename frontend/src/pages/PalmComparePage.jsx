@@ -118,6 +118,14 @@ export default function PalmComparePage() {
         return;
       }
       const dataUrl = await resizeToBase64(file);
+      // Instant duplicate guard — the same photo in both slots isn't a real L/R
+      // pair. (The backend also checks bytes + landmark geometry, authoritatively.)
+      const otherSlot = pickingHand === "left" ? right : left;
+      if (otherSlot && otherSlot === dataUrl) {
+        setError("That's the same photo as your other hand — use a different photo.");
+        setPickingHand(null);
+        return;
+      }
       if (pickingHand === "left") {
         setLeft(dataUrl);
         setPalmLeftPhoto(dataUrl);

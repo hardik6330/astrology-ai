@@ -9,17 +9,25 @@
 //   { ok: false, rejectReason: '<key>', retakeReason: '<one sentence>' }
 
 import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
+// Hand-side classifier + duplicate-hand check — shared with mobile via the
+// @astrology-ai/palm-core package (backend keeps a byte-identical copy).
+import {
+  classifyHand,
+  HAND_CONF_MIN,
+  MIN_LUMINANCE,
+  MIN_LAPLACIAN_VAR,
+  MIN_PALM_COVERAGE,
+  confidenceScore,
+} from "../../../packages/palm-core/src/index.js";
 
 // ── Gate thresholds ──────────────────────────────────────────────────────────
 // Luminance + blur run on the 256px downsample. The two palm-quality checks
 // (lighting evenness, line detail) run ONLY on the detected palm region — never
 // the whole frame — so palm-vs-background contrast can't skew them. Set
 // GATE_DEBUG=true to log the live values for a photo; calibrate from those.
-// Mobile (mobile/src/features/palm/palmGate.js) MUST mirror these.
+// MIN_LUMINANCE / MIN_LAPLACIAN_VAR / MIN_PALM_COVERAGE + the confidence score are
+// shared with mobile via @astrology-ai/palm-core (imported above).
 const GATE_DEBUG = false; // true → console.debug every metric per photo
-const MIN_LUMINANCE = 55; // mean luma below → too_dark
-const MIN_LAPLACIAN_VAR = 160; // global focus; below → blurry
-const MIN_PALM_COVERAGE = 0.22; // palm bbox area ÷ frame; below → too_far
 // Palm-region checks (measured INSIDE the bounding box, so background contrast
 // never skews them). edgeScore = Laplacian variance of the palm crop (line
 // detail); lightingVar = luminance variance of a 9x9 low-frequency grid (broad
@@ -224,50 +232,15 @@ const TIPS = {
   tilted_hand: "Keep your hand straight (fingers pointing up) and flat towards the camera.",
 };
 
-// Geometric handedness from the thumb-vs-pinky side. With the palm facing the
-// camera and fingers up (enforced by the orientation check) in a NON-mirrored
-// photo, the thumb sits on the image-RIGHT of the pinky for a RIGHT hand (dx > 0)
-// and image-LEFT for a LEFT hand. ⚠️ This is reliable ONLY for a palm-facing,
-// non-mirrored shot: it silently INVERTS for a back-of-hand photo or a mirrored
-// (selfie) upload — which is why we cross-check it against MediaPipe's
-// anatomy-aware label in resolveHandedness() rather than trusting it alone.
-// Returns null when thumb/pinky aren't clearly separated horizontally.
-// Keep in sync with the mobile gate + backend guard.
-function geometricHand(keypoints) {
-  const thumbTip = keypoints[4];
-  const pinkyMcp = keypoints[17];
-  const palmWidth = Math.abs(keypoints[5].x - keypoints[17].x) || 1;
-  const dx = thumbTip.x - pinkyMcp.x;
-  if (Math.abs(dx) < palmWidth * 0.15) return null;
-  return dx > 0 ? "Right" : "Left";
-}
-
 // MediaPipe's label, corrected for our capture's mirror state. MediaPipe assumes
 // a mirrored selfie image, so for non-mirrored capture we flip it. Returns null
-// when absent or below the confidence floor.
+// when absent or below the confidence floor. (This mirror correction is a capture
+// concern and stays client-side; the scoring lives in @astrology-ai/palm-core.)
 function mediapipeHand(mpLabel, mpScore) {
   if (mpLabel !== "Left" && mpLabel !== "Right") return null;
   if ((mpScore || 0) < HANDEDNESS_MIN_SCORE) return null;
   if (CAPTURE_IS_MIRRORED) return mpLabel;
   return mpLabel === "Left" ? "Right" : "Left";
-}
-
-// Resolve which hand the photo shows by combining TWO independent signals:
-//   • MediaPipe's trained handedness (anatomy-aware — distinguishes palm from the
-//     back of a hand), mirror-corrected for our capture.
-//   • The geometric thumb side (reliable only for a palm-facing, non-mirrored
-//     shot; see geometricHand).
-// `confident` is true ONLY when both signals are present AND agree. Callers
-// should hard-reject a "wrong hand" only on a confident, mismatching call, so an
-// ambiguous photo (back of hand / mirrored upload) is passed through rather than
-// wrongly blocked. Degrades safely: if CAPTURE_IS_MIRRORED is miscalibrated the
-// two signals simply disagree → never confident → the gate stops enforcing
-// handedness (no false rejects) instead of rejecting every correct hand.
-function resolveHandedness(keypoints, mpLabel, mpScore) {
-  const geo = geometricHand(keypoints);
-  const mp = mediapipeHand(mpLabel, mpScore);
-  if (geo && mp) return { hand: geo, confident: geo === mp, geo, mp };
-  return { hand: geo || mp, confident: false, geo, mp };
 }
 
 function checkFingerSpread(landmarks) {
@@ -323,24 +296,6 @@ function retakeFor(reason) {
   return TIPS[reason] || "Please retake with a clearer palm photo.";
 }
 
-// Overall photo-quality confidence (0-100) for the "AI Confidence" UI. Built
-// from the three metrics BOTH clients measure on a passing photo — brightness,
-// sharpness, palm coverage — so the number is computed identically on web and
-// mobile (keep this in sync with mobile/src/features/palm/palmGate.js).
-// A photo that just clears the gate scores ~70%; comfortably-good metrics → 100%.
-// We never surface this on a REJECTED photo (the reject card shows instead), so
-// the floor of 0.7 at threshold keeps passing photos feeling trustworthy.
-export function confidenceScore({ brightness, sharpness, coverage }) {
-  const norm = (val, min, good) => {
-    if (typeof val !== "number" || !isFinite(val)) return 0.85; // metric absent → assume fine
-    return 0.7 + 0.3 * Math.max(0, Math.min(1, (val - min) / (good - min)));
-  };
-  const b = norm(brightness, MIN_LUMINANCE, MIN_LUMINANCE * 2.6); // 55 → 143
-  const s = norm(sharpness, MIN_LAPLACIAN_VAR, MIN_LAPLACIAN_VAR * 4); // 160 → 640
-  const c = norm(coverage, MIN_PALM_COVERAGE, MIN_PALM_COVERAGE * 2.5); // 0.22 → 0.55
-  return Math.round(100 * Math.max(0, Math.min(1, 0.3 * b + 0.4 * s + 0.3 * c)));
-}
-
 /**
  * Run the full gate on a File. Computes EVERY metric (never short-circuits) so
  * the UI can render a per-check diagnostic list. Returns:
@@ -353,7 +308,7 @@ export function confidenceScore({ brightness, sharpness, coverage }) {
  * @param {File}   file        The user-picked image file.
  * @param {string} claimedHand Optional "Left" | "Right" — if set, the gate
  *   rejects when the landmark geometry says the photo shows the opposite hand
- *   (see geometricHand). Skipped when the thumb/pinky split is too ambiguous.
+ *   (see classifyHand). Skipped when the hand side is too ambiguous to call.
  */
 export async function gatePalmImage(file, claimedHand) {
   let img;
@@ -413,12 +368,20 @@ export async function gatePalmImage(file, claimedHand) {
       bounds.maxY > img.height - pad
     : false;
 
-  // Hand-side check — combine MediaPipe's anatomy-aware label with the geometric
-  // thumb side (see resolveHandedness). Only hard-reject on a CONFIDENT mismatch
-  // (both signals agree on the opposite hand), so a back-of-hand or mirrored
-  // upload isn't wrongly blocked.
-  const handInfo = hasHand ? resolveHandedness(hand.keypoints, hand.handedness, hand.score) : null;
-  const wrongHand = !!(claimedHand && handInfo?.confident && handInfo.hand && handInfo.hand !== claimedHand);
+  // Hand-side check — the rotation-invariant classifier (classifyHand) returns a
+  // hand + a 0..1 confidence from the geometric vote and the MediaPipe label. We
+  // block a mismatch only at/above HAND_CONF_MIN, and let a MediaPipe label that
+  // positively SUPPORTS the user's claim veto the block (ambiguous/mirrored upload
+  // → pass rather than false-reject). (Keep in sync with the mobile gate.)
+  const handInfo = hasHand ? classifyHand(hand.keypoints, mediapipeHand(hand.handedness, hand.score)) : null;
+  const mpSupportsClaim = !!(handInfo?.mp && handInfo.mp === claimedHand);
+  const wrongHand = !!(
+    claimedHand &&
+    handInfo?.hand &&
+    handInfo.hand !== claimedHand &&
+    handInfo.confidence >= HAND_CONF_MIN &&
+    !mpSupportsClaim
+  );
 
   // User-facing checklist (astro-2 order). `cropped` + `wrong_hand` are enforced
   // below but kept off the list to match the reference UI.
@@ -488,7 +451,7 @@ export async function gatePalmImage(file, claimedHand) {
       handGeo: handInfo?.geo ?? null,
       handMp: handInfo?.mp ?? null,
       handResolved: handInfo?.hand ?? null,
-      handConfident: handInfo?.confident ?? null,
+      handConfidence: handInfo?.confidence != null ? +handInfo.confidence.toFixed(2) : null,
     });
   }
 
