@@ -9,6 +9,7 @@ import CustomSelect from "../components/CustomSelect";
 import Card from "@/common/Card";
 import Button from "@/common/Button";
 import Loading from "@/common/Loading";
+import CosmicBackground from "@/components/CosmicBackground";
 
 import { saveProfile } from "@/services/api";
 import { Icon } from "@/utils/icons";
@@ -128,9 +129,7 @@ export default function HomePage() {
 
   return (
     <div className="relative mx-auto max-w-180 px-4 py-8">
-      <div className="cosmos"></div>
-      <div className="stars"></div>
-      <div className="shooting-star"></div>
+      <CosmicBackground shootingStar />
 
       {/* cosmic-card's bottom margin (unlayered) is overridden inline. */}
       <Card className="text-center" style={{ marginBottom: "2.5rem" }}>

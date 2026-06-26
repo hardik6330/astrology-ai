@@ -113,10 +113,6 @@ export default function ReadingPage() {
 
   return (
     <div className="relative mx-auto max-w-180 px-4 pt-8 pb-30">
-      <div className="cosmos"></div>
-      <div className="stars"></div>
-      <div className="shooting-star"></div>
-
       {(error || insightError) && (
         <Card style={{ borderColor: "#ef4444", background: "rgba(239, 68, 68, 0.1)" }}>
           <p className="m-0 inline-flex items-center gap-1.5 text-sm text-danger">

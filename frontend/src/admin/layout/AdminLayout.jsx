@@ -6,6 +6,7 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import Footer from "./Footer";
+import CosmicBackground from "@/components/CosmicBackground";
 
 export default function AdminLayout() {
   return (
@@ -16,11 +17,9 @@ export default function AdminLayout() {
       {/* full-screen (not h-screen): its height divides out the body `zoom`, so
           this fixed-height shell fills exactly one visible viewport instead of
           overflowing by the zoom factor. */}
-      {/* Animated cosmic backdrop — same as the rest of the app (index.css).
-          These are position:fixed, so they sit behind the chrome. */}
-      <div className="cosmos" />
-      <div className="stars" />
-      <div className="shooting-star" />
+      {/* Animated cosmic backdrop — same as the rest of the app (position:fixed,
+          so it sits behind the chrome). */}
+      <CosmicBackground shootingStar />
 
       <Sidebar />
       <div className="flex min-w-0 min-h-0 flex-1 flex-col">

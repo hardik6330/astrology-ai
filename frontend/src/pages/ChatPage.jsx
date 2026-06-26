@@ -169,9 +169,6 @@ export default function ChatPage() {
 
   return (
     <div className="full-screen relative flex flex-col">
-      <div className="cosmos"></div>
-      <div className="stars"></div>
-
       {/* Fixed inner column — header and input stay, only messages scroll */}
       <div className="mx-auto flex w-full max-w-180 min-h-0 flex-1 flex-col p-4">
         {/* Header (fixed) — navigation handled by the bottom tab bar. */}

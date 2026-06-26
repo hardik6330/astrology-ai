@@ -169,9 +169,6 @@ export default function PalmComparePage() {
 
   return (
     <div className="relative mx-auto max-w-140 px-4 py-8">
-      <div className="cosmos"></div>
-      <div className="stars"></div>
-
       <button
         type="button"
         onClick={() => navigate("/palm-step")}

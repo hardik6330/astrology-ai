@@ -45,9 +45,6 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-140 px-4 pt-8 pb-28">
-      <div className="cosmos"></div>
-      <div className="stars"></div>
-
       <h2 className="mb-6 bg-linear-to-r from-white to-[#a855f7] bg-clip-text text-center text-[22px] font-bold text-transparent">
         Your Profile
       </h2>

@@ -598,9 +598,6 @@ export default function PalmPage() {
     const cardStyle = { borderColor: "rgba(168,85,247,0.35)" };
     return (
       <div className="relative mx-auto max-w-180 px-4 pt-8 pb-30">
-        <div className="cosmos"></div>
-        <div className="stars"></div>
-
         <div className="mb-6 text-center">
           <p className="text-[13px] font-semibold tracking-[1px] text-[#a855f7] uppercase">
             {form.name || "Your"} · Full Life Comparison
@@ -872,9 +869,6 @@ export default function PalmPage() {
 
   return (
     <div className="relative mx-auto max-w-180 px-4 pt-8 pb-30">
-      <div className="cosmos"></div>
-      <div className="stars"></div>
-
       <div className="mb-6 text-center">
         <p className="text-[13px] font-semibold tracking-[1px] text-accent uppercase">
           {form.name || "Your"} Palm Reading

@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import AuthGate from "@/features/auth/AuthGate";
 import ProtectedRoute from "@/features/auth/ProtectedRoute";
 import RouteErrorBoundary from "@/components/RouteErrorBoundary";
+import CosmicBackground from "@/components/CosmicBackground";
 import RootEntry from "@/features/auth/RootEntry";
 import { AdminAuthProvider } from "@/admin/context/AdminAuthContext";
 import AdminRoute from "@/admin/components/AdminRoute";
@@ -78,7 +79,16 @@ const ROUTES = [
 function wrap(route) {
   let node = <RouteErrorBoundary>{route.element}</RouteErrorBoundary>;
   if (route.requiresChart) node = <ProtectedRoute>{node}</ProtectedRoute>;
-  if (!route.public) node = <AuthGate>{node}</AuthGate>;
+  // Every authenticated in-app page gets the calm cosmic backdrop ONCE here, so
+  // pages don't each render it (and a new route can't forget it). Public routes
+  // (landing "/", login) opt out — they use the richer .fx "hero" backdrop.
+  if (!route.public)
+    node = (
+      <AuthGate>
+        <CosmicBackground />
+        {node}
+      </AuthGate>
+    );
   return node;
 }
 

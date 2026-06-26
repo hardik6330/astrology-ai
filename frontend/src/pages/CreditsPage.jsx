@@ -50,9 +50,6 @@ export default function CreditsPage() {
 
   return (
     <div className="mx-auto max-w-140 px-4 pt-8 pb-28">
-      <div className="cosmos"></div>
-      <div className="stars"></div>
-
       <div className="text-center mb-10">
         <div className="inline-flex mb-4 p-3 rounded-2xl bg-[#c084fc]/10 border border-[#c084fc]/20 shadow-[0_0_20px_rgba(192,132,252,0.2)] animate-pulse">
           <Icon name="SPARKLES" size={30} className="text-[#c084fc]" />

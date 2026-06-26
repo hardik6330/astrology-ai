@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "@/common/Logo";
+import CosmicBackground from "@/components/CosmicBackground";
 import Field from "@/common/Field";
 import Button from "@/common/Button";
 import ErrorText from "@/common/ErrorText";
@@ -40,9 +41,7 @@ export default function AdminLoginPage() {
   return (
     <div className="grid min-h-screen place-items-center p-4">
       {/* Same animated cosmic backdrop as the rest of the app (index.css). */}
-      <div className="cosmos" />
-      <div className="stars" />
-      <div className="shooting-star" />
+      <CosmicBackground shootingStar />
 
       <form
         onSubmit={submit}

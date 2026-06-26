@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { color } from "../theme/tokens";
 import Card from "@/common/Card";
 import { Icon } from "@/utils/icons";
+import CosmicBackground from "@/components/CosmicBackground";
 
 function Fallback({ error, resetErrorBoundary }) {
   const navigate = useNavigate();
   return (
     <div style={{ maxWidth: 520, margin: "0 auto", padding: "4rem 1rem", textAlign: "center" }}>
-      <div className="cosmos"></div>
-      <div className="stars"></div>
+      <CosmicBackground />
       <Card style={{ borderColor: color.dangerStrong, background: "rgba(239, 68, 68, 0.06)" }}>
         <div style={{ marginBottom: 12, color: color.danger, display: "flex", justifyContent: "center" }}>
           <Icon name="MOON" size={48} />
