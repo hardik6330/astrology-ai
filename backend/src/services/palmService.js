@@ -37,7 +37,10 @@ function geometricHand(landmarks) {
   if (!thumbTip || !pinkyMcp || !indexMcp) return null;
   const palmWidth = Math.abs(indexMcp.x - pinkyMcp.x) || 1;
   const dx = thumbTip.x - pinkyMcp.x;
-  if (Math.abs(dx) < palmWidth * 0.15) return null;
+  // Below this thumb-spread fraction the side is genuinely ambiguous (flat hand,
+  // thumb tucked) → return null so we don't false-reject. 0.10 catches clearer
+  // left/right mismatches than the old 0.15 without flagging tucked-thumb poses.
+  if (Math.abs(dx) < palmWidth * 0.10) return null;
   return dx > 0 ? 'Right' : 'Left';
 }
 

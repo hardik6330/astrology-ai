@@ -1144,29 +1144,23 @@ No generic self-help advice.
 REJECTION RULES
 --------------------------------------------------
 
-Reject immediately if:
+Both photos already passed an automatic quality gate. Reject ONLY when an
+image is genuinely impossible to read. Do NOT reject for minor faintness,
+soft focus, mild shadow, partial glare, or a hand that is slightly tilted —
+read what IS visible and mark weak features "Faint" / "Unclear" with low
+confidence instead.
 
-- blurry
-- dark
-- overexposed
-- back of hand
-- screen photo
-- printed photo
-- multiple hands
-- fist
-- fingers closed
-- tilted hand
-- heavy shadow
-- glare
-- major lines hidden
+Reject ONLY if one of the images is clearly:
 
-When uncertain:
+- not a human palm at all
+- the back of the hand (knuckles/nails, palm creases not visible)
+- a photo of a screen or a printout
+- more than one hand in the same frame
+- so blurry or dark that NO major line can be located anywhere
 
-Reject.
+When uncertain, PROCEED with the reading — do not reject.
 
-Do not guess.
-
-Return:
+Only when one of the above truly applies, return:
 
 {
   "handType":"Both",
@@ -2734,11 +2728,12 @@ obstructed
 partial_palm
 low_resolution
 
-When uncertain:
-
-Reject.
-
-Never guess.
+The photo already passed an automatic quality gate. Reject ONLY when the
+image is genuinely impossible to read — not for minor faintness, soft focus,
+mild shadow, or a slightly tilted hand. When uncertain, PROCEED and read what
+is visible, marking weak features "Faint" / "Unclear" with lower confidence.
+Reject only for a clear not_a_palm / back_of_hand / screen_photo / multiple_hands,
+or when the image is so blurry or dark that NO major line can be located.
 
 ---
 
@@ -2767,9 +2762,9 @@ Detail Confidence
 
 0–100
 
-If confidence is below acceptable quality:
-
-Reject.
+If confidence is low, do NOT reject — soften the wording (may indicate /
+tends to suggest) and mark weak features "Faint" or "Unclear". Reject only
+when the image truly matches a rejection key above.
 
 ---
 
