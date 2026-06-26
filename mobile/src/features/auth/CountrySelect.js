@@ -8,6 +8,7 @@
 import React, { useMemo, useState } from "react";
 import {
   View, Text, TextInput, Pressable, Modal, FlatList, StyleSheet,
+  KeyboardAvoidingView, Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COUNTRIES } from "@/utils/dialCode";
@@ -60,36 +61,46 @@ export default function CountrySelect({ value, onChange, disabled }) {
       </Pressable>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
-        <Pressable style={s.backdrop} onPress={() => setOpen(false)} />
-        <SafeAreaView style={s.sheet} edges={["bottom"]}>
-          <View style={s.handle} />
-          <Text style={s.sheetTitle}>Select country</Text>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search country…"
-            placeholderTextColor={color.textMuted}
-            style={s.search}
-            autoFocus
-          />
-          <FlatList
-            data={results}
-            keyExtractor={(c) => c.iso}
-            keyboardShouldPersistTaps="handled"
-            initialNumToRender={20}
-            ListEmptyComponent={<Text style={s.empty}>No matches</Text>}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => pick(item)}
-                style={[s.row, selected?.iso === item.iso && s.rowActive]}
-              >
-                <Text style={s.rowFlag}>{item.flag}</Text>
-                <Text style={s.rowName} numberOfLines={1}>{item.name}</Text>
-                <Text style={s.rowDial}>+{item.dial}</Text>
-              </Pressable>
-            )}
-          />
-        </SafeAreaView>
+        {/* KeyboardAvoidingView lifts the bottom sheet above the keyboard so the
+            autoFocus search field (and the results) stay visible instead of
+            being covered. justifyContent:flex-end keeps the sheet bottom-anchored
+            within whatever height is left once the keyboard is shown. */}
+        <KeyboardAvoidingView
+          style={s.modalRoot}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Pressable style={s.backdrop} onPress={() => setOpen(false)} />
+          <SafeAreaView style={s.sheet} edges={["bottom"]}>
+            <View style={s.handle} />
+            <Text style={s.sheetTitle}>Select country</Text>
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search country…"
+              placeholderTextColor={color.textMuted}
+              style={s.search}
+              autoFocus
+            />
+            <FlatList
+              data={results}
+              keyExtractor={(c) => c.iso}
+              keyboardShouldPersistTaps="handled"
+              initialNumToRender={20}
+              style={s.list}
+              ListEmptyComponent={<Text style={s.empty}>No matches</Text>}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => pick(item)}
+                  style={[s.row, selected?.iso === item.iso && s.rowActive]}
+                >
+                  <Text style={s.rowFlag}>{item.flag}</Text>
+                  <Text style={s.rowName} numberOfLines={1}>{item.name}</Text>
+                  <Text style={s.rowDial}>+{item.dial}</Text>
+                </Pressable>
+              )}
+            />
+          </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -102,10 +113,11 @@ const makeStyles = (c) => StyleSheet.create({
   dial: { color: c.text, fontSize: 17, fontWeight: "700" },
   caret: { color: c.textDim, fontSize: 12, marginLeft: 4 },
 
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
+  // Fill the screen and pin the sheet to the bottom; KeyboardAvoidingView
+  // shrinks this when the keyboard shows, carrying the sheet up with it.
+  modalRoot: { flex: 1, justifyContent: "flex-end" },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)" },
   sheet: {
-    position: "absolute",
-    left: 0, right: 0, bottom: 0,
     maxHeight: "75%",
     backgroundColor: c.bg,
     borderTopLeftRadius: 24,
@@ -115,6 +127,9 @@ const makeStyles = (c) => StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: 10,
   },
+  // flexShrink lets the list yield height (and stay scrollable) inside the
+  // capped-height sheet once the keyboard reduces the available space.
+  list: { flexShrink: 1 },
   handle: {
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: c.cardBorder, alignSelf: "center", marginBottom: 12,

@@ -73,8 +73,20 @@ export default function LandingPage() {
       <FuturisticBackground />
       <LandingStyles />
 
+      {/* Top glow that starts at the very top of the page (behind the header),
+          so the header sits on the cosmic purple instead of a black band. Same
+          tones as the hero glow below, just lifted up to cover the header. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-200"
+        style={{
+          background:
+            "radial-gradient(1000px 620px at 70% -4%, rgba(139,92,246,0.28), transparent 62%), radial-gradient(760px 520px at 12% 0%, rgba(99,102,241,0.18), transparent 60%)",
+        }}
+      />
+
       {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-transparent backdrop-blur-[2px]">
+      <header className="sticky top-0 z-50 bg-transparent">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <span className="flex items-center gap-2 text-lg font-extrabold">
             <Logo size={28} /> <span className="font-display">Selora</span>
@@ -98,15 +110,9 @@ export default function LandingPage() {
       </header>
 
       {/* ── Hero — headline + live AI-chat preview (not a card grid) ─ */}
+      {/* No section-local glow here: the page-level top glow above spans the
+          header + hero as ONE gradient, so there's no seam/line at the header. */}
       <section className="relative overflow-hidden">
-        <div
-          className="pointer-events-none absolute inset-0 -z-10"
-          style={{
-            background:
-              "radial-gradient(900px 480px at 70% -10%, rgba(139,92,246,0.25), transparent 60%), radial-gradient(700px 400px at 10% 10%, rgba(99,102,241,0.16), transparent 55%)",
-          }}
-          aria-hidden="true"
-        />
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 md:grid-cols-2 md:py-24">
           <div>
             <span className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-[var(--c-border)] bg-white/5 px-3 py-1 text-xs font-semibold tracking-wide text-subtle">

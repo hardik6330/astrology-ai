@@ -20,9 +20,14 @@ function rnAuth() {
 //                                   `code` lets the UI visually fill the boxes
 //   onError(error) — verification failed
 // Returns an unsubscribe function — call it on unmount / before a resend.
+// NOTE: PhoneAuthListener.on() returns the LISTENER object (`this`), not an
+// unsubscribe function. Calling that object as a function (e.g. on a resend)
+// throws ("object not found"). So we capture the listener and return a real
+// cleanup closure that tears down its observers — safe to call any number of
+// times, and it stops a stale listener from firing after a resend.
 export function verifyPhone(e164, { onCodeSent, onAutoComplete, onError } = {}) {
   const auth = rnAuth();
-  return auth()
+  const listener = auth()
     .verifyPhoneNumber(e164)
     .on("state_changed", async (snapshot) => {
       switch (snapshot.state) {
@@ -52,6 +57,16 @@ export function verifyPhone(e164, { onCodeSent, onAutoComplete, onError } = {}) 
           break;
       }
     });
+
+  return () => {
+    // _removeAllListeners is the listener's own teardown (it also self-removes
+    // on terminal states); guarded so a version change or double-call is a no-op.
+    try {
+      listener?._removeAllListeners?.();
+    } catch {
+      /* already torn down */
+    }
+  };
 }
 
 // Manual path: verify the typed code against the verificationId from onCodeSent.
