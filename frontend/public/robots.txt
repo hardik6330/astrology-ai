@@ -23,4 +23,4 @@ Allow: /
 User-agent: Bingbot
 Allow: /
 
-Sitemap: https://astro-ai.mooo.com/sitemap.xml
+Sitemap: https://selora.mooo.com/sitemap.xml
