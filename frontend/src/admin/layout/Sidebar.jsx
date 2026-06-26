@@ -10,10 +10,10 @@ import {
   LuSettings,
   LuUser,
   LuLogOut,
-  LuShield,
   LuCreditCard,
   LuIndianRupee,
 } from "react-icons/lu";
+import Logo from "@/common/Logo";
 import { useAdminAuth } from "@/admin/context/AdminAuthContext";
 
 const NAV = [
@@ -43,8 +43,8 @@ export default function Sidebar() {
   return (
     <aside className="flex w-57.5 shrink-0 flex-col border-r border-(--c-border-soft) bg-[rgba(var(--panel-rgb),0.95)]">
       <div className="flex items-center gap-2.5 border-b border-(--c-border-soft) px-5 py-4.5">
-        <LuShield size={22} className="text-primary" />
-        <span className="text-[15px] font-bold text-ink">Admin Panel</span>
+        <Logo size={24} className="rounded-md" />
+        <span className="font-display text-[15px] font-bold text-ink">Selora Admin</span>
       </div>
 
       <nav className="min-h-0 flex-1 overflow-y-auto py-2">

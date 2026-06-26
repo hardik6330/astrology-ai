@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LuShield } from "react-icons/lu";
+import Logo from "@/common/Logo";
 import Field from "@/common/Field";
 import Button from "@/common/Button";
 import ErrorText from "@/common/ErrorText";
@@ -49,8 +49,8 @@ export default function AdminLoginPage() {
         className="relative z-1 w-full max-w-90 rounded-[20px] border border-(--c-border) bg-[rgba(var(--panel-rgb),0.85)] p-7 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
       >
         <div className="mb-6 text-center">
-          <LuShield size={40} className="mb-2.5 inline-block text-primary" />
-          <h1 className="m-0 text-[22px] font-bold text-ink">Admin Panel</h1>
+          <Logo size={44} className="mb-2.5 inline-block rounded-lg" />
+          <h1 className="m-0 font-display text-[22px] font-bold text-ink">Selora Admin</h1>
           <p className="mt-2 mb-0 text-[13px] text-dim">Sign in to the back office.</p>
         </div>
 
