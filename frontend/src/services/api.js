@@ -19,7 +19,10 @@ const appAccount = tokenStore("app_account");
 // /auth/verify-otp. Backend verifies it, upserts the AuthAccount, and returns
 // our JWT + any saved birth details. → { token, account: { id, phone }, savedForm? }
 export function verifyOtp(idToken) {
-  return request("/auth/verify-otp", { method: "POST", body: { idToken } });
+  // redirectOn401:false — a 401 here is a failed login (e.g. INVALID_ID_TOKEN
+  // from an expired/malformed Firebase token), NOT an expired session. Surface
+  // it on the form; don't let the shared handler wipe localStorage + redirect.
+  return request("/auth/verify-otp", { method: "POST", body: { idToken }, redirectOn401: false });
 }
 
 // Dev OTP bypass — POSTs a bare E.164 `phone` (no Firebase) to /auth/verify-otp.
@@ -27,7 +30,9 @@ export function verifyOtp(idToken) {
 // its own OTP_ENABLED='false', so it's inert against production. Same response
 // shape as verifyOtp. → { token, account: { id, phone }, savedForm? }
 export function bypassLogin(phone) {
-  return request("/auth/verify-otp", { method: "POST", body: { phone } });
+  // Same as verifyOtp: a 401/403 here is a rejected login attempt, not a dead
+  // session — keep the error on the form (no localStorage wipe / redirect).
+  return request("/auth/verify-otp", { method: "POST", body: { phone }, redirectOn401: false });
 }
 
 // Current session + any saved birth form. Used to re-hydrate a returning user
