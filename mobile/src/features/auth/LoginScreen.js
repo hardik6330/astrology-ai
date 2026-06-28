@@ -38,6 +38,7 @@ function otpError(err) {
     return "Code expired. Tap Resend to get a new one.";
   if (code.includes("invalid-phone-number")) return "That phone number looks invalid.";
   if (code.includes("too-many-requests")) return "Too many attempts. Please wait and try again.";
+  if (code.includes("quota-exceeded")) return "SMS limit reached. Please try again later.";
   return err?.message || "Something went wrong. Please try again.";
 }
 
@@ -201,6 +202,21 @@ export default function LoginScreen() {
     }
   }
 
+  // Go back to the phone step. Tear down the active auto-retrieval listener so a
+  // late Android SMS auto-read for the OLD number can't fire onAutoComplete and
+  // log the user in with a number they just chose to change. Also reset the
+  // resend timer + stale verificationId so the next send starts clean.
+  function changeNumber() {
+    unsubRef.current?.();
+    unsubRef.current = null;
+    verificationIdRef.current = null;
+    setStep("phone");
+    setOtp("");
+    setNotice("");
+    setError("");
+    setResendIn(0);
+  }
+
   async function verifyOtp() {
     setError("");
     if (otp.length !== 6) return setError("Enter the 6-digit code");
@@ -300,7 +316,7 @@ export default function LoginScreen() {
                   </Text>
                 </Pressable>
                 <View style={s.rowBetween}>
-                  <Pressable onPress={() => { setStep("phone"); setOtp(""); setNotice(""); }}>
+                  <Pressable onPress={changeNumber}>
                     <Text style={s.link}>← Change number</Text>
                   </Pressable>
                   <Pressable onPress={sendOtp} disabled={resendIn > 0 || busy}>
