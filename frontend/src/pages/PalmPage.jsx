@@ -1023,8 +1023,8 @@ export default function PalmPage() {
               {/* Hand-pick buttons with hover scale for delight */}
               <div className="grid gap-2.5">
                 {[
-                  { side: "Right", icon: "HAND", label: "Right Hand" },
-                  { side: "Left", icon: "HAND", label: "Left Hand" },
+                  { side: "Right", icon: "HAND_RIGHT", label: "Right Hand" },
+                  { side: "Left", icon: "HAND_LEFT", label: "Left Hand" },
                 ].map((h) => (
                   <button
                     key={h.side}

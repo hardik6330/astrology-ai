@@ -141,7 +141,7 @@ const SolarSystem = React.memo(function SolarSystem() {
           shadowRadius: 22, shadowOffset: { width: 0, height: 0 },
         }, sunStyle]}
       >
-        <Svg width={sunR * 2} height={sunR * 2}>
+        <Svg width={sunR * 2.2} height={sunR * 2.2}>
           <Defs>
             <RadialGradient id="sunGrad" cx="35%" cy="35%" r="75%">
               <Stop offset="0%"  stopColor="#fff3b0" />
@@ -149,7 +149,7 @@ const SolarSystem = React.memo(function SolarSystem() {
               <Stop offset="82%" stopColor="#ff7a00" />
             </RadialGradient>
           </Defs>
-          <Circle cx={sunR} cy={sunR} r={sunR} fill="url(#sunGrad)" />
+          <Circle cx={sunR * 1.1} cy={sunR * 1.1} r={sunR} fill="url(#sunGrad)" />
         </Svg>
       </Animated.View>
     </View>

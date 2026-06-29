@@ -258,7 +258,7 @@ export default function PalmStepPage() {
           <Card className="grid gap-3">
             <button type="button" onClick={() => onHandTap("Right")} disabled={busy} className={CARD_BTN}>
               <span className="grid w-9 place-items-center text-[#a855f7]">
-                <Icon name="HAND" size={28} />
+                <Icon name="HAND_RIGHT" size={28} />
               </span>
               <span className="flex-1">
                 <strong className="block text-[15px]">Right Hand</strong>
@@ -293,7 +293,7 @@ export default function PalmStepPage() {
 
             <button type="button" onClick={() => onHandTap("Left")} disabled={busy} className={CARD_BTN}>
               <span className="grid w-9 place-items-center text-[#a855f7]">
-                <Icon name="HAND" size={28} />
+                <Icon name="HAND_LEFT" size={28} />
               </span>
               <span className="flex-1">
                 <strong className="block text-[15px]">Left Hand</strong>

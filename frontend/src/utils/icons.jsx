@@ -69,6 +69,7 @@ import {
   LuX,
 } from "react-icons/lu";
 import { TbPlanet } from "react-icons/tb";
+import { IoHandLeftOutline, IoHandRightOutline } from "react-icons/io5";
 
 // name → Lucide component. Keys mirror the old EMOJIS map so call sites read the
 // same intent (e.g. EMOJIS.SPARKLES → <Icon name="SPARKLES" />), plus a few extra
@@ -95,7 +96,8 @@ const ICON_MAP = {
   SATURN: LuOrbit,
   HAND: LuHand,
   HAND_OPEN: LuHand,
-  HAND_LEFT: LuHand,
+  HAND_LEFT: IoHandLeftOutline,
+  HAND_RIGHT: IoHandRightOutline,
   HANDS: LuHand,
   RING: LuGem,
   BRIEFCASE: LuBriefcase,
