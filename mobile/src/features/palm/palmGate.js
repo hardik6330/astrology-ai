@@ -54,6 +54,7 @@ const TIPS = {
   fingers_closed: "Spread your fingers naturally so the full palm is visible.",
   tilted_hand: "Keep your hand straight (fingers pointing up) and flat towards the camera.",
   multiple_hands: "Show just one open palm in the photo.",
+  native_error: "Local hand detection failed. If using Expo Go, use a custom dev build.",
 };
 
 // MediaPipe's label, corrected for our capture's mirror state (MediaPipe assumes
@@ -176,10 +177,13 @@ export async function gatePalmImage(asset, claimedHand) {
     // upload → pass rather than false-reject). (Keep in sync with the web gate.)
     const handInfo = classifyHand(landmarks, mediapipeHand(handedness, score));
     const detectedHand = handInfo.hand; // for the passed-photo checklist label
-    const mpSupportsClaim = !!(handInfo.mp && handInfo.mp === claimedHand);
-    log(`Gate: Handedness -> claimed=${claimedHand}, detected=${detectedHand} conf=${handInfo.confidence.toFixed(2)} (geo=${handInfo.geo} mp=${handInfo.mp} mpRaw=${handedness} score=${score?.toFixed?.(2)})`);
-    if (claimedHand && detectedHand && detectedHand !== claimedHand && handInfo.confidence >= HAND_CONF_MIN && !mpSupportsClaim) {
-      return reject("wrong_hand", `Detected ${detectedHand} conf=${handInfo.confidence.toFixed(2)} vs Claimed ${claimedHand}`, Date.now() - startTime);
+    
+    // STRICT HANDEDNESS CHECK:
+    // If we detected a hand, and it does not match what the user selected, REJECT IMMEDIATELY.
+    // We removed the leniency (HAND_CONF_MIN) because allowing a Right hand in the Left hand slot ruins UX.
+    log(`Gate: Handedness -> claimed=${claimedHand}, detected=${detectedHand} conf=${handInfo.confidence.toFixed(2)}`);
+    if (claimedHand && detectedHand && detectedHand !== claimedHand) {
+      return reject("wrong_hand", `Detected ${detectedHand} vs Claimed ${claimedHand}`, Date.now() - startTime);
     }
 
     // 4. Clarity — bright enough to read the lines?
@@ -233,11 +237,12 @@ export async function gatePalmImage(asset, claimedHand) {
     const confidence = confidenceScore({ brightness, sharpness, coverage: bounds.coverage });
     return { ok: true, landmarks, imgW: width, imgH: height, checks, confidence };
   } catch (err) {
-    // Fail OPEN so a detector crash never blocks a reading — but carry the error
-    // out so the caller can surface WHY no landmarks were produced.
+    // Fail CLOSED (mandatory local validation). If the native detector crashes
+    // or is missing (e.g., in Expo Go), we must block the upload to prevent
+    // sending unvalidated images to the backend AI.
     const gateError = String(err?.message || err);
-    console.warn("Palm gate (native) error — falling back to PASS:", gateError);
-    return { ok: true, gateError };
+    console.warn("Palm gate (native) error — falling back to REJECT:", gateError);
+    return reject("native_error", gateError, Date.now() - startTime);
   }
 }
 

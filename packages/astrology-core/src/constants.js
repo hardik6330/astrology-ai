@@ -173,3 +173,16 @@ export const DASHA_LEN = {
   Mercury: 17,
 };
 export const DASHA_ORDER = ["Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury"];
+
+export const SOLAR_MERCURY_PERIOD = 88;
+export const SOLAR_PLANETS = [
+  { name: "Mercury", period: 88, r: 30, size: 4, color: "#9a9a9a", phase: 0.1 },
+  { name: "Venus", period: 225, r: 42, size: 6, color: "#e3b06b", phase: 0.62 },
+  { name: "Earth", period: 365, r: 56, size: 6.5, color: "#4a90d9", phase: 0.28 },
+  { name: "Mars", period: 687, r: 70, size: 5, color: "#d9603a", phase: 0.85 },
+  { name: "Jupiter", period: 4333, r: 90, size: 11, color: "#d8a36b", phase: 0.42 },
+  { name: "Saturn", period: 10759, r: 108, size: 9, color: "#e3c694", phase: 0.05, ring: true },
+  { name: "Uranus", period: 30687, r: 124, size: 7, color: "#8fd0d8", phase: 0.7 },
+  { name: "Neptune", period: 60190, r: 138, size: 7, color: "#5a6fd8", phase: 0.33 },
+  { name: "Pluto", period: 90560, r: 150, size: 3, color: "#b9a08a", phase: 0.55 },
+];

@@ -23,9 +23,13 @@ import { initFirebase, isFirebaseInitialized } from './config/firebase.js';
 export function createApp() {
   const app = express();
 
-  // Trust the first reverse proxy (nginx / Cloudflare / Render / Fly) so that
+  // Trust the reverse proxy (nginx / Cloudflare / Render / Fly) so that
   // rate-limiting + req.ip use the real client IP from X-Forwarded-For.
-  app.set('trust proxy', 1);
+  // Configure via process.env.TRUST_PROXY to match your exact proxy depth.
+  const trustProxy = process.env.TRUST_PROXY
+    ? (isNaN(Number(process.env.TRUST_PROXY)) ? process.env.TRUST_PROXY : Number(process.env.TRUST_PROXY))
+    : 1;
+  app.set('trust proxy', trustProxy);
 
   app.use(helmet());
   app.use(cors(corsOptions));
@@ -87,19 +91,21 @@ function logLanUrls(port) {
   });
 }
 
-// Verify the connection and ensure schema existence.
-//   • production  → sync() is called at boot to ensure missing tables exist,
-//     but real schema updates (new columns/indices) MUST go through migrations
-//     (`npm run migrate`). sync() never ALTERs existing tables.
-//   • dev / test  → sync() for convenience.
+// Verify the connection.
+//   • production  → skips sync() entirely. All schema updates (CREATE TABLE,
+//     ALTER) MUST go through explicit migrations (`npm run migrate`) to avoid
+//     race conditions during rolling deployments.
+//   • dev / test  → sync() for convenience (auto-creates missing tables).
 async function initDatabase() {
   await sequelize.authenticate();
   logger.info('Database connection verified');
 
-  // Ensure all tables exist. sync() is non-destructive: it only CREATEs missing
-  // tables and never drops or alters existing ones.
-  await sequelize.sync();
-  logger.info('Database schema synced (missing tables created)');
+  if (env.NODE_ENV !== 'production') {
+    await sequelize.sync();
+    logger.info('Database schema synced (dev mode)');
+  } else {
+    logger.info('Production mode: skipping schema sync (relying on migrations)');
+  }
 }
 
 async function start() {

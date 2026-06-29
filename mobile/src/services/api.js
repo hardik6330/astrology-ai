@@ -161,12 +161,10 @@ function formParams(form) {
 }
 
 function parseContent(content) {
-  if (content == null) return null;
-  if (typeof content === "object") return content; // API now returns a real object
-  // Legacy: content was a JSON string (possibly double-encoded). Parse to object.
-  let parsed = JSON.parse(content.replace(/```json|```/g, "").trim());
-  if (typeof parsed === "string") parsed = JSON.parse(parsed);
-  return parsed;
+  // The backend's `asContent` utility guarantees structured data is returned
+  // as a real parsed object (unwrapping legacy double-encoded strings), so we
+  // can trust the response directly without fragile client-side double-parsing.
+  return content;
 }
 
 // Startup config from the backend.

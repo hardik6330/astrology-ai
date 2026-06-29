@@ -22,7 +22,7 @@ import { spacing } from "@/theme/tokens";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
-const RESEND_SECS = 30;
+const RESEND_SECS = 120; // 2-minute cooldown before a new OTP can be requested
 
 // Dev OTP bypass. When EXPO_PUBLIC_OTP_ENABLED='false', skip Firebase SMS and
 // log in straight from the typed phone. Mirrors the backend OTP_ENABLED flag —
@@ -321,7 +321,9 @@ export default function LoginScreen() {
                   </Pressable>
                   <Pressable onPress={sendOtp} disabled={resendIn > 0 || busy}>
                     <Text style={[s.link, (resendIn > 0 || busy) && { opacity: 0.4 }]}>
-                      {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend OTP"}
+                      {resendIn > 0
+                        ? `Resend in ${Math.floor(resendIn / 60)}:${String(resendIn % 60).padStart(2, "0")}`
+                        : "Resend OTP"}
                     </Text>
                   </Pressable>
                 </View>

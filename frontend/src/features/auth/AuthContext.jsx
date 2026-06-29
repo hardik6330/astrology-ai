@@ -11,10 +11,14 @@ import { verifyOtp, bypassLogin } from "@/services/api";
 // marketing landing never downloads Firebase at all. Fire-and-forget — these
 // are best-effort and must never block or throw into auth flow.
 function registerForWebPush() {
-  import("@/features/notifications/webPush").then((m) => m.registerForWebPush()).catch(() => {});
+  import("@/features/notifications/webPush")
+    .then((m) => m.registerForWebPush())
+    .catch((err) => console.error("Web Push registration failed:", err));
 }
 function teardownWebPush() {
-  import("@/features/notifications/webPush").then((m) => m.teardownWebPush()).catch(() => {});
+  import("@/features/notifications/webPush")
+    .then((m) => m.teardownWebPush())
+    .catch((err) => console.error("Web Push teardown failed:", err));
 }
 
 // appToken (the bearer) is shared with services/api.js; appAccount holds the
@@ -95,13 +99,15 @@ export function AuthProvider({ children }) {
 
   function logout() {
     teardownWebPush();
-    // Wipe ALL local data so the next user starts completely clean — keeps only
-    // the separate admin back-office session. Catches dynamic per-user keys too
-    // (asked_alignments:*, timelineCheck:*) without enumerating them.
+    // Wipe our app's specific local data so the next user starts completely clean.
+    // We explicitly namespace our removals so we don't accidentally wipe
+    // 3rd-party SDK persistence (like Firebase or Razorpay caches).
     try {
-      Object.keys(localStorage)
-        .filter((k) => k !== "admin_token")
-        .forEach((k) => localStorage.removeItem(k));
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith("app_") || k.startsWith("asked_alignments:") || k.startsWith("timelineCheck:")) {
+          localStorage.removeItem(k);
+        }
+      });
     } catch {
       appToken.remove();
       appAccount.remove(); // fallback: at least clear the session

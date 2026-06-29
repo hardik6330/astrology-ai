@@ -1144,23 +1144,19 @@ No generic self-help advice.
 REJECTION RULES
 --------------------------------------------------
 
-Both photos already passed an automatic quality gate. Reject ONLY when an
-image is genuinely impossible to read. Do NOT reject for minor faintness,
-soft focus, mild shadow, partial glare, or a hand that is slightly tilted —
-read what IS visible and mark weak features "Faint" / "Unclear" with low
-confidence instead.
+Both photos have ALREADY passed strict local, on-device validation (blur, lighting, multiple hands, cropping, etc.).
 
-Reject ONLY if one of the images is clearly:
+Do NOT reject an image for these basic issues. Assume the image is fundamentally valid.
 
-- not a human palm at all
-- the back of the hand (knuckles/nails, palm creases not visible)
-- a photo of a screen or a printout
-- more than one hand in the same frame
-- so blurry or dark that NO major line can be located anywhere
+Your ONLY job in validation is ADVANCED quality assessment:
+- Are the actual palm lines visible enough to interpret?
+- Is there a subtle shadow or reflection that completely obscures the major lines?
+- Is it actually the back of a hand (knuckles/nails visible instead of creases)?
+- Is it a photo of a screen/printout?
 
-When uncertain, PROCEED with the reading — do not reject.
+Do NOT reject for minor faintness or partial shadow — read what IS visible and mark weak features "Faint" / "Unclear" with low confidence instead.
 
-Only when one of the above truly applies, return:
+Only if the image is completely impossible to read for advanced structural reasons, return:
 
 {
   "handType":"Both",
@@ -2197,15 +2193,9 @@ Reject keys:
 - not_a_palm     → not a human hand at all (object, animal, face, scenery, drawing, AI/generated image, or any body part that isn't a hand).
 - screen_photo   → a hand shown ON a screen/monitor/phone/TV/laptop/printout, or a photo of another photo (NOT a real hand in front of the camera). Tells: a screen bezel or device edges, a pixel/scanline/moiré pattern, reflection or backlight glare bands, a flat rectangular border framing the hand, or a visibly re-photographed/low-detail look. When in doubt that it is re-photographed off a screen or print, REJECT as screen_photo.
 - back_of_hand   → the DORSAL side faces the camera: you see knuckles, fingernails, tendons/veins, or hair, and the main palm creases (life/head/heart lines) are NOT visible. A real palm shows soft skin with deep branching creases and fleshy mounts — if you instead see nails or knuckle ridges, it is back_of_hand. When unsure whether it's palm or back, REJECT as back_of_hand.
-- blurry         → out of focus; major lines smeared.
-- too_dark       → too dim to see line depth.
-- too_far        → palm occupies < 40% of frame.
-- cropped         → wrist or fingertips cut off AND main lines run off-frame.
-- multiple_hands  → more than one palm visible.
-- fingers_closed  → fingers are curled, pressed tightly together, or in a fist (mounts/lines are compressed).
-- tilted_hand     → hand is rotated (not vertical), tilted away from camera, or not flat (distorts line length).
-- uneven_light    → harsh shadow or glare falls across part of the palm (lines become inconsistent).
-- obstructed      → jewelry/mehndi/tattoo/dirt blocking major lines.
+- obstructed      → jewelry/mehndi/tattoo/dirt blocking major lines, or extreme shadows/glare causing total line loss.
+
+NOTE: Basic checks (blur, lighting, cropping, multiple hands, finger spread) are already handled strictly by the client. Do NOT reject for those reasons. Assume the image is fundamentally valid.
 
 NOTE on hand side (Left vs Right): The user prompt may include "CLAIMED HAND: Left/Right". You should IGNORE this — do not attempt to verify which hand is shown. Phone cameras inconsistently mirror selfies, and reliable left/right detection is not the gate's job. Trust the user's selection.
 
@@ -2712,28 +2702,20 @@ No additional keys.
 ## REJECTION KEYS
 
 not_a_palm
-ai_generated
 screen_photo
 back_of_hand
-blurry
-too_dark
-overexposed
-too_far
-cropped
-multiple_hands
-fingers_closed
-tilted_hand
-uneven_light
 obstructed
-partial_palm
-low_resolution
 
-The photo already passed an automatic quality gate. Reject ONLY when the
-image is genuinely impossible to read — not for minor faintness, soft focus,
-mild shadow, or a slightly tilted hand. When uncertain, PROCEED and read what
-is visible, marking weak features "Faint" / "Unclear" with lower confidence.
-Reject only for a clear not_a_palm / back_of_hand / screen_photo / multiple_hands,
-or when the image is so blurry or dark that NO major line can be located.
+The photo has ALREADY passed strict local on-device validation for basic issues (blur, darkness, cropping, multiple hands, finger spread). Do NOT reject for those reasons. Assume the image is fundamentally valid.
+
+Your ONLY job in validation is ADVANCED quality assessment:
+- Are the actual palm lines visible enough to interpret?
+- Is there a subtle shadow or reflection that completely obscures the major lines?
+- Is it actually the back of a hand (knuckles/nails visible instead of creases)?
+- Is it a photo of a screen/printout?
+
+Do NOT reject for minor faintness or partial shadow — read what IS visible and mark weak features "Faint" / "Unclear" with low confidence instead.
+Reject only for a clear not_a_palm / back_of_hand / screen_photo, or when the image is completely impossible to read for advanced structural reasons.
 
 ---
 

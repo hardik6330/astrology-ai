@@ -42,14 +42,22 @@ export function getMe() {
   return request("/auth/me");
 }
 
+let cachedAccountString = undefined;
+let cachedAccountParsed = null;
+
 // Pulls the logged-in phone from the AuthContext store and attaches
 // it to any outgoing form payload so the backend can stamp it on the User
-// row. Pure read — no side effects.
+// row. Pure read — no side effects. Uses in-memory caching to prevent
+// blocking the main thread with synchronous JSON.parse on every API call.
 function attachPhone(form) {
   if (!form) return form;
   try {
-    const acc = JSON.parse(appAccount.get() || "null");
-    if (acc?.phone && !form.phone) return { ...form, phone: acc.phone };
+    const raw = appAccount.get();
+    if (raw !== cachedAccountString) {
+      cachedAccountString = raw;
+      cachedAccountParsed = raw ? JSON.parse(raw) : null;
+    }
+    if (cachedAccountParsed?.phone && !form.phone) return { ...form, phone: cachedAccountParsed.phone };
   } catch {
     /* ignore */
   }
@@ -104,15 +112,12 @@ function trimChatHistory(messages) {
   return messages.slice(-CHAT_HISTORY_MAX);
 }
 
-// Normalize an API `content` payload to a real object. The API now returns a
-// parsed object; this stays tolerant of legacy (possibly double-encoded) JSON
-// strings and plain text so old data / chat replies don't break.
+// Normalize an API `content` payload. The backend's `asContent` utility now
+// guarantees that structured data is returned as a real parsed object (and
+// automatically unwraps legacy double-encoded strings), so we can just trust
+// the response directly without fragile client-side regex or double-parsing.
 export function parseContent(content) {
-  if (content == null) return null;
-  if (typeof content === "object") return content;
-  let parsed = JSON.parse(content.replace(/```json|```/g, "").trim());
-  if (typeof parsed === "string") parsed = JSON.parse(parsed);
-  return parsed;
+  return content;
 }
 
 // Low-level POST to the chat-completion endpoint.

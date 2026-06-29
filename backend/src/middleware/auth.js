@@ -34,7 +34,15 @@ export function signAppToken({ accountId, firebaseUid, phone, userId = null }) {
 // only in dev — prod requires a distinct ADMIN_JWT_SECRET, enforced in
 // envConfig). A user JWT therefore can't be verified as an admin token even if
 // the `role` claim were forged, and a leak of one secret can't mint the other.
-const ADMIN_SECRET = env.ADMIN_JWT_SECRET || env.JWT_SECRET;
+let ADMIN_SECRET;
+if (env.NODE_ENV === 'production') {
+  if (!env.ADMIN_JWT_SECRET) {
+    throw new Error('FATAL: ADMIN_JWT_SECRET is strictly required in production');
+  }
+  ADMIN_SECRET = env.ADMIN_JWT_SECRET;
+} else {
+  ADMIN_SECRET = env.ADMIN_JWT_SECRET || env.JWT_SECRET;
+}
 const ADMIN_AUD = 'astro-admin';
 
 // Admin session token. Signed with the admin secret + an `aud` claim so it's

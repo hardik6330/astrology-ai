@@ -24,6 +24,7 @@ export function FuturisticBackground() {
       ))}
 
       <span className="fx-meteor fx-meteor--1" />
+      <span className="fx-meteor fx-meteor--2" />
 
       <div className="fx-grid" />
       <div className="fx-vignette" />
@@ -77,6 +78,7 @@ export function LandingStyles() {
                           border-radius: 50%; transform: translateY(-50%); background: #fff;
                           box-shadow: 0 0 10px 3px rgba(199,210,254,0.9), 0 0 22px 6px rgba(139,92,246,0.5); }
       .fx-meteor--1 { top: 2vh; left: 0; animation: fxMeteor 16s linear infinite; animation-delay: 3s; }
+      .fx-meteor--2 { top: 12vh; left: 0; animation: fxMeteorLeft 16s linear infinite; animation-delay: 11s; }
 
       .fx-grid { position: absolute; left: 50%; bottom: -10vh; width: 200vw; height: 60vh; transform: translateX(-50%) perspective(420px) rotateX(70deg);
                  background-image:
@@ -150,6 +152,13 @@ export function LandingStyles() {
         15%  { opacity: 1; }
         26%  { transform: translate(-28vw, 78vh) rotate(150deg); opacity: 0; }
         100% { transform: translate(-28vw, 78vh) rotate(150deg); opacity: 0; }
+      }
+      @keyframes fxMeteorLeft {
+        0%   { transform: translate(-15vw, -12vh) rotate(30deg); opacity: 0; }
+        4%   { opacity: 1; }
+        15%  { opacity: 1; }
+        26%  { transform: translate(110vw, 78vh) rotate(30deg); opacity: 0; }
+        100% { transform: translate(110vw, 78vh) rotate(30deg); opacity: 0; }
       }
 
       @media (prefers-reduced-motion: reduce) {

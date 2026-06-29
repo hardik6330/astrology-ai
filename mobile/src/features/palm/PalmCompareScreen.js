@@ -62,7 +62,7 @@ export default function PalmCompareScreen({ navigation }) {
     setBusy(true);
     try {
       const opts = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         // No base64: avoid the full-res heap spike. The uploaded base64 comes
         // from the downscaled compressPhoto() output (img.base64) below.
         quality: 0.75,

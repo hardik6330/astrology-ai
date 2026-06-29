@@ -9,7 +9,7 @@ let Native = null;
 try {
   Native = requireNativeModule("HandLandmarker");
 } catch (e) {
-  console.error("Failed to load HandLandmarker module:", e);
+  console.warn("HandLandmarker native module not found (expected if running in Expo Go).");
 }
 
 export interface HandPoint {

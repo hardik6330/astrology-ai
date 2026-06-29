@@ -5,9 +5,22 @@
 //   adminToken.set(jwt); adminToken.get(); adminToken.remove();
 
 export function tokenStore(key) {
+  let cache = undefined;
+
   return {
-    get: () => localStorage.getItem(key),
-    set: (value) => localStorage.setItem(key, value),
-    remove: () => localStorage.removeItem(key),
+    get: () => {
+      if (cache === undefined) {
+        cache = localStorage.getItem(key);
+      }
+      return cache;
+    },
+    set: (value) => {
+      cache = value;
+      localStorage.setItem(key, value);
+    },
+    remove: () => {
+      cache = null;
+      localStorage.removeItem(key);
+    },
   };
 }

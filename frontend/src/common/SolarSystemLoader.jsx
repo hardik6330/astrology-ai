@@ -11,20 +11,9 @@
 // negative animation-delay (phase) staggers the start angles so they're not all
 // lined up at 12 o'clock.
 
-const BASE = 4; // seconds for Mercury's lap (the fastest)
-const MERCURY = 88; // days — the reference period
+import { SOLAR_PLANETS as PLANETS, SOLAR_MERCURY_PERIOD as MERCURY } from "@astrology-ai/core";
 
-const PLANETS = [
-  { name: "Mercury", period: 88, r: 30, size: 4, color: "#9a9a9a", phase: 0.1 },
-  { name: "Venus", period: 225, r: 42, size: 6, color: "#e3b06b", phase: 0.62 },
-  { name: "Earth", period: 365, r: 56, size: 6.5, color: "#4a90d9", phase: 0.28 },
-  { name: "Mars", period: 687, r: 70, size: 5, color: "#d9603a", phase: 0.85 },
-  { name: "Jupiter", period: 4333, r: 90, size: 11, color: "#d8a36b", phase: 0.42 },
-  { name: "Saturn", period: 10759, r: 108, size: 9, color: "#e3c694", phase: 0.05, ring: true },
-  { name: "Uranus", period: 30687, r: 124, size: 7, color: "#8fd0d8", phase: 0.7 },
-  { name: "Neptune", period: 60190, r: 138, size: 7, color: "#5a6fd8", phase: 0.33 },
-  { name: "Pluto", period: 90560, r: 150, size: 3, color: "#b9a08a", phase: 0.55 },
-];
+const BASE = 4; // seconds for Mercury's lap (the fastest)
 
 const durOf = (period) => BASE * Math.sqrt(period / MERCURY);
 

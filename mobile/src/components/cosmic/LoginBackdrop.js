@@ -10,7 +10,7 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 // Full-screen login backdrop: a once-drawn radial gradient, ~30 twinkling
 // stars, three orbits + a pulsing center sun, and a periodic shooting star.
 // Memoized — only re-renders when the theme (color/theme) actually changes.
-const LoginBackdrop = React.memo(function LoginBackdrop({ color, theme }) {
+const LoginBackdrop = React.memo(function LoginBackdrop({ color, theme, hidePlanets }) {
   // ~30 stars, opacity-only animation. Plenty for a starry feel without the
   // GPU cost of dozens of overlapping animated SVG nodes.
   const stars = Array.from({ length: 30 }, (_, i) => ({
@@ -47,7 +47,7 @@ const LoginBackdrop = React.memo(function LoginBackdrop({ color, theme }) {
 
       {/* Nine-planet solar system (real orbital periods) — twin of the web
           SolarSystemLoader. Replaces the old 3-ring orbit set. */}
-      <SolarSystem />
+      {!hidePlanets && <SolarSystem />}
 
       <ShootingStar />
     </View>

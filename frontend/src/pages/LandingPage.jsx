@@ -23,8 +23,8 @@ import {
   LuLock,
   LuSmartphone,
 } from "react-icons/lu";
-import { FaApple, FaGooglePlay } from "react-icons/fa";
 import Logo from "@/common/Logo";
+import { AppStoreIcon, GooglePlayIcon } from "@/common/StoreIcons";
 
 import { BENTO, STEPS, DAY_PARTS, FAQS, APP_PERKS, APP_STORE_URL, PLAY_STORE_URL } from "./landing/data";
 import { FuturisticBackground, LandingStyles } from "./landing/backdrop";
@@ -201,7 +201,7 @@ export default function LandingPage() {
           <p className="mt-3 text-body">Everything the platform does, grounded in your real Vedic chart.</p>
         </div>
 
-        <div className="mt-12 grid auto-rows-[1fr] gap-4 sm:grid-cols-3">
+        <div className="mt-12 grid gap-4 sm:auto-rows-[1fr] sm:grid-cols-3">
           {BENTO.map((f) => (
             <article
               key={f.title}
@@ -494,7 +494,7 @@ export default function LandingPage() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black px-5 py-2.5 transition hover:border-white/35"
               >
-                <FaApple className="text-2xl text-ink" />
+                <AppStoreIcon size={32} className="mr-1" />
                 <span className="leading-tight">
                   <span className="block text-[10px] text-dim">Download on the</span>
                   <span className="block text-base font-semibold text-ink">App Store</span>
@@ -506,7 +506,7 @@ export default function LandingPage() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black px-5 py-2.5 transition hover:border-white/35"
               >
-                <FaGooglePlay className="text-xl text-ink" />
+                <GooglePlayIcon size={24} className="mr-1" />
                 <span className="leading-tight">
                   <span className="block text-[10px] text-dim">GET IT ON</span>
                   <span className="block text-base font-semibold text-ink">Google Play</span>

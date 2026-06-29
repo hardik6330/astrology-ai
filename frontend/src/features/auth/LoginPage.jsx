@@ -146,14 +146,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative grid min-h-screen place-items-center overflow-hidden p-4">
+    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-y-auto overflow-x-hidden p-4 py-8">
       <FuturisticBackground />
       <LandingStyles />
-      <div className="relative z-1 grid w-full max-w-5xl overflow-hidden rounded-[24px] border border-(--c-border) bg-[rgba(var(--panel-rgb),0.78)] shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[8px] md:grid-cols-2">
+      <div className="relative z-1 grid w-full max-w-5xl grid-cols-1 rounded-[24px] border border-(--c-border) bg-[rgba(var(--panel-rgb),0.78)] shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-[8px] md:grid-cols-2">
         {/* ── Left: brand / value panel (desktop only) — reassures the visitor
             at the exact moment we ask for their phone number. ── */}
         <aside
-          className="relative hidden flex-col justify-between overflow-hidden p-9 md:flex"
+          className="relative hidden flex-col justify-between overflow-hidden rounded-l-[24px] p-9 md:flex"
           style={{
             background:
               "linear-gradient(160deg, rgba(139,92,246,0.20), rgba(99,102,241,0.06) 55%, transparent)",
@@ -231,7 +231,7 @@ export default function LoginPage() {
                   placeholder="mobile number"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                  className="flex-1 bg-transparent py-3 pr-3.5 text-sm text-ink outline-none"
+                  className="flex-1 min-w-0 bg-transparent py-3 px-3.5 text-sm text-ink outline-none"
                   disabled={busy}
                   maxLength={12}
                 />

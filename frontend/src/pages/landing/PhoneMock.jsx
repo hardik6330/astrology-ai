@@ -5,7 +5,7 @@
 // `qrcode.react`, so code-splitting it here keeps that lib out of the eager
 // landing bundle (the QR is far down the page, loaded on scroll).
 import { QRCodeSVG } from "qrcode.react";
-import { FaApple, FaGooglePlay } from "react-icons/fa";
+import { AppStoreIcon, GooglePlayIcon } from "@/common/StoreIcons";
 import Logo from "@/common/Logo";
 import { APP_LINK } from "./data";
 
@@ -37,8 +37,8 @@ export default function PhoneMock() {
             Point your camera at the code to get the app on iOS or Android.
           </p>
           <div className="mt-4 flex items-center justify-center gap-3 text-lg text-dim">
-            <FaApple />
-            <FaGooglePlay className="text-base" />
+            <AppStoreIcon size={20} />
+            <GooglePlayIcon size={18} />
           </div>
         </div>
       </div>

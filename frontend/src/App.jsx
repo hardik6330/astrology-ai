@@ -9,9 +9,13 @@ import SolarSystemLoader from "@/common/SolarSystemLoader";
 import CreditBadge from "@/common/CreditBadge";
 import { appRoutes } from "@/routes";
 
+import { FuturisticBackground, LandingStyles } from "@/pages/landing/backdrop";
+
 function PageLoader() {
   return (
-    <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", background: "#050508" }}>
+    <div className="relative grid min-h-screen place-items-center bg-transparent overflow-hidden">
+      <FuturisticBackground />
+      <LandingStyles />
       <SolarSystemLoader />
     </div>
   );

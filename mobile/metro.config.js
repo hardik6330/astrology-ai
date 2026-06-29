@@ -18,4 +18,8 @@ config.resolver.nodeModulesPaths = [
   path.resolve(repoRoot, 'node_modules'),
 ];
 
+config.resolver.extraNodeModules = {
+  '@astrology-ai/core': path.resolve(repoRoot, 'packages/astrology-core'),
+};
+
 module.exports = config;

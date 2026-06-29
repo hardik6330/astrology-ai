@@ -1,11 +1,14 @@
 // Landing-page hero visuals: the palm "analysis report" card and the rotating
 // zodiac bi-wheel. Both are self-contained and decorative.
 import { LuScan, LuListChecks, LuSparkles, LuArrowRight } from "react-icons/lu";
+import { useNavigate } from "react-router-dom";
 import { RASHI } from "./data";
 
 // ── Rich Palm Analysis Preview: a high-fidelity "Result Card" that feels like a
 // real product feature (replaces the abstract scan box).
 export function PalmReportPreview() {
+  const navigate = useNavigate();
+
   const lines = [
     { label: "Heart Line", value: 88, color: "#f472b6", text: "Strong emotional depth" },
     { label: "Life Line", value: 92, color: "#22d3ee", text: "High vitality & rhythm" },
@@ -91,9 +94,12 @@ export function PalmReportPreview() {
             ))}
           </div>
           <div className="text-[10px] text-dim">21 landmarks detected</div>
-          <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center text-subtle">
+          <button
+            onClick={() => navigate("/login")}
+            className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center text-subtle hover:bg-white/10 hover:text-ink transition-colors cursor-pointer"
+          >
             <LuArrowRight size={14} />
-          </div>
+          </button>
         </div>
       </div>
 

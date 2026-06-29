@@ -18,9 +18,11 @@ import LoginScreen       from "../features/auth/LoginScreen";
 import DrawerContent     from "../components/DrawerContent";
 import SolarSystemLoader from "../components/SolarSystemLoader";
 import { withErrorBoundary } from "../components/ErrorBoundary";
-import { color } from "../theme/tokens";
+import { color as tokensColor } from "../theme/tokens";
 import { useAuth } from "../features/auth/AuthContext";
 import { useForm } from "../context/ChartContext";
+import { useTheme } from "../theme/ThemeContext";
+import LoginBackdrop from "../components/cosmic/LoginBackdrop";
 
 const Drawer = createDrawerNavigator();
 const Stack  = createNativeStackNavigator();
@@ -41,8 +43,8 @@ const navTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: color.bg, card: color.bg, primary: color.primary,
-    text: color.text, border: color.cardBorder,
+    background: tokensColor.bg, card: tokensColor.bg, primary: tokensColor.primary,
+    text: tokensColor.text, border: tokensColor.cardBorder,
   },
 };
 
@@ -95,11 +97,11 @@ function MainDrawer() {
         freezeOnBlur: true,
         drawerType: "front",
         drawerStyle: {
-          backgroundColor: color.bg, width: 280,
-          borderRightWidth: 1, borderRightColor: color.cardBorder,
+          backgroundColor: tokensColor.bg, width: 280,
+          borderRightWidth: 1, borderRightColor: tokensColor.cardBorder,
         },
         overlayColor: "rgba(0,0,0,0.55)",
-        sceneContainerStyle: { backgroundColor: color.bg },
+        sceneContainerStyle: { backgroundColor: tokensColor.bg },
         swipeEdgeWidth: 40,
         // "history" means the back button will go back through the drawer
         // items visited. This prevents jumping straight to Home/Reading.
@@ -139,6 +141,7 @@ export default function RootNavigator() {
   // leaving a stale Home at the bottom of the back history. Waiting here makes
   // initialRoute deterministic so back order is a clean Credits → Profile → Reading.
   const { hydrated: chartHydrated } = useForm();
+  const { theme, colors } = useTheme();
   // navigationRef is the shared container ref (also used by push-tap handlers).
   const routeNameRef = useRef();
 
@@ -146,7 +149,8 @@ export default function RootNavigator() {
   // don't flash the Login screen over a valid existing session.
   if (hydrating || (token && !chartHydrated)) {
     return (
-      <View style={{ flex: 1, backgroundColor: color.bg, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" }}>
+        <LoginBackdrop color={colors} theme={theme} hidePlanets />
         <SolarSystemLoader />
       </View>
     );
