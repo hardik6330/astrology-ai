@@ -226,7 +226,7 @@ export default function PalmComparePage() {
             </div>
           ) : (
             <span className="grid w-9 place-items-center text-[#a855f7]">
-              <Icon name="HAND_RIGHT" size={28} />
+              <Icon name="HAND" size={28} />
             </span>
           )}
           <span className="flex-1">
