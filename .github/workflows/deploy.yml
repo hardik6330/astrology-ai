@@ -74,7 +74,9 @@ jobs:
         with:
           name: backend-release
           path: backend-release.tar.gz
-          retention-days: 3
+          # Only needs to survive the gap between `verify` and `deploy`; a short
+          # retention keeps artifacts from piling up against the storage quota.
+          retention-days: 1
 
       # Frontend env is NOT injected here anymore — Vite auto-loads the committed
       # frontend/.env.production at build time. VITE_* values are baked into the
@@ -90,7 +92,7 @@ jobs:
         with:
           name: frontend-dist
           path: frontend/dist
-          retention-days: 3
+          retention-days: 1
 
   # ── Deploy: only runs if `verify` passed ─────────────────────────────────────
   # Capistrano-style atomic release:
