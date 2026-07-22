@@ -11,7 +11,10 @@
 // negative animation-delay (phase) staggers the start angles so they're not all
 // lined up at 12 o'clock.
 
-import { SOLAR_PLANETS as PLANETS, SOLAR_MERCURY_PERIOD as MERCURY } from "@astrology-ai/core";
+import {
+  SOLAR_PLANETS as PLANETS,
+  SOLAR_MERCURY_PERIOD as MERCURY,
+} from "../../../packages/astrology-core/src/index.js";
 
 const BASE = 4; // seconds for Mercury's lap (the fastest)
 
