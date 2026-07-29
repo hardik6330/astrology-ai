@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Sequelize } from 'sequelize';
@@ -28,6 +29,15 @@ const sequelize =
         // are all STRING(24), so they MUST share one collation for sync()'s
         // CASCADE constraints to actually take. Don't rely on the server default.
         define: { charset: 'utf8mb4', collate: 'utf8mb4_unicode_ci' },
+        // ponytail: no CA => encrypted but unverified (MITM-able). Set DB_SSL_CA
+        // to the provider's ca.pem to turn on real verification.
+        ...(env.DB_SSL === 'true' && {
+          dialectOptions: {
+            ssl: env.DB_SSL_CA
+              ? { ca: readFileSync(env.DB_SSL_CA, 'utf8') }
+              : { rejectUnauthorized: false },
+          },
+        }),
         // Connection pool sized for a single long-lived process (the VPS runs
         // ONE pm2 fork). Override via DB_POOL_MAX/MIN.
         pool: {

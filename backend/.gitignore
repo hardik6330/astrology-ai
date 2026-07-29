@@ -1,0 +1,3 @@
+
+# DB dumps (contain real user data)
+*.sql

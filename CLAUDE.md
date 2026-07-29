@@ -58,6 +58,13 @@ Never commit the JSON file. It was leaked once already (see git history for comm
 - **Production schema bootstrap:** `npm run sync-schema` (`backend/src/scripts/syncSchema.js`) is a one-off that forces a `sync()` **regardless of `NODE_ENV`** — run it ONCE against a fresh prod DB (e.g. on the Oracle VPS) before flipping to production, since `server.js` won't sync in prod. Because it builds tables fresh, it also emits the real FK constraints (`ON DELETE CASCADE`/`SET NULL`) from `models/index.js` — so a brand-new DB gets DB-level referential integrity. It will NOT add FKs/columns to tables that already exist; for that, migrate. `--alter` exists but is throwaway-DB-only (risky).
 - ⚠️ **The Umzug migration harness is wired but `backend/migrations/` is still EMPTY** — `backend/config/umzug.js`, `src/scripts/migrate.js`, `src/scripts/seed.js`, and the `migrate`/`migrate:down`/`migrate:status`/`seed` npm scripts all exist, and `backend/MIGRATIONS.md` documents the intended **baseline-and-forward** strategy (a `0000-baseline.js` whose `up()` just calls `sync()` — safe on both fresh and existing DBs, then real forward migrations after it). **But that baseline file does not exist yet** — the `migrations/` directory is empty. So until someone writes `0000-baseline.js`, the schema is still effectively frozen at the `sync-schema` snapshot, and **any column add to an existing table silently does nothing → `Unknown column` at runtime.** First migration to write is the baseline; also add the missing `Purchase.planId` index. The deploy workflow still has the `npm run migrate` hook **commented out** (`.github/workflows/deploy.yml`, after the symlink flip / before the health-check) ready to wire once the baseline lands. Read `backend/MIGRATIONS.md` before touching schema.
 
+### Database host & backups
+MySQL is hosted on **Aiven** (`mysql-327ca92-…e.aivencloud.com`, db `defaultdb`, user `avnadmin`, free `Free-1-1gb` plan on DigitalOcean/blr). It replaced a **Railway** MySQL whose workspace was restricted for a ToS violation — that service is offline and its data is unrecoverable except from the dump below.
+- **TLS is mandatory** (Aiven `SSL mode: REQUIRED`). `DB_SSL=true` makes `dbConfig.js` pass `dialectOptions.ssl`; `DB_SSL_CA` (path to Aiven's downloaded CA `.pem`) turns on real cert verification. Without the CA, the connection is encrypted but **unverified** — set it for anything public-facing. Both vars are declared in `envConfig.js`.
+- ⚠️ **The free plan powers off during inactivity.** A powered-off service refuses connections, and `server.js` `process.exit(1)`s on an unreachable DB in production — so prod looks dead for a reason that has nothing to do with the code. Upgrade the plan if uptime matters.
+- **Dumps live in `backend/*.sql`** and are gitignored (`backend/.gitignore` → `*.sql`) because they contain real user data — keep copies off-machine, they're the only backups: `railway_backup.sql` (Jul 24, the pre-migration Railway snapshot) and `aiven_backup.sql` (post-import Aiven snapshot). Both are plain table dumps with **no `CREATE DATABASE`/`USE`**, so they import into whatever db you name on the command line. Backup/restore commands are in the Quick command reference.
+- `avnadmin` is not `root`: it lacks `PROCESS`, so `mysqldump` needs **`--no-tablespaces`** or it errors out.
+
 ### Credits & payments
 Every paid feature deducts **credits** from `User.credits`; an append-only `CreditTransaction` ledger records every grant/spend (never updated, only inserted — keep it that way for auditability). Feature costs (`chat_cost`, `insights_cost`, `daily_cost`, `palm_cost`) and the signup bonus (`initial_credits`) live in the `Setting` table, not in code, and are editable from the admin panel — read them live via `settingsService` (60s cache).
 - `creditService.charge()` does an atomic guarded decrement (`... WHERE credits >= cost`) and throws HTTP 402 `INSUFFICIENT_CREDITS` if the user can't cover it. Clients surface this as a low-credits prompt.
@@ -191,6 +198,13 @@ cd backend && npm run sync-schema
 
 # Run migrations against the prod DB (no baseline migration exists yet — see Schema management)
 cd backend && DB_HOST=<host> DB_PORT=<port> DB_USER=root DB_PASS='<pass>' DB_NAME=<db> NODE_ENV=production npm run migrate
+
+# Back up the live DB (Aiven needs --ssl; --no-tablespaces because avnadmin lacks PROCESS)
+MYSQL_PWD='<DB_PASS>' mysqldump --ssl -h <DB_HOST> -P <DB_PORT> -u <DB_USER> \
+  --single-transaction --routines --triggers --no-tablespaces <DB_NAME> > backend/aiven_backup.sql
+
+# Restore / import a dump into a DB (dumps have no CREATE DATABASE — target db must exist)
+MYSQL_PWD='<DB_PASS>' mysql --ssl -h <DB_HOST> -P <DB_PORT> -u <DB_USER> <DB_NAME> < backend/aiven_backup.sql
 
 # Deploy to prod: just push to main (GitHub Actions → Oracle VPS, .github/workflows/deploy.yml)
 git push origin main

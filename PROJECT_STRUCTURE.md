@@ -101,7 +101,7 @@ Four main tabs:
 
 ## 🗄️ Database & Auth
 
-- **Database:** A single **MySQL** database (via Sequelize ORM). Hosted on **Railway MySQL** in production.
+- **Database:** A single **MySQL** database (via Sequelize ORM). Hosted on **Aiven MySQL** (db `defaultdb`, TLS required → `DB_SSL=true`); migrated off Railway, whose workspace was restricted. Backups: gitignored dumps in `backend/*.sql` — see CLAUDE.md "Database host & backups".
 - **Tables:** `User`, `Kundali`, `PalmReading`, `DailyReading`, `ChatMessage`, `CreditTransaction` (append-only ledger), `Purchase`, `Setting`, `PushToken`, `Admin`, and engagement-push templates.
 - **Schema:** `sequelize.sync()` on boot **only in dev/test** (creates missing tables, never drops/alters). Production is migrations-only; a fresh prod DB is bootstrapped once with `npm run sync-schema` (forces a `sync()` incl. real FK constraints). Ongoing column changes go through `backend/migrations/` (Umzug) — note **no baseline migration exists yet**, so the schema is currently frozen at the `sync-schema` snapshot.
 - **User Auth:** **Firebase Phone OTP** is the single identity source. The client verifies the OTP, obtains a Firebase ID token → the backend verifies it and issues its own **JWT** (signed with `JWT_SECRET`). On mobile the JWT is stored in the OS keychain via **`expo-secure-store`**, not plaintext AsyncStorage.
@@ -155,7 +155,7 @@ Production runs on an **always-on Oracle VPS** (pm2 + nginx), deployed by **GitH
 - **First-time setup:** create `$DEPLOY_PATH/shared/.env` on the box (deploy fails loudly if missing) and bootstrap the schema once with `npm run sync-schema` (`server.js` doesn't `sync()` in production). GH secrets: `SERVER_HOST/USER/SSH_KEY`, `DEPLOY_PATH`, `FRONTEND_DEPLOY_PATH`, `BACKEND_PORT`, `VITE_API_URL`.
 - Because the host is long-lived, the app runs **as written**: `app.listen()` binds a port and the in-process **node-cron** scheduler drives engagement pushes (no external cron needed). Every new env var must be added to `backend/src/config/envConfig.js` (Zod schema).
 - **Vercel (legacy/alt):** still works — Root Directory = `backend` (project settings, not `vercel.json`), env vars + `FIREBASE_SERVICE_ACCOUNT_B64` in the dashboard, external cron for pushes. ⚠️ **`VERCEL` is injected by the platform** (`=1`) — **never set it in your local `.env`** (the check is `process.env.VERCEL === '1'`; a local `VERCEL=1`/`VERCEL=0` makes the dev server skip `app.listen()` and exit). On Vercel, env changes apply only to **new deployments** (redeploy), and an unreachable DB `process.exit(1)`s → `FUNCTION_INVOCATION_FAILED` on every route.
-- **DB:** whatever `shared/.env` points at (MySQL — Railway public TCP proxy `*.proxy.rlwy.net`, or a MySQL local to the VPS). Migrations run manually:
+- **DB:** whatever `shared/.env` points at (MySQL — **Aiven** `*.aivencloud.com`, needs `DB_SSL=true`, or a MySQL local to the VPS). Migrations run manually:
   ```bash
   cd backend && DB_HOST=<host> DB_PORT=<port> DB_USER=root DB_PASS='<pass>' DB_NAME=<db> NODE_ENV=production npm run migrate
   ```
@@ -185,7 +185,9 @@ Production runs on an **always-on Oracle VPS** (pm2 + nginx), deployed by **GitH
 | Variable | Where | Purpose |
 |---|---|---|
 | `FIREBASE_SERVICE_ACCOUNT_B64` | Backend | Firebase Admin (token verify) |
-| `DB_HOST/PORT/USER/PASS/NAME` | Backend | MySQL (Railway) connection |
+| `DB_HOST/PORT/USER/PASS/NAME` | Backend | MySQL (Aiven) connection |
+| `DB_SSL` | Backend | `'true'` enables TLS — required by Aiven |
+| `DB_SSL_CA` | Backend | Path to Aiven's CA `.pem`; unset = encrypted but unverified |
 | `GEMINI_API_KEY` | Backend | AI interpretation + palm vision |
 | `JWT_SECRET` | Backend | User session-token signing |
 | `ADMIN_JWT_SECRET` | Backend | Admin token signing — **required + distinct from `JWT_SECRET` in prod** |

@@ -22,6 +22,11 @@ const schema = z.object({
   DB_USER:         z.string().default('root'),
   DB_PASS:         z.string().default(''),
   DB_NAME:         z.string().default('astrology_db'),
+  // Managed MySQL (Aiven/PlanetScale/…) requires TLS. DB_SSL_CA points at the
+  // provider's CA .pem for real verification; without it TLS still encrypts but
+  // the cert isn't verified.
+  DB_SSL:          z.string().optional(),
+  DB_SSL_CA:       z.string().optional(),
   // Connection-pool sizing. Serverless (Vercel) runs MANY concurrent λ, each its
   // own process holding its own pool — keep it SMALL or concurrent λ exhaust
   // MySQL's max_connections. An always-on host runs ONE process and wants a
