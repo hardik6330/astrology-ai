@@ -16,6 +16,9 @@ const dark = {
 
   // Status
   success:        "#22c55e",
+  // High-contrast green for text ON a soft green wash, where `success` alone
+  // doesn't clear 4.5:1. Mirrors dangerStrong.
+  successStrong:  "#4ade80",
   warning:        "#fbbf24",
   danger:         "#f87171",
   dangerStrong:   "#ef4444",
@@ -51,6 +54,9 @@ const light = {
   accentBorder:   "rgba(79, 70, 229, 0.35)",
 
   success:        "#15803d",
+  // Darker than `success` on purpose: on a pale green wash #15803d sits at
+  // 3.81:1, which fails AA for small bold text. #166534 gives 5.41:1.
+  successStrong:  "#166534",
   warning:        "#b45309",
   danger:         "#dc2626",
   dangerStrong:   "#b91c1c",
