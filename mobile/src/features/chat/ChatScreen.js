@@ -8,7 +8,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import MenuButton from "@/components/MenuButton";
 import CosmicBackdrop from "@/components/CosmicBackdrop";
 import { useForm, useReading } from "@/context/ChartContext";
-import { chatCompletion, fetchChatHistory } from "@/services/api";
+import { chatCompletion, chatStream, fetchChatHistory } from "@/services/api";
 import { buildFactSheet } from "@/shared/astrology";
 import { SkeletonChat } from "@/components/Skeleton";
 import { logEvent } from "@/features/notifications/analytics";
@@ -171,8 +171,26 @@ export default function ChatScreen({ navigation, route }) {
     setChatMsgs([...history, { role: "assistant", content: "…" }]);
     setBusy(true);
     try {
-      const txt = await chatCompletion(history, "chat", {
-        factSheet: buildFactSheet(chart, form), form,
+      const extra = { factSheet: buildFactSheet(chart, form), form };
+      // Replace the "…" placeholder with the first token, then append.
+      let started = false;
+      const onDelta = (delta) => {
+        started = true;
+        setChatMsgs((m) => {
+          const copy = m.slice();
+          const last = copy[copy.length - 1];
+          if (!last || last.role !== "assistant") return m;
+          copy[copy.length - 1] = { ...last, content: (last.content === "…" ? "" : last.content) + delta };
+          return copy;
+        });
+      };
+      // Fall back to the buffered POST only if streaming died before anything
+      // rendered — otherwise the user watches the answer restart from the top.
+      // A real error (402, blocked) carries a .code and must never be retried
+      // into a second charge.
+      const txt = await chatStream(history, extra, onDelta).catch((err) => {
+        if (started || err.code) throw err;
+        return chatCompletion(history, "chat", extra);
       });
       setChatMsgs((m) => {
         const copy = m.slice();

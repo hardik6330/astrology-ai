@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { MSGS } from "@/shared/prompts";
+import { MSGS } from "@/shared/loadingMessages";
 import { fetchSaved } from "../services/api";
 import { useChart } from "../context/ChartContext";
 import BottomNav from "../components/BottomNav";

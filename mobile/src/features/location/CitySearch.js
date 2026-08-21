@@ -15,7 +15,7 @@ function makeSessionToken() {
   });
 }
 
-// Mobile mirror of frontend/src/components/CitySearch.jsx. Debounced
+// Mobile mirror of frontend/src/features/location/CitySearch.jsx. Debounced
 // autocomplete → backend proxy → select → onSelect({city, lat, lon, tz, ...}).
 export default function CitySearch({ value, onSelect, onOpenChange, birthTimestamp, error, placeholder = "City, Country", customStyle }) {
   const [input, setInput] = useState(value || "");

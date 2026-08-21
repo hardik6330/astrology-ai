@@ -49,9 +49,9 @@ export async function up({ context: q }) {
   // The old non-unique index on the same column becomes redundant once the
   // UNIQUE exists — MySQL will serve every lookup from the UNIQUE.
   await q.addIndex('Users', ['phone'], { name: 'users_phone_unique', unique: true });
-  if (idx.some((i) => i.name === 'users_phone')) {
-    await q.removeIndex('Users', 'users_phone').catch(() => {});
-  }
+  // No .catch here on purpose: swallowing this hid a real failure once, and a
+  // silently-kept duplicate index is exactly the kind of thing nobody notices.
+  if (idx.some((i) => i.name === 'users_phone')) await q.removeIndex('Users', 'users_phone');
 }
 
 export async function down({ context: q }) {

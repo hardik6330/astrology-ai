@@ -1,5 +1,5 @@
 import { ChatMessage, PalmReading, Kundali } from '../models/index.js';
-import { callGemini } from '../ai/gemini.js';
+import { callGemini, streamGemini } from '../ai/gemini.js';
 import { CHAT_SYSTEM, GUARD_SYSTEM } from '../ai/prompts.js';
 import { CHAT_ANSWER_MODELS, CHAT_MODELS, THINK_BUDGET, MAX_OUTPUT_TOKENS } from '../config/constants.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
@@ -147,7 +147,11 @@ export async function getChatHistory(form) {
 }
 
 // Answer one user turn against the chart, then persist the exchange.
-export async function answerAndPersist({ messages, factSheet, form }) {
+// `onChunk` opts into streaming. Everything else — the credit charge, the topic
+// gate, the refund paths, the persisted exchange — is deliberately SHARED with
+// the buffered path rather than forked into a second function: this is the code
+// that takes people's money and refunds it, and two copies of it would drift.
+export async function answerAndPersist({ messages, factSheet, form }, onChunk = null) {
   const lastMsg = messages[messages.length - 1].content;
   const hasForm = form?.name && form.date && form.time && form.city;
 
@@ -200,7 +204,12 @@ export async function answerAndPersist({ messages, factSheet, form }) {
     // already reframes questions the chart can't literally name (brand, number),
     // so no separate reframe note is needed now that off-topic is blocked above.
     const systemWithChart = `${CHAT_SYSTEM}${UNTRUSTED_DATA_GUARD}\n\n=== THIS PERSON'S BIRTH CHART ===\n${fenceUntrusted(factSheet || '(chart not provided)')}${insightBlock}${palmBlock}\n\nTODAY'S DATE: ${today}.${topicBlock}`;
-    result = await callGemini(systemWithChart, lastMsg, false, CHAT_ANSWER_MODELS, THINK_BUDGET.CHAT, MAX_OUTPUT_TOKENS, 'chat_answer');
+    result = onChunk
+      ? await streamGemini(systemWithChart, lastMsg, {
+          models: CHAT_ANSWER_MODELS, thinkingBudget: THINK_BUDGET.CHAT,
+          maxOutputTokens: MAX_OUTPUT_TOKENS, feature: 'chat_answer', onChunk,
+        })
+      : await callGemini(systemWithChart, lastMsg, false, CHAT_ANSWER_MODELS, THINK_BUDGET.CHAT, MAX_OUTPUT_TOKENS, 'chat_answer');
   } catch (e) {
     // AI failed after we charged — refund so the user isn't billed for a
     // message they never received an answer to.

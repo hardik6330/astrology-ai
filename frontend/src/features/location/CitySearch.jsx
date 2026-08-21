@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import { useCitySearch, lookupCityDetails } from "@/features/location/hooks";
-import { color, radius, shadow } from "../theme/tokens.js";
+import { useCitySearch, lookupCityDetails } from "./hooks";
+import { color, radius, shadow } from "../../theme/tokens.js";
 import { Spinner } from "@/common/Loading";
 
 // Generate a UUID for the Places sessiontoken. Browser-native crypto when

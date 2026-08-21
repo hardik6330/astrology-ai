@@ -136,6 +136,75 @@ async function generateWithRetry({ models, parts, jsonMode, thinkingBudget, maxO
 }
 
 /**
+ * Streaming text call. Same retry / model-fallback / deadline machinery as
+ * generateWithRetry, with one hard rule: RETRY ONLY BEFORE THE FIRST CHUNK.
+ * Once bytes have gone out to the client, a retry would replay the answer from
+ * the top and the user would watch it stutter and restart — so after first
+ * output we fail forward and let the caller deal with a truncated answer.
+ *
+ * `onChunk(text)` receives each delta. Resolves with the full concatenated text
+ * so callers can persist exactly what the user saw.
+ */
+export async function streamGemini(systemPrompt, userPrompt, {
+  models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS,
+  feature = 'unattributed', onChunk,
+} = {}) {
+  const parts = [{ text: `SYSTEM: ${systemPrompt}` }, { text: `USER: ${userPrompt}` }];
+  const deadline = Date.now() + GEMINI_DEADLINE_MS;
+  let lastError;
+  let emitted = false;
+
+  for (const modelName of models) {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) { lastError ??= new Error('Gemini deadline exceeded'); break; }
+      const attemptMs = Math.min(GEMINI_ATTEMPT_TIMEOUT_MS, remaining);
+      const startTime = Date.now();
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            temperature: 1.0,
+            maxOutputTokens,
+            ...(thinkingBudget !== null && { thinkingConfig: { thinkingBudget } }),
+          },
+        }, { timeout: attemptMs });
+
+        const { stream, response } = await model.generateContentStream(parts);
+        let full = '';
+        for await (const item of stream) {
+          // A thinking-only chunk has no text — skip rather than emit ''.
+          const piece = typeof item.text === 'function' ? item.text() : '';
+          if (!piece) continue;
+          full += piece;
+          emitted = true;
+          onChunk?.(piece);
+        }
+        const final = await response;
+        const u = final.usageMetadata || {};
+        log.info({
+          evt: 'gemini_usage', feature, model: modelName, stream: true,
+          thinking: thinkingBudget ?? null,
+          promptTokens: u.promptTokenCount ?? null,
+          outputTokens: u.candidatesTokenCount ?? null,
+          totalTokens: u.totalTokenCount ?? null,
+          costUsd: estimateCostUsd(modelName, u),
+          ms: Date.now() - startTime,
+        }, `[Gemini stream] ${modelName} feature=${feature} total=${u.totalTokenCount ?? '?'} (${Date.now() - startTime}ms)`);
+        return full;
+      } catch (error) {
+        lastError = error;
+        if (emitted) throw error; // past the point of no return — see above
+        if (!isTransient(error)) break;
+        const backoff = RETRY_BASE_MS * 2 ** (attempt - 1);
+        if (attempt < MAX_RETRIES && (deadline - Date.now()) > backoff) await sleep(backoff);
+      }
+    }
+  }
+  throw overloadedError(lastError);
+}
+
+/**
  * Text-only Gemini call with retry + model fallback.
  *   thinkingBudget — caps Pro's internal reasoning tokens (cheaper = lower).
  *   Pass null to use Google's default dynamic behavior.

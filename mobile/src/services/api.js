@@ -274,6 +274,80 @@ export async function chatCompletion(messages, type = "chat", extra = {}) {
   return typeof data.content === "string" ? data.content.trim() : data.content;
 }
 
+// Streaming twin of chatCompletion, chat only (interpret/daily return JSON the
+// UI can't render half-finished, so streaming them buys nothing).
+//
+// XMLHttpRequest, not fetch: React Native's fetch has no ReadableStream, so
+// `res.body` is undefined and there is nothing to read incrementally. XHR's
+// onprogress fires as bytes arrive and `responseText` holds everything received
+// so far — the standard RN workaround, and it needs no native module.
+//
+// `onDelta(text)` fires per chunk; resolves with the full answer.
+export async function chatStream(messages, extra = {}, onDelta) {
+  const form = attachPhone(extra.form);
+  const headers = { "Content-Type": "application/json", ...(await authHeaders()) };
+  const body = JSON.stringify({
+    messages: trimChatHistory(messages),
+    factSheet: extra.factSheet,
+    form,
+  });
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_URL}/chat/stream`);
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+
+    // How much of responseText we've already turned into events. XHR gives the
+    // WHOLE body every time, not a delta, so we track our own read offset.
+    let consumed = 0;
+    let full = "";
+    let failed = null;
+
+    const drain = () => {
+      const text = xhr.responseText || "";
+      let buffer = text.slice(consumed);
+      let split;
+      while ((split = buffer.indexOf("\n\n")) !== -1) {
+        const frame = buffer.slice(0, split);
+        buffer = buffer.slice(split + 2);
+        consumed = text.length - buffer.length;
+
+        const line = frame.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue; // heartbeat comment
+        let evt;
+        try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (evt.error) {
+          failed = new Error(evt.error);
+          if (evt.code) failed.code = evt.code;
+          continue;
+        }
+        if (evt.delta) { full += evt.delta; onDelta?.(evt.delta); }
+        if (evt.done) noteBalance(evt.balance); // refresh the credit badge
+      }
+    };
+
+    xhr.onprogress = drain;
+    xhr.onload = () => {
+      // A pre-stream failure (401, 402, 429) is still a normal JSON body.
+      if (xhr.status < 200 || xhr.status >= 300) {
+        let parsed = {};
+        try { parsed = JSON.parse(xhr.responseText); } catch { /* not JSON */ }
+        if (xhr.status === 401 && unauthorizedHandler) unauthorizedHandler();
+        const err = new Error(parsed.error || `AI service unavailable (HTTP ${xhr.status})`);
+        if (parsed.code) err.code = parsed.code;
+        err.status = xhr.status;
+        return reject(err);
+      }
+      drain(); // onprogress may not fire for the final chunk
+      return failed ? reject(failed) : resolve(full.trim());
+    };
+    xhr.onerror = () => reject(new Error("Network request failed"));
+    xhr.ontimeout = () => reject(new Error("Request timed out"));
+    xhr.send(body);
+  });
+}
+
 // Current credit balance for the logged-in user — populates the credit badge.
 // The user is resolved server-side from the auth token, so no form is needed.
 // No-ops (returns null) without a token so it never bounces a logged-out user.

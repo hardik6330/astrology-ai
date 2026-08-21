@@ -4,6 +4,7 @@ import sequelize from '../src/config/dbConfig.js';
 import { Setting } from '../src/models/index.js';
 import { up as dailyFreeUp } from '../migrations/0001-daily-guidance-free.js';
 import { up as phoneUniqueUp } from '../migrations/0005-phone-unique.js';
+import { up as baselineUp } from '../migrations/0000-baseline.js';
 import { User } from '../src/models/index.js';
 
 // The migration harness is the only thing standing between a schema change and
@@ -73,5 +74,18 @@ describe('migrations', () => {
     // credits across two profiles. The constraint is what stops it.
     await expect(User.create({ ...form, phone: '+919999900001', credits: 7 }))
       .rejects.toThrow();
+  });
+
+  it('baseline heals a column the old boot-sync never added', async () => {
+    // The real failure this exists for: Kundalis/DailyData were built before
+    // `chartHash` was on the model, so the column never landed — and sync()
+    // can't ALTER, it can only die trying to index a column that isn't there.
+    const q = sequelize.getQueryInterface();
+    await q.removeColumn('Kundalis', 'chartHash');
+    expect(await q.describeTable('Kundalis')).not.toHaveProperty('chartHash');
+
+    await baselineUp({ context: q });
+
+    expect(await q.describeTable('Kundalis')).toHaveProperty('chartHash');
   });
 });

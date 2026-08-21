@@ -154,6 +154,73 @@ export async function chatCompletion(messages, type = "chat", extraData = {}) {
   return typeof data.content === "string" ? data.content.trim() : data.content;
 }
 
+// Streaming twin of chatCompletion for `type === "chat"` only.
+//
+// Deliberately NOT extended to interpret/daily: those return a JSON object the
+// UI can't render until it's complete, so streaming them would buy a progress
+// bar's worth of nothing. Chat is plain prose, where the wait is the whole
+// problem.
+//
+// `onDelta(text)` fires per chunk; resolves with the full answer. On any
+// transport failure before the first byte the caller should fall back to
+// chatCompletion — see ChatPage.
+export async function chatStream(messages, extraData = {}, onDelta) {
+  const form = attachPhone(extraData.form);
+  const res = await authFetch(`${API_URL}/chat/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: trimChatHistory(messages),
+      factSheet: extraData.factSheet,
+      form,
+    }),
+    signal: extraData.signal,
+  });
+
+  // A pre-stream failure (401, 429, 402) is still a normal JSON error response.
+  if (!res.ok || !res.body) {
+    const errBody = await res.json().catch(() => ({}));
+    const err = new Error(errBody.error || "AI service unavailable");
+    if (errBody.code) err.code = errBody.code;
+    throw err;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let full = "";
+
+  // A chunk boundary can land anywhere, including mid-event and mid-UTF-8
+  // character — hence stream:true on the decoder and a buffer that only gives
+  // up complete "\n\n"-terminated events.
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let split;
+    while ((split = buffer.indexOf("\n\n")) !== -1) {
+      const frame = buffer.slice(0, split);
+      buffer = buffer.slice(split + 2);
+      const line = frame.split("\n").find((l) => l.startsWith("data: "));
+      if (!line) continue; // heartbeat comment
+      const evt = JSON.parse(line.slice(6));
+
+      if (evt.error) {
+        const err = new Error(evt.error);
+        if (evt.code) err.code = evt.code;
+        throw err;
+      }
+      if (evt.delta) {
+        full += evt.delta;
+        onDelta?.(evt.delta);
+      }
+      if (evt.done) noteBalance(evt.balance); // refresh the credit badge
+    }
+  }
+  return full.trim();
+}
+
 export async function chatCompletionJSON(messages, type, extraData) {
   const result = await chatCompletion(messages, type, extraData);
   return parseContent(result); // tolerant: object passthrough or parse legacy string

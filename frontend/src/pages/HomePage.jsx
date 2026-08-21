@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { computeChart } from "@/shared/astrology";
 import { useChart } from "../context/ChartContext";
-import CitySearch from "../components/CitySearch";
+import CitySearch from "../features/location/CitySearch";
 import CustomDatePicker from "@/components/picker/CustomDatePicker";
 import CustomTimePicker from "@/components/picker/CustomTimePicker";
 import CustomSelect from "../components/CustomSelect";

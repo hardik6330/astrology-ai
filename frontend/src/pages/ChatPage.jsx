@@ -47,7 +47,17 @@ export default function ChatPage() {
   const scrollRef = useRef(null);
 
   const { data: savedHistory } = useChatHistory(form);
-  const sendMessage = useSendChatMessage({ form, chart });
+  // Replace the "…" placeholder with the first token, then append. The mutation
+  // still resolves with the full text, so the completion path below is unchanged.
+  const appendDelta = (delta) =>
+    setChatMsgs((m) => {
+      const c = m.slice();
+      const last = c[c.length - 1];
+      if (!last || last.role !== "assistant") return m;
+      c[c.length - 1] = { ...last, content: (last.content === "…" ? "" : last.content) + delta };
+      return c;
+    });
+  const sendMessage = useSendChatMessage({ form, chart, onDelta: appendDelta });
   const chatBusy = sendMessage.isPending;
   const costs = useCosts();
   const chatCost = costs?.chat ?? 5;

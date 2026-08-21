@@ -15,7 +15,7 @@ import { useColors } from "../../theme/ThemeContext";
 import { useStyles } from "../../theme/useStyles";
 import { spacing, fontSize } from "../../theme/tokens";
 import { signOf, computeDaily, buildFactSheet } from "../../shared/astrology";
-import { MSGS } from "../../shared/prompts";
+import { MSGS } from "../../shared/loadingMessages";
 import { chatCompletionJSON, fetchSaved, fetchDailyDates, reverseGeocode } from "../../services/api";
 import { haptics } from "../../utils/haptics";
 import { EMOJIS } from "../../utils/emojis";
