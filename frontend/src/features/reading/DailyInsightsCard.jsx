@@ -17,7 +17,11 @@ const iso = (d) => d.toISOString().split("T")[0];
 // shows a month date-strip, and fetches/generates AI guidance per day.
 export default function DailyInsightsCard({ chart, form, onError }) {
   const costs = useCosts();
-  const dailyCost = costs?.daily ?? 15;
+  const dailyCost = costs?.daily ?? 0;
+  // Free is the normal case now — daily guidance is the retention loop, so it
+  // auto-generates instead of waiting for a tap. A non-zero admin price puts the
+  // consent button back (credits must never be spent without an explicit tap).
+  const dailyIsFree = dailyCost === 0;
   const credits = useCredits();
   const cityObj = useMemo(
     () =>
@@ -157,13 +161,25 @@ Running period: ${d.dasha}`;
     setDailyBusy(false);
   }
 
-  // Selecting a day shows it. If it already has saved guidance (green dot), load
-  // it for free; otherwise leave it blank so the Reveal button prompts the user
-  // to spend credits — never auto-generate on a date tap.
+  // Selecting a day shows it. Saved guidance (green dot) loads straight from the
+  // server. Otherwise: generate it when free, or leave it blank so the Reveal
+  // button asks first — credits are never spent without an explicit tap.
   function selectDay(date) {
     setSelDate(date);
     if (savedDates.has(iso(date))) viewSaved(date);
+    else if (dailyIsFree) generateDaily(date);
   }
+
+  // Today's guidance is the daily habit, so fetch it on open rather than making
+  // the user ask for it. Only when free, and only once — generateDaily() no-ops
+  // if it's already busy or the day is cached.
+  useEffect(() => {
+    if (!dailyIsFree || !chart) return;
+    const key = iso(selDate);
+    if (guideMap[key] || savedDates.has(key)) return;
+    generateDaily(selDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dailyIsFree, chart, selDate]);
 
   return (
     <Card>
@@ -279,7 +295,7 @@ Running period: ${d.dasha}`;
           ) : (
             <span className="inline-flex items-center gap-1.5">
               <Icon name="SPARKLES" size={13} /> Reveal {MONTHS[selDate.getMonth()]} {selDate.getDate()}'s
-              Guidance · {dailyCost} Credits
+              Guidance{dailyIsFree ? "" : ` · ${dailyCost} Credits`}
             </span>
           )}
         </button>

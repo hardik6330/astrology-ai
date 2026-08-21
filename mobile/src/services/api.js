@@ -453,3 +453,48 @@ export async function saveProfile(form) {
     return false;
   }
 }
+
+// ── Subscriptions ───────────────────────────────────────────────────────────
+// Store-driven: the app never charges a renewal, it just re-verifies on launch
+// and the backend grants any cycle it hasn't already granted. Idempotent, so
+// calling this more often than needed costs nothing.
+export async function verifySubscription({ planId, platform, receipt, purchaseToken }) {
+  return postJSON("/credits/verify-subscription", { planId, platform, receipt, purchaseToken });
+}
+
+// → { planId, plan, active, currentPeriodEnd, autoRenew } | null
+export async function getSubscriptionStatus() {
+  if (!(await getToken())) return null;
+  try {
+    const data = await getJSON("/credits/subscription");
+    return data?.subscription ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Chart memory ────────────────────────────────────────────────────────────
+// Timeline Check answers + asked Gochar alignments. Server-owned so they
+// survive a reinstall and follow the user across devices. See services/chartMemory.js.
+
+// → { [key]: value }. Returns null (not {}) when unavailable, so the caller can
+// tell "no session / offline" apart from "signed in with nothing remembered".
+export async function getMemory() {
+  if (!(await getToken())) return null;
+  try {
+    const data = await getJSON("/memory");
+    return data?.memory ?? {};
+  } catch {
+    return null;
+  }
+}
+
+export async function setMemory(key, value) {
+  if (!(await getToken())) return false;
+  try {
+    await postJSON("/memory", { key, value });
+    return true;
+  } catch {
+    return false;
+  }
+}

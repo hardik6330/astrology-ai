@@ -61,7 +61,8 @@ const FIELD_INFO = {
   insights_cost:
     "Cost in credits for a full Kundali/Birth Chart interpretation. Example: 20 credits per generation.",
   chat_cost: "Cost per AI chat message. Example: 5 credits per reply to prevent API abuse.",
-  daily_cost: "Cost for daily personalized guidance. Example: 15 credits per day.",
+  daily_cost:
+    "Cost per day of guidance. Keep at 0 — daily guidance is the retention loop, and metering it costs more than it earns. A non-zero value puts the 'Reveal' consent button back in both clients.",
   palm_cost: "Cost for a palm reading analysis. Example: 30 credits due to higher AI processing needs.",
   notif_enabled: "Master switch to turn all automatic engagement notifications ON or OFF.",
   notif_audience:

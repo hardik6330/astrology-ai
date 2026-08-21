@@ -13,6 +13,7 @@ import CosmicBackground from "@/components/CosmicBackground";
 
 import { saveProfile } from "@/services/api";
 import { Icon } from "@/utils/icons";
+import { logEvent } from "@/utils/analytics";
 
 const lbl = "mb-1 block text-[13px] text-[#888]";
 const errLbl = "mt-1 mb-0 text-[12px] text-danger";
@@ -107,6 +108,7 @@ export default function HomePage() {
         lon: form.lon,
         tz: form.tz,
       });
+      logEvent("generate_kundali", { city: form.city, gender: form.gender });
       setChart(ch);
       setInterp(null);
       setDaily(null);

@@ -19,7 +19,7 @@ export const getCredits = asyncHandler(async (req, res) => {
     const [insights, chat, daily, palm] = await Promise.all([
       settings.getNumber('insights_cost', 20),
       settings.getNumber('chat_cost', 5),
-      settings.getNumber('daily_cost', 15),
+      settings.getNumber('daily_cost', 0),
       settings.getNumber('palm_cost', 30),
     ]);
     
@@ -132,6 +132,31 @@ export const verifyIap = asyncHandler(async (req, res) => {
   });
   res.locals.message = 'IAP verified';
   res.json(result);
+});
+
+// POST /credits/verify-subscription { planId, platform, receipt, purchaseToken }
+// Verifies an auto-renewing store subscription and grants that cycle's credit
+// allowance. Called on purchase AND on every launch with an active sub — the
+// store drives renewals, so re-verifying is how a new cycle gets noticed. The
+// grant is idempotent per store transaction, so extra calls cost nothing.
+export const verifySubscription = asyncHandler(async (req, res) => {
+  const userId = await resolveUserId(req);
+  const result = await purchase.verifyIapSubscription({
+    userId,
+    planId: req.body.planId,
+    platform: req.body.platform,
+    receipt: req.body.receipt,
+    purchaseToken: req.body.purchaseToken,
+  });
+  res.locals.message = 'Subscription verified';
+  res.json(result);
+});
+
+// GET /credits/subscription — the caller's current subscription, or null.
+export const getSubscription = asyncHandler(async (req, res) => {
+  const userId = await resolveUserId(req);
+  res.locals.message = 'Subscription fetched';
+  res.json({ subscription: await purchase.getSubscription(userId) });
 });
 
 // POST /credits/purchase { planId } — legacy mock checkout. Kept for backward

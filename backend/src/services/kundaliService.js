@@ -11,7 +11,7 @@ import { cleanJson } from '../utils/cleanJson.js';
 import { fenceUntrusted, UNTRUSTED_DATA_GUARD } from '../utils/promptSafety.js';
 import { userKey } from '../utils/userKey.js';
 import { chartHashFor } from '../utils/chartHash.js';
-import { KUNDLI_MODELS, THINK_BUDGET } from '../config/constants.js';
+import { KUNDLI_MODELS, THINK_BUDGET, MAX_OUTPUT_TOKENS } from '../config/constants.js';
 import { logger } from '../config/logger.js';
 import { AppError } from '../errors/AppError.js';
 
@@ -159,7 +159,7 @@ export async function generateInterpretation({ form, factSheet, deviceToken }) {
       const userPrompt = palmSnippet
         ? `${fencedFacts}${palmSnippet}\n\nInterpret this birth chart and palm data into a single master reading.`
         : `${fencedFacts}\n\nNo palm reading is available for this user. Interpret the birth chart ALONE into a master reading — base every statement on the chart only, and do NOT mention, reference, or invent any palm, hand, line, or mount features.`;
-      const generated = await callGemini(INTERP_SYSTEM + UNTRUSTED_DATA_GUARD, userPrompt, true, KUNDLI_MODELS, THINK_BUDGET.KUNDLI);
+      const generated = await callGemini(INTERP_SYSTEM + UNTRUSTED_DATA_GUARD, userPrompt, true, KUNDLI_MODELS, THINK_BUDGET.KUNDLI, MAX_OUTPUT_TOKENS, 'kundali');
 
       // 6. Sanitize + parse + persist (best-effort — log but don't block the response).
       const cleaned = cleanJson(generated);

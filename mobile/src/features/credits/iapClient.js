@@ -51,9 +51,31 @@ export const requestPurchase = (sku) =>
     ? mod().requestPurchase({ sku })
     : mod().requestPurchase({ skus: [sku] });
 
-// Credits are consumable — finishing with isConsumable lets the user re-buy.
-export const finishTransaction = (purchase) =>
-  mod().finishTransaction({ purchase, isConsumable: true });
+// Localized subscription details. Store SKUs live in a separate catalogue from
+// consumables, so getProducts() will NOT find a subscription SKU.
+export const getSubscriptions = (skus) => mod().getSubscriptions({ skus });
+
+// Kick off the native subscription sheet. Android additionally needs the offer
+// token from the SKU's first base-plan offer; iOS takes the sku alone.
+export const requestSubscription = async (sku) => {
+  if (Platform.OS === "ios") return mod().requestPurchase({ sku });
+  const [product] = await getSubscriptions([sku]);
+  const offerToken = product?.subscriptionOfferDetails?.[0]?.offerToken;
+  return mod().requestSubscription({
+    sku,
+    ...(offerToken && { subscriptionOffers: [{ sku, offerToken }] }),
+  });
+};
+
+// Active, non-consumed entitlements — how a renewal is noticed on launch, since
+// the store (not us) drives renewals and never calls our backend.
+export const getAvailablePurchases = () => mod().getAvailablePurchases();
+
+// `isConsumable` decides whether the store lets the user buy again. Credit packs
+// must be re-buyable; a subscription must NOT be consumed or the store forgets
+// the entitlement.
+export const finishTransaction = (purchase, { isConsumable = true } = {}) =>
+  mod().finishTransaction({ purchase, isConsumable });
 
 export const purchaseUpdatedListener = (cb) => mod().purchaseUpdatedListener(cb);
 export const purchaseErrorListener = (cb) => mod().purchaseErrorListener(cb);

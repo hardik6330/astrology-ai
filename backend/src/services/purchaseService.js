@@ -13,7 +13,7 @@
 import crypto from 'node:crypto';
 import { google } from 'googleapis';
 import sequelize from '../config/dbConfig.js';
-import { CreditPlan, Purchase } from '../models/index.js';
+import { CreditPlan, Purchase, Subscription } from '../models/index.js';
 import { grant, getBalance } from './creditService.js';
 import { env } from '../config/envConfig.js';
 import { isRazorpayEnabled, razorpay, RAZORPAY_KEY_ID } from '../config/razorpay.js';
@@ -21,6 +21,10 @@ import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'purchase' });
+
+// Play Console package name. Must match mobile/app.json's android.package —
+// a mismatch makes every Google verify 404 with a confusing auth-looking error.
+const GOOGLE_PACKAGE_NAME = 'com.astrologyai.app';
 
 // providerRef is a JSON column, but on MariaDB (JSON aliased to LONGTEXT)
 // Sequelize hands it back as a raw string instead of a parsed object. Normalize
@@ -43,6 +47,10 @@ function publicPlan(p) {
     credits: p.credits,
     priceInr: p.priceInr,        // paise
     bonusLabel: p.bonusLabel || null,
+    // Subscription plans grant `credits` every cycle, not once — the clients
+    // need this to pick the store subscription flow over the one-off flow.
+    isSubscription: !!p.isSubscription,
+    periodDays: p.periodDays ?? 30,
   };
 }
 
@@ -329,6 +337,131 @@ async function verifyAppleReceipt(productId, receipt) {
   }
 }
 
+// ── Subscriptions ───────────────────────────────────────────────────────────
+// A renewal is just another store transaction, so the cycle grant reuses the
+// SAME Purchase(providerTxnId UNIQUE) idempotency as a one-off pack. That means
+// no entitlement checks anywhere: a subscriber's allowance lands in the normal
+// ledger and charge() / 402 / refunds keep working untouched.
+
+// Apple: pick the newest entry for this product out of latest_receipt_info.
+// Exported for testing — the selection logic is where a wrong subscription
+// state comes from, not the HTTP call.
+export function appleLatestSubscription(latestReceiptInfo, productId) {
+  if (!Array.isArray(latestReceiptInfo) || !productId) return null;
+  const mine = latestReceiptInfo.filter((e) => e.product_id === productId);
+  if (!mine.length) return null;
+  const newest = mine.reduce((a, b) =>
+    Number(b.expires_date_ms || 0) > Number(a.expires_date_ms || 0) ? b : a);
+  const expiresMs = Number(newest.expires_date_ms || 0);
+  if (!expiresMs) return null;
+  return {
+    originalTxnId: newest.original_transaction_id || newest.transaction_id,
+    latestTxnId:   newest.transaction_id,
+    expiresAt:     new Date(expiresMs),
+  };
+}
+
+async function verifyAppleSubscription(productId, receipt) {
+  if (!env.APPLE_IAP_SECRET) {
+    if (env.NODE_ENV === 'production') {
+      log.error('APPLE_IAP_SECRET missing in production — refusing subscription grant');
+      return null;
+    }
+    log.warn('APPLE_IAP_SECRET missing — mock subscription (dev only)');
+    // Derived from the receipt, NOT Date.now(): the real store returns a stable
+    // original_transaction_id across renewals, and a timestamped mock would mint
+    // a new "subscription" on every launch and grant the allowance every time.
+    const id = `mock_apple_sub_${crypto.createHash('sha256').update(String(receipt)).digest('hex').slice(0, 16)}`;
+    return { originalTxnId: id, latestTxnId: `${id}_cycle`, expiresAt: null, autoRenew: true };
+  }
+
+  const isProd = env.NODE_ENV === 'production';
+  const verify = (url) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // exclude-old-transactions keeps latest_receipt_info to the current
+      // renewal per product instead of the whole history.
+      body: JSON.stringify({
+        password: env.APPLE_IAP_SECRET,
+        'receipt-data': receipt,
+        'exclude-old-transactions': true,
+      }),
+    }).then((res) => res.json());
+
+  try {
+    let data = await verify(
+      isProd
+        ? 'https://buy.itunes.apple.com/verifyReceipt'
+        : 'https://sandbox.itunes.apple.com/verifyReceipt',
+    );
+    if (isProd && data.status === 21007) {
+      data = await verify('https://sandbox.itunes.apple.com/verifyReceipt');
+    }
+    if (data.status !== 0) {
+      log.error({ status: data.status }, 'Apple subscription verification failed');
+      return null;
+    }
+
+    const sub = appleLatestSubscription(data.latest_receipt_info, productId);
+    if (!sub) {
+      log.error({ productId }, 'Apple receipt has no subscription for the requested product');
+      return null;
+    }
+    // pending_renewal_info carries the cancel/renew intent for the product.
+    const renewal = (data.pending_renewal_info || [])
+      .find((r) => r.product_id === productId);
+    return { ...sub, autoRenew: renewal ? renewal.auto_renew_status === '1' : true };
+  } catch (err) {
+    log.error({ err }, 'Apple subscription fetch failed');
+    return null;
+  }
+}
+
+async function verifyGoogleSubscription(productId, token) {
+  if (!env.GOOGLE_IAP_SERVICE_ACCOUNT_JSON) {
+    if (env.NODE_ENV === 'production') {
+      log.error('GOOGLE_IAP_SERVICE_ACCOUNT_JSON missing in production — refusing subscription grant');
+      return null;
+    }
+    log.warn('GOOGLE_IAP_SERVICE_ACCOUNT_JSON missing — mock subscription (dev only)');
+    // The purchase token is the stable subscription id on Google, so the mock
+    // uses it directly — same shape as the real path, and idempotent across
+    // relaunches the way a timestamped id would not be.
+    return { originalTxnId: token, latestTxnId: `mock_cycle_${token}`, expiresAt: null, autoRenew: true };
+  }
+
+  try {
+    const auth = new google.auth.GoogleAuth({
+      keyFile: env.GOOGLE_IAP_SERVICE_ACCOUNT_JSON,
+      scopes: ['https://www.googleapis.com/auth/androidpublisher'],
+    });
+    const publisher = google.androidpublisher({ version: 'v3', auth });
+    const res = await publisher.purchases.subscriptions.get({
+      packageName: GOOGLE_PACKAGE_NAME,
+      subscriptionId: productId,
+      token,
+    });
+
+    const expiryMs = Number(res.data.expiryTimeMillis || 0);
+    if (!expiryMs) {
+      log.error({ productId }, 'Google subscription has no expiry');
+      return null;
+    }
+    return {
+      // The purchase token IS the stable subscription id on Google; orderId
+      // changes per renewal, which is exactly what we want for latestTxnId.
+      originalTxnId: token,
+      latestTxnId:   res.data.orderId || token,
+      expiresAt:     new Date(expiryMs),
+      autoRenew:     res.data.autoRenewing !== false,
+    };
+  } catch (err) {
+    log.error({ err }, 'Google subscription verification failed');
+    return null;
+  }
+}
+
 async function verifyGooglePurchase(productId, token) {
   if (!env.GOOGLE_IAP_SERVICE_ACCOUNT_JSON) {
     // Fail CLOSED in production (see verifyAppleReceipt) — mock is dev-only.
@@ -347,7 +480,7 @@ async function verifyGooglePurchase(productId, token) {
     });
     const publisher = google.androidpublisher({ version: 'v3', auth });
     const res = await publisher.purchases.products.get({
-      packageName: 'com.astrologyai.app', // Should match app.json
+      packageName: GOOGLE_PACKAGE_NAME,
       productId,
       token,
     });
@@ -424,9 +557,14 @@ export async function listAllPlans() {
 export async function createPlan(data) {
   return CreditPlan.create({
     name: data.name,
+    // The store SKU. Without it a plan can't use IAP at all and silently falls
+    // back to the mock path — which fails closed in production.
+    productId: data.productId || null,
     credits: data.credits,
     priceInr: data.priceInr,
     bonusLabel: data.bonusLabel || null,
+    isSubscription: data.isSubscription ?? false,
+    periodDays: data.periodDays ?? 30,
     active: data.active ?? true,
     sortOrder: data.sortOrder ?? 0,
   });
@@ -437,9 +575,132 @@ export async function updatePlan(id, data) {
   const plan = await CreditPlan.findByPk(id);
   if (!plan) throw AppError.http(404, 'Plan not found', 'PLAN_NOT_FOUND');
   const patch = {};
-  for (const k of ['name', 'credits', 'priceInr', 'bonusLabel', 'active', 'sortOrder']) {
+  for (const k of ['name', 'productId', 'credits', 'priceInr', 'bonusLabel', 'isSubscription', 'periodDays', 'active', 'sortOrder']) {
     if (data[k] !== undefined) patch[k] = data[k];
   }
   await plan.update(patch);
   return plan;
+}
+
+// Verify an auto-renewing store subscription and grant this cycle's allowance.
+//
+// Called on purchase AND on every app launch with an active subscription — the
+// store, not us, drives renewals, so re-verifying is how a new cycle is noticed.
+// Safe to call repeatedly: the grant is gated by Purchase(providerTxnId UNIQUE),
+// so only a transaction id we haven't already granted for produces credits.
+//
+// Returns { granted, balance, credits, subscription: { active, currentPeriodEnd, autoRenew } }.
+export async function verifyIapSubscription({
+  userId, planId, platform, receipt, purchaseToken,
+}) {
+  const plan = await CreditPlan.findByPk(planId);
+  if (!plan) throw AppError.http(404, 'Plan not found', 'PLAN_NOT_FOUND');
+  if (!plan.isSubscription) {
+    throw AppError.http(400, 'Plan is not a subscription', 'NOT_A_SUBSCRIPTION');
+  }
+
+  // Both paths bind the receipt to THIS plan's product, so a user can't buy the
+  // cheapest SKU and claim an expensive plan's allowance.
+  let info = null;
+  if (platform === 'ios') {
+    info = await verifyAppleSubscription(plan.productId, receipt);
+  } else if (platform === 'android') {
+    info = await verifyGoogleSubscription(plan.productId, purchaseToken);
+  } else {
+    throw AppError.http(400, 'Invalid platform', 'INVALID_PLATFORM');
+  }
+
+  if (!info) throw AppError.http(400, 'Subscription verification failed', 'IAP_VERIFICATION_FAILED');
+
+  // Only the dev mock leaves expiresAt null; fall back to the plan's period so
+  // a local subscription still behaves like one.
+  const expiresAt = info.expiresAt
+    ?? new Date(Date.now() + plan.periodDays * 86_400_000);
+
+  const [sub] = await Subscription.findOrCreate({
+    where: { originalTxnId: info.originalTxnId },
+    defaults: {
+      userId, planId: plan.id, platform,
+      originalTxnId: info.originalTxnId,
+      latestTxnId: null,          // set below, only once the cycle is actually granted
+      currentPeriodEnd: expiresAt,
+      autoRenew: info.autoRenew !== false,
+    },
+  });
+
+  // A store subscription belongs to a store account, which can sign in to a
+  // different app account. Refuse rather than silently move the entitlement.
+  if (sub.userId !== userId) {
+    throw AppError.http(409, 'This subscription is already linked to another account', 'SUBSCRIPTION_OWNED_ELSEWHERE');
+  }
+
+  await sub.update({
+    planId: plan.id,
+    currentPeriodEnd: expiresAt,
+    autoRenew: info.autoRenew !== false,
+  });
+
+  const subState = {
+    active: sub.isActive(),
+    currentPeriodEnd: sub.currentPeriodEnd,
+    autoRenew: sub.autoRenew,
+  };
+
+  // Expired (cancelled and lapsed) — keep the row for history, grant nothing.
+  if (!subState.active) {
+    return { granted: 0, balance: await getBalance(userId), credits: plan.credits, subscription: subState };
+  }
+
+  // Grant this cycle. The Purchase INSERT is the idempotency gate: the same
+  // transaction id can only ever insert once, so relaunching the app ten times
+  // in one cycle grants once. Insert BEFORE grant() so a concurrent duplicate
+  // aborts on the constraint rather than after a ledger write.
+  let granted = 0;
+  try {
+    await sequelize.transaction(async (t) => {
+      await Purchase.create({
+        userId,
+        planId: plan.id,
+        credits: plan.credits,
+        priceInr: plan.priceInr,
+        status: 'paid',
+        provider: platform,
+        providerTxnId: info.latestTxnId,
+        providerRef: { subscription: true, originalTxnId: info.originalTxnId },
+      }, { transaction: t });
+
+      await grant({
+        userId, amount: plan.credits, reason: 'subscription',
+        meta: { planId: plan.id, originalTxnId: info.originalTxnId, periodEnd: expiresAt },
+        transaction: t,
+      });
+      granted = plan.credits;
+    });
+    await sub.update({ latestTxnId: info.latestTxnId });
+  } catch (err) {
+    if (err?.name !== 'SequelizeUniqueConstraintError') throw err;
+    // Already granted for this cycle — the normal path on every relaunch.
+    granted = 0;
+  }
+
+  return { granted, balance: await getBalance(userId), credits: plan.credits, subscription: subState };
+}
+
+// The caller's current subscription state, for the UI. Never a stored flag —
+// active is always derived from the period end, so it can't rot.
+export async function getSubscription(userId) {
+  const sub = await Subscription.findOne({
+    where: { userId },
+    order: [['currentPeriodEnd', 'DESC']],
+    include: [{ model: CreditPlan, attributes: ['id', 'name', 'credits', 'priceInr', 'periodDays'] }],
+  });
+  if (!sub) return null;
+  return {
+    planId: sub.planId,
+    plan: sub.CreditPlan ? publicPlan(sub.CreditPlan) : null,
+    platform: sub.platform,
+    active: sub.isActive(),
+    currentPeriodEnd: sub.currentPeriodEnd,
+    autoRenew: sub.autoRenew,
+  };
 }

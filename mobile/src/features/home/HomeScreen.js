@@ -157,11 +157,7 @@ export default function HomeScreen({ navigation, route }) {
       const ch = computeChart(form.date, form.time, {
         n: form.city, lat: form.lat, lon: form.lon, tz: form.tz,
       });
-      logEvent("generate_kundali", {
-        user_name: form.name,
-        city: form.city,
-        gender: form.gender
-      });
+      logEvent("generate_kundali", { city: form.city, gender: form.gender });
       setChart(ch);
       resetReading();
       // Persist birth details onto the user row now, the moment they're

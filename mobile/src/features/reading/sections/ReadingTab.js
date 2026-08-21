@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import CosmicCard from "../../../components/CosmicCard";
 import MagicButton from "../../../components/MagicButton";
@@ -13,7 +13,7 @@ import { STRINGS } from "../../../shared/uiStrings";
 import { EMOJIS } from "../../../utils/emojis";
 import { asText } from "../constants";
 import { makeStyles } from "../styles";
-import { getItem, setItem } from "../../../utils/storage";
+import { useChartMemory } from "../../../hooks/useChartMemory";
 
 const COLLAPSED_LINES = 6;
 
@@ -78,26 +78,15 @@ function NarrativeCard({ sec, s }) {
 // ACTUAL answer instead of "confirmed" no matter what. Twin of the web's
 // TimelineCheck in frontend/src/features/reading/InsightsTab.jsx.
 function TimelineCheck({ pastCheck, s }) {
-  const [answer, setAnswer] = useState(null);
-  const [loaded, setLoaded] = useState(false);
-  // Persist the user's answer (keyed by the question) so it's remembered across
-  // reloads/restarts — we never re-ask once they've responded.
+  // The answer is server-owned chart memory (see services/chartMemory.js), so
+  // it survives a reinstall and follows the user to another device. `loaded`
+  // gates the first paint so we never flash the question at someone who has
+  // already answered it elsewhere.
   const key = pastCheck?.question ? `timelineCheck:${pastCheck.question}` : null;
-  useEffect(() => {
-    let alive = true;
-    if (!key) { setLoaded(true); return; }
-    getItem(key).then((v) => {
-      if (!alive) return;
-      if (v === "yes" || v === "no") setAnswer(v);
-      setLoaded(true);
-    });
-    return () => { alive = false; };
-  }, [key]);
+  const [stored, setStored, loaded] = useChartMemory(key);
+  const answer = stored === "yes" || stored === "no" ? stored : null;
 
-  function choose(v) {
-    setAnswer(v);
-    if (key) setItem(key, v);
-  }
+  const choose = (v) => setStored(v);
 
   if (!pastCheck?.question || !loaded) return null;
 

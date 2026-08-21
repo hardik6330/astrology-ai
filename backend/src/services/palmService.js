@@ -15,7 +15,7 @@ import { asContent } from '../utils/asContent.js';
 import { cleanJson } from '../utils/cleanJson.js';
 import { sanitizeInline } from '../utils/promptSafety.js';
 import { userKey } from '../utils/userKey.js';
-import { PALM_MODELS, PALM_GATE_MODELS, THINK_BUDGET } from '../config/constants.js';
+import { PALM_MODELS, PALM_GATE_MODELS, THINK_BUDGET, MAX_OUTPUT_TOKENS } from '../config/constants.js';
 import { AppError } from '../errors/AppError.js';
 import { logger } from '../config/logger.js';
 
@@ -145,7 +145,7 @@ async function runGate({ image, claimedHand, skipGate = false, landmarks = null,
   try {
     const gateRaw = await callGeminiVision(
       PALM_GATE_SYSTEM, gateUser, base64, mimeType,
-      true, PALM_GATE_MODELS, THINK_BUDGET.PALM_GATE
+      true, PALM_GATE_MODELS, THINK_BUDGET.PALM_GATE, MAX_OUTPUT_TOKENS, 'palm_gate'
     );
     gateParsed = JSON.parse(cleanJson(gateRaw));
   } catch (e) {
@@ -246,7 +246,7 @@ async function runProAndPersist({ form, claimedHand, base64, mimeType, imageHash
       log.info({ scanId, stage: 'enhance', applied: enhanced.enhanced, ms: Date.now() - tEnh }, 'palm scan: image normalize');
 
       log.info({ scanId, stage: 'ai', models: PALM_MODELS }, 'palm scan: calling Gemini vision…');
-      const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, enhanced.base64, enhanced.mimeType, true, PALM_MODELS, THINK_BUDGET.PALM);
+      const raw = await callGeminiVision(PALM_SYSTEM, userPrompt, enhanced.base64, enhanced.mimeType, true, PALM_MODELS, THINK_BUDGET.PALM, MAX_OUTPUT_TOKENS, 'palm_reading');
       const cleaned = cleanJson(raw);
       parsed = typeof raw === 'string' ? JSON.parse(cleaned) : raw;
       log.info({ scanId, stage: 'ai', quality: parsed.imageQuality, hand: parsed.handType, ms: Date.now() - tAI }, 'palm scan: Gemini reading done');
@@ -452,7 +452,7 @@ export async function comparePalms({ form, leftImage, rightImage, skipGate, left
           { base64: leftGate.base64,  mimeType: leftGate.mimeType  },
           { base64: rightGate.base64, mimeType: rightGate.mimeType },
         ],
-        true, PALM_MODELS, THINK_BUDGET.PALM
+        true, PALM_MODELS, THINK_BUDGET.PALM, MAX_OUTPUT_TOKENS, 'palm_compare'
       );
       parsed = JSON.parse(cleanJson(raw));
     } catch (e) {

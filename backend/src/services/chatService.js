@@ -1,7 +1,7 @@
 import { ChatMessage, PalmReading, Kundali } from '../models/index.js';
 import { callGemini } from '../ai/gemini.js';
 import { CHAT_SYSTEM, GUARD_SYSTEM } from '../ai/prompts.js';
-import { CHAT_ANSWER_MODELS, THINK_BUDGET } from '../config/constants.js';
+import { CHAT_ANSWER_MODELS, CHAT_MODELS, THINK_BUDGET, MAX_OUTPUT_TOKENS } from '../config/constants.js';
 import { findOrCreateUser, findUserByForm } from './userService.js';
 import { charge, grant } from './creditService.js';
 import { fenceUntrusted, UNTRUSTED_DATA_GUARD } from '../utils/promptSafety.js';
@@ -177,7 +177,7 @@ export async function answerAndPersist({ messages, factSheet, form }) {
     // so only genuinely off-topic questions are blocked. Fence the message so an
     // injection can't coerce the classifier into "ALLOW".
     const guardContext = messages.slice(-2).map(m => `${m.role}: ${m.content}`).join('\n');
-    const guardRes = await callGemini(GUARD_SYSTEM, fenceUntrusted(guardContext));
+    const guardRes = await callGemini(GUARD_SYSTEM, fenceUntrusted(guardContext), false, CHAT_MODELS, null, MAX_OUTPUT_TOKENS, 'chat_guard');
     if (guardRes.trim().toUpperCase().startsWith('BLOCK')) {
       await refund('off_topic');
       log.info({ userId: user?.id }, 'chat blocked: off-topic');
@@ -200,7 +200,7 @@ export async function answerAndPersist({ messages, factSheet, form }) {
     // already reframes questions the chart can't literally name (brand, number),
     // so no separate reframe note is needed now that off-topic is blocked above.
     const systemWithChart = `${CHAT_SYSTEM}${UNTRUSTED_DATA_GUARD}\n\n=== THIS PERSON'S BIRTH CHART ===\n${fenceUntrusted(factSheet || '(chart not provided)')}${insightBlock}${palmBlock}\n\nTODAY'S DATE: ${today}.${topicBlock}`;
-    result = await callGemini(systemWithChart, lastMsg, false, CHAT_ANSWER_MODELS, THINK_BUDGET.CHAT);
+    result = await callGemini(systemWithChart, lastMsg, false, CHAT_ANSWER_MODELS, THINK_BUDGET.CHAT, MAX_OUTPUT_TOKENS, 'chat_answer');
   } catch (e) {
     // AI failed after we charged — refund so the user isn't billed for a
     // message they never received an answer to.

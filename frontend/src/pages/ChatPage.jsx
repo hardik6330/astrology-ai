@@ -9,6 +9,7 @@ import { useCredits } from "@/common/useCredits";
 import LowCreditsCard from "@/common/LowCreditsCard";
 
 import { Icon } from "@/utils/icons";
+import { logEvent } from "@/utils/analytics";
 
 const SUGGESTIONS = [
   "When will I marry?",
@@ -137,6 +138,7 @@ export default function ChatPage() {
     const preset = typeof presetOrEvent === "string" ? presetOrEvent : null;
     const q = (preset ?? chatInput).trim();
     if (!q || chatBusy || !chart || cannotAfford) return;
+    logEvent("chat_question_asked");
     setChatInput("");
     setLowCredits(false);
     const history = [...chatMsgs, { role: "user", content: q }];

@@ -7,6 +7,7 @@
 
 import { env } from '../config/envConfig.js';
 import { logger } from '../config/logger.js';
+import { captureError } from '../config/sentry.js';
 
 const STATUS_BY_CODE = {
   AI_OVERLOADED:   503,
@@ -25,7 +26,11 @@ export function errorHandler(err, req, res, _next) {
   // Route 5xx through pino so the configured redaction (auth headers, tokens,
   // PII) is applied — console.error would dump the raw err/req to stdout
   // unredacted. Attach method+path for triage; pino serializes err.stack.
-  if (status >= 500) logger.error({ err, method: req.method, path: req.originalUrl }, 'request failed');
+  if (status >= 500) {
+    logger.error({ err, method: req.method, path: req.originalUrl }, 'request failed');
+    // Only 5xx: 4xx are the client's problem and would drown the signal.
+    captureError(err, { method: req.method, path: req.originalUrl, code: err.code });
+  }
   res.status(status).json({
     success: false,
     error: err.message || 'Internal error',

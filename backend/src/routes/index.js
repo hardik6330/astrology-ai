@@ -10,6 +10,7 @@ import cronRoutes     from './cronRoutes.js';
 import adminRoutes    from './adminRoutes.js';
 import creditRoutes   from './creditRoutes.js';
 import userRoutes     from './userRoutes.js';
+import memoryRoutes   from './memoryRoutes.js';
 import { requireAuth } from '../middleware/auth.js';
 
 // Single mounting point for every feature router.
@@ -28,6 +29,7 @@ router.use(pushRoutes);      // self-guards each route with requireAuth
 router.use(requireAuth);
 router.use(creditRoutes);
 router.use(userRoutes);      // POST /profile — save birth details on entry
+router.use(memoryRoutes);    // chart memory — timeline answers, asked alignments
 router.use(kundaliRoutes);
 router.use(dailyRoutes);
 router.use(chatRoutes);

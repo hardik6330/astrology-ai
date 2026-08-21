@@ -14,6 +14,7 @@ import { fetchCreditPlans, createCreditOrder, verifyCreditPayment, getCredits } 
 import { loadRazorpay } from "@/common/razorpay";
 import { Icon } from "@/utils/icons";
 import { LuLock, LuInfinity, LuShieldCheck } from "react-icons/lu";
+import { logEvent } from "@/utils/analytics";
 
 // paise → "₹49" (drops the .00 when whole rupees).
 const formatInr = (paise) => {
@@ -218,6 +219,8 @@ function CheckoutModal({ plan, onClose, onPaid, formatInr, returnTo }) {
   const [err, setErr] = useState("");
 
   function settled() {
+    // The one place both the Razorpay and mock paths converge on success.
+    logEvent("purchase_completed", { credits: plan.credits, price_inr: plan.priceInr / 100 });
     setDone(true);
     setTimeout(onPaid, 1100); // brief success flash, then close / return
   }

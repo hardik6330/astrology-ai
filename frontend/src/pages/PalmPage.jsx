@@ -105,6 +105,7 @@ function withTimeout(promise, ms) {
 }
 
 import { Icon } from "@/utils/icons";
+import { logEvent } from "@/utils/analytics";
 
 // Friendly UI copy for each rejection category Gemini can return.
 // `icon` is an Icon registry name string, rendered via <Icon name={info.icon} />.
@@ -415,6 +416,8 @@ export default function PalmPage() {
         landmarks: landmarks?.length || 0,
       });
       const result = await analyzePalm(uploadUrl || dataUrl, form, hand ?? claimedHand, skipGate, landmarks);
+
+      logEvent("palm_analysis_success", { hand: hand ?? claimedHand });
       console.log("[palm] reading received");
       setPalm(result);
       setRescan(false);

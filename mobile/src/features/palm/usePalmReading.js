@@ -311,7 +311,7 @@ export function usePalmReading() {
     try {
       const data = await analyzePalm(`data:image/jpeg;base64,${img.base64}`, form, hand, skipGate, landmarks);
 
-      logEvent("palm_analysis_success", { hand, user_name: form.name });
+      logEvent("palm_analysis_success", { hand });
       setPalm(data.content);
       setRescan(false);
       haptics.success();

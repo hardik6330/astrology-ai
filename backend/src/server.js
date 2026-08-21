@@ -1,6 +1,10 @@
 // Process entry point: connects the DB, runs idempotent seeds, binds the port,
 // starts the in-process scheduler, and handles graceful shutdown.
 
+// MUST be first: Sentry patches http/express at import time, so modules loaded
+// before it are left uninstrumented. No-ops when SENTRY_DSN is unset.
+import './config/sentry.js';
+
 import os from 'node:os';
 import express from 'express';
 import cors from 'cors';

@@ -1,13 +1,27 @@
 import { genAI } from '../config/aiConfig.js';
 import {
   CHAT_MODELS, MAX_RETRIES, RETRY_BASE_MS, MAX_OUTPUT_TOKENS,
-  GEMINI_DEADLINE_MS, GEMINI_ATTEMPT_TIMEOUT_MS,
+  GEMINI_DEADLINE_MS, GEMINI_ATTEMPT_TIMEOUT_MS, MODEL_PRICE_USD_PER_MTOK,
 } from '../config/constants.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'gemini' });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Estimated USD for one call. Unknown model → null rather than 0, so a missing
+// price entry shows up as a gap in the data instead of a free feature.
+export function estimateCostUsd(modelName, usage) {
+  const price = MODEL_PRICE_USD_PER_MTOK[modelName];
+  if (!price) return null;
+  const promptTok = usage.promptTokenCount ?? 0;
+  // Thinking tokens bill as output but aren't in candidatesTokenCount, so derive
+  // output from the total where possible — otherwise Pro's cost reads ~3x low.
+  const outTok = usage.totalTokenCount != null
+    ? Math.max(0, usage.totalTokenCount - promptTok)
+    : (usage.candidatesTokenCount ?? 0);
+  return (promptTok * price.in + outTok * price.out) / 1e6;
+}
 
 // 503 / 429 are transient — retry the SAME model with backoff. Everything else
 // (incl. a timeout — see below) breaks out to the next model in the chain, then
@@ -67,7 +81,7 @@ export function minimizeChart(chart) {
  * slow/hung generation can't run past the host's function timeout; on timeout or
  * exhaustion it throws AI_OVERLOADED (the graceful retry-UI path), never a 500.
  */
-async function generateWithRetry({ models, parts, jsonMode, thinkingBudget, maxOutputTokens, label }) {
+async function generateWithRetry({ models, parts, jsonMode, thinkingBudget, maxOutputTokens, label, feature }) {
   let lastError;
   const deadline = Date.now() + GEMINI_DEADLINE_MS;
 
@@ -93,7 +107,19 @@ async function generateWithRetry({ models, parts, jsonMode, thinkingBudget, maxO
         const text = response.text();
         const duration = Date.now() - startTime;
         const u = response.usageMetadata || {};
-        log.info(`${label(modelName)} thinking=${thinkingBudget ?? '-'} prompt=${u.promptTokenCount ?? '?'} out=${u.candidatesTokenCount ?? '?'} total=${u.totalTokenCount ?? '?'} (${duration}ms)`);
+        // Structured so cost can be summed per feature straight from the logs —
+        // `feature` is the grouping key that answers "what is burning spend?".
+        log.info({
+          evt: 'gemini_usage',
+          feature,
+          model: modelName,
+          thinking: thinkingBudget ?? null,
+          promptTokens: u.promptTokenCount ?? null,
+          outputTokens: u.candidatesTokenCount ?? null,
+          totalTokens: u.totalTokenCount ?? null,
+          costUsd: estimateCostUsd(modelName, u),
+          ms: duration,
+        }, `${label(modelName)} feature=${feature} total=${u.totalTokenCount ?? '?'} (${duration}ms)`);
         return text;
       } catch (error) {
         lastError = error;
@@ -114,9 +140,9 @@ async function generateWithRetry({ models, parts, jsonMode, thinkingBudget, maxO
  *   thinkingBudget — caps Pro's internal reasoning tokens (cheaper = lower).
  *   Pass null to use Google's default dynamic behavior.
  */
-export async function callGemini(systemPrompt, userPrompt, jsonMode = false, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS) {
+export async function callGemini(systemPrompt, userPrompt, jsonMode = false, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS, feature = 'unattributed') {
   return generateWithRetry({
-    models, jsonMode, thinkingBudget, maxOutputTokens,
+    models, jsonMode, thinkingBudget, maxOutputTokens, feature,
     parts: [{ text: `SYSTEM: ${systemPrompt}` }, { text: `USER: ${userPrompt}` }],
     label: (m) => `[Gemini] ${m}`,
   });
@@ -127,14 +153,14 @@ export async function callGemini(systemPrompt, userPrompt, jsonMode = false, mod
  * { base64, mimeType } — each one passed in order to the model. Useful for
  * the Both-Hands palm comparison where Pro sees BOTH photos in one call.
  */
-export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, jsonMode = true, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS) {
+export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, jsonMode = true, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS, feature = 'unattributed') {
   const parts = [{ text: `SYSTEM: ${systemPrompt}` }];
   for (const img of images) {
     parts.push({ inlineData: { data: img.base64, mimeType: img.mimeType || 'image/jpeg' } });
   }
   parts.push({ text: `USER: ${userPrompt}` });
   return generateWithRetry({
-    models, jsonMode, thinkingBudget, maxOutputTokens, parts,
+    models, jsonMode, thinkingBudget, maxOutputTokens, parts, feature,
     label: (m) => `[Gemini Vision Multi] ${m} images=${images.length}`,
   });
 }
@@ -143,9 +169,9 @@ export async function callGeminiVisionMulti(systemPrompt, userPrompt, images, js
  * Multimodal Gemini call — image + text. Same retry/fallback as callGemini.
  * imageBase64 must be raw base64 (no `data:` prefix).
  */
-export async function callGeminiVision(systemPrompt, userPrompt, imageBase64, mimeType = 'image/jpeg', jsonMode = true, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS) {
+export async function callGeminiVision(systemPrompt, userPrompt, imageBase64, mimeType = 'image/jpeg', jsonMode = true, models = CHAT_MODELS, thinkingBudget = null, maxOutputTokens = MAX_OUTPUT_TOKENS, feature = 'unattributed') {
   return generateWithRetry({
-    models, jsonMode, thinkingBudget, maxOutputTokens,
+    models, jsonMode, thinkingBudget, maxOutputTokens, feature,
     parts: [
       { text: `SYSTEM: ${systemPrompt}` },
       { inlineData: { data: imageBase64, mimeType } },

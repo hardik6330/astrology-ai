@@ -12,7 +12,7 @@ import { PushToken, Setting, NotificationTemplate } from '../models/index.js';
 import { sendToTokens } from './notificationService.js';
 import * as settings from './settingsService.js';
 import { callGemini } from '../ai/gemini.js';
-import { FLASH_MODELS } from '../config/constants.js';
+import { FLASH_MODELS, MAX_OUTPUT_TOKENS } from '../config/constants.js';
 import { SHAYARI_SYSTEM } from '../ai/prompts.js';
 import { logger } from '../config/logger.js';
 
@@ -60,7 +60,7 @@ export async function generateShayari(seed = randomSeed()) {
     `Write one notification.\n` +
     `Theme: ${seed.theme}\nEmotion: ${seed.emotion}\n` +
     `Planet to reference naturally: ${seed.planet}\nTime of day: ${seed.timeOfDay}`;
-  const raw = await callGemini(SHAYARI_SYSTEM, userPrompt, true, FLASH_MODELS, 0);
+  const raw = await callGemini(SHAYARI_SYSTEM, userPrompt, true, FLASH_MODELS, 0, MAX_OUTPUT_TOKENS, 'engage_push');
   const obj = JSON.parse(raw.replace(/```json|```/g, '').trim());
   const title = String(obj.title || '').slice(0, 120).trim();
   const body = String(obj.body || '').slice(0, 500).trim();

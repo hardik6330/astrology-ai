@@ -10,6 +10,8 @@ import { verifyOtp, bypassLogin, primeAuthPhone, onUnauthorized } from "@/servic
 import { registerForPush, unregisterForPush } from "@/features/notifications/push";
 import { logEvent } from "@/features/notifications/analytics";
 import { getToken, setToken as secureSetToken, clearToken } from "@/utils/tokenStore";
+import * as chartMemory from "@/services/chartMemory";
+import { syncSubscription } from "@/features/credits/syncSubscription";
 
 const ACC_KEY   = "app_account";
 const THEME_KEY = "astro_theme_v1"; // device preference — preserved across logout
@@ -42,7 +44,13 @@ export function AuthProvider({ children }) {
           setAccount(acc);
           primeAuthPhone(acc?.phone);
         }
-        if (t) registerForPush();
+        if (t) {
+          registerForPush();
+          chartMemory.hydrate();
+          // Pick up any subscription renewal that happened while the app was
+          // closed — the store never tells our backend on its own.
+          syncSubscription();
+        }
       } catch { /* ignore */ }
       finally { setHydrating(false); }
     })();
@@ -68,7 +76,9 @@ export function AuthProvider({ children }) {
     await secureSetToken(token);
     await AsyncStorage.setItem(ACC_KEY, JSON.stringify(acc));
     primeAuthPhone(acc.phone);
-    logEvent("login", { phone: acc.phone });
+    // No phone/name in analytics params — Firebase is a third party and this
+    // is a direct identifier. Event counts are the point, not who.
+    logEvent("login");
     return {
       savedForm,
       commitSession: () => {
@@ -76,12 +86,15 @@ export function AuthProvider({ children }) {
         setAccount(acc);
         // Register this device for push now that we have a real account/JWT.
         registerForPush();
+        // Pull Timeline answers / asked alignments for this account.
+        chartMemory.hydrate();
+        syncSubscription();
       },
     };
   }
-
+ 
   async function logout() {
-    logEvent("logout", { phone: account?.phone });
+    logEvent("logout");
     // Disable the push token server-side BEFORE clearing the JWT — the
     // unregister call needs the token to authenticate.
     await unregisterForPush();
@@ -90,7 +103,7 @@ export function AuthProvider({ children }) {
     await clearToken();
     // Wipe ALL local data so the next user starts completely clean — keeps only
     // the device theme preference. Using getAllKeys catches dynamic per-user
-    // keys too (asked_alignments:*, timelineCheck:*) without enumerating them.
+    // keys too (the cm:* chart-memory cache) without enumerating them.
     try {
       const keys = await AsyncStorage.getAllKeys();
       const keep = new Set([THEME_KEY]);
@@ -99,6 +112,7 @@ export function AuthProvider({ children }) {
       await AsyncStorage.multiRemove([ACC_KEY]); // fallback: at least the account blob
     }
     primeAuthPhone(null);
+    chartMemory.reset();
     setToken(null);
     setAccount(null);
   }

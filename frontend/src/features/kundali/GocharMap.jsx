@@ -5,6 +5,10 @@ import { SIGNS, ZE, nm } from "@/shared/astrology";
 import { STRINGS } from "@/shared/uiStrings";
 import { useAuth } from "@/features/auth/AuthContext";
 import { AstroGlyph } from "@/utils/icons";
+import { useChartMemory } from "@/common/useChartMemory";
+
+// Shared empty default — a fresh {} per render would break memoised comparisons.
+const EMPTY_ASKED = {};
 
 // SVG <text> can't host the <span>-based <AstroGlyph>, so glyphs drawn inside the
 // wheel get U+FE0E appended directly — same effect: forces the monochrome text
@@ -87,25 +91,10 @@ export default function GocharMap({ chart }) {
   // "Analyzed" rows don't leak to the next user on the same browser. The auth
   // tree remounts on login/logout, so reading the per-user key at init is enough.
   const storageKey = `asked_alignments:${account?.id ?? "anon"}`;
-  const [asked, setAsked] = useState(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      return stored ? JSON.parse(stored) : {};
-    } catch (e) {
-      console.error("Failed to load asked alignments", e);
-      return {};
-    }
-  });
+  const [askedRaw, setAsked] = useChartMemory(storageKey);
+  const asked = askedRaw ?? EMPTY_ASKED;
 
-  const markAsAsked = (key) => {
-    const next = { ...asked, [key]: true };
-    setAsked(next);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch (e) {
-      console.error("Failed to save asked alignments", e);
-    }
-  };
+  const markAsAsked = (key) => setAsked({ ...asked, [key]: true });
 
   const gochar = chart?.transits?.gochar;
   if (!Array.isArray(gochar) || !gochar.length) return null;

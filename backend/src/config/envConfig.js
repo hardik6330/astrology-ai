@@ -22,9 +22,10 @@ const schema = z.object({
   DB_USER:         z.string().default('root'),
   DB_PASS:         z.string().default(''),
   DB_NAME:         z.string().default('astrology_db'),
-  // Managed MySQL (Aiven/PlanetScale/…) requires TLS. DB_SSL_CA points at the
-  // provider's CA .pem for real verification; without it TLS still encrypts but
-  // the cert isn't verified.
+  // Optional TLS to the database. Railway's public host is reachable over the
+  // internet, so turn this on for anything real. DB_SSL_CA points at the
+  // provider's CA .pem for actual verification; without it TLS still encrypts
+  // but the cert isn't verified. Provider-agnostic on purpose.
   DB_SSL:          z.string().optional(),
   DB_SSL_CA:       z.string().optional(),
   // Connection-pool sizing. Serverless (Vercel) runs MANY concurrent λ, each its
@@ -40,6 +41,9 @@ const schema = z.object({
   // deployment for testing (⚠️ insecure — flip back to 'true' before launch).
   // Default 'true' = real Firebase OTP. See authService.js bypassOtp().
   OTP_ENABLED:     z.enum(['true', 'false']).default('true'),
+  // Error tracking. Unset = Sentry never initialises (dev/test default).
+  SENTRY_DSN:                 z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE:  z.coerce.number().min(0).max(1).default(0),
   JWT_SECRET:      z.string().min(16, 'JWT_SECRET must be at least 16 chars'),
   // M2: dedicated secret for back-office admin tokens, kept separate from the
   // user JWT secret so a leak of one can't forge the other (currently the only

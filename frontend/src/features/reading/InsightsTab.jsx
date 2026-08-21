@@ -6,6 +6,7 @@ import { useCosts } from "@/common/useCosts";
 import LowCreditsCard from "@/common/LowCreditsCard";
 import { Icon } from "@/utils/icons";
 import { STRINGS } from "@/shared/uiStrings";
+import { useChartMemory } from "@/common/useChartMemory";
 
 // The generation pipeline, surfaced as a checklist during the wait. STEP_AT is
 // the progress% at which each step turns "active"; a step reads "done" once the
@@ -296,21 +297,11 @@ function TimelineCheck({ pastCheck }) {
   // Persist the answer (keyed by the question) so it's remembered across reloads
   // — once the user responds we never re-ask. Read synchronously on first render.
   const key = pastCheck?.question ? `timelineCheck:${pastCheck.question}` : null;
-  const [answer, setAnswer] = useState(() => {
-    if (!key || typeof localStorage === "undefined") return null;
-    const v = localStorage.getItem(key);
-    return v === "yes" || v === "no" ? v : null;
-  });
+  const [stored, setStored] = useChartMemory(key);
+  const answer = stored === "yes" || stored === "no" ? stored : null;
   if (!pastCheck?.question) return null;
 
-  function choose(v) {
-    setAnswer(v);
-    try {
-      localStorage.setItem(key, v);
-    } catch {
-      /* best-effort */
-    }
-  }
+  const choose = (v) => setStored(v);
 
   if (answer) {
     const msg =

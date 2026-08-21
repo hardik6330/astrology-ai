@@ -10,7 +10,7 @@ import { cleanJson } from '../utils/cleanJson.js';
 import { fenceUntrusted, UNTRUSTED_DATA_GUARD } from '../utils/promptSafety.js';
 import { chartHashFor } from '../utils/chartHash.js';
 import { userKey } from '../utils/userKey.js';
-import { KUNDLI_MODELS, THINK_BUDGET } from '../config/constants.js';
+import { KUNDLI_MODELS, THINK_BUDGET, MAX_OUTPUT_TOKENS } from '../config/constants.js';
 import { logger } from '../config/logger.js';
 
 const log = logger.child({ mod: 'daily' });
@@ -94,7 +94,7 @@ export async function generateDailyGuidance({ form, ctx, targetDate }) {
     let generated;
     try {
       // ctx is client-supplied free text — fence it (see promptSafety).
-      generated = await callGemini(DAILY_SYSTEM + UNTRUSTED_DATA_GUARD, `${fenceUntrusted(ctx)}\n\nGive today's guidance.`, true, KUNDLI_MODELS, THINK_BUDGET.DAILY);
+      generated = await callGemini(DAILY_SYSTEM + UNTRUSTED_DATA_GUARD, `${fenceUntrusted(ctx)}\n\nGive today's guidance.`, true, KUNDLI_MODELS, THINK_BUDGET.DAILY, MAX_OUTPUT_TOKENS, 'daily');
       if (!generated) throw new Error('AI returned empty guidance');
     } catch (e) {
       if (charged) {

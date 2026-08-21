@@ -20,7 +20,18 @@ import { adminCreatePlan, adminUpdatePlan } from "@/admin/api/adminApi";
 const paiseToRupees = (paise) => (paise == null ? "" : String(paise / 100));
 const rupeesToPaise = (rupees) => Math.round(Number(rupees) * 100);
 
-const EMPTY = { name: "", credits: "", priceRupees: "", bonusLabel: "", sortOrder: "0" };
+const EMPTY = {
+  name: "",
+  credits: "",
+  priceRupees: "",
+  bonusLabel: "",
+  sortOrder: "0",
+  // Store SKU. Without it a plan cannot be bought through the app stores at
+  // all — it falls back to the mock path, which fails closed in production.
+  productId: "",
+  isSubscription: false,
+  periodDays: "30",
+};
 
 export default function AdminPlans() {
   const qc = useQueryClient();
@@ -89,6 +100,9 @@ function NewPlanForm({ onSaved }) {
     try {
       await adminCreatePlan({
         name: f.name.trim(),
+        productId: f.productId.trim() || null,
+        isSubscription: !!f.isSubscription,
+        periodDays: Number(f.periodDays) || 30,
         credits: Number(f.credits),
         priceInr: rupeesToPaise(f.priceRupees),
         bonusLabel: f.bonusLabel.trim() || null,
@@ -154,7 +168,40 @@ function NewPlanForm({ onSaved }) {
           onChange={set("sortOrder")}
           disabled={busy}
         />
+        <Field
+          label="Store SKU"
+          value={f.productId}
+          onChange={set("productId")}
+          maxLength={100}
+          placeholder="com.astrologyai.plus.monthly"
+          disabled={busy}
+        />
+        <label className="flex items-center gap-2 self-end pb-2 text-[13px] text-body">
+          <input
+            type="checkbox"
+            checked={f.isSubscription}
+            onChange={(e) => setF((st) => ({ ...st, isSubscription: e.target.checked }))}
+            disabled={busy}
+          />
+          Subscription
+        </label>
+        {f.isSubscription && (
+          <Field
+            type="number"
+            min={1}
+            label="Days per cycle"
+            value={f.periodDays}
+            onChange={set("periodDays")}
+            placeholder="30"
+            disabled={busy}
+          />
+        )}
       </div>
+      <p className="m-0 text-[12px] text-body">
+        A subscription grants its credits <strong>every cycle</strong> and needs a store subscription SKU — a
+        consumable SKU fails verification. Leave the SKU blank only for local testing: without it checkout
+        falls back to the mock path, which is disabled in production.
+      </p>
       <Button type="submit" busy={busy} busyLabel="Adding…" icon={LuPlus} className="self-start">
         Add plan
       </Button>
@@ -170,6 +217,9 @@ function PlanRow({ plan, onSaved }) {
     credits: String(plan.credits),
     priceRupees: paiseToRupees(plan.priceInr),
     bonusLabel: plan.bonusLabel || "",
+    productId: plan.productId || "",
+    isSubscription: !!plan.isSubscription,
+    periodDays: String(plan.periodDays ?? 30),
     sortOrder: String(plan.sortOrder ?? 0),
     active: plan.active,
   });
@@ -201,6 +251,9 @@ function PlanRow({ plan, onSaved }) {
     e.preventDefault();
     save({
       name: f.name.trim(),
+      productId: f.productId.trim() || null,
+      isSubscription: !!f.isSubscription,
+      periodDays: Number(f.periodDays) || 30,
       credits: Number(f.credits),
       priceInr: rupeesToPaise(f.priceRupees),
       bonusLabel: f.bonusLabel.trim() || null,
@@ -254,6 +307,33 @@ function PlanRow({ plan, onSaved }) {
           onChange={set("sortOrder")}
           disabled={busy}
         />
+        <Field
+          label="Store SKU"
+          value={f.productId}
+          onChange={set("productId")}
+          maxLength={100}
+          placeholder="com.astrologyai.plus.monthly"
+          disabled={busy}
+        />
+        <label className="flex items-center gap-2 self-end pb-2 text-[13px] text-body">
+          <input
+            type="checkbox"
+            checked={f.isSubscription}
+            onChange={(e) => setF((st) => ({ ...st, isSubscription: e.target.checked }))}
+            disabled={busy}
+          />
+          Subscription
+        </label>
+        {f.isSubscription && (
+          <Field
+            type="number"
+            min={1}
+            label="Days per cycle"
+            value={f.periodDays}
+            onChange={set("periodDays")}
+            disabled={busy}
+          />
+        )}
       </div>
       <div className="flex items-center gap-2">
         <Button type="submit" busy={busy} busyLabel="Saving…" icon={LuSave}>

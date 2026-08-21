@@ -47,3 +47,15 @@ export const THINK_BUDGET = {
   DAILY:     256,
   CHAT:      256,  // conversational answers — short, emotional, low-budget
 };
+
+// Published Gemini list prices in USD per 1M tokens, for COST TELEMETRY ONLY —
+// never for billing. Kept here so `[gemini] usage` log lines carry a rupee-ish
+// figure you can group by feature; the absolute number drifts whenever Google
+// reprices (and ignores context-length tiers and cached-token discounts), but
+// the RELATIVE cost between features is what the log is for.
+// ponytail: flat rates, no tiering. Refresh from ai.google.dev/pricing.
+export const MODEL_PRICE_USD_PER_MTOK = {
+  'gemini-2.5-pro':        { in: 1.25, out: 10.00 },
+  'gemini-2.5-flash':      { in: 0.30, out:  2.50 },
+  'gemini-2.5-flash-lite': { in: 0.10, out:  0.40 },
+};

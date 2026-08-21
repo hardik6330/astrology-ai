@@ -5,6 +5,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { tokenStore } from "@/common/tokenStore";
 import { verifyOtp, bypassLogin } from "@/services/api";
+import { logEvent } from "@/utils/analytics";
+import * as chartMemory from "@/common/chartMemory";
 
 // Web push pulls in Firebase Cloud Messaging (heavy) and is only ever needed
 // once the user is signed in. Load it lazily so a logged-out visitor on the
@@ -67,7 +69,10 @@ export function AuthProvider({ children }) {
   // Already signed in from a prior session — register the web push token on
   // launch (covers permission changes / token rotation while away).
   useEffect(() => {
-    if (token) registerForWebPush();
+    if (token) {
+      registerForWebPush();
+      chartMemory.hydrate(); // pull Timeline answers / asked alignments for this account
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -77,6 +82,7 @@ export function AuthProvider({ children }) {
   // Throws on a backend/verification failure (caller surfaces the message).
   async function completeOtpLogin(idToken) {
     const data = await verifyOtp(idToken); // { token, account, savedForm? }
+    logEvent("login");
     return finishLogin(data);
   }
 
@@ -94,6 +100,7 @@ export function AuthProvider({ children }) {
     setToken(data.token);
     setAccount(data.account);
     registerForWebPush();
+    chartMemory.hydrate();
     return { savedForm: data.savedForm || null };
   }
 
@@ -104,7 +111,14 @@ export function AuthProvider({ children }) {
     // 3rd-party SDK persistence (like Firebase or Razorpay caches).
     try {
       Object.keys(localStorage).forEach((k) => {
-        if (k.startsWith("app_") || k.startsWith("asked_alignments:") || k.startsWith("timelineCheck:")) {
+        // cm:* is the chart-memory offline cache; the legacy prefixes are the
+        // pre-server keys, still swept so an upgrading user starts clean.
+        if (
+          k.startsWith("app_") ||
+          k.startsWith("cm:") ||
+          k.startsWith("asked_alignments:") ||
+          k.startsWith("timelineCheck:")
+        ) {
           localStorage.removeItem(k);
         }
       });
@@ -112,6 +126,7 @@ export function AuthProvider({ children }) {
       appToken.remove();
       appAccount.remove(); // fallback: at least clear the session
     }
+    chartMemory.reset();
     setToken(null);
     setAccount(null);
   }

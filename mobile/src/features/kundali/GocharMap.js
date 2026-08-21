@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
 import Animated, { useSharedValue, useAnimatedProps, withRepeat, withTiming, Easing } from "react-native-reanimated";
@@ -8,9 +8,12 @@ import { useColors } from "../../theme/ThemeContext";
 import { spacing, fontSize, radius } from "../../theme/tokens";
 import { SIGNS, ZE, nm } from "../../shared/astrology";
 import { haptics } from "../../utils/haptics";
-import { getItem, setItem } from "../../utils/storage";
 import { STRINGS } from "../../shared/uiStrings";
 import { useAuth } from "../auth/AuthContext";
+import { useChartMemory } from "../../hooks/useChartMemory";
+
+// Shared empty default — a fresh {} per render would break memoised comparisons.
+const EMPTY_ASKED = {};
 
 // Bi-Wheel Chart (Birth vs Live Sky). A sidereal zodiac wheel with TWO planet
 // rings over the same signs:
@@ -67,22 +70,14 @@ export default function GocharMap({ chart, navigation }) {
   const styles = useStyles(makeStyles);
   const c = useColors();
   const { account } = useAuth();
-  const [asked, setAsked] = useState({});
-
   // Scope the asked-alignment state to the signed-in user so one account's
-  // "Analyzed" rows don't leak to the next user on the same device.
+  // "Analyzed" rows don't leak to the next user on the same device. Server-owned
+  // (see services/chartMemory.js) so it survives a reinstall.
   const storageKey = `asked_alignments:${account?.id ?? "anon"}`;
+  const [askedRaw, setAsked] = useChartMemory(storageKey);
+  const asked = askedRaw ?? EMPTY_ASKED;
 
-  // Load asked state from storage on mount (and when the user changes).
-  useEffect(() => {
-    getItem(storageKey, {}).then(setAsked);
-  }, [storageKey]);
-
-  const markAsAsked = async (key) => {
-    const next = { ...asked, [key]: true };
-    setAsked(next);
-    await setItem(storageKey, next);
-  };
+  const markAsAsked = (key) => setAsked({ ...asked, [key]: true });
 
   // Pulsing halo on the live planets (hooks must run before any early return).
   const pulse = useSharedValue(0.16);

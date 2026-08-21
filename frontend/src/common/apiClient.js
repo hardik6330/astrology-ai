@@ -57,8 +57,8 @@ export function unwrap(body) {
 export function handleUnauthorized() {
   // Wipe ALL local data so the next user starts clean — same intent as
   // AuthContext.logout(). A 401 bounce that only cleared the token left
-  // per-user keys (asked_alignments:*, timelineCheck:*) behind, so logging back
-  // in as the same account resurfaced stale "Analyzed"/answered state.
+  // per-user keys (the cm:* chart-memory cache) behind, so logging back in as
+  // the same account resurfaced stale "Analyzed"/answered state.
   try {
     Object.keys(localStorage)
       .filter((k) => k !== "admin_token")

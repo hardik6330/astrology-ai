@@ -17,6 +17,8 @@ import {
   purchaseUpdatedListener,
   purchaseErrorListener,
   getErrorCodes,
+  getSubscriptions,
+  requestSubscription,
 } from "./iapClient";
 import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
@@ -29,7 +31,8 @@ import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
 import { useCredits } from "@/hooks/useCredits";
 import { useBackToKundali } from "@/utils/useBackToKundali";
-import { fetchCreditPlans, purchasePlan, getCredits, verifyIapPayment } from "@/services/api";
+import { fetchCreditPlans, purchasePlan, getCredits, verifyIapPayment, verifySubscription, getSubscriptionStatus } from "@/services/api";
+import { logEvent } from "@/features/notifications/analytics";
 
 const PLAN_FEATURES = [
   "AI Birth Chart Interpretation",
@@ -44,6 +47,9 @@ const formatInr = (paise) => {
   return `₹${Number.isInteger(rupees) ? rupees : rupees.toFixed(2)}`;
 };
 
+// Subscriptions show a period so "₹149" doesn't read as a one-off.
+const periodLabel = (days) => (days === 30 ? "/mo" : days === 365 ? "/yr" : `/${days}d`);
+
 export default function CreditsScreen({ navigation, route }) {
   const c = useColors();
   const s = useStyles(makeStyles);
@@ -56,6 +62,9 @@ export default function CreditsScreen({ navigation, route }) {
   // returns to the Reading/Kundali home base, not the previous drawer screen.
   useBackToKundali(navigation);
   const [plans, setPlans] = useState([]);
+  // The user's current subscription, or null. Drives the "active" banner and
+  // stops us offering a plan they're already on.
+  const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null); // plan in the checkout modal
   const [error, setError] = useState("");
@@ -92,15 +101,26 @@ export default function CreditsScreen({ navigation, route }) {
           const plan = plansRef.current.find((p) => p.productId === purchase.productId);
           if (!plan) return;
           try {
-            await verifyIapPayment({
+            const payload = {
               planId: plan.id,
               platform: Platform.OS,
               receipt: Platform.OS === "ios" ? receipt : undefined,
               purchaseToken: Platform.OS === "android" ? purchase.purchaseToken : undefined,
-            });
+            };
+            // A subscription grants its allowance every cycle, so it goes to the
+            // subscription verifier and must NOT be consumed — consuming it
+            // makes the store forget the entitlement.
+            if (plan.isSubscription) await verifySubscription(payload);
+            else await verifyIapPayment(payload);
             // Only finish AFTER the backend grants — an unfinished txn is
             // re-delivered on next launch, so a failed verify can retry.
-            await finishTransaction(purchase);
+            await finishTransaction(purchase, { isConsumable: !plan.isSubscription });
+            logEvent("purchase_completed", {
+              credits: plan.credits,
+              price_inr: plan.priceInr / 100,
+              method: plan.isSubscription ? "subscription" : "iap",
+            });
+            if (plan.isSubscription) getSubscriptionStatus().then(setSubscription);
             getCredits();
             setSelected(null);
             if (returnTo) navigation.navigate(returnTo);
@@ -126,15 +146,20 @@ export default function CreditsScreen({ navigation, route }) {
     fetchCreditPlans()
       .then(async (data) => {
         setPlans(data);
-        // Warm the store's localized product details for any SKUs we have.
-        const skus = data.map((p) => p.productId).filter(Boolean);
-        if (skus.length > 0 && iapAvailable()) {
-          try {
-            await getProducts(skus);
-          } catch (err) {
-            console.warn("IAP getProducts failed", err);
+        // Warm the store's localized details. Consumables and subscriptions
+        // live in SEPARATE store catalogues — getProducts() never returns a
+        // subscription SKU, so they have to be queried apart.
+        if (iapAvailable()) {
+          const packSkus = data.filter((p) => !p.isSubscription).map((p) => p.productId).filter(Boolean);
+          const subSkus  = data.filter((p) => p.isSubscription).map((p) => p.productId).filter(Boolean);
+          if (packSkus.length) {
+            try { await getProducts(packSkus); } catch (err) { console.warn("IAP getProducts failed", err); }
+          }
+          if (subSkus.length) {
+            try { await getSubscriptions(subSkus); } catch (err) { console.warn("IAP getSubscriptions failed", err); }
           }
         }
+        getSubscriptionStatus().then(setSubscription);
       })
       .catch(() => setError("Couldn't load plans. Please try again."))
       .finally(() => setLoading(false));
@@ -165,6 +190,20 @@ export default function CreditsScreen({ navigation, route }) {
         </View>
       </CosmicCard>
 
+      {subscription?.active ? (
+        <CosmicCard style={s.balanceCard}>
+          <View style={s.balanceIndicator} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.balanceLabel}>SUBSCRIBED</Text>
+            <Text style={s.balanceValue}>{subscription.plan?.name || "Active plan"}</Text>
+            <Text style={s.headerSub}>
+              {subscription.autoRenew ? "Renews" : "Ends"}{" "}
+              {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+            </Text>
+          </View>
+        </CosmicCard>
+      ) : null}
+
       {error ? <Text style={s.error}>{error}</Text> : null}
 
       {loading ? (
@@ -181,7 +220,16 @@ export default function CreditsScreen({ navigation, route }) {
             return (
               <Pressable
                 key={p.id}
-                onPress={() => { setError(""); setSelected(p); }}
+                onPress={() => {
+                  setError("");
+                  // Already subscribed to this one — the store, not us, owns
+                  // changing or cancelling it.
+                  if (subscription?.active && subscription.planId === p.id) {
+                    setError("You're already subscribed. Manage it in your store account.");
+                    return;
+                  }
+                  setSelected(p);
+                }}
                 style={({ pressed }) => [
                   s.planCard,
                   isPopular && s.planCardPopular,
@@ -209,12 +257,14 @@ export default function CreditsScreen({ navigation, route }) {
                   
                   <View style={s.planInfo}>
                     <Text style={s.planName}>{p.name}</Text>
-                    <Text style={s.planCredits}>{EMOJIS.SPARKLES} {p.credits} Credits</Text>
+                    <Text style={s.planCredits}>
+                      {EMOJIS.SPARKLES} {p.credits} Credits{p.isSubscription ? " every month" : ""}
+                    </Text>
                   </View>
 
                   <View style={s.planPriceContainer}>
                     <Text style={[s.planPrice, { color: isPopular ? c.primaryLight : c.text }]}>
-                      {formatInr(p.priceInr)}
+                      {formatInr(p.priceInr)}{p.isSubscription ? periodLabel(p.periodDays) : ""}
                     </Text>
                     <View style={[s.buyArrow, isPopular && { backgroundColor: c.primarySoft }]}>
                       <Ionicons name="chevron-forward" size={18} color={isPopular ? c.primaryLight : c.textMuted} />
@@ -274,11 +324,15 @@ function CheckoutModal({ plan, onClose, onPaid, onError }) {
       if (plan.productId) {
         if (!iapAvailable()) throw new Error("In-app purchases aren't available in this build.");
         // Native IAP — the parent's purchaseUpdatedListener verifies & grants.
-        await requestPurchase(plan.productId);
+        // Subscriptions go through a different store call (and on Android need
+        // the base-plan offer token, which requestSubscription resolves).
+        if (plan.isSubscription) await requestSubscription(plan.productId);
+        else await requestPurchase(plan.productId);
         // Modal stays open (busy) until the listener closes it.
       } else if (MOCK_ALLOWED) {
         // Dev-only fallback for plans without a store SKU.
         await purchasePlan(plan.id);
+        logEvent("purchase_completed", { credits: plan.credits, price_inr: plan.priceInr / 100, method: "mock" });
         setDone(true);
         closeTimer.current = setTimeout(onPaid, 1100);
       } else {

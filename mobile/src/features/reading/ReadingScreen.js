@@ -26,6 +26,7 @@ import KundaliTab from "./sections/KundaliTab";
 import PlanetsTab from "./sections/PlanetsTab";
 import TimelineTab from "./sections/TimelineTab";
 import ReadingTab from "./sections/ReadingTab";
+import { useCosts } from "../../hooks/useCosts";
 
 // The 4 in-screen sub-tabs that swipe cycles through (palm/chat/profile are
 // separate screens reached from the bottom nav, not swipeable).
@@ -156,6 +157,10 @@ export default function ReadingScreen({ navigation, route }) {
 
   const [selDate, setSelDate] = useState(() => new Date(new Date().setHours(12, 0, 0, 0)));
   const [guideMap, setGuideMap] = useState({});
+  // Free is the normal case now — daily guidance is the retention loop, so it
+  // auto-generates instead of waiting for a tap. A non-zero admin price puts the
+  // consent button back (credits must never be spent without an explicit tap).
+  const dailyIsFree = (useCosts()?.daily ?? 0) === 0;
   const [savedDates, setSavedDates] = useState(new Set());
 
   // Honor incoming tab param from BottomNav on other screens.
@@ -301,13 +306,25 @@ Running period: ${d.dasha}`;
     setDailyBusy(false);
   }
 
-  // Selecting a day shows it. If it already has saved guidance (green dot), load
-  // it for free; otherwise leave it blank so the Reveal button prompts the user
-  // to spend credits — never auto-generate on a date tap.
+  // Selecting a day shows it. Saved guidance (green dot) loads straight from the
+  // server. Otherwise: generate it when free, or leave it blank so the Reveal
+  // button asks first — credits are never spent without an explicit tap.
   function selectDay(date) {
     setSelDate(date);
     if (savedDates.has(iso(date))) viewSaved(date);
+    else if (dailyIsFree) generateDaily(date);
   }
+
+  // Today's guidance is the daily habit, so fetch it on open rather than making
+  // the user ask for it. Only when free, and only once — generateDaily() no-ops
+  // if it's already busy or the day is cached.
+  useEffect(() => {
+    if (!dailyIsFree || !chart) return;
+    const key = iso(selDate);
+    if (guideMap[key] || savedDates.has(key)) return;
+    generateDaily(selDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dailyIsFree, chart, selDate]);
 
   if (!chart) {
     return (

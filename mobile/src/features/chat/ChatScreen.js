@@ -164,7 +164,7 @@ export default function ChatScreen({ navigation, route }) {
     // send a question without it living in the input box first.
     const q = (typeof preset === "string" ? preset : input).trim();
     if (!q || busy || !chart || cannotAfford) return;
-    logEvent("chat_question_asked", { user_name: form.name });
+    logEvent("chat_question_asked");
     setInput("");
     setLowCredits(false);
     const history = [...chatMsgs, { role: "user", content: q }];

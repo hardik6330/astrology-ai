@@ -403,3 +403,33 @@ export async function fetchChatHistory(form) {
     return [];
   }
 }
+
+// ── Chart memory ────────────────────────────────────────────────────────────
+// Timeline Check answers + asked Gochar alignments. Server-owned so they
+// survive a reinstall and follow the user across devices. See common/chartMemory.js.
+
+// → { [key]: value }. Returns null (not {}) when unavailable, so the caller can
+// tell "no session / offline" apart from "signed in with nothing remembered".
+export async function getMemory() {
+  if (!appToken.get()) return null;
+  try {
+    const res = await authFetch(`${API_URL}/memory`);
+    if (!res.ok) return null;
+    return unwrap(await res.json()).memory ?? {};
+  } catch {
+    return null;
+  }
+}
+
+export async function setMemory(key, value) {
+  if (!appToken.get()) return false;
+  try {
+    const res = await authFetch(`${API_URL}/memory`, {
+      method: "POST",
+      body: JSON.stringify({ key, value }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

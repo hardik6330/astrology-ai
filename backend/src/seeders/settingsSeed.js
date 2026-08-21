@@ -11,7 +11,7 @@ export const SETTING_DEFAULTS = [
   { key: 'initial_credits', value: '200', description: 'Credits granted to a new user on first sign-up' },
   { key: 'chat_cost',       value: '5',   description: 'Credits deducted per AI astrologer chat message' },
   { key: 'insights_cost',   value: '20',  description: 'Credits deducted to unlock the AI insights for a profile' },
-  { key: 'daily_cost',      value: '15',  description: 'Credits deducted per day to reveal daily guidance' },
+  { key: 'daily_cost',      value: '0',   description: 'Credits deducted per day of daily guidance. 0 = free, which is the point: it is the retention loop, so metering it costs more than it earns. Depth (kundali/chat/palm) is what is paid for.' },
   { key: 'palm_cost',       value: '30',  description: 'Credits deducted per palm reading' },
 
   // App force-update — served to mobile clients on startup via /auth/config.

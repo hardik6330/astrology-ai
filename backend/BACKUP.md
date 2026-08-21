@@ -2,24 +2,22 @@
 
 Simple guide: how to save a copy of the database, and how to load it into a new one.
 
-Two hosts are covered — **Railway** (the old one) and **Aiven** (the one we use now).
+The database is **Railway MySQL**.
 
 ---
 
 ## Before you start
 
-You need 5 things from your database provider's website:
+You need 5 things from the Railway console (open the MySQL service → *Variables*
+or *Connect*):
 
-| What | Railway | Aiven |
-|---|---|---|
-| Host | `something.proxy.rlwy.net` | `something.aivencloud.com` |
-| Port | a random number | a random number |
-| User | `root` | `avnadmin` |
-| Password | (copy from console) | (copy from console) |
-| Database name | `railway` | `defaultdb` |
-
-**Aiven:** open your service → *Connection information*. Everything is there.
-**Railway:** open the MySQL service → *Variables* or *Connect*.
+| What | Value looks like |
+|---|---|
+| Host | `something.proxy.rlwy.net` |
+| Port | a random number |
+| User | `root` |
+| Password | (copy from the console) |
+| Database name | `railway` |
 
 The password goes in front of the command as `MYSQL_PWD='...'`. This keeps it out
 of your command history.
@@ -28,8 +26,6 @@ of your command history.
 
 ## Backup (save a copy)
 
-### If your database is on Railway
-
 ```bash
 MYSQL_PWD='your-password' mysqldump \
   -h your-host.proxy.rlwy.net -P your-port -u root \
@@ -37,47 +33,34 @@ MYSQL_PWD='your-password' mysqldump \
   railway > backend/railway_backup.sql
 ```
 
-### If your database is on Aiven
-
-```bash
-MYSQL_PWD='your-password' mysqldump --ssl \
-  -h your-host.aivencloud.com -P your-port -u avnadmin \
-  --single-transaction --routines --triggers --no-tablespaces \
-  defaultdb > backend/aiven_backup.sql
-```
-
-Aiven needs two extra flags:
-- `--ssl` — Aiven only accepts secure connections
-- `--no-tablespaces` — the `avnadmin` user isn't a full admin, and the command fails without this
-
 You now have a `.sql` file. **That file is your backup.** Copy it somewhere safe
-(Google Drive, another computer) — it is not saved to Git.
+(Google Drive, another computer) — it is not saved to Git, so if you lose the
+machine you lose the backup.
+
+> Railway's public host goes over the internet. If you connect with TLS, add
+> `--ssl` to the command.
 
 ---
 
-## Restore (load the copy into a new database)
+## Restore (load the copy into a database)
 
 Same command, but `mysql` instead of `mysqldump`, and `<` instead of `>`.
 
-### Into a Railway database
-
 ```bash
-MYSQL_PWD='new-password' mysql \
-  -h new-host.proxy.rlwy.net -P new-port -u root \
+MYSQL_PWD='your-password' mysql \
+  -h your-host.proxy.rlwy.net -P your-port -u root \
   railway < backend/railway_backup.sql
 ```
 
-### Into an Aiven database
+The dumps have no `CREATE DATABASE` / `USE` line, so they import into whichever
+database you name on the command line.
 
-```bash
-MYSQL_PWD='new-password' mysql --ssl \
-  -h new-host.aivencloud.com -P new-port -u avnadmin \
-  defaultdb < backend/aiven_backup.sql
-```
+### Importing an older dump
 
-**Moving from Railway to Aiven?** Just use the Railway backup command, then the
-Aiven restore command. The `.sql` file works with any MySQL — only the connection
-details change.
+`backend/aiven_backup.sql` is a plain MySQL dump of the previous host and imports
+into Railway with the exact command above — just point it at that file instead.
+**Keep it.** Until Railway holds a verified copy of that data, it is the only
+copy of it that exists.
 
 ---
 
@@ -86,8 +69,8 @@ details change.
 Count the rows:
 
 ```bash
-MYSQL_PWD='your-password' mysql --ssl \
-  -h your-host -P your-port -u your-user your-database -e "
+MYSQL_PWD='your-password' mysql \
+  -h your-host.proxy.rlwy.net -P your-port -u root railway -e "
 SELECT (SELECT COUNT(*) FROM Users) users,
        (SELECT COUNT(*) FROM Settings) settings,
        (SELECT COUNT(*) FROM CreditTransactions) ledger;"
@@ -95,9 +78,11 @@ SELECT (SELECT COUNT(*) FROM Users) users,
 
 If the numbers look right, the import worked.
 
-Then check the app can connect:
+Then apply any pending schema migrations and check the app can connect:
 
 ```bash
+cd backend && npm run migrate:status   # what's pending
+cd backend && npm run migrate          # apply it
 cd backend && npm run dev
 ```
 
@@ -111,10 +96,10 @@ If it starts without a database error, you're done.
    ```
    DB_HOST=...
    DB_PORT=...
-   DB_USER=...
+   DB_USER=root
    DB_PASS=...
-   DB_NAME=...
-   DB_SSL=true      # only for Aiven
+   DB_NAME=railway
+   DB_SSL=true      # only if you connect over TLS
    ```
 
 2. **Don't forget the live server.** The website uses a *different* `.env` file
@@ -122,23 +107,32 @@ If it starts without a database error, you're done.
    SSH and restart with `pm2 reload astrology-backend` — otherwise the live site
    keeps using the old database.
 
+3. On a brand-new empty database, build the schema once before the first deploy:
+   ```bash
+   cd backend && npm run sync-schema
+   ```
+   After that, schema changes are migrations only (`npm run migrate`).
+
 ---
 
 ## If something goes wrong
 
 | Error you see | What it means |
 |---|---|
-| `Can't connect ... (111)` | The database isn't running yet. New Aiven services take ~5 minutes to start. Free Aiven databases also shut down when unused — open the console and check it says **Running**. |
-| `Lost connection ... initial communication packet` | The database is switched off or deleted. Check the provider's website before blaming your password. |
-| `Access denied` | Wrong user or password. Remember: Railway uses `root`, Aiven uses `avnadmin`. |
-| `PROCESS privilege ... INFORMATION_SCHEMA.FILES` | You forgot `--no-tablespaces` on an Aiven backup. |
-| `SSL connection error` | You forgot `--ssl` on an Aiven command. |
-| App closes as soon as it starts | It can't reach the database. Fix the connection details, not the app. |
+| `Can't connect ... (111)` | The database isn't running yet. A new Railway service takes a minute or two to start — check the console says **Active**. |
+| `Lost connection ... initial communication packet` | The database is switched off or deleted. Check the Railway console before blaming your password. |
+| `Access denied` | Wrong user or password. Railway uses `root`. |
+| `Unknown database 'railway'` | The database name differs — check `MYSQL_DATABASE` in the service variables. |
+| `Unknown column ...` | The schema is behind the code. Run `npm run migrate`. |
+| `SSL connection error` | Either drop `--ssl`, or set `DB_SSL=true` consistently on both sides. |
+| App closes as soon as it starts | It can't reach the database. In production the server exits on an unreachable DB by design. Fix the connection details, not the app. |
 
 ---
 
-## Current setup (July 2026)
+## Backup files in `backend/`
 
-- **Now using:** Aiven MySQL, database `defaultdb`
-- **Old Railway database:** gone — the account was blocked, and the data can only be recovered from the backup file
-- **Backup files:** `backend/railway_backup.sql` (old data, 24 July) and `backend/aiven_backup.sql` (current)
+Both are gitignored (`*.sql`) because they contain real user data. They are the
+only backups — keep copies off this machine.
+
+- `railway_backup.sql` — Railway dump
+- `aiven_backup.sql` — dump from the previous host; the source to import from

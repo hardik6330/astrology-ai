@@ -224,6 +224,10 @@ export const adminPlanCreateBody = z.object({
   credits:    z.number().int().positive('credits must be > 0'),
   priceInr:   z.number().int().nonnegative('priceInr must be >= 0'),
   bonusLabel: z.string().trim().max(60).optional().nullable(),
+  productId:  z.string().trim().max(100).optional().nullable(),
+  // Subscription plans grant `credits` EVERY cycle rather than once.
+  isSubscription: z.boolean().optional(),
+  periodDays: z.number().int().positive().max(400).optional(),
   active:     z.boolean().optional(),
   sortOrder:  z.number().int().optional(),
 });
@@ -275,4 +279,12 @@ export const pushRegisterBody = z.object({
 
 export const pushUnregisterBody = z.object({
   token: z.string().min(20).max(512),
+});
+
+// Chart memory. `key` is an opaque client string (a timelineCheck key embeds a
+// whole question, hence the generous cap); `value` is small JSON — bounded so a
+// client can't use the store as free unbounded storage.
+export const memorySetBody = z.object({
+  key:   z.string().min(1).max(1_000),
+  value: z.union([z.string().max(2_000), z.boolean(), z.number(), z.record(z.boolean())]),
 });

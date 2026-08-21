@@ -17,7 +17,8 @@ export default function DailyCard({
   const color = useColors();
   const s = useStyles(makeStyles);
   const costs = useCosts();
-  const dailyCost = costs?.daily ?? 15;
+  const dailyCost = costs?.daily ?? 0;
+  const dailyIsFree = dailyCost === 0;
   const credits = useCredits();
   // Can't afford a day's guidance — balance already too low, or a generate
   // attempt just came back 402. Drives the disabled button label.
@@ -130,7 +131,7 @@ export default function DailyCard({
               ? "Reading the sky…"
               : cannotAfford
                 ? `Not enough credits · ${dailyCost} needed`
-                : `${EMOJIS.SPARKLES} Reveal ${MONTHS[selDate.getMonth()]} ${selDate.getDate()}'s Guidance · ${dailyCost} Credits`}
+                : `${EMOJIS.SPARKLES} Reveal ${MONTHS[selDate.getMonth()]} ${selDate.getDate()}'s Guidance${dailyIsFree ? "" : ` · ${dailyCost} Credits`}`}
           </Text>
         </Pressable>
       )}

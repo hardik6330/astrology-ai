@@ -1,19 +1,24 @@
 import React from "react";
-import { Pressable, Text, StyleSheet } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, DrawerActions } from "@react-navigation/native";
 import { useStyles } from "../theme/useStyles";
+import { useColors } from "../theme/ThemeContext";
 import { radius } from "../theme/tokens";
 
 function MenuButton({ style }) {
   const navigation = useNavigation();
   const styles = useStyles(makeStyles);
+  const c = useColors();
   return (
     <Pressable
       onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
       style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }, style]}
       hitSlop={10}
     >
-      <Text style={styles.icon}>☰</Text>
+      {/* Ionicons "menu" renders the platform-native hamburger — the bare ☰
+          glyph is a text character, not an iOS affordance. */}
+      <Ionicons name="menu" size={22} color={c.text} />
     </Pressable>
   );
 }
@@ -28,5 +33,4 @@ const makeStyles = (c) =>
       backgroundColor: c.cardBgSolid,
       borderWidth: 1, borderColor: c.cardBorder,
     },
-    icon: { color: c.text, fontSize: 22, lineHeight: 24 },
   });
