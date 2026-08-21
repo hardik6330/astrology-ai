@@ -1,3 +1,6 @@
 
 # DB dumps (contain real user data)
 *.sql
+
+# Accidental .env paste recovered out of MIGRATIONS.md — delete once rotated.
+.env.pasted.bak

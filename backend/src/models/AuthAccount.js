@@ -20,7 +20,11 @@ const AuthAccount = sequelize.define('AuthAccount', {
   // Every push fan-out + login resolves accounts by phone (tokensForPhone) —
   // without this it's a full table scan per send. NOT unique: one phone can have
   // re-verified several times (firebaseUid is the unique identity).
-  indexes: [{ name: 'auth_accounts_phone', fields: ['phone'] }],
+  indexes: [
+    { name: 'auth_accounts_phone', fields: ['phone'] },
+    // Re-engagement cron filters on the last-login cutoff daily.
+    { name: 'auth_accounts_last_login_at', fields: ['lastLoginAt'] },
+  ],
 });
 
 export default AuthAccount;

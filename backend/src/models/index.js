@@ -47,12 +47,13 @@ Purchase.belongsTo(User, { foreignKey: 'userId' });
 
 User.hasMany(Subscription, { foreignKey: 'userId', onDelete: 'CASCADE' });
 Subscription.belongsTo(User, { foreignKey: 'userId' });
-CreditPlan.hasMany(Subscription, { foreignKey: 'planId' });
+CreditPlan.hasMany(Subscription, { foreignKey: 'planId', onDelete: 'RESTRICT' });
 Subscription.belongsTo(CreditPlan, { foreignKey: 'planId' });
 
 // Plans soft-delete via `active`, so historical purchases keep a resolvable
 // planId — this join powers the admin order list's "Plan" column.
-CreditPlan.hasMany(Purchase, { foreignKey: 'planId' });
+// RESTRICT, not CASCADE: a plan must never take its purchase history with it.
+CreditPlan.hasMany(Purchase, { foreignKey: 'planId', onDelete: 'RESTRICT' });
 Purchase.belongsTo(CreditPlan, { foreignKey: 'planId' });
 
 // Admin has no association — it's a standalone back-office login.

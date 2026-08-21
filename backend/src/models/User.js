@@ -28,8 +28,12 @@ const User = sequelize.define('User', {
   // use any B-tree index by nature. chartHash powers the sibling-copy lookup.
   indexes: [
     { name: 'users_name_birth_date', fields: ['name', 'birthDate'] },
-    { name: 'users_phone', fields: ['phone'] },
+    // UNIQUE: phone IS the identity, so two rows sharing one would split a
+    // user's credits. NULL is still allowed (the anonymous chart path).
+    { name: 'users_phone_unique', fields: ['phone'], unique: true },
     { name: 'users_chart_hash', fields: ['chartHash'] },
+    // Admin growth chart groups signups by day — without this it scans.
+    { name: 'users_created_at', fields: ['createdAt'] },
   ],
 });
 
