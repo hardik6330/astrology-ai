@@ -19,11 +19,15 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.astrologyai.chat",
+      "buildNumber": "2",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to capture a photo of your palm for AI reading.",
         "NSPhotoLibraryUsageDescription": "Used to pick a palm photo from your gallery.",
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "aps-environment": "development"
       }
     },
     "android": {
@@ -69,6 +73,8 @@
         }
       ],
       "./plugins/withNotificationSound",
+      "./plugins/withFirebaseModularHeaders",
+      "./plugins/withMediaPipeDedup",
       "expo-secure-store",
       "expo-localization",
       "expo-font"
@@ -84,7 +90,8 @@
     },
     "owner": "huggingfcewer23432",
     "updates": {
-      "url": "https://u.expo.dev/318b3d26-f428-4890-937c-619120a4e8b4"
+      "enabled": false,
+      "url": "https://u.expo.dev/4ee7d7a9-7d80-4a71-acf1-750b8073823e"
     }
   }
 }

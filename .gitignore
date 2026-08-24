@@ -46,3 +46,8 @@ backend/MIGRATIONS.md
 backend/.env.example
 frontend/.env.example
 mobile/.env.example
+
+android/*
+ios/*
+AuthKey_2XYF4TDY4M.p8
+GoogleService-Info (4).plist

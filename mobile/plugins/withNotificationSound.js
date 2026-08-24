@@ -10,7 +10,7 @@
 //   "notification.wav" in the APNs payload. (iOS push is dormant until there's a
 //   paid Apple account / APNs, but bundling it now is harmless and future-proof.)
 
-const { withDangerousMod, withXcodeProject } = require("@expo/config-plugins");
+const { withDangerousMod, withXcodeProject, IOSConfig } = require("@expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
@@ -49,12 +49,24 @@ function withIosSound(config) {
     },
   ]);
 
-  // 2. Register it as a bundle resource in the Xcode project.
+  // 2. Register it as a bundle resource in the Xcode project. Use Expo's own
+  //    XcodeUtils helper rather than raw project.addResourceFile — the latter
+  //    crashes ("Cannot read properties of null (reading 'path')") because the
+  //    main project group has a name but no `path`, which the bundled `xcode`
+  //    lib's correctForPath can't handle. addResourceFileToGroup resolves the
+  //    group path safely (it's the same API @react-native-firebase's plugin
+  //    uses). The filepath is project-relative: "<ProjectName>/notification.wav".
   config = withXcodeProject(config, (cfg) => {
     const project = cfg.modResults;
-    const group = project.findPBXGroupKey({ name: cfg.modRequest.projectName });
-    if (group && !project.hasFile(SOUND_FILE)) {
-      project.addResourceFile(SOUND_FILE, { target: project.getFirstTarget().uuid }, group);
+    const projectName = cfg.modRequest.projectName;
+    const filepath = `${projectName}/${SOUND_FILE}`;
+    if (!project.hasFile(filepath)) {
+      IOSConfig.XcodeUtils.addResourceFileToGroup({
+        filepath,
+        groupName: projectName,
+        project,
+        isBuildFile: true,
+      });
     }
     return cfg;
   });
