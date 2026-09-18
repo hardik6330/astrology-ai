@@ -40,10 +40,19 @@ function mod() {
 }
 
 // Idempotent; safe to call from every screen that needs the store.
+// RC's SDK deliberately throws on a Test Store key in a RELEASE build (so a
+// test key can never ship) — swallow that into "IAP unavailable" rather than
+// crashing the app on the Credits screen. Test Store needs the `development`
+// EAS profile (debug build); release builds need a real appl_/goog_ key.
 export function configure() {
   if (configured || !iapAvailable()) return;
-  Purchases.configure({ apiKey: API_KEY });
-  configured = true;
+  try {
+    Purchases.configure({ apiKey: API_KEY });
+    configured = true;
+  } catch (err) {
+    console.warn("RevenueCat configure failed — IAP disabled", err?.message);
+    loadFailed = true;
+  }
 }
 
 // Bind the store customer to OUR User.id so the webhook's app_user_id lands
