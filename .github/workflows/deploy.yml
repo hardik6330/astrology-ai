@@ -85,11 +85,18 @@ jobs:
       # Frontend env is NOT injected here anymore — Vite auto-loads the committed
       # frontend/.env.production at build time. VITE_* values are baked into the
       # public bundle (not secret), so they live in that file, not a GH secret.
+      # Same workspace-hoisting trap as the backend: an install inside frontend/
+      # dedupes React against the ROOT package.json (mobile's 19.1.x), and Vite
+      # then bundles two React copies → blank page with React error #527. Build
+      # from a copy outside the repo. `packages/` rides along because the
+      # frontend imports the shared engine by relative path.
       - name: Frontend — install + build
-        working-directory: frontend
         run: |
-          npm install
-          npm run build
+          rel=$(mktemp -d)
+          cp -r frontend packages "$rel"/
+          rm -rf "$rel"/frontend/node_modules
+          (cd "$rel"/frontend && npm install && npm run build)
+          rm -rf frontend/dist && mv "$rel"/frontend/dist frontend/dist
 
       - name: Upload frontend build
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
