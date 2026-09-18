@@ -61,12 +61,16 @@ jobs:
       # devDeps, and — verified — ZERO native .node binaries, so the x64-CI build
       # is portable to an ARM64 or x64 VPS) tarred together with src/. This is
       # what runs in production; the host never runs npm install again.
+      # Built from a copy OUTSIDE the repo: the root package.json declares npm
+      # workspaces, so an install inside backend/ hoists node_modules to the
+      # repo root and the tar below finds nothing. An isolated dir has no parent
+      # package.json to hoist into.
       - name: Backend — build release artifact
-        working-directory: backend
         run: |
-          rm -rf node_modules
-          npm install --omit=dev
-          tar -czf ../backend-release.tar.gz \
+          rel=$(mktemp -d)
+          cp -r backend/package.json backend/package-lock.json backend/src "$rel"/
+          (cd "$rel" && npm install --omit=dev)
+          tar -C "$rel" -czf backend-release.tar.gz \
             package.json package-lock.json node_modules src
 
       - name: Upload backend release
