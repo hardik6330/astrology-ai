@@ -218,6 +218,22 @@ export const verifyIapBody = z.object({
   purchaseToken: z.string().optional(), // Google
 });
 
+// RevenueCat webhook envelope. Only the fields we act on are typed; the rest
+// passes through untouched (RC adds fields between versions).
+export const rcWebhookBody = z.object({
+  event: z.object({
+    id:                      z.string().max(128).optional(),
+    type:                    z.string().max(64),
+    app_user_id:             z.string().max(128),
+    product_id:              z.string().max(100).optional(),
+    transaction_id:          z.string().max(200).nullish(),
+    original_transaction_id: z.string().max(200).nullish(),
+    store:                   z.string().max(32).optional(),
+    environment:             z.string().max(32).optional(),
+    expiration_at_ms:        z.number().nullish(),
+  }).passthrough(),
+}).passthrough();
+
 // Admin: create a credit plan. priceInr is in paise (integer). credits > 0.
 export const adminPlanCreateBody = z.object({
   name:       z.string().trim().min(1, 'name is required').max(80),

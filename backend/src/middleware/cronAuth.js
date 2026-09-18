@@ -10,7 +10,7 @@ import { AppError } from '../errors/AppError.js';
 // L2: compare SHA-256 digests (always 32 bytes) so the comparison never
 // short-circuits on a length mismatch — that early return would otherwise leak
 // the secret's length through response timing.
-function safeEqual(a, b) {
+export function safeEqual(a, b) {
   const ah = createHash('sha256').update(String(a)).digest();
   const bh = createHash('sha256').update(String(b)).digest();
   return timingSafeEqual(ah, bh);

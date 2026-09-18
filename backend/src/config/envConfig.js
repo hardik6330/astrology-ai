@@ -71,6 +71,9 @@ const schema = z.object({
   // Apple App Store / Google Play Store IAP — OPTIONAL.
   APPLE_IAP_SECRET:    z.string().optional(),
   GOOGLE_IAP_SERVICE_ACCOUNT_JSON: z.string().optional(), // Path to JSON file
+  // RevenueCat webhook — OPTIONAL. The Authorization header value configured
+  // on the RC dashboard webhook; unset → POST /credits/rc-webhook returns 503.
+  REVENUECAT_WEBHOOK_SECRET: z.string().optional(),
 }).superRefine((cfg, ctx) => {
   if (cfg.NODE_ENV !== 'production') return;
   // M3: never accept the seed default admin password in production.

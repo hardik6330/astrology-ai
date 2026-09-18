@@ -113,7 +113,7 @@ Four main tabs:
 ## 💳 Payments & Credits
 
 - **Web:** **Razorpay** (falls back to a mock provider when keys are absent). The signature is verified **server-side** with HMAC-SHA256; `Purchase.providerTxnId` is UNIQUE so replays never double-credit.
-- **Mobile:** **Native IAP** (`react-native-iap`) — iOS via Apple `verifyReceipt`, Android via the Play Developer API. A plan uses the store flow only when its `productId` is set; otherwise it falls back to mock.
+- **Mobile:** **Native IAP** (`react-native-iap`) — iOS via Apple `verifyReceipt`, Android via the Play Developer API. A plan uses the store flow only when its `productId` is set; otherwise it falls back to mock. **RevenueCat path (staged cutover):** `POST /credits/rc-webhook` turns RC events into ledger grants server-side; mobile SDK swap pending.
 - **Costs in DB:** Feature costs (`chat_cost`, `insights_cost`, `daily_cost`, `palm_cost`) and the signup bonus (`initial_credits`) live in the **`Setting` table**, not in code — editable from the admin panel (`settingsService`, 60s cache).
 - **Ledger:** `creditService.charge()` performs an atomic guarded decrement; if credits are insufficient it returns HTTP 402 `INSUFFICIENT_CREDITS`.
 
@@ -193,7 +193,8 @@ Production runs on an **always-on Oracle VPS** (pm2 + nginx), deployed by **GitH
 | `ADMIN_JWT_SECRET` | Backend | Admin token signing — **required + distinct from `JWT_SECRET` in prod** |
 | `CORS_ALLOW_VERCEL_PREVIEWS` | Backend | Opt-in (`true`/`false`) to allow `*.vercel.app` origins |
 | `RAZORPAY_KEY_ID` / `..._SECRET` | Backend | Web payments (mock if absent) |
-| `APPLE_IAP_SECRET` / `GOOGLE_IAP_SERVICE_ACCOUNT_JSON` | Backend | Mobile IAP receipt verification |
+| `APPLE_IAP_SECRET` / `GOOGLE_IAP_SERVICE_ACCOUNT_JSON` | Backend | Mobile IAP receipt verification (legacy path) |
+| `REVENUECAT_WEBHOOK_SECRET` | Backend | Authorization header value for `POST /credits/rc-webhook` (RevenueCat → credits) |
 | `CRON_SECRET` | Backend | Engagement-push cron auth |
 | `EXPO_PUBLIC_API_URL` | Mobile (EAS) | Backend API base URL (set per build profile in `eas.json`) |
 | `VITE_*` | Frontend | API URL, OTP service flag |

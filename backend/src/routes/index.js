@@ -9,6 +9,7 @@ import pushRoutes     from './pushRoutes.js';
 import cronRoutes     from './cronRoutes.js';
 import adminRoutes    from './adminRoutes.js';
 import creditRoutes   from './creditRoutes.js';
+import revenueCatRoutes from './revenueCatRoutes.js';
 import userRoutes     from './userRoutes.js';
 import memoryRoutes   from './memoryRoutes.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -22,6 +23,7 @@ router.use(locationRoutes);  // Google Places proxy, used during onboarding (no 
 router.use(cronRoutes);      // guarded by its own cron secret
 router.use(adminRoutes);     // guarded by requireAdmin
 router.use(pushRoutes);      // self-guards each route with requireAuth
+router.use(revenueCatRoutes); // guarded by the RC webhook secret, no user JWT
 
 // ── Signed-in user required ─────────────────────────────────────────────────
 // The AI/credit features must identify the caller so credits can be charged to
