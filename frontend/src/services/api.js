@@ -371,44 +371,6 @@ export async function fetchCreditPlans() {
   }
 }
 
-// Small helper to surface a backend error with its code attached.
-async function throwApiError(res, fallback) {
-  const errBody = await res.json().catch(() => ({}));
-  const e = new Error(errBody.error || fallback);
-  if (errBody.code) e.code = errBody.code;
-  throw e;
-}
-
-// Open a credit-purchase order. Returns either:
-//   { provider:'razorpay', orderId, credits, name, razorpay:{ keyId, orderId,
-//     amount, currency } }  — caller opens Checkout, then calls verifyPayment()
-//   { provider:'mock', paid:true, granted, balance, credits, orderId }
-//     — already settled (dev / no keys); badge refreshed here.
-export async function createCreditOrder(planId) {
-  const res = await authFetch(`${API_URL}/credits/order`, {
-    method: "POST",
-    body: JSON.stringify({ planId }),
-  });
-  if (!res.ok) await throwApiError(res, "Could not start checkout");
-  const data = unwrap(await res.json());
-  if (data.provider === "mock") noteBalance(data.balance);
-  return data;
-}
-
-// Verify a completed Razorpay payment server-side (signature check → grant).
-// `payload` = { orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature }.
-// → { granted, balance, credits, status }. Refreshes the badge.
-export async function verifyCreditPayment(payload) {
-  const res = await authFetch(`${API_URL}/credits/verify`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) await throwApiError(res, "Payment verification failed");
-  const data = unwrap(await res.json());
-  noteBalance(data.balance);
-  return data;
-}
-
 // Fetch the saved chat history for a person. Returns an array of
 // { role, content } messages, or an empty array if none / on error.
 // Google Places autocomplete via our backend proxy. `token` is the Places

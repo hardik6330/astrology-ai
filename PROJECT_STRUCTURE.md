@@ -13,7 +13,7 @@ This document describes the full project structure, screens, and UI of the appli
 - **Backend:** Node.js, Express 5, Sequelize + **MySQL**, Firebase Admin (Phone-OTP Auth), `helmet` + Zod validation, JWT sessions (`expo-secure-store` on mobile). Deployed on an **always-on Oracle VPS** (pm2 + nginx, GitHub Actions atomic releases)
 - **AI:** Google Gemini 2.5 Pro (interpretation) & Flash (quality gating)
 - **Astrology Engine:** `astronomy-engine` (NASA-grade precision, runs on-device)
-- **Payments:** Razorpay (Web), Native IAP (Mobile)
+- **Payments:** Apple In-App Purchase via RevenueCat (mobile only; web is read-only)
 
 ---
 
@@ -112,8 +112,8 @@ Four main tabs:
 
 ## 💳 Payments & Credits
 
-- **Web:** **Razorpay** (falls back to a mock provider when keys are absent). The signature is verified **server-side** with HMAC-SHA256; `Purchase.providerTxnId` is UNIQUE so replays never double-credit.
-- **Mobile:** **Native IAP** (`react-native-iap`) — iOS via Apple `verifyReceipt`, Android via the Play Developer API. A plan uses the store flow only when its `productId` is set; otherwise it falls back to mock. **RevenueCat path (staged cutover):** `POST /credits/rc-webhook` turns RC events into ledger grants server-side; mobile SDK swap pending.
+- **Web:** no checkout. `CreditsPage` lists plans and points the user at the iOS app; the balance is shared per account.
+- **Mobile:** **Apple IAP through RevenueCat** (`react-native-purchases`). The app calls `purchaseStoreProduct`; RevenueCat verifies the receipt with Apple and POSTs the event to `POST /credits/rc-webhook`, which inserts a `Purchase` (`providerTxnId = rc:<txn>`, UNIQUE → replays never double-credit) and grants through the ledger. A plan is buyable only when its `productId` matches an App Store product. No mock path anywhere.
 - **Costs in DB:** Feature costs (`chat_cost`, `insights_cost`, `daily_cost`, `palm_cost`) and the signup bonus (`initial_credits`) live in the **`Setting` table**, not in code — editable from the admin panel (`settingsService`, 60s cache).
 - **Ledger:** `creditService.charge()` performs an atomic guarded decrement; if credits are insufficient it returns HTTP 402 `INSUFFICIENT_CREDITS`.
 
@@ -131,9 +131,9 @@ The app has been through a full security pass. Key protections (all in `backend/
 - **DB integrity:** the credit ledger is append-only with an atomic guarded decrement; the `literal()` credit math is integer-asserted (`creditService.js`). All queries go through Sequelize (parameterized).
 - **Validation:** every route runs a **Zod schema** (`validators/schemas.js`); admin pagination + location queries are bounds-checked, and chat messages must be non-empty (`trim().min(1)`).
 
-> **Resolved since the original audit:** `POST /auth/dummy-login` is gone — replaced by `POST /auth/verify-otp`, whose bare-phone bypass is **production-gated** behind `OTP_ENABLED='false'` (never set in prod); and the **IAP mock fallback now fails closed in production** (`verifyAppleReceipt`/`verifyGooglePurchase` return null + log instead of granting when a store secret is missing).
+> **Resolved since the original audit:** `POST /auth/dummy-login` is gone — replaced by `POST /auth/verify-otp`, whose bare-phone bypass is **production-gated** behind `OTP_ENABLED='false'` (never set in prod); and the mock payment paths are **gone entirely** — RevenueCat is the only settlement route.
 >
-> **Still open before a public launch:** (1) real secrets are committed in the `*/.env.example` files (base64 Firebase service account, `JWT_SECRET`, `CRON_SECRET`, Razorpay/Gemini/Maps keys) — **rotate, scrub to placeholders, and purge git history**; (2) rate limiting uses an **in-memory store** (per-instance — fine on the single-process VPS, but defeated by Vercel scale-out — move to Redis/Upstash if running serverless). See CLAUDE.md "Security model" / "Things that have bitten" for detail.
+> **Still open before a public launch:** (1) real secrets are committed in the `*/.env.example` files (base64 Firebase service account, `JWT_SECRET`, `CRON_SECRET`, Gemini/Maps keys) — **rotate, scrub to placeholders, and purge git history**; (2) rate limiting uses an **in-memory store** (per-instance — fine on the single-process VPS, but defeated by Vercel scale-out — move to Redis/Upstash if running serverless). See CLAUDE.md "Security model" / "Things that have bitten" for detail.
 
 ---
 
@@ -192,9 +192,8 @@ Production runs on an **always-on Oracle VPS** (pm2 + nginx), deployed by **GitH
 | `JWT_SECRET` | Backend | User session-token signing |
 | `ADMIN_JWT_SECRET` | Backend | Admin token signing — **required + distinct from `JWT_SECRET` in prod** |
 | `CORS_ALLOW_VERCEL_PREVIEWS` | Backend | Opt-in (`true`/`false`) to allow `*.vercel.app` origins |
-| `RAZORPAY_KEY_ID` / `..._SECRET` | Backend | Web payments (mock if absent) |
-| `APPLE_IAP_SECRET` / `GOOGLE_IAP_SERVICE_ACCOUNT_JSON` | Backend | Mobile IAP receipt verification (legacy path) |
-| `REVENUECAT_WEBHOOK_SECRET` | Backend | Authorization header value for `POST /credits/rc-webhook` (RevenueCat → credits) |
+| `REVENUECAT_WEBHOOK_SECRET` | Backend | Authorization header value for `POST /credits/rc-webhook` (RevenueCat → credits); the only purchase path |
+| `EXPO_PUBLIC_RC_IOS_KEY` | Mobile (EAS env) | RevenueCat public SDK key |
 | `CRON_SECRET` | Backend | Engagement-push cron auth |
 | `EXPO_PUBLIC_API_URL` | Mobile (EAS) | Backend API base URL (set per build profile in `eas.json`) |
 | `VITE_*` | Frontend | API URL, OTP service flag |

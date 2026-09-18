@@ -18,7 +18,7 @@ Selora is a **Vedic astrology + palmistry** app. A user signs in with their phon
 4. **AI Astrologer chat** — ask astrology questions, answered against your chart.
 5. **Palm reading** — photograph one or both palms; an on-device quality gate checks the photo, then AI analyzes the lines.
 
-Paid features cost **credits**; users top up through the Credits store (native in-app purchase, with a dev mock fallback).
+Paid features cost **credits**; users top up through the Credits store (Apple in-app purchase via RevenueCat; no mock path).
 
 ---
 
@@ -127,7 +127,7 @@ AI **astrologer chat** — bubble UI (👤 user / 🔮 AI), suggested starter qu
 Shows birth details + avatar, live credits balance, the per-feature cost breakdown, edit (→ Home), theme toggle, and logout.
 
 ### Credits (`features/credits/`)
-The **top-up store**. Plans load from the backend; a plan with a store `productId` uses **native IAP** (App Store / Play), otherwise a dev-only mock grant. Shows balance + cost breakdown.
+The **top-up store**. Plans load from the backend; a plan with a store `productId` runs the **Apple IAP sheet via RevenueCat** (`react-native-purchases`, wrapper `features/credits/iapClient.js`); RevenueCat verifies with Apple and posts to the backend webhook, which grants the credits — the screen then re-polls the balance. A plan without a `productId` shows "Coming soon" (there is no mock grant). `AuthContext` calls `Purchases.logIn(account.userId)` on login and `logOut()` on sign-out so purchases bind to the right ledger. Shows balance + cost breakdown.
 
 ### Help (`features/help/`)
 FAQ, quick contact (email / WhatsApp / website), and live app name + version from `app.json`.
@@ -149,7 +149,7 @@ FAQ, quick contact (email / WhatsApp / website), and live app name + version fro
 - **Icon & splash:** `assets/homescreen-logo.png`; splash bg `#f8fafc` (light) / `#050508` (dark); Android adaptive-icon bg `#0b0a1f`.
 - **Bundle id / package:** `com.astrologyai.app` · **orientation:** portrait · **version:** 1.0.0.
 - **Permissions:** Camera, photo library, notifications (and mic, declared).
-- Push, analytics, and IAP are **native modules** — they no-op in Expo Go and need a real **EAS build** to exercise.
+- Push, analytics, and IAP (`react-native-purchases`) are **native modules** — they no-op in Expo Go and need a real **EAS build** to exercise. The RC SDK key comes from `EXPO_PUBLIC_RC_IOS_KEY` (`eas env:create`).
 
 ---
 

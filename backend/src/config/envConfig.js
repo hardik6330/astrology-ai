@@ -62,17 +62,9 @@ const schema = z.object({
   ADMIN_NAME:      z.string().default('Administrator'),
   ADMIN_USERNAME:  z.string().default('admin'),
   ADMIN_PASSWORD:  z.string().min(8, 'ADMIN_PASSWORD must be at least 8 chars').default('changeme123'),
-  // Razorpay (WEB payments) — OPTIONAL so dev/dummy boots without it. When both
-  // are set, the buy flow creates real Razorpay orders and verifies the payment
-  // signature; when unset, purchaseService falls back to the mock checkout.
-  // KEY_ID is also returned to the web client to open Checkout (safe to expose).
-  RAZORPAY_KEY_ID:     z.string().optional(),
-  RAZORPAY_KEY_SECRET: z.string().optional(),
-  // Apple App Store / Google Play Store IAP — OPTIONAL.
-  APPLE_IAP_SECRET:    z.string().optional(),
-  GOOGLE_IAP_SERVICE_ACCOUNT_JSON: z.string().optional(), // Path to JSON file
-  // RevenueCat webhook — OPTIONAL. The Authorization header value configured
-  // on the RC dashboard webhook; unset → POST /credits/rc-webhook returns 503.
+  // RevenueCat webhook — the ONLY purchase path. The Authorization header value
+  // configured on the RC dashboard webhook; unset → /credits/rc-webhook 503s and
+  // no credits can be bought.
   REVENUECAT_WEBHOOK_SECRET: z.string().optional(),
 }).superRefine((cfg, ctx) => {
   if (cfg.NODE_ENV !== 'production') return;

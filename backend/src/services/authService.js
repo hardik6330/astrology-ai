@@ -83,8 +83,8 @@ async function issueSession(firebaseUid, phone) {
   const account = await upsertAccount(firebaseUid, phone);
   // Register a placeholder User + signup credits on first login, so every
   // signup is tracked even before birth details are entered. Best-effort.
-  await ensureUserForPhone(account.phone)
-    .catch((err) => log.warn({ err: err.message }, 'ensureUserForPhone failed'));
+  const user = await ensureUserForPhone(account.phone)
+    .catch((err) => { log.warn({ err: err.message }, 'ensureUserForPhone failed'); return null; });
   const token = signAppToken({
     accountId:   account.id,
     firebaseUid: account.firebaseUid,
@@ -95,7 +95,9 @@ async function issueSession(firebaseUid, phone) {
   // Hand back any saved birth details so a returning user skips the form and
   // lands on their reading.
   const savedForm = await findSavedFormByPhone(account.phone);
-  return { token, account: { id: account.id, phone: account.phone }, savedForm };
+  // `userId` is the User row (unique per phone) — the RevenueCat app_user_id,
+  // so a store purchase lands on this ledger. AuthAccount.id is NOT that id.
+  return { token, account: { id: account.id, phone: account.phone, userId: user?.id ?? null }, savedForm };
 }
 
 // Verify a Firebase ID token, upsert the account, return token + account.

@@ -378,25 +378,6 @@ export async function fetchCreditPlans() {
   }
 }
 
-// Buy a credit plan (mock checkout — no real payment yet). On success the
-// backend grants the credits; noteBalance refreshes the badge from the returned
-// balance. → { granted, balance, credits, orderId }. Throws on failure.
-export async function purchasePlan(planId) {
-  const data = await postJSON("/credits/purchase", { planId });
-  noteBalance(data.balance);
-  return data;
-}
-
-// Verify a Mobile In-App Purchase (Apple/Google).
-// receipt is for iOS, purchaseToken is for Android.
-export async function verifyIapPayment({ planId, platform, receipt, purchaseToken }) {
-  const data = await postJSON("/credits/verify-iap", {
-    planId, platform, receipt, purchaseToken,
-  });
-  noteBalance(data.balance);
-  return data;
-}
-
 export async function chatCompletionJSON(messages, type, extra) {
   const result = await chatCompletion(messages, type, extra);
   return parseContent(result); // tolerant: object passthrough or parse legacy string
@@ -529,13 +510,8 @@ export async function saveProfile(form) {
 }
 
 // ── Subscriptions ───────────────────────────────────────────────────────────
-// Store-driven: the app never charges a renewal, it just re-verifies on launch
-// and the backend grants any cycle it hasn't already granted. Idempotent, so
-// calling this more often than needed costs nothing.
-export async function verifySubscription({ planId, platform, receipt, purchaseToken }) {
-  return postJSON("/credits/verify-subscription", { planId, platform, receipt, purchaseToken });
-}
-
+// Store-driven via RevenueCat: renewals reach the backend webhook directly,
+// the app only reads the resulting state.
 // → { planId, plan, active, currentPeriodEnd, autoRenew } | null
 export async function getSubscriptionStatus() {
   if (!(await getToken())) return null;

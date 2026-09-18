@@ -11,7 +11,7 @@ import { registerForPush, unregisterForPush } from "@/features/notifications/pus
 import { logEvent } from "@/features/notifications/analytics";
 import { getToken, setToken as secureSetToken, clearToken } from "@/utils/tokenStore";
 import * as chartMemory from "@/services/chartMemory";
-import { syncSubscription } from "@/features/credits/syncSubscription";
+import { logIn as rcLogIn, logOut as rcLogOut } from "@/features/credits/iapClient";
 
 const ACC_KEY   = "app_account";
 const THEME_KEY = "astro_theme_v1"; // device preference — preserved across logout
@@ -47,9 +47,8 @@ export function AuthProvider({ children }) {
         if (t) {
           registerForPush();
           chartMemory.hydrate();
-          // Pick up any subscription renewal that happened while the app was
-          // closed — the store never tells our backend on its own.
-          syncSubscription();
+          // Bind RevenueCat to this account so store events hit the right ledger.
+          rcLogIn(a ? JSON.parse(a)?.userId : null).catch(() => {});
         }
       } catch { /* ignore */ }
       finally { setHydrating(false); }
@@ -88,13 +87,16 @@ export function AuthProvider({ children }) {
         registerForPush();
         // Pull Timeline answers / asked alignments for this account.
         chartMemory.hydrate();
-        syncSubscription();
+        rcLogIn(acc.userId).catch(() => {});
       },
     };
   }
  
   async function logout() {
     logEvent("logout");
+    // Detach the store customer first so the next login on this device can't
+    // inherit this account's purchases.
+    await rcLogOut();
     // Disable the push token server-side BEFORE clearing the JWT — the
     // unregister call needs the token to authenticate.
     await unregisterForPush();

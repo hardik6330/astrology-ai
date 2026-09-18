@@ -18,7 +18,6 @@ import {
 } from '../src/models/index.js';
 import { charge, grant, getBalance } from '../src/services/creditService.js';
 import * as settings from '../src/services/settingsService.js';
-import { createOrder, confirmOrder, verifyIapPayment } from '../src/services/purchaseService.js';
 import { sendEngagement } from '../src/services/engageService.js';
 
 const USER_FORM = {
@@ -103,73 +102,6 @@ describe('creditService.charge — atomic guarded decrement', () => {
     expect(res).toEqual({ granted: 9, balance: 10 });
     const row = await CreditTransaction.findOne({ where: { userId: user.id } });
     expect(row).toMatchObject({ amount: 9, balance: 10, reason: 'refund' });
-  });
-});
-
-describe('purchaseService — settlement is idempotent', () => {
-  it('confirmOrder replay grants exactly once', async () => {
-    const user = await User.create({ ...USER_FORM, credits: 0 });
-    const plan = await CreditPlan.create({ name: 'Starter', credits: 50, priceInr: 9900 });
-    const { purchase } = await createOrder({ userId: user.id, planId: plan.id });
-    expect(purchase.provider).toBe('mock'); // no Razorpay keys in test env
-
-    const first = await confirmOrder({ userId: user.id, orderId: purchase.id });
-    expect(first).toMatchObject({ granted: 50, status: 'paid' });
-
-    // Replay (double-submit / retried webhook) must not grant again.
-    const replay = await confirmOrder({ userId: user.id, orderId: purchase.id });
-    expect(replay).toMatchObject({ granted: 0, status: 'paid' });
-
-    expect(await getBalance(user.id)).toBe(50);
-    expect(await CreditTransaction.count({ where: { userId: user.id, reason: 'purchase' } })).toBe(1);
-  });
-
-  // NOTE: the truly-concurrent double-confirm race is guarded by
-  // `SELECT ... FOR UPDATE` + the in-txn paid re-check — SQLite ignores row
-  // locks, so that exact interleaving can only be exercised against MySQL.
-  // The sequential replay above covers the idempotency contract itself.
-
-  it('order snapshot survives later plan edits', async () => {
-    const user = await User.create({ ...USER_FORM, credits: 0 });
-    const plan = await CreditPlan.create({ name: 'Big', credits: 100, priceInr: 19900 });
-    const { purchase } = await createOrder({ userId: user.id, planId: plan.id });
-
-    await plan.update({ credits: 999, priceInr: 1 }); // admin edits the plan later
-
-    const res = await confirmOrder({ userId: user.id, orderId: purchase.id });
-    expect(res.granted).toBe(100); // snapshotted at order time, not plan-current
-  });
-
-  it('IAP mock fallback grants (the documented dev hole), but a replayed txn id never double-credits', async () => {
-    // Freeze the clock so the mock txn id (mock_google_<now>) is identical on
-    // both calls — this exercises the providerTxnId idempotency guard, which
-    // in production is what stops a replayed store receipt from double-crediting.
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-06-11T10:00:00Z'));
-
-    const user = await User.create({ ...USER_FORM, credits: 0 });
-    const plan = await CreditPlan.create({ name: 'IAP', credits: 30, priceInr: 9900, productId: 'com.astro.30' });
-
-    // GOOGLE_IAP_SERVICE_ACCOUNT_JSON is unset in tests → mock verification.
-    // CLAUDE.md: this MUST fail closed in production before real IAP ships.
-    const first = await verifyIapPayment({
-      userId: user.id, planId: plan.id, platform: 'android', purchaseToken: 'tok',
-    });
-    expect(first).toMatchObject({ granted: 30, status: 'paid' });
-
-    const replay = await verifyIapPayment({
-      userId: user.id, planId: plan.id, platform: 'android', purchaseToken: 'tok',
-    });
-    expect(replay).toMatchObject({ granted: 0, status: 'paid' });
-
-    expect(await getBalance(user.id)).toBe(30);
-  });
-
-  it('unknown platform is rejected', async () => {
-    const user = await User.create({ ...USER_FORM, credits: 0 });
-    const plan = await CreditPlan.create({ name: 'X', credits: 5, priceInr: 100 });
-    await expect(verifyIapPayment({ userId: user.id, planId: plan.id, platform: 'web' }))
-      .rejects.toMatchObject({ code: 'INVALID_PLATFORM' });
   });
 });
 

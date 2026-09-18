@@ -28,7 +28,13 @@ const inr = (paise) => `₹${Math.round((paise || 0) / 100).toLocaleString("en-I
 
 // Stable colors for the donut breakdowns (fall back to violet for new keys).
 const STATUS_COLORS = { paid: "#34d399", created: "#fbbf24", failed: "#f87171", refunded: "#22d3ee" };
-const PROVIDER_COLORS = { razorpay: "#6366f1", mock: "#94a3b8", apple: "#e7e7f0", google: "#34d399" };
+const PROVIDER_COLORS = {
+  revenuecat: "#f25a5a",
+  razorpay: "#6366f1",
+  mock: "#94a3b8",
+  apple: "#e7e7f0",
+  google: "#34d399",
+};
 const RANGES = [7, 30, 90];
 
 const CARDS = [

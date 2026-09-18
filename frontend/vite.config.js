@@ -10,7 +10,6 @@ import { dirname, join } from "node:path";
 // browser, so the priority is denying an injected script the ability to run
 // (script-src) or to phone the token home (connect-src allowlist). Every origin
 // below is one the app genuinely loads — keep in sync when adding a vendor:
-//   • Razorpay Checkout → script/frame/connect checkout.razorpay.com + *.razorpay.com
 //   • Firebase Phone Auth (reCAPTCHA) → script/frame www.google.com + www.gstatic.com
 //   • Firebase Auth/Installations/FCM → connect *.googleapis.com, *.google.com
 //   • MediaPipe palm gate → 'wasm-unsafe-eval' + connect cdn.jsdelivr.net (wasm),
@@ -26,12 +25,12 @@ function buildCsp(apiOrigin) {
     "form-action 'self'",
     "manifest-src 'self'",
     "worker-src 'self' blob:",
-    "script-src 'self' 'wasm-unsafe-eval' https://checkout.razorpay.com https://www.google.com https://www.gstatic.com",
+    "script-src 'self' 'wasm-unsafe-eval' https://www.google.com https://www.gstatic.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    `connect-src 'self' ${apiOrigin} https://*.googleapis.com https://*.google.com https://cdn.jsdelivr.net https://storage.googleapis.com https://*.razorpay.com`,
-    "frame-src https://*.razorpay.com https://checkout.razorpay.com https://www.google.com",
+    `connect-src 'self' ${apiOrigin} https://*.googleapis.com https://*.google.com https://cdn.jsdelivr.net https://storage.googleapis.com`,
+    "frame-src https://www.google.com",
   ].join("; ");
 }
 

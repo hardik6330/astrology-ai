@@ -1,25 +1,14 @@
-// Buy Cosmic Credits. Lists the admin-defined plans and runs native In-App
-// Purchases (Apple/Google) for plans with a store `productId`; the backend
-// verifies the receipt before granting. Plans without a productId fall back to
-// a mock grant — DEV ONLY (gated below), never in a shipped build.
+// Buy Cosmic Credits. Lists the admin-defined plans and runs Apple In-App
+// Purchases through RevenueCat for plans with a store `productId`. RevenueCat
+// verifies the receipt and posts to the backend webhook, which grants the
+// credits — this screen just re-fetches the balance afterwards. Plans without
+// a productId can't be bought (there is no mock path any more).
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { View, Text, StyleSheet, Modal, Platform, Pressable } from "react-native";
+import { View, Text, StyleSheet, Modal, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import {
-  iapAvailable,
-  initConnection,
-  endConnection,
-  getProducts,
-  requestPurchase,
-  finishTransaction,
-  purchaseUpdatedListener,
-  purchaseErrorListener,
-  getErrorCodes,
-  getSubscriptions,
-  requestSubscription,
-} from "./iapClient";
+import { iapAvailable, getProducts, purchaseProduct } from "./iapClient";
 import ScreenContainer from "@/components/ScreenContainer";
 import CosmicCard from "@/components/CosmicCard";
 import MagicButton from "@/components/MagicButton";
@@ -31,7 +20,7 @@ import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
 import { useCredits } from "@/hooks/useCredits";
 import { useBackToKundali } from "@/utils/useBackToKundali";
-import { fetchCreditPlans, purchasePlan, getCredits, verifyIapPayment, verifySubscription, getSubscriptionStatus } from "@/services/api";
+import { fetchCreditPlans, getCredits, getSubscriptionStatus } from "@/services/api";
 import { logEvent } from "@/features/notifications/analytics";
 
 const PLAN_FEATURES = [
@@ -76,94 +65,38 @@ export default function CreditsScreen({ navigation, route }) {
     if (returnTo) navigation.navigate(returnTo);
   }, [returnTo, navigation]);
 
-  // Latest plans for the purchase listener closure (set up once on mount).
-  const plansRef = useRef([]);
-  useEffect(() => { plansRef.current = plans; }, [plans]);
-
   // Refresh the balance whenever the screen is focused (drawer screens persist).
   useFocusEffect(useCallback(() => { getCredits(); }, []));
 
-  // Open the native store connection once and listen for purchase results.
-  // Imperative API (not the useIAP hook) so there are no conditional hooks and
-  // the whole thing is a clean no-op in Expo Go / non-IAP builds.
-  useEffect(() => {
-    if (!iapAvailable()) return;
-
-    let purchaseSub, errorSub;
-    const E = getErrorCodes();
-
-    initConnection()
-      .then(() => {
-        // Resolve a store result → verify with our backend → finish → refresh.
-        purchaseSub = purchaseUpdatedListener(async (purchase) => {
-          const receipt = purchase.transactionReceipt;
-          if (!receipt) return;
-          const plan = plansRef.current.find((p) => p.productId === purchase.productId);
-          if (!plan) return;
-          try {
-            const payload = {
-              planId: plan.id,
-              platform: Platform.OS,
-              receipt: Platform.OS === "ios" ? receipt : undefined,
-              purchaseToken: Platform.OS === "android" ? purchase.purchaseToken : undefined,
-            };
-            // A subscription grants its allowance every cycle, so it goes to the
-            // subscription verifier and must NOT be consumed — consuming it
-            // makes the store forget the entitlement.
-            if (plan.isSubscription) await verifySubscription(payload);
-            else await verifyIapPayment(payload);
-            // Only finish AFTER the backend grants — an unfinished txn is
-            // re-delivered on next launch, so a failed verify can retry.
-            await finishTransaction(purchase, { isConsumable: !plan.isSubscription });
-            logEvent("purchase_completed", {
-              credits: plan.credits,
-              price_inr: plan.priceInr / 100,
-              method: plan.isSubscription ? "subscription" : "iap",
-            });
-            if (plan.isSubscription) getSubscriptionStatus().then(setSubscription);
-            getCredits();
-            setSelected(null);
-            if (returnTo) navigation.navigate(returnTo);
-          } catch (err) {
-            setError(err.message || "Payment verification failed");
-          }
-        });
-        errorSub = purchaseErrorListener((e) => {
-          if (e?.code === E.E_USER_CANCELLED) return; // sheet dismissed — ignore
-          setError(e?.message || "Store error");
-        });
-      })
-      .catch((err) => console.warn("IAP initConnection failed", err));
-
-    return () => {
-      purchaseSub?.remove?.();
-      errorSub?.remove?.();
-      endConnection();
-    };
-  }, []);
+  // Store products by id (localized price). Empty in Expo Go / no-key builds.
+  const [products, setProducts] = useState({});
 
   useEffect(() => {
     fetchCreditPlans()
       .then(async (data) => {
         setPlans(data);
-        // Warm the store's localized details. Consumables and subscriptions
-        // live in SEPARATE store catalogues — getProducts() never returns a
-        // subscription SKU, so they have to be queried apart.
-        if (iapAvailable()) {
-          const packSkus = data.filter((p) => !p.isSubscription).map((p) => p.productId).filter(Boolean);
-          const subSkus  = data.filter((p) => p.isSubscription).map((p) => p.productId).filter(Boolean);
-          if (packSkus.length) {
-            try { await getProducts(packSkus); } catch (err) { console.warn("IAP getProducts failed", err); }
-          }
-          if (subSkus.length) {
-            try { await getSubscriptions(subSkus); } catch (err) { console.warn("IAP getSubscriptions failed", err); }
-          }
+        const ids = data.map((p) => p.productId).filter(Boolean);
+        if (iapAvailable() && ids.length) {
+          try { setProducts(await getProducts(ids)); } catch (err) { console.warn("RC getProducts failed", err); }
         }
         getSubscriptionStatus().then(setSubscription);
       })
       .catch(() => setError("Couldn't load plans. Please try again."))
       .finally(() => setLoading(false));
   }, []);
+
+  // Apple confirmed → RevenueCat posts to our webhook → credits land. Poll the
+  // balance briefly so the badge catches up without a restart.
+  const onPurchased = useCallback((plan) => {
+    logEvent("purchase_completed", {
+      credits: plan.credits,
+      price_inr: plan.priceInr / 100,
+      method: plan.isSubscription ? "subscription" : "iap",
+    });
+    [0, 1500, 4000].forEach((ms) => setTimeout(getCredits, ms));
+    if (plan.isSubscription) setTimeout(() => getSubscriptionStatus().then(setSubscription), 1500);
+    finishAndReturn();
+  }, [finishAndReturn]);
 
   return (
     <ScreenContainer showMenu={false}>
@@ -288,20 +221,19 @@ export default function CreditsScreen({ navigation, route }) {
 
       <CheckoutModal
         plan={selected}
+        product={selected?.productId ? products[selected.productId] : null}
         onClose={() => setSelected(null)}
-        onPaid={finishAndReturn}
+        onPaid={onPurchased}
         onError={(msg) => { setError(msg); setSelected(null); }}
       />
     </ScreenContainer>
   );
 }
 
-// Checkout modal. Plans with a store `productId` run the native IAP sheet
-// (success handled by the parent's purchase listener). Plans without one fall
-// back to a mock grant that is DEV-ONLY — in a release build it's refused, so a
-// shipped app can never give away credits without a verified payment.
-const MOCK_ALLOWED = __DEV__; // never true in a production (release) build
-function CheckoutModal({ plan, onClose, onPaid, onError }) {
+// Checkout modal. Runs the RevenueCat purchase sheet for the plan's store
+// product; a plan without a productId (or a build without the store) can't be
+// bought — there is no mock grant, so a shipped app can never give away credits.
+function CheckoutModal({ plan, product, onClose, onPaid, onError }) {
   const c = useColors();
   const s = useStyles(makeStyles);
   const [busy, setBusy] = useState(false);
@@ -315,38 +247,18 @@ function CheckoutModal({ plan, onClose, onPaid, onError }) {
     return () => clearTimeout(closeTimer.current);
   }, [plan?.id]);
 
-  const canMock = !plan?.productId && MOCK_ALLOWED;
-  const purchasable = !!plan?.productId || canMock;
+  const purchasable = !!product;
 
   async function pay() {
     setBusy(true);
     try {
-      if (plan.productId) {
-        if (!iapAvailable()) throw new Error("In-app purchases aren't available in this build.");
-        // Native IAP — the parent's purchaseUpdatedListener verifies & grants.
-        // Subscriptions go through a different store call (and on Android need
-        // the base-plan offer token, which requestSubscription resolves).
-        if (plan.isSubscription) await requestSubscription(plan.productId);
-        else await requestPurchase(plan.productId);
-        // Modal stays open (busy) until the listener closes it.
-      } else if (MOCK_ALLOWED) {
-        // Dev-only fallback for plans without a store SKU.
-        await purchasePlan(plan.id);
-        logEvent("purchase_completed", { credits: plan.credits, price_inr: plan.priceInr / 100, method: "mock" });
-        setDone(true);
-        closeTimer.current = setTimeout(onPaid, 1100);
-      } else {
-        throw new Error("This plan isn't available for purchase yet.");
-      }
+      await purchaseProduct(product);
+      setDone(true);
+      closeTimer.current = setTimeout(() => onPaid(plan), 1100);
     } catch (err) {
-      if (err?.code === getErrorCodes().E_USER_CANCELLED) {
-        setBusy(false);
-      } else {
-        onError(err.message || "Purchase failed");
-      }
+      if (!err?.userCancelled) onError(err.message || "Purchase failed");
     } finally {
-      // Real IAP keeps the modal busy until the listener resolves it.
-      if (!plan.productId) setBusy(false);
+      setBusy(false);
     }
   }
 
@@ -364,7 +276,7 @@ function CheckoutModal({ plan, onClose, onPaid, onError }) {
               <Text style={s.modalIcon}>{EMOJIS.SPARKLES}</Text>
               <Text style={s.modalTitle}>{plan?.name}</Text>
               <Text style={s.modalSub}>
-                {plan?.credits} credits for {plan ? formatInr(plan.priceInr) : ""}
+                {plan?.credits} credits for {product?.priceString ?? (plan ? formatInr(plan.priceInr) : "")}
               </Text>
               <MagicButton
                 style={{ width: "100%", marginTop: spacing.sm }}
@@ -372,7 +284,7 @@ function CheckoutModal({ plan, onClose, onPaid, onError }) {
                 disabled={!purchasable}
                 onPress={pay}
               >
-                {plan?.productId ? "Buy with Store" : canMock ? "Pay (test)" : "Coming soon"}
+                {purchasable ? `Buy ${product.priceString}` : "Coming soon"}
               </MagicButton>
               <MagicButton variant="ghost" style={{ width: "100%", marginTop: spacing.sm }} disabled={busy} onPress={onClose}>
                 Cancel
@@ -384,14 +296,12 @@ function CheckoutModal({ plan, onClose, onPaid, onError }) {
               </View>
               <View style={s.trustRow}>
                 <Ionicons name="infinite" size={13} color={c.primaryLight} />
-                <Text style={s.trustText}>Credits never expire · No subscription</Text>
+                <Text style={s.trustText}>{plan?.isSubscription ? "Renews monthly · cancel anytime in Settings" : "Credits never expire · No subscription"}</Text>
               </View>
               <Text style={s.modalNote}>
-                {plan?.productId
-                  ? "Secured by Apple/Google. Credits are added once payment is verified."
-                  : canMock
-                    ? "Test payment — no real charge. Credits are granted instantly."
-                    : "This plan isn't available for purchase yet."}
+                {purchasable
+                  ? "Secured by Apple. Credits are added once payment is verified."
+                  : "This plan isn't available for purchase yet."}
               </Text>
             </>
           )}

@@ -195,29 +195,6 @@ export const adminSettingsBody = z.object({
   });
 });
 
-// Buy a credit plan — the client sends only the plan id; credits + price are
-// read server-side from the plan (never trusted from the client).
-export const purchaseBody = z.object({
-  planId: z.string().trim().min(1, 'planId is required').max(24),
-});
-
-// Verify a Razorpay payment. The browser returns these three Checkout fields;
-// orderId is our own Purchase id (max 24) from /credits/order.
-export const verifyPaymentBody = z.object({
-  orderId:           z.string().trim().min(1, 'orderId is required').max(24),
-  razorpayOrderId:   z.string().trim().min(1).max(64),
-  razorpayPaymentId: z.string().trim().min(1).max(64),
-  razorpaySignature: z.string().trim().min(1).max(256),
-});
-
-// Verify a Mobile In-App Purchase (Apple/Google).
-export const verifyIapBody = z.object({
-  planId:        z.string().trim().min(1, 'planId is required').max(24),
-  platform:      z.enum(['ios', 'android']),
-  receipt:       z.string().optional(), // Apple
-  purchaseToken: z.string().optional(), // Google
-});
-
 // RevenueCat webhook envelope. Only the fields we act on are typed; the rest
 // passes through untouched (RC adds fields between versions).
 export const rcWebhookBody = z.object({
