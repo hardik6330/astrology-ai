@@ -198,9 +198,10 @@ function NewPlanForm({ onSaved }) {
         )}
       </div>
       <p className="m-0 text-[12px] text-body">
-        A subscription grants its credits <strong>every cycle</strong> and needs a store subscription SKU — a
-        consumable SKU fails verification. Leave the SKU blank only for local testing: without it checkout
-        falls back to the mock path, which is disabled in production.
+        Store SKU must match the product id in RevenueCat / App Store Connect — that's how a purchase event
+        finds this plan. A blank SKU means the plan can't be bought (the app shows "Coming soon"). A
+        subscription grants its credits <strong>every cycle</strong> and needs a store <em>subscription</em>
+        product, not a consumable.
       </p>
       <Button type="submit" busy={busy} busyLabel="Adding…" icon={LuPlus} className="self-start">
         Add plan
