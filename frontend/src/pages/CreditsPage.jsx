@@ -158,9 +158,7 @@ export default function CreditsPage() {
 
                 <div className="flex flex-col items-center sm:items-end flex-1">
                   <div className="text-2xl font-black text-ink tracking-tight">{formatInr(p.priceInr)}</div>
-                  <div className="text-[12px] text-dim font-medium">
-                    {p.isSubscription ? "Per month" : "One-time purchase"}
-                  </div>
+                  <div className="text-[12px] text-dim font-medium">One-time purchase</div>
                 </div>
 
                 <div className="w-full sm:w-auto text-center text-[12px] font-bold uppercase tracking-[1.5px] text-[#c084fc]">

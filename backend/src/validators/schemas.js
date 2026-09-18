@@ -204,10 +204,8 @@ export const rcWebhookBody = z.object({
     app_user_id:             z.string().max(128),
     product_id:              z.string().max(100).optional(),
     transaction_id:          z.string().max(200).nullish(),
-    original_transaction_id: z.string().max(200).nullish(),
     store:                   z.string().max(32).optional(),
     environment:             z.string().max(32).optional(),
-    expiration_at_ms:        z.number().nullish(),
   }).passthrough(),
 }).passthrough();
 
@@ -218,9 +216,6 @@ export const adminPlanCreateBody = z.object({
   priceInr:   z.number().int().nonnegative('priceInr must be >= 0'),
   bonusLabel: z.string().trim().max(60).optional().nullable(),
   productId:  z.string().trim().max(100).optional().nullable(),
-  // Subscription plans grant `credits` EVERY cycle rather than once.
-  isSubscription: z.boolean().optional(),
-  periodDays: z.number().int().positive().max(400).optional(),
   active:     z.boolean().optional(),
   sortOrder:  z.number().int().optional(),
 });

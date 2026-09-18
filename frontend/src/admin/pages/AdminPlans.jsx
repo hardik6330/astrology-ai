@@ -26,11 +26,8 @@ const EMPTY = {
   priceRupees: "",
   bonusLabel: "",
   sortOrder: "0",
-  // Store SKU. Without it a plan cannot be bought through the app stores at
-  // all — it falls back to the mock path, which fails closed in production.
+  // App Store product id. Without it the plan can't be bought.
   productId: "",
-  isSubscription: false,
-  periodDays: "30",
 };
 
 export default function AdminPlans() {
@@ -101,8 +98,6 @@ function NewPlanForm({ onSaved }) {
       await adminCreatePlan({
         name: f.name.trim(),
         productId: f.productId.trim() || null,
-        isSubscription: !!f.isSubscription,
-        periodDays: Number(f.periodDays) || 30,
         credits: Number(f.credits),
         priceInr: rupeesToPaise(f.priceRupees),
         bonusLabel: f.bonusLabel.trim() || null,
@@ -173,35 +168,13 @@ function NewPlanForm({ onSaved }) {
           value={f.productId}
           onChange={set("productId")}
           maxLength={100}
-          placeholder="com.astrologyai.plus.monthly"
+          placeholder="selora_credits_100"
           disabled={busy}
         />
-        <label className="flex items-center gap-2 self-end pb-2 text-[13px] text-body">
-          <input
-            type="checkbox"
-            checked={f.isSubscription}
-            onChange={(e) => setF((st) => ({ ...st, isSubscription: e.target.checked }))}
-            disabled={busy}
-          />
-          Subscription
-        </label>
-        {f.isSubscription && (
-          <Field
-            type="number"
-            min={1}
-            label="Days per cycle"
-            value={f.periodDays}
-            onChange={set("periodDays")}
-            placeholder="30"
-            disabled={busy}
-          />
-        )}
       </div>
       <p className="m-0 text-[12px] text-body">
         Store SKU must match the product id in RevenueCat / App Store Connect — that's how a purchase event
-        finds this plan. A blank SKU means the plan can't be bought (the app shows "Coming soon"). A
-        subscription grants its credits <strong>every cycle</strong> and needs a store <em>subscription</em>
-        product, not a consumable.
+        finds this plan. A blank SKU means the plan can't be bought (the app shows "Coming soon").
       </p>
       <Button type="submit" busy={busy} busyLabel="Adding…" icon={LuPlus} className="self-start">
         Add plan
@@ -219,8 +192,6 @@ function PlanRow({ plan, onSaved }) {
     priceRupees: paiseToRupees(plan.priceInr),
     bonusLabel: plan.bonusLabel || "",
     productId: plan.productId || "",
-    isSubscription: !!plan.isSubscription,
-    periodDays: String(plan.periodDays ?? 30),
     sortOrder: String(plan.sortOrder ?? 0),
     active: plan.active,
   });
@@ -253,8 +224,6 @@ function PlanRow({ plan, onSaved }) {
     save({
       name: f.name.trim(),
       productId: f.productId.trim() || null,
-      isSubscription: !!f.isSubscription,
-      periodDays: Number(f.periodDays) || 30,
       credits: Number(f.credits),
       priceInr: rupeesToPaise(f.priceRupees),
       bonusLabel: f.bonusLabel.trim() || null,
@@ -313,28 +282,9 @@ function PlanRow({ plan, onSaved }) {
           value={f.productId}
           onChange={set("productId")}
           maxLength={100}
-          placeholder="com.astrologyai.plus.monthly"
+          placeholder="selora_credits_100"
           disabled={busy}
         />
-        <label className="flex items-center gap-2 self-end pb-2 text-[13px] text-body">
-          <input
-            type="checkbox"
-            checked={f.isSubscription}
-            onChange={(e) => setF((st) => ({ ...st, isSubscription: e.target.checked }))}
-            disabled={busy}
-          />
-          Subscription
-        </label>
-        {f.isSubscription && (
-          <Field
-            type="number"
-            min={1}
-            label="Days per cycle"
-            value={f.periodDays}
-            onChange={set("periodDays")}
-            disabled={busy}
-          />
-        )}
       </div>
       <div className="flex items-center gap-2">
         <Button type="submit" busy={busy} busyLabel="Saving…" icon={LuSave}>

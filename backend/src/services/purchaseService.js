@@ -1,4 +1,4 @@
-// Credit plans + the caller's subscription state. Admins define CreditPlans;
+// Credit plans. Admins define CreditPlans;
 // users buy them through Apple IAP, RevenueCat verifies the receipt and posts
 // the event to /credits/rc-webhook, and revenueCatService turns that into a
 // Purchase row + creditService.grant(). Nothing here takes money any more —
@@ -8,7 +8,7 @@
 // The Purchase table IS the orders table: one row per settled buy, with the
 // price + credits snapshotted at settlement time.
 
-import { CreditPlan, Subscription } from '../models/index.js';
+import { CreditPlan } from '../models/index.js';
 import { AppError } from '../errors/AppError.js';
 
 // Public-facing plan shape (no internal flags beyond what the client renders).
@@ -20,10 +20,6 @@ export function publicPlan(p) {
     credits: p.credits,
     priceInr: p.priceInr,        // paise
     bonusLabel: p.bonusLabel || null,
-    // Subscription plans grant `credits` every cycle, not once — the client
-    // needs this to pick the store subscription flow over the one-off flow.
-    isSubscription: !!p.isSubscription,
-    periodDays: p.periodDays ?? 30,
   };
 }
 
@@ -36,25 +32,6 @@ export async function listActivePlans() {
     order: [['sortOrder', 'ASC'], ['priceInr', 'ASC']],
   });
   return rows.map(publicPlan);
-}
-
-// The caller's current subscription, or null. Never a stored flag — active is
-// always derived from the period end, so it can't rot.
-export async function getSubscription(userId) {
-  const sub = await Subscription.findOne({
-    where: { userId },
-    order: [['currentPeriodEnd', 'DESC']],
-    include: [{ model: CreditPlan, attributes: ['id', 'name', 'credits', 'priceInr', 'periodDays'] }],
-  });
-  if (!sub) return null;
-  return {
-    planId: sub.planId,
-    plan: sub.CreditPlan ? publicPlan(sub.CreditPlan) : null,
-    platform: sub.platform,
-    active: sub.isActive(),
-    currentPeriodEnd: sub.currentPeriodEnd,
-    autoRenew: sub.autoRenew,
-  };
 }
 
 // ── Admin CRUD ───────────────────────────────────────────────────────────────
@@ -73,8 +50,6 @@ export async function createPlan(data) {
     credits: data.credits,
     priceInr: data.priceInr,
     bonusLabel: data.bonusLabel || null,
-    isSubscription: data.isSubscription ?? false,
-    periodDays: data.periodDays ?? 30,
     active: data.active ?? true,
     sortOrder: data.sortOrder ?? 0,
   });
@@ -85,7 +60,7 @@ export async function updatePlan(id, data) {
   const plan = await CreditPlan.findByPk(id);
   if (!plan) throw AppError.http(404, 'Plan not found', 'PLAN_NOT_FOUND');
   const patch = {};
-  for (const k of ['name', 'productId', 'credits', 'priceInr', 'bonusLabel', 'isSubscription', 'periodDays', 'active', 'sortOrder']) {
+  for (const k of ['name', 'productId', 'credits', 'priceInr', 'bonusLabel', 'active', 'sortOrder']) {
     if (data[k] !== undefined) patch[k] = data[k];
   }
   await plan.update(patch);

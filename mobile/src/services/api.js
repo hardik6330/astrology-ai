@@ -509,20 +509,6 @@ export async function saveProfile(form) {
   }
 }
 
-// ── Subscriptions ───────────────────────────────────────────────────────────
-// Store-driven via RevenueCat: renewals reach the backend webhook directly,
-// the app only reads the resulting state.
-// → { planId, plan, active, currentPeriodEnd, autoRenew } | null
-export async function getSubscriptionStatus() {
-  if (!(await getToken())) return null;
-  try {
-    const data = await getJSON("/credits/subscription");
-    return data?.subscription ?? null;
-  } catch {
-    return null;
-  }
-}
-
 // ── Chart memory ────────────────────────────────────────────────────────────
 // Timeline Check answers + asked Gochar alignments. Server-owned so they
 // survive a reinstall and follow the user across devices. See services/chartMemory.js.

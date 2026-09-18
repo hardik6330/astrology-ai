@@ -1,9 +1,8 @@
-import { findUserByPhone, ensureUserForPhone } from '../services/userService.js';
+import { ensureUserForPhone } from '../services/userService.js';
 import { getBalance } from '../services/creditService.js';
 import * as purchase from '../services/purchaseService.js';
 import * as settings from '../services/settingsService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { AppError } from '../errors/AppError.js';
 
 // GET /credits → { credits, costs }. The user is resolved from the auth token
 // (req.auth.phone) — no form/query params needed. `credits` is that user's
@@ -47,34 +46,9 @@ export const getCredits = asyncHandler(async (req, res) => {
   res.json({ credits: initial, costs });
 });
 
-// Resolve the live User-row id for the caller — preferring the id baked into the
-// JWT, falling back to a phone lookup (tokens issued before userId existed, or
-// users who haven't created a profile). Throws 409 if the phone has no profile
-// yet, since a purchase must credit a real row.
-async function resolveUserId(req) {
-  if (req.auth?.userId) return req.auth.userId;
-
-  const user = await findUserByPhone(req.auth?.phone);
-  if (user) return user.id;
-
-  if (req.auth?.phone) {
-    const placeholder = await ensureUserForPhone(req.auth.phone);
-    if (placeholder) return placeholder.id;
-  }
-
-  throw AppError.http(409, 'Create a profile before buying credits', 'NO_PROFILE');
-}
-
 // GET /credits/plans → { plans: [{ id, name, credits, priceInr, bonusLabel }] }.
 // Active plans only; priceInr is in paise.
 export const getPlans = asyncHandler(async (_req, res) => {
   res.locals.message = 'Plans fetched';
   res.json({ plans: await purchase.listActivePlans() });
-});
-
-// GET /credits/subscription — the caller's current subscription, or null.
-export const getSubscription = asyncHandler(async (req, res) => {
-  const userId = await resolveUserId(req);
-  res.locals.message = 'Subscription fetched';
-  res.json({ subscription: await purchase.getSubscription(userId) });
 });

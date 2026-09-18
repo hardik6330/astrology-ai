@@ -13,7 +13,6 @@ import CreditPlan from './CreditPlan.js';
 import Purchase from './Purchase.js';
 import NotificationTemplate from './NotificationTemplate.js';
 import ChartMemory from './ChartMemory.js';
-import Subscription from './Subscription.js';
 
 // Relationships
 User.hasOne(Kundali, { foreignKey: 'userId', onDelete: 'CASCADE' });
@@ -45,10 +44,6 @@ CreditTransaction.belongsTo(User, { foreignKey: 'userId' });
 User.hasMany(Purchase, { foreignKey: 'userId', onDelete: 'CASCADE' });
 Purchase.belongsTo(User, { foreignKey: 'userId' });
 
-User.hasMany(Subscription, { foreignKey: 'userId', onDelete: 'CASCADE' });
-Subscription.belongsTo(User, { foreignKey: 'userId' });
-CreditPlan.hasMany(Subscription, { foreignKey: 'planId', onDelete: 'RESTRICT' });
-Subscription.belongsTo(CreditPlan, { foreignKey: 'planId' });
 
 // Plans soft-delete via `active`, so historical purchases keep a resolvable
 // planId — this join powers the admin order list's "Plan" column.
@@ -62,5 +57,5 @@ Purchase.belongsTo(CreditPlan, { foreignKey: 'planId' });
 export {
   User, AuthAccount, Kundali, DailyData, ChatMessage, PalmReading,
   PushToken, Location, Admin, Setting, CreditTransaction, CreditPlan,
-  Purchase, NotificationTemplate, ChartMemory, Subscription,
+  Purchase, NotificationTemplate, ChartMemory,
 };

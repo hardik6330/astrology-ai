@@ -16,14 +16,6 @@ const CreditPlan = sequelize.define('CreditPlan', {
   productId: { type: DataTypes.STRING(100), allowNull: true },     // IAP SKU (e.g. com.astro.100)
   credits:   { type: DataTypes.INTEGER, allowNull: false },        // granted on purchase
   priceInr:  { type: DataTypes.INTEGER, allowNull: false },        // price in paise (₹1 = 100)
-  // Auto-renewing subscription rather than a one-off pack. `credits` is then
-  // the allowance granted EACH cycle, and productId must be a store
-  // subscription SKU (not a consumable) or the store verify will reject it.
-  isSubscription: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-  // Cycle length, informational only — the store is authoritative on when the
-  // period actually ends. Used for display ("per month") and as the fallback
-  // period when a verifier can't tell us an expiry.
-  periodDays: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 30 },
   // Optional marketing badge, e.g. "Most Popular" / "Best Value".
   bonusLabel: { type: DataTypes.STRING(60), allowNull: true },
   // Soft-disable instead of deleting, so historical Purchases keep a valid ref.

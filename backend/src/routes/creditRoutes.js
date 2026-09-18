@@ -13,7 +13,6 @@ router.get('/credits', readLimiter, credit.getCredits);
 router.get('/credits/plans', readLimiter, credit.getPlans);
 
 // Purchases settle through RevenueCat → /credits/rc-webhook (revenueCatRoutes);
-// the client only reads plans + subscription state here.
-router.get('/credits/subscription', credit.getSubscription);
+// the client only reads plans here.
 
 export default router;

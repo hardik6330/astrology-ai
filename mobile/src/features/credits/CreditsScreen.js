@@ -20,7 +20,7 @@ import { useStyles } from "@/theme/useStyles";
 import { radius, spacing, fontSize } from "@/theme/tokens";
 import { useCredits } from "@/hooks/useCredits";
 import { useBackToKundali } from "@/utils/useBackToKundali";
-import { fetchCreditPlans, getCredits, getSubscriptionStatus } from "@/services/api";
+import { fetchCreditPlans, getCredits } from "@/services/api";
 import { logEvent } from "@/features/notifications/analytics";
 
 const PLAN_FEATURES = [
@@ -36,9 +36,6 @@ const formatInr = (paise) => {
   return `₹${Number.isInteger(rupees) ? rupees : rupees.toFixed(2)}`;
 };
 
-// Subscriptions show a period so "₹149" doesn't read as a one-off.
-const periodLabel = (days) => (days === 30 ? "/mo" : days === 365 ? "/yr" : `/${days}d`);
-
 export default function CreditsScreen({ navigation, route }) {
   const c = useColors();
   const s = useStyles(makeStyles);
@@ -51,9 +48,6 @@ export default function CreditsScreen({ navigation, route }) {
   // returns to the Reading/Kundali home base, not the previous drawer screen.
   useBackToKundali(navigation);
   const [plans, setPlans] = useState([]);
-  // The user's current subscription, or null. Drives the "active" banner and
-  // stops us offering a plan they're already on.
-  const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null); // plan in the checkout modal
   const [error, setError] = useState("");
@@ -79,7 +73,6 @@ export default function CreditsScreen({ navigation, route }) {
         if (iapAvailable() && ids.length) {
           try { setProducts(await getProducts(ids)); } catch (err) { console.warn("RC getProducts failed", err); }
         }
-        getSubscriptionStatus().then(setSubscription);
       })
       .catch(() => setError("Couldn't load plans. Please try again."))
       .finally(() => setLoading(false));
@@ -91,10 +84,9 @@ export default function CreditsScreen({ navigation, route }) {
     logEvent("purchase_completed", {
       credits: plan.credits,
       price_inr: plan.priceInr / 100,
-      method: plan.isSubscription ? "subscription" : "iap",
+      method: "iap",
     });
     [0, 1500, 4000].forEach((ms) => setTimeout(getCredits, ms));
-    if (plan.isSubscription) setTimeout(() => getSubscriptionStatus().then(setSubscription), 1500);
     finishAndReturn();
   }, [finishAndReturn]);
 
@@ -123,20 +115,6 @@ export default function CreditsScreen({ navigation, route }) {
         </View>
       </CosmicCard>
 
-      {subscription?.active ? (
-        <CosmicCard style={s.balanceCard}>
-          <View style={s.balanceIndicator} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.balanceLabel}>SUBSCRIBED</Text>
-            <Text style={s.balanceValue}>{subscription.plan?.name || "Active plan"}</Text>
-            <Text style={s.headerSub}>
-              {subscription.autoRenew ? "Renews" : "Ends"}{" "}
-              {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
-            </Text>
-          </View>
-        </CosmicCard>
-      ) : null}
-
       {error ? <Text style={s.error}>{error}</Text> : null}
 
       {loading ? (
@@ -155,12 +133,6 @@ export default function CreditsScreen({ navigation, route }) {
                 key={p.id}
                 onPress={() => {
                   setError("");
-                  // Already subscribed to this one — the store, not us, owns
-                  // changing or cancelling it.
-                  if (subscription?.active && subscription.planId === p.id) {
-                    setError("You're already subscribed. Manage it in your store account.");
-                    return;
-                  }
                   setSelected(p);
                 }}
                 style={({ pressed }) => [
@@ -191,13 +163,13 @@ export default function CreditsScreen({ navigation, route }) {
                   <View style={s.planInfo}>
                     <Text style={s.planName}>{p.name}</Text>
                     <Text style={s.planCredits}>
-                      {EMOJIS.SPARKLES} {p.credits} Credits{p.isSubscription ? " every month" : ""}
+                      {EMOJIS.SPARKLES} {p.credits} Credits
                     </Text>
                   </View>
 
                   <View style={s.planPriceContainer}>
                     <Text style={[s.planPrice, { color: isPopular ? c.primaryLight : c.text }]}>
-                      {formatInr(p.priceInr)}{p.isSubscription ? periodLabel(p.periodDays) : ""}
+                      {formatInr(p.priceInr)}
                     </Text>
                     <View style={[s.buyArrow, isPopular && { backgroundColor: c.primarySoft }]}>
                       <Ionicons name="chevron-forward" size={18} color={isPopular ? c.primaryLight : c.textMuted} />
@@ -296,7 +268,7 @@ function CheckoutModal({ plan, product, onClose, onPaid, onError }) {
               </View>
               <View style={s.trustRow}>
                 <Ionicons name="infinite" size={13} color={c.primaryLight} />
-                <Text style={s.trustText}>{plan?.isSubscription ? "Renews monthly · cancel anytime in Settings" : "Credits never expire · No subscription"}</Text>
+                <Text style={s.trustText}>Credits never expire · No subscription</Text>
               </View>
               <Text style={s.modalNote}>
                 {purchasable
